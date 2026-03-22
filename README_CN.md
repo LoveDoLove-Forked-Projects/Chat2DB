@@ -2,6 +2,15 @@
     <a href="https://trendshift.io/repositories/11808" target="_blank"><img src="https://trendshift.io/api/badge/repositories/11808" alt="CodePhiliaX%2FChat2DB | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/>
 </div>
 <br/>
+
+<div align="center">
+  <h3>Chat2DB 团队新开源项目：<a href="https://github.com/CodePhiliaX/youClaw">youClaw</a></h3>
+  <p>如果 Chat2DB 对你有帮助，也欢迎顺手给 <strong>youClaw</strong> 点个 Star。对一个新开源项目来说，早期 Star 不只是鼓励，也能带来更多曝光、反馈和贡献者。</p>
+  <a href="https://github.com/CodePhiliaX/youClaw">
+    <img alt="Star youClaw on GitHub" src="https://img.shields.io/badge/Star-youClaw-181717?style=for-the-badge&logo=github" />
+  </a>
+</div>
+<br/>
         
 <div align="center">
   
@@ -340,6 +349,5 @@ $ cp -r dist/index.html ../chat2db-server/chat2db-server-start/src/main/resource
 
 ## License
 The primary license used by this software is the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0), supplemented by the [Chat2DB License](./Chat2DB_LICENSE).
-
 
 

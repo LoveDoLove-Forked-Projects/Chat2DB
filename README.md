@@ -17,6 +17,14 @@
 </div>
 
 <div align="center">
+  <h3>New Open-Source Project from the Chat2DB Team: <a href="https://github.com/CodePhiliaX/youClaw">youClaw</a></h3>
+  <p>If Chat2DB has been useful to you, we'd appreciate a quick star on <strong>youClaw</strong>. Early stars help new open-source projects get discovered, attract contributors, and keep us building in public.</p>
+  <a href="https://github.com/CodePhiliaX/youClaw">
+    <img alt="Star youClaw on GitHub" src="https://img.shields.io/badge/Star-youClaw-181717?style=for-the-badge&logo=github" />
+  </a>
+</div>
+
+<div align="center">
   
 [![ReadmeX][readmex-image]][readmex-url]
 [![Discord][discord-image]][discord-url]
@@ -332,4 +340,3 @@ Thanks to everyone who has contributed to Chat2DB~~
 
 ## License
 The primary license used by this software is the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0), supplemented by the [Chat2DB License](./Chat2DB_LICENSE).
-
