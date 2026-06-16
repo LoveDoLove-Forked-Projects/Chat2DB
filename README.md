@@ -2,7 +2,9 @@
   <h1>Chat2DB</h1>
   <p><strong><p><strong>An AI-powered database client and SQL workspace for developers, DBAs, analysts, and data teams.</strong></p></strong></p>
 </div>
+<div align="center">
 <a href="https://trendshift.io/repositories/11808" target="_blank"><img src="https://trendshift.io/api/badge/repositories/11808" alt="OtterMind%2FChat2DB | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
+</div>
 
 <div align="center">
 
