@@ -1,3 +1,8 @@
+> 📣 **Exciting News from the Chat2DB Team!** > 
+> We just open-sourced **[Nubase](https://github.com/ottermind/nubase)** — our brand new deployment layer for Artificial Intelligence-native applications! 
+> If Chat2DB helps you manage data effortlessly, Nubase will help you deploy your AI coding tools and agents with zero friction. 
+> 
+> Show some love and **[give Nubase a ⭐️ on GitHub](https://github.com/ottermind/nubase)** to support our open-source journey!
 <div align="center">
   <h1>Chat2DB</h1>
   <p><strong><p><strong>An AI-powered database client and SQL workspace for developers, DBAs, analysts, and data teams.</strong></p></strong></p>
