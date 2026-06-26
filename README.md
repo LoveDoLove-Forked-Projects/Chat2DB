@@ -300,12 +300,12 @@ Thanks to everyone who has contributed to Chat2DB~~
 
 ## Star History
 
-<a href="https://star-history.com/#CodePhiliaX/chat2db&Date">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=CodePhiliaX/chat2db&type=Date&theme=dark" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=CodePhiliaX/chat2db&type=Date" />
-    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=CodePhiliaX/chat2db&type=Date" />
-  </picture>
+<a href="https://www.star-history.com/?repos=OtterMind%2FChat2DB&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=OtterMind/Chat2DB&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=OtterMind/Chat2DB&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=OtterMind/Chat2DB&type=date&legend=top-left" />
+ </picture>
 </a>
 
 ## License
