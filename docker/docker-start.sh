@@ -1,1 +1,0 @@
-docker run --name=chat2db -p 10824:10824 -v ~/.chat2db-docker:/root/.chat2db  chat2db/chat2db:latest
