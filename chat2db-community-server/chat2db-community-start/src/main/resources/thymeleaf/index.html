@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="ie=edge">
+<link rel="shortcut icon" href="./logo.ico">
+<title>Chat2DB Community</title>
+<link rel="icon" type="image/ico" sizes="32x32" href="./logo.ico">
+<script th:inline="none">
+      var chat2dbStorageVersionKey = "app-local-storage-versions-community";
+      var chat2dbStorageKeys = ["Chat2DB_Community_Global_Store","Chat2DB_Community_User_Store","Chat2DB_Community_Org_Store","Chat2DB_Community_Workspace_Store","Chat2DB_Community_AI_Store","Chat2DB_Community_Tree_Store"];
+      if (localStorage.getItem(chat2dbStorageVersionKey) !== 'v6') {
+        chat2dbStorageKeys.forEach(function (key) {
+          localStorage.removeItem(key);
+        });
+        localStorage.setItem(chat2dbStorageVersionKey, 'v6');
+      }
+    </script>
+<script src="./preload_helper.js" th:inline="none"></script>
+</head>
+<body>
+<div id="root"></div>
+<script src="./umi.js" th:inline="none"></script>
+</body>
+</html>

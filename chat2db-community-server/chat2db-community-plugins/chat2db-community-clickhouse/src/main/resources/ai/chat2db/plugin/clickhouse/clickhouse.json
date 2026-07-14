@@ -1,0 +1,41 @@
+{
+  "dbType": "CLICKHOUSE",
+  "supportDatabase": false,
+  "supportSchema":true,
+  "driverConfigList": [
+    {
+      "url": "jdbc:clickhouse://localhost:8123/",
+      "defaultDriver": true,
+      "custom": false,
+      "downloadJdbcDriverUrls": [
+        "https://cdn.chat2db-ai.com/lib/clickhouse-jdbc-0.3.2-patch8-http.jar"
+      ],
+      "jdbcDriver": "clickhouse-jdbc-0.3.2-patch8-http.jar",
+      "jdbcDriverClass": "com.clickhouse.jdbc.ClickHouseDriver"
+    },
+    {
+      "url": "jdbc:clickhouse://localhost:8123/",
+      "defaultDriver": true,
+      "custom": false,
+      "downloadJdbcDriverUrls": [
+        "https://cdn.chat2db-ai.com/lib/slf4j-api-2.0.7.jar",
+        "https://cdn.chat2db-ai.com/lib/clickhouse-jdbc-0.6.0-patch5-all.jar"
+      ],
+      "jdbcDriver": "clickhouse-jdbc-0.6.0-patch5-all.jar,slf4j-api-2.0.7.jar",
+      "jdbcDriverClass": "com.clickhouse.jdbc.ClickHouseDriver"
+    },
+    {
+      "url": "jdbc:clickhouse://localhost:8123/",
+      "defaultDriver": true,
+      "custom": false,
+      "downloadJdbcDriverUrls": [
+        "https://cdn.chat2db-ai.com/lib/slf4j-api-2.0.7.jar",
+        "https://cdn.chat2db-ai.com/lib/clickhouse-jdbc-0.6.3-all.jar"
+      ],
+      "jdbcDriver": "clickhouse-jdbc-0.6.3-all.jar,slf4j-api-2.0.7.jar",
+      "jdbcDriverClass": "com.clickhouse.jdbc.ClickHouseDriver",
+      "extendInfo": [{"key":"ahc_retry_on_failure","required":false,"value":"false"},{"key":"ahc_validate_after_inactivity","required":false,"value":"5000"},{"key":"async","required":false,"value":"false"},{"key":"auto_discovery","required":false,"value":"false"},{"key":"autoCommit","required":false,"value":"true"},{"key":"buffer_queue_variation","required":false,"value":"100"},{"key":"buffer_size","required":false,"value":"8192"},{"key":"check_all_nodes","required":false,"value":"false"},{"key":"cli_config_file","required":false,"value":"~/.clickhouse-client/config.xml"},{"key":"cli_container_id","required":false,"value":"clickhouse-cli-client"},{"key":"clickhouse_docker_image","required":false,"value":"clickhouse/clickhouse-server"},{"key":"client_name","required":false,"value":"ClickHouse Java Client"},{"key":"compress","required":false,"value":"true"},{"key":"compress_algorithm","required":false,"value":"LZ4"},{"key":"compress_level","required":false,"value":"-1"},{"key":"connect_timeout","required":false,"value":"5000"},{"key":"continueBatchOnError","required":false,"value":"false"},{"key":"createDatabaseIfNotExist","required":false,"value":"false"},{"key":"databaseTerm","required":false,"value":"schema"},{"key":"decompress","required":false,"value":"false"},{"key":"decompress_algorithm","required":false,"value":"LZ4"},{"key":"decompress_level","required":false,"value":"-1"},{"key":"externalDatabase","required":false,"value":"true"},{"key":"failover","required":false,"value":"0"},{"key":"fetchSize","required":false,"value":"0"},{"key":"flow_control_window","required":false,"value":"0"},{"key":"format","required":false,"value":"RowBinaryWithNamesAndTypes"},{"key":"health_check_interval","required":false,"value":"0"},{"key":"health_check_method","required":false,"value":"SELECT_ONE"},{"key":"http_connection_provider","required":false,"value":"APACHE_HTTP_CLIENT"},{"key":"http_keep_alive","required":false,"value":"true"},{"key":"http_server_default_response","required":false,"value":"Ok."},{"key":"jdbcCompliant","required":false,"value":"true"},{"key":"localFile","required":false,"value":"false"},{"key":"log_leading_comment","required":false,"value":"false"},{"key":"max_buffer_size","required":false,"value":"1048576"},{"key":"max_execution_time","required":false,"value":"0"},{"key":"max_inbound_message_size","required":false,"value":"8388608"},{"key":"max_inbound_metadata_size","required":false,"value":"8192"},{"key":"max_mapper_cache","required":false,"value":"100"},{"key":"max_open_connections","required":false,"value":"10"},{"key":"max_queued_buffers","required":false,"value":"512"},{"key":"max_queued_requests","required":false,"value":"0"},{"key":"max_result_rows","required":false,"value":"0"},{"key":"max_threads_per_client","required":false,"value":"0"},{"key":"namedParameter","required":false,"value":"false"},{"key":"node_check_interval","required":false,"value":"0"},{"key":"node_discovery_interval","required":false,"value":"0"},{"key":"node_discovery_limit","required":false,"value":"100"},{"key":"node_group_size","required":false,"value":"50"},{"key":"nullAsDefault","required":false,"value":"0"},{"key":"product_name","required":false,"value":"ClickHouse-JdbcDriver"},{"key":"proxy_port","required":false,"value":"-1"},{"key":"proxy_type","required":false,"value":"IGNORE"},{"key":"read_buffer_size","required":false,"value":"0"},{"key":"receive_query_progress","required":false,"value":"true"},{"key":"remember_last_set_roles","required":false,"value":"false"},{"key":"rename_response_column","required":false,"value":"NONE"},{"key":"repeat_on_session_lock","required":false,"value":"true"},{"key":"request_buffering","required":false,"value":"RESOURCE_EFFICIENT"},{"key":"request_chunk_size","required":false,"value":"0"},{"key":"response_buffering","required":false,"value":"RESOURCE_EFFICIENT"},{"key":"retry","required":false,"value":"0"},{"key":"reuse_value_wrapper","required":false,"value":"true"},{"key":"server_revision","required":false,"value":"54442"},{"key":"session_check","required":false,"value":"false"},{"key":"session_timeout","required":false,"value":"0"},{"key":"socket_ip_tos","required":false,"value":"0"},{"key":"socket_keepalive","required":false,"value":"false"},{"key":"socket_linger","required":false,"value":"-1"},{"key":"socket_rcvbuf","required":false,"value":"0"},{"key":"socket_reuseaddr","required":false,"value":"false"},{"key":"socket_sndbuf","required":false,"value":"0"},{"key":"socket_tcp_nodelay","required":false,"value":"false"},{"key":"socket_timeout","required":false,"value":"30000"},{"key":"ssl","required":false,"value":"false"},{"key":"sslmode","required":false,"value":"STRICT"},{"key":"transaction_timeout","required":false,"value":"0"},{"key":"transactionSupport","required":false,"value":"false"},{"key":"use_binary_string","required":false,"value":"false"},{"key":"use_blocking_queue","required":false,"value":"false"},{"key":"use_cli_config","required":false,"value":"false"},{"key":"use_compilation","required":false,"value":"false"},{"key":"use_full_stream_decompression","required":false,"value":"false"},{"key":"use_objects_in_arrays","required":false,"value":"false"},{"key":"use_okhttp","required":false,"value":"false"},{"key":"use_profile_events","required":false,"value":"false"},{"key":"use_server_time_zone","required":false,"value":"true"},{"key":"use_server_time_zone_for_dates","required":false,"value":"false"},{"key":"widen_unsigned_types","required":false,"value":"false"},{"key":"wrapperObject","required":false,"value":"false"},{"key":"write_buffer_size","required":false,"value":"0"}]
+    }
+  ],
+  "name": "ClickHouse"
+}

@@ -1,0 +1,18 @@
+{
+  "dbType": "REDSHIFT",
+  "supportDatabase": true,
+  "supportSchema": true,
+  "driverConfigList": [
+    {
+      "url": "jdbc:redshift://server.redshift.amazonaws.com:5439",
+      "custom": false,
+      "defaultDriver": true,
+      "downloadJdbcDriverUrls": [
+        "https://cdn.chat2db-ai.com/lib/redshift-jdbc42-2.1.0.28.zip"
+      ],
+      "jdbcDriver": "redshift-jdbc42-2.1.0.28.zip",
+      "jdbcDriverClass": "com.amazon.redshift.jdbc42.Driver"
+    }
+  ],
+  "name": "Redshift"
+}

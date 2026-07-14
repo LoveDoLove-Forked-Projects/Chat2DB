@@ -1,0 +1,18 @@
+{
+  "dbType": "BIGQUERY",
+  "supportDatabase": true,
+  "supportSchema": true,
+  "driverConfigList": [
+    {
+      "url": "jdbc:bigquery://https://www.googleapis.com/bigquery/v2:443",
+      "defaultDriver": true,
+      "custom": false,
+      "downloadJdbcDriverUrls": [
+        "https://cdn.chat2db-ai.com/lib/SimbaJDBCDriverforGoogleBigQuery42_1.6.1.1002.zip"
+      ],
+      "jdbcDriver": "SimbaJDBCDriverforGoogleBigQuery42_1.6.1.1002.zip",
+      "jdbcDriverClass": "com.simba.googlebigquery.jdbc42.Driver"
+    }
+  ],
+  "name": "BIGQUERY"
+}

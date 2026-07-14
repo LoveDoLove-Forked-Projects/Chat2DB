@@ -1,0 +1,222 @@
+[
+  {
+    "dbType": "DUCKDB",
+    "supportDatabase": true,
+    "supportSchema": true,
+    "driverConfigList": [
+      {
+        "url": "jdbc:duckdb:identifier.db",
+        "defaultDriver": true,
+        "custom": false,
+        "downloadJdbcDriverUrls": [
+          "https://cdn.chat2db-ai.com/lib/duckdb_jdbc-1.1.3.jar"
+        ],
+        "jdbcDriver": "duckdb_jdbc-1.1.3.jar",
+        "jdbcDriverClass": "org.duckdb.DuckDBDriver"
+      }
+    ],
+    "sqlMap": {
+      "SQL_TABLE_DDL": "select sql from duckdb_tables() where database_name = '{database}' and schema_name = '{schema}' and table_name = '{table}'",
+      "SQL_TABLE_DDL_RESULT": "sql",
+      "SQL_VIEW_DDL": "select sql from duckdb_views() where database_name = '{database}' and schema_name = '{schema}' and view_name = '{table}'",
+      "SQL_VIEW_DDL_RESULT": "sql"
+    },
+    "columnTypes": [
+      {
+        "typeName": "BIGINT",
+        "supportNullable": true,
+        "supportComments": true
+      },
+      {
+        "typeName": "BIT",
+        "supportNullable": true,
+        "supportComments": true
+      },
+      {
+        "typeName": "BLOB",
+        "supportNullable": true,
+        "supportComments": true
+      },
+      {
+        "typeName": "BOOLEAN",
+        "supportNullable": true,
+        "supportComments": true
+      },
+      {
+        "typeName": "DATE",
+        "supportNullable": true,
+        "supportComments": true
+      },
+      {
+        "typeName": "DECIMAL",
+        "supportNullable": true,
+        "supportComments": true
+      },
+      {
+        "typeName": "DOUBLE",
+        "supportNullable": true,
+        "supportComments": true
+      },
+      {
+        "typeName": "FLOAT",
+        "supportNullable": true,
+        "supportComments": true
+      },
+      {
+        "typeName": "HUGEINT",
+        "supportNullable": true,
+        "supportComments": true
+      },
+      {
+        "typeName": "INTEGER",
+        "supportNullable": true,
+        "supportComments": true
+      },
+      {
+        "typeName": "INTERVAL",
+        "supportNullable": true,
+        "supportComments": true
+      },
+      {
+        "typeName": "JSON",
+        "supportNullable": true,
+        "supportComments": true
+      },
+      {
+        "typeName": "SMALLINT",
+        "supportNullable": true,
+        "supportComments": true
+      },
+      {
+        "typeName": "TIME",
+        "supportNullable": true,
+        "supportComments": true
+      },
+      {
+        "typeName": "TIMESTAMP WITH TIME ZONE",
+        "supportNullable": true,
+        "supportComments": true
+      },
+      {
+        "typeName": "TIMESTAMP",
+        "supportNullable": true,
+        "supportComments": true
+      },
+      {
+        "typeName": "TINYINT",
+        "supportNullable": true,
+        "supportComments": true
+      },
+      {
+        "typeName": "UBIGINT",
+        "supportNullable": true,
+        "supportComments": true
+      },
+      {
+        "typeName": "UHUGEINT",
+        "supportNullable": true,
+        "supportComments": true
+      },
+      {
+        "typeName": "UINTEGER",
+        "supportNullable": true,
+        "supportComments": true
+      },
+      {
+        "typeName": "USMALLINT",
+        "supportNullable": true,
+        "supportComments": true
+      },
+      {
+        "typeName": "UTINYINT",
+        "supportNullable": true,
+        "supportComments": true
+      },
+      {
+        "typeName": "UUID",
+        "supportNullable": true,
+        "supportComments": true
+      },
+      {
+        "typeName": "VARCHAR",
+        "supportNullable": true,
+        "supportComments": true
+      },
+      {
+        "typeName": "ARRAY",
+        "supportNullable": true,
+        "supportComments": true
+      },
+      {
+        "typeName": "LIST",
+        "supportNullable": true,
+        "supportComments": true
+      },
+      {
+        "typeName": "MAP",
+        "supportNullable": true,
+        "supportComments": true
+      },
+      {
+        "typeName": "STRUCT",
+        "supportNullable": true,
+        "supportComments": true
+      },
+      {
+        "typeName": "UNION",
+        "supportNullable": true,
+        "supportComments": true
+      }
+    ],
+    "indexTypes": [
+      {
+        "typeName": "Normal"
+      },
+      {
+        "typeName": "Unique"
+      }
+    ],
+    "name": "DuckDB"
+  },
+  {
+    "dbType": "ELASTICSEARCH",
+    "supportDatabase": true,
+    "supportSchema": false,
+    "driverConfigList": [
+      {
+        "url": "jdbc:es://http://localhost:9200/",
+        "defaultDriver": true,
+        "custom": false,
+        "downloadJdbcDriverUrls": [
+          "https://cdn.chat2db-ai.com/lib/x-pack-sql-jdbc-7.7.0.jar"
+        ],
+        "jdbcDriver": "x-pack-sql-jdbc-7.7.0.jar",
+        "jdbcDriverClass": "org.elasticsearch.xpack.sql.jdbc.EsDriver"
+      }
+    ],
+    "name": "Elasticsearch"
+  },
+  {
+    "dbType": "TDENGINE",
+    "supportDatabase": true,
+    "supportSchema": false,
+    "driverConfigList": [
+      {
+        "url": "jdbc:TAOS-RS://localhost:6041/",
+        "defaultDriver": true,
+        "custom": false,
+        "downloadJdbcDriverUrls": [
+          "https://cdn.chat2db-ai.com/lib/tdengine.zip"
+        ],
+        "jdbcDriver": "tdengine.zip",
+        "jdbcDriverClass": "com.taosdata.jdbc.rs.RestfulDriver"
+      }
+    ],
+    "sqlMap": {
+      "SQL_TABLE_DDL": "SHOW CREATE TABLE {database}.{table}",
+      "SQL_TABLE_DDL_RESULT": "Create Table",
+      "SQL_CHANGE_DATABASE": "USE {database}"
+    },
+    "name": "TDengine"
+  }
+]

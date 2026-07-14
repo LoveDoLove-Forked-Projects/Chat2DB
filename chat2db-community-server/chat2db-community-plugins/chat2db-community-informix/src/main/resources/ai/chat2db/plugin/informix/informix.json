@@ -1,0 +1,21 @@
+{
+  "dbType": "INFORMIX",
+  "supportDatabase": true,
+  "supportSchema": true,
+  "driverConfigList": [
+    {
+      "url": "jdbc:informix-sqli://localhost:1533/",
+      "custom": false,
+      "defaultDriver": true,
+      "downloadJdbcDriverUrls": [
+        "https://cdn.chat2db-ai.com/lib/jdbc-4.50.10.jar",
+        "https://cdn.chat2db-ai.com/lib/bson-3.8.0.jar"
+      ],
+      "jdbcDriver": "jdbc-4.50.10.jar,bson-3.8.0.jar",
+      "jdbcDriverClass": "com.informix.jdbc.IfxDriver"
+    }
+  ],
+  "systemDatabases": ["sysadmin", "sysmaster","sysuser","sysutils"],
+  "systemSchemas": ["informix"],
+  "name": "Informix"
+}

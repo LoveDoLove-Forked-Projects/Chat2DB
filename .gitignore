@@ -12,20 +12,71 @@
 *.iml
 *.ipr
 .out
+.codegraph
+.codex*
 
 ### Visual Studio Code ###
 package-lock.json
+.vscode
 
 ### Mac
 .DS_Store
-/chat2db-server/ali-dbhub-server-start/src/main/resources/static/front/*
-/chat2db-server/ali-dbhub-server-start/src/main/resources/thymeleaf
+/chat2db-community-server/chat2db-community-start/src/main/resources/static/front/*
 
-### docker 数据不用上传
+### Docker data is not committed.
 /docker/redis/data/*
 /docker/test/reds/*
 /docker/test/mongodb/*
-/chat2db-server/ali-dbhub-server-domain/ali-dbhub-server-domain-support/src/main/resources/lib/*
-/chat2db-server/ali-dbhub-server-domain/ali-dbhub-server-domain-support/lib/*
 /lib
 /out/*
+
+### Local frontend and packaging tools
+/chat2db-community-client/static/jre/*
+/chat2db-community-client/ossutil_output/*
+/chat2db-community-client/.ossutil_*
+/chat2db-community-client/ossutil
+/chat2db-community-client/yarn-error.log
+/chat2db-community-client/npm-debug.log*
+/ossutil
+
+### Local runtime data
+/*.log
+/*.pid
+/.encryption.key.lock
+/encryption.key
+/logs/
+/.ossutil_checkpoint
+/ossutil_output
+/jcef-bundle
+/identifier.db
+/identifier.sqlite
+/script/ossutil
+/chat2db-community-server/identifier.db
+/chat2db-community-server/identifier.sqlite
+/chat2db-community-server/*.mv.db
+/chat2db-community-server/*.trace.db
+/chat2db-community-server/logs/
+/jpackage/input/linux/chat2db-community.jar
+/jpackage/input/linux/chat2db-enterprise.jar
+/jpackage/input/linux/dist/
+/jpackage/input/linux/lib/
+/jpackage/input/linux/local_version.json
+/jpackage/input/mac/chat2db-community.jar
+/jpackage/input/mac/*.jar
+/jpackage/input/mac/dist/
+/jpackage/input/mac/lib/
+/jpackage/input/mac/local_version.json
+/jpackage/input/sourceFile/
+/jpackage/input/win/chat2db-community.jar
+/jpackage/input/win/chat2db-enterprise.jar
+/jpackage/input/win/dist/
+/jpackage/input/win/lib/
+/jpackage/input/win/local_version.json
+/jpackage/input/runtime/
+/jpackage/input/mac/Frameworks/
+/jpackage/output/
+/chat2db-community-server/chat2db-community-web/chat2db-community-web-api/tmp_updater_downloads/
+/chat2db-community-server/chat2db-community-web/chat2db-community-web-api/chat2db-community.jar
+/chat2db-community-server/.apifox-helper.properties
+/chat2db-community-server/.easy.api.config
+/chat2db-community-server/latest_version.json

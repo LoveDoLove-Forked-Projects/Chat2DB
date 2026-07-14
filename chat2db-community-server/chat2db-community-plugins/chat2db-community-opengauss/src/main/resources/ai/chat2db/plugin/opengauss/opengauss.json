@@ -1,0 +1,18 @@
+{
+  "dbType": "OPENGAUSS",
+  "supportDatabase": true,
+  "supportSchema": true,
+  "driverConfigList": [
+    {
+      "url": "jdbc:opengauss://localhost:5432/postgres",
+      "custom": false,
+      "defaultDriver": true,
+      "downloadJdbcDriverUrls": [
+        "https://cdn.chat2db-ai.com/lib/opengauss-jdbc-6.0.0-RC1.jar"
+      ],
+      "jdbcDriver": "opengauss-jdbc-6.0.0-RC1.jar",
+      "jdbcDriverClass": "org.opengauss.Driver"
+    }
+  ],
+  "name": "openGauss"
+}

@@ -1,0 +1,87 @@
+package ai.chat2db.community.domain.api.service.db;
+
+import ai.chat2db.community.domain.api.model.metadata.Database;
+import ai.chat2db.community.domain.api.model.metadata.MetaSchema;
+import ai.chat2db.community.domain.api.model.metadata.Schema;
+import ai.chat2db.community.domain.api.model.sql.Sql;
+import ai.chat2db.community.domain.api.model.request.datasource.DbDatabaseCreateRequest;
+import ai.chat2db.community.domain.api.model.request.datasource.DbDatabaseQueryAllRequest;
+import ai.chat2db.community.domain.api.model.request.db.DbMetaDataQueryRequest;
+import ai.chat2db.community.domain.api.model.request.db.DbSchemaOperationRequest;
+import ai.chat2db.community.domain.api.model.request.db.DbSchemaQueryRequest;
+
+import java.util.List;
+
+/**
+ * Exposes database and schema metadata lookup plus database/schema DDL operations.
+ */
+public interface IDbDatabaseService {
+
+    /**
+     * Lists all databases visible to a datasource.
+     *
+     * @param dbDatabaseQueryAllRequest database lookup parameters.
+     * @return database metadata.
+     */
+    List<Database> queryAll(DbDatabaseQueryAllRequest dbDatabaseQueryAllRequest);
+
+    /**
+     * Lists schemas under a database.
+     *
+     * @param dbSchemaQueryRequest schema lookup parameters.
+     * @return schema metadata.
+     */
+    List<Schema> querySchema(DbSchemaQueryRequest dbSchemaQueryRequest);
+
+    /**
+     * Queries combined database and schema metadata for a datasource.
+     *
+     * @param dbMetaDataQueryRequest database and schema metadata lookup parameters.
+     * @return combined database and schema metadata.
+     */
+    MetaSchema queryDatabaseSchema(DbMetaDataQueryRequest dbMetaDataQueryRequest);
+
+    /**
+     * Deletes a database according to the supplied operation parameters.
+     *
+     * @param dbDatabaseCreateRequest database operation parameters.
+     */
+    void deleteDatabase(DbDatabaseCreateRequest dbDatabaseCreateRequest);
+
+    /**
+     * Builds or executes SQL for creating a database.
+     *
+     * @param param database definition.
+     * @return SQL.
+     */
+    Sql createDatabase(Database param);
+
+    /**
+     * Modifies database metadata according to the supplied operation parameters.
+     *
+     * @param dbDatabaseCreateRequest database operation parameters.
+     */
+    void modifyDatabase(DbDatabaseCreateRequest dbDatabaseCreateRequest);
+
+    /**
+     * Deletes a schema according to the supplied operation parameters.
+     *
+     * @param dbSchemaOperationRequest schema operation parameters.
+     */
+    void deleteSchema(DbSchemaOperationRequest dbSchemaOperationRequest);
+
+    /**
+     * Builds or executes SQL for creating a schema.
+     *
+     * @param schema schema definition.
+     * @return SQL.
+     */
+    Sql createSchema(Schema schema);
+
+    /**
+     * Modifies schema metadata according to the supplied operation parameters.
+     *
+     * @param dbSchemaOperationRequest schema operation parameters.
+     */
+    void modifySchema(DbSchemaOperationRequest dbSchemaOperationRequest);
+}

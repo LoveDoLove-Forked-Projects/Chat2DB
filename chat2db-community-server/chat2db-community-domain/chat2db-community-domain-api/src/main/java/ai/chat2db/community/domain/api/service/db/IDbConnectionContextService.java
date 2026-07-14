@@ -1,0 +1,147 @@
+package ai.chat2db.community.domain.api.service.db;
+
+import ai.chat2db.community.domain.api.config.DriverConfig;
+import ai.chat2db.community.domain.api.model.metadata.ForeignKeyInfo;
+import ai.chat2db.community.domain.api.model.metadata.Table;
+import ai.chat2db.community.domain.api.model.runtime.ConnectionProfile;
+import ai.chat2db.community.domain.api.model.request.runtime.DbConnectionContextRequest;
+import ai.chat2db.community.domain.api.model.request.runtime.McpConnectionContextRequest;
+import ai.chat2db.community.domain.api.model.request.runtime.DbObjectsQueryRequest;
+
+import java.util.List;
+
+/**
+ * Manages connection context binding and current connection profile lookup.
+ */
+public interface IDbConnectionContextService {
+
+    /**
+     * Binds a connection context for the current execution scope.
+     *
+     * @param dbConnectionContextRequest connection context parameters to bind.
+     */
+    void bind(DbConnectionContextRequest dbConnectionContextRequest);
+
+    /**
+     * Builds a connection profile without binding it to the current thread.
+     *
+     * @param dbConnectionContextRequest connection context parameters.
+     * @return resolved connection profile.
+     */
+    ConnectionProfile buildProfile(DbConnectionContextRequest dbConnectionContextRequest);
+
+    /**
+     * Binds a previously resolved connection profile to the current execution scope.
+     *
+     * @param profile connection profile.
+     */
+    void bindProfile(ConnectionProfile profile);
+
+    /**
+     * Binds an MCP connection context for the current execution scope.
+     *
+     * @param mcpConnectionContextRequest MCP connection context parameters to bind.
+     */
+    void bindMcp(McpConnectionContextRequest mcpConnectionContextRequest);
+
+    /**
+     * Clears the current connection context without closing external resources.
+     */
+    void clear();
+
+    /**
+     * Rebinds the current connection context to another database and clears cached connection state.
+     *
+     * @param databaseName target database name.
+     */
+    void rebindCurrentDatabase(String databaseName);
+
+    /**
+     * Closes the current connection context and releases runtime resources.
+     */
+    void close();
+
+    /**
+     * Returns the current connection profile bound to the execution scope.
+     *
+     * @return current connection profile.
+     */
+    ConnectionProfile currentProfile();
+
+    /**
+     * Returns a detached copy of the current connection profile.
+     *
+     * @return copied connection profile, or null if no profile is bound.
+     */
+    ConnectionProfile currentProfileSnapshot();
+
+    /**
+     * Returns the default JDBC driver configuration for a database type.
+     *
+     * @param dbType database type code used to select dialect-specific behavior.
+     * @return default driver configuration for the database type.
+     */
+    DriverConfig getDefaultDriverConfig(String dbType);
+
+    /**
+     * Checks whether the current dialect can address multiple databases in one connection.
+     *
+     * @return true when cross-database metadata access is supported; false otherwise.
+     */
+    boolean supportCrossDatabase();
+
+    /**
+     * Checks whether the current dialect can address multiple schemas in one connection.
+     *
+     * @return true when cross-schema metadata access is supported; false otherwise.
+     */
+    boolean supportCrossSchema();
+
+    /**
+     * Checks whether the current dialect exposes database-level metadata.
+     *
+     * @return true when database names are meaningful for the current dialect; false otherwise.
+     */
+    boolean supportDatabase();
+
+    /**
+     * Checks whether the current dialect exposes schema-level metadata.
+     *
+     * @return true when schema names are meaningful for the current dialect; false otherwise.
+     */
+    boolean supportSchema();
+
+    /**
+     * Lists system database names for a database type.
+     *
+     * @param dbType database type code used to select dialect-specific behavior.
+     * @return system database names, or an empty list when none are defined.
+     */
+    List<String> getSystemDatabases(String dbType);
+
+    /**
+     * Lists system schema names for a database type.
+     *
+     * @param dbType database type code used to select dialect-specific behavior.
+     * @return system schema names, or an empty list when none are defined.
+     */
+    List<String> getSystemSchemas(String dbType);
+
+    /**
+     * Lists foreign keys imported by a table.
+     *
+     * @param databaseName database name that scopes the lookup.
+     * @param schemaName schema name that scopes the lookup.
+     * @param tableName table name whose imported keys are queried.
+     * @return imported foreign-key metadata.
+     */
+    List<ForeignKeyInfo> getImportedKeys(String databaseName, String schemaName, String tableName);
+
+    /**
+     * Queries database objects visible in the supplied connection context.
+     *
+     * @param dbObjectsQueryRequest object lookup scope and filters.
+     * @return matched table metadata.
+     */
+    List<Table> queryObjects(DbObjectsQueryRequest dbObjectsQueryRequest);
+}

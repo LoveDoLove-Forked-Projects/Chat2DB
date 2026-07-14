@@ -1,0 +1,129 @@
+package ai.chat2db.plugin.clickhouse;
+
+import ai.chat2db.spi.IDbManager;
+import ai.chat2db.spi.DefaultDBManager;
+import ai.chat2db.community.domain.api.model.async.AsyncContext;
+import ai.chat2db.spi.model.datasource.ConnectInfo;
+import ai.chat2db.spi.DefaultSQLExecutor;
+import cn.hutool.core.date.DateUtil;
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.sql.*;
+import java.util.Objects;
+
+import static ai.chat2db.plugin.clickhouse.constant.ClickHouseDBManagerConstants.*;
+public class ClickHouseDBManager extends DefaultDBManager implements IDbManager {
+
+
+
+
+
+    private static final Logger log = LoggerFactory.getLogger(ClickHouseDBManager.class);
+
+    @Override
+    public void exportDatabase(Connection connection, String databaseName, String schemaName, AsyncContext asyncContext) throws SQLException {
+        asyncContext.info(DateUtil.formatDateTime(new java.util.Date())+":Exporting TablesOrViewsOrDictionaries");
+        exportTablesOrViewsOrDictionaries(connection, databaseName, schemaName, asyncContext);
+        asyncContext.info(DateUtil.formatDateTime(new java.util.Date())+":Exporting functions");
+        asyncContext.setProgress(80);
+        exportFunctions(connection, asyncContext);
+        asyncContext.setProgress(99);
+    }
+
+    private void exportFunctions(Connection connection, AsyncContext asyncContext) throws SQLException {
+        String sql = "SELECT name,create_query from system.functions where origin='SQLUserDefined'";
+        try (PreparedStatement preparedStatement = connection.prepareStatement(sql); ResultSet resultSet = preparedStatement.executeQuery()) {
+            while (resultSet.next()) {
+                StringBuilder sqlBuilder = new StringBuilder();
+                sqlBuilder.append(SQL_DROP_FUNCTION_EXISTS).append(resultSet.getString("name")).append(";")
+                        .append("\n")
+                        .append(resultSet.getString("create_query")).append(";").append("\n");
+                asyncContext.write(sqlBuilder.toString());
+            }
+        }
+    }
+
+    private void exportTablesOrViewsOrDictionaries(Connection connection, String databaseName, String schemaName, AsyncContext asyncContext) throws SQLException {
+        String sql = String.format(SQL_SELECT_CREATE_TABLE_QUERY_HAS, databaseName);
+        try (PreparedStatement statement = connection.prepareStatement(sql); ResultSet resultSet = statement.executeQuery()) {
+            while (resultSet.next()) {
+
+                String ddl = resultSet.getString("create_table_query");
+                boolean dataFlag = resultSet.getInt("has_own_data") == 1;
+                String tableType = resultSet.getString("engine");
+                String tableOrViewName = resultSet.getString("name");
+                if (Objects.equals("View", tableType)) {
+                    StringBuilder sqlBuilder = new StringBuilder();
+                    sqlBuilder.append(SQL_DROP_VIEW_EXISTS).append(databaseName).append(".").append(tableOrViewName)
+                            .append(";").append("\n").append(ddl).append(";").append("\n");
+                    asyncContext.write(sqlBuilder.toString());
+                } else if (Objects.equals("Dictionary", tableType)) {
+                    StringBuilder sqlBuilder = new StringBuilder();
+                    sqlBuilder.append(SQL_DROP_DICTIONARY_EXISTS).append(databaseName).append(".").append(tableOrViewName)
+                            .append(";").append("\n").append(ddl).append(";").append("\n");
+                    asyncContext.write(sqlBuilder.toString());
+                } else {
+                    StringBuilder sqlBuilder = new StringBuilder();
+                    sqlBuilder.append(SQL_DROP_TABLE_EXISTS).append(databaseName).append(".").append(tableOrViewName)
+                            .append(";").append("\n").append(ddl).append(";").append("\n");
+                    asyncContext.write(sqlBuilder.toString());
+                    if (asyncContext.isContainsData() && dataFlag) {
+                        exportTableData(connection, databaseName, schemaName, tableOrViewName, asyncContext);
+                    }
+                }
+            }
+        }
+    }
+
+
+    @Override
+    public Connection getConnection(ConnectInfo connectInfo) {
+        String url = setDatabaseInJdbcUrl(connectInfo);
+        connectInfo.setUrl(url);
+
+        return super.getConnection(connectInfo);
+    }
+
+    private String setDatabaseInJdbcUrl(ConnectInfo connectInfo) {
+        String schemaName = connectInfo.getSchemaName();
+        String url = connectInfo.getUrl();
+        if (StringUtils.isBlank(schemaName)) {
+            return url;
+        }
+        String connectAddress = connectInfo.getHost() + ":" + connectInfo.getPort();
+        String[] addressSplit = url.split(connectAddress);
+        if(addressSplit == null){
+            return url;
+        }
+        StringBuilder newUrl = new StringBuilder();
+        newUrl.append(addressSplit[0]).append(connectAddress).append("/").append(schemaName);
+        if (addressSplit.length == 2) {
+            if (StringUtils.isNotBlank(addressSplit[1])) {
+                String[] param = addressSplit[1].split("\\?");
+                if (param.length == 2) {
+                    newUrl.append("?").append(param[1]);
+                }
+            }
+        }
+        return newUrl.toString();
+    }
+
+    @Override
+    public String dropTable(Connection connection, String databaseName, String schemaName, String tableName) {
+        String sql = "DROP TABLE IF EXISTS " + ClickHouseMetaData.format(schemaName) + "." + ClickHouseMetaData.format(tableName);
+        return sql;
+    }
+
+
+    @Override
+    public void copyTable(Connection connection, String databaseName, String schemaName, String tableName, String newTableName, boolean copyData) throws SQLException {
+        String sql = "CREATE TABLE " + newTableName + " AS " + tableName + "";
+        DefaultSQLExecutor.getInstance().execute(connection, sql, resultSet -> null);
+        if (copyData) {
+            sql = "INSERT INTO " + newTableName + " SELECT * FROM " + tableName;
+            DefaultSQLExecutor.getInstance().execute(connection, sql, resultSet -> null);
+        }
+    }
+}

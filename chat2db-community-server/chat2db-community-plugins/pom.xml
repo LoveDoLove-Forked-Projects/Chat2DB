@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <parent>
+        <groupId>ai.chat2db</groupId>
+        <artifactId>chat2db-community-server</artifactId>
+        <version>${revision}</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+    <artifactId>chat2db-community-plugins</artifactId>
+    <packaging>pom</packaging>
+
+    <modules>
+        <module>chat2db-community-mongodb</module>
+        <module>chat2db-community-redis</module>
+        <module>chat2db-community-snowflake</module>
+        <module>chat2db-community-opengauss</module>
+        <module>chat2db-community-sundb</module>
+        <module>chat2db-community-oscar</module>
+        <module>chat2db-community-tidb</module>
+        <module>chat2db-community-cockroachdb</module>
+        <module>chat2db-community-kylin</module>
+        <module>chat2db-community-oceanbase-oracle</module>
+        <module>chat2db-community-xugudb</module>
+
+        <module>chat2db-community-mysql</module>
+        <module>chat2db-community-sqlserver</module>
+        <module>chat2db-community-postgresql</module>
+        <module>chat2db-community-oracle</module>
+        <module>chat2db-community-sqlite</module>
+        <module>chat2db-community-h2</module>
+        <module>chat2db-community-clickhouse</module>
+        <module>chat2db-community-oceanbase</module>
+        <module>chat2db-community-db2</module>
+        <module>chat2db-community-mariadb</module>
+        <module>chat2db-community-dm</module>
+        <module>chat2db-community-presto</module>
+        <module>chat2db-community-hive</module>
+        <module>chat2db-community-kingbase</module>
+        <module>chat2db-community-generic</module>
+        <module>chat2db-community-bigquery</module>
+        <module>chat2db-community-redshift</module>
+        <module>chat2db-community-informix</module>
+        <module>chat2db-community-doris</module>
+        <module>chat2db-community-starrocks</module>
+        <module>chat2db-community-gaussdb</module>
+        <module>chat2db-community-gbase8s</module>
+        <module>chat2db-community-tdengine</module>
+        <module>chat2db-community-elasticsearch</module>
+        <module>chat2db-community-duckdb</module>
+    </modules>
+
+</project>

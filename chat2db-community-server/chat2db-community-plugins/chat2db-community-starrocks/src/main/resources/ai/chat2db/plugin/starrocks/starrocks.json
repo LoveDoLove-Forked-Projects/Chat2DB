@@ -1,0 +1,30 @@
+{
+  "dbType": "STARROCKS",
+  "supportDatabase": true,
+  "supportSchema": false,
+  "driverConfigList": [
+    {
+      "url": "jdbc:mysql://localhost:9030/",
+      "defaultDriver": true,
+      "custom": false,
+      "downloadJdbcDriverUrls": [
+        "https://cdn.chat2db-ai.com/lib/mysql-connector-java-8.0.30.jar"
+      ],
+      "jdbcDriver": "mysql-connector-java-8.0.30.jar",
+      "jdbcDriverClass": "com.mysql.cj.jdbc.Driver",
+      "extendInfo": [
+        {
+          "key": "zeroDateTimeBehavior",
+          "value": "convertToNull",
+          "required": false
+        },
+        {
+          "key": "tinyInt1isBit",
+          "value": "false",
+          "required": false
+        }
+      ]
+    }
+  ],
+  "name": "StarRocks"
+}

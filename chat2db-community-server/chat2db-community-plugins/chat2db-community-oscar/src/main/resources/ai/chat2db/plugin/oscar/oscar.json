@@ -1,0 +1,17 @@
+{
+  "dbType": "OSCAR",
+  "supportDatabase": false,
+  "supportSchema": true,
+  "preserveScriptBatchExecution": true,
+  "driverConfigList": [
+    {
+      "url": "jdbc:oscar://localhost:2003/osrdb",
+      "defaultDriver": true,
+      "custom": false,
+      "downloadJdbcDriverUrls": [],
+      "jdbcDriver": "oscarJDBC8.jar",
+      "jdbcDriverClass": "com.oscar.Driver"
+    }
+  ],
+  "name": "OSCAR"
+}

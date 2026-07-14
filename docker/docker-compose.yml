@@ -1,0 +1,15 @@
+services:
+  chat2db:
+    image: chat2db/chat2db:${CHAT2DB_IMAGE_TAG:-latest}
+    container_name: chat2db-community
+    restart: unless-stopped
+    ports:
+      - "${CHAT2DB_BIND_ADDRESS:-127.0.0.1}:${CHAT2DB_PORT:-10825}:10825"
+    environment:
+      CHAT2DB_COMMUNITY_ENCRYPTION_KEY_FILE: /run/secrets/chat2db-community-encryption.key
+    volumes:
+      - chat2db-community-data:/root/.chat2db-community
+      - "${HOME}/.config/chat2db-community/encryption.key:/run/secrets/chat2db-community-encryption.key:ro"
+
+volumes:
+  chat2db-community-data:

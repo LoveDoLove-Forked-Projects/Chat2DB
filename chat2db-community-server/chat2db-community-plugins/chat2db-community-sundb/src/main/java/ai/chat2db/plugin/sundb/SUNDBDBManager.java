@@ -1,0 +1,155 @@
+package ai.chat2db.plugin.sundb;
+
+import java.sql.*;
+
+import ai.chat2db.spi.IDbManager;
+import ai.chat2db.spi.DefaultDBManager;
+import ai.chat2db.community.domain.api.model.async.AsyncContext;
+import ai.chat2db.spi.sql.Chat2DBContext;
+import ai.chat2db.spi.model.datasource.ConnectInfo;
+import ai.chat2db.spi.DefaultSQLExecutor;
+import cn.hutool.core.date.DateUtil;
+import org.apache.commons.lang3.ObjectUtils;
+import org.apache.commons.lang3.StringUtils;
+
+import static ai.chat2db.plugin.sundb.constant.SUNDBDBManagerConstants.*;
+public class SUNDBDBManager extends DefaultDBManager implements IDbManager {
+
+
+
+
+
+
+
+    private String format(String tableName) {
+        return "\"" + tableName + "\"";
+    }
+
+
+
+
+    @Override
+    public void exportDatabase(Connection connection, String databaseName, String schemaName, AsyncContext asyncContext) throws SQLException {
+        asyncContext.info(DateUtil.formatDateTime(new java.util.Date())+":Exporting tables");
+        exportTables(connection, schemaName, asyncContext);
+        asyncContext.setProgress(50);
+        asyncContext.info(DateUtil.formatDateTime(new java.util.Date())+":Exporting views");
+        exportViews(connection, schemaName, asyncContext);
+        asyncContext.setProgress(60);
+        asyncContext.info(DateUtil.formatDateTime(new java.util.Date())+":Exporting producers");
+        exportProcedures(connection, schemaName, asyncContext);
+        asyncContext.setProgress(70);
+        asyncContext.info(DateUtil.formatDateTime(new java.util.Date())+":Exporting triggers");
+        exportTriggers(connection,schemaName, asyncContext);
+        asyncContext.setProgress(90);
+    }
+
+    private void exportTables(Connection connection, String schemaName, AsyncContext asyncContext) throws SQLException {
+        String sql =String.format(SQL_SELECT_TABLE_NAME_ALL_TABLES, schemaName);
+        try (PreparedStatement preparedStatement = connection.prepareStatement(sql); ResultSet resultSet = preparedStatement.executeQuery()) {
+            while (resultSet.next()) {
+                String tableName = resultSet.getString("TABLE_NAME");
+                exportTable(connection, tableName, schemaName, asyncContext);
+            }
+        }
+    }
+
+
+    private void exportTable(Connection connection, String tableName, String schemaName, AsyncContext asyncContext) throws SQLException {
+
+
+    }
+
+    private void exportTableColumnComment(Connection connection, String schemaName, String tableName, StringBuilder sqlBuilder) throws SQLException {
+          String sql =String.format(SQL_SELECT_COLNAME_COMMENT_SYS_SYSCOLUMNCOMMENTS +
+                                            "where SCHNAME = '%s' and TVNAME = '%s'and TABLE_TYPE = 'TABLE';", schemaName,tableName);
+          try (PreparedStatement preparedStatement = connection.prepareStatement(sql); ResultSet resultSet = preparedStatement.executeQuery()) {
+              while (resultSet.next()) {
+                  String columnName = resultSet.getString("COLNAME");
+                  String comment = resultSet.getString("COMMENT$");
+                      sqlBuilder.append(SQL_COMMENT_COLUMN).append(format(schemaName)).append(".").append(format(tableName))
+                              .append(".").append(format(columnName)).append(" IS ").append("'").append(comment).append("';").append("\n");
+              }
+          }
+    }
+
+
+    private void exportViews(Connection connection, String schemaName, AsyncContext asyncContext) throws SQLException {
+        try (ResultSet resultSet = connection.getMetaData().getTables(null, schemaName, null, new String[]{"VIEW"})) {
+            while (resultSet.next()) {
+                String viewName = resultSet.getString("TABLE_NAME");
+                exportView(connection, viewName, schemaName, asyncContext);
+            }
+        }
+    }
+
+    private void exportView(Connection connection, String viewName, String schemaName, AsyncContext asyncContext) throws SQLException {
+
+
+    }
+
+    private void exportProcedures(Connection connection, String schemaName, AsyncContext asyncContext) throws SQLException {
+        try (ResultSet resultSet = connection.getMetaData().getProcedures(null, schemaName, null)) {
+            while (resultSet.next()) {
+                String procedureName = resultSet.getString("PROCEDURE_NAME");
+                exportProcedure(connection, schemaName,procedureName, asyncContext);
+            }
+        }
+    }
+
+    private void exportProcedure(Connection connection, String schemaName, String procedureName, AsyncContext asyncContext) throws SQLException {
+        String sql = String.format(ROUTINES_SQL,"PROC", schemaName,procedureName);
+        try (PreparedStatement statement = connection.prepareStatement(sql); ResultSet resultSet = statement.executeQuery()) {
+            if (resultSet.next()) {
+                StringBuilder sqlBuilder = new StringBuilder();
+                sqlBuilder.append(resultSet.getString("TEXT")).append("\n");
+                asyncContext.write(sqlBuilder.toString());
+            }
+        }
+    }
+
+    private void exportTriggers(Connection connection, String schemaName, AsyncContext asyncContext) throws SQLException {
+
+
+    }
+
+    private void exportTrigger(Connection connection, String schemaName, String triggerName, StringBuilder sqlBuilder) throws SQLException {
+        String sql = String.format(TRIGGER_SQL, schemaName,triggerName);
+        try (PreparedStatement preparedStatement = connection.prepareStatement(sql); ResultSet resultSet = preparedStatement.executeQuery()) {
+            if (resultSet.next()) {
+                sqlBuilder.append(resultSet.getString("TRIGGER_BODY")).append("\n");
+            }
+        }
+    }
+
+    @Override
+    public void connectDatabase(Connection connection, String database) {
+        ConnectInfo connectInfo = Chat2DBContext.getConnectInfo();
+        if (ObjectUtils.anyNull(connectInfo) || StringUtils.isEmpty(connectInfo.getSchemaName())) {
+            return;
+        }
+        String schemaName = connectInfo.getSchemaName();
+        try {
+            DefaultSQLExecutor.getInstance().execute(connection, String.format(SQL_SET_SCHEMA, schemaName));
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public String dropTable(Connection connection, String databaseName, String schemaName, String tableName) {
+        return String.format(SQL_DROP_TABLE_EXISTS, schemaName, tableName);
+    }
+
+    @Override
+    public void copyTable(Connection connection, String databaseName, String schemaName, String tableName, String newTableName,boolean copyData) throws SQLException {
+        String sql;
+        if(copyData){
+            sql = String.format(SQL_COPY_TABLE_DATA, newTableName, tableName);
+        }else {
+            sql = String.format(SQL_COPY_TABLE_STRUCTURE, newTableName, tableName);
+        }
+        DefaultSQLExecutor.getInstance().execute(connection, sql, resultSet -> null);
+    }
+
+}

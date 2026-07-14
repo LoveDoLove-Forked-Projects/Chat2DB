@@ -1,0 +1,62 @@
+spring:
+  application:
+    name: chat2db
+  # Default development profile.
+  profiles:
+    active: dev
+  main:
+    allow-bean-definition-overriding: true
+    lazy-initialization: true
+  messages:
+    basename: i18n/messages
+    encoding: UTF-8
+    fallbackToSystemLocale: true
+  jmx:
+    enabled: false
+  # thymeleaf
+  thymeleaf:
+    prefix: classpath:/thymeleaf/
+    check-template-location: true
+    suffix: .html
+    servlet:
+      content-type: text/html
+    mode: HTML5
+  # Static files.
+  mvc:
+    static-path-pattern: /static/**
+  web:
+    resources:
+      static-locations[0]: classpath:/static/
+  flyway:
+    enabled: false
+  # Database schema version management.
+  servlet:
+    multipart:
+      max-file-size: -1
+      max-request-size: -1
+  jackson:
+    serialization:
+      write-dates-as-timestamps: true
+  ai:
+    mcp:
+      server:
+        request-timeout: 300s
+        version: 1.0.0
+        enabled: false
+        stdio: false
+        protocol: STREAMABLE
+        sse-endpoint: /mcp
+        name: chat2db
+        instructions: >
+          Chat2DB MCP tools can work with or without a selected datasource.
+          If X-Chat2DB-DataSource-Id is configured, tools use it as the default scope.
+          If no datasource header is configured, call list_all_datasources first, then pass dataSourceId and optionally databaseName/schemaName to database tools.
+
+
+chat2db:
+  version: 4.0.0
+
+# Print the HTTP log
+logbook:
+  include:
+    - /api/**

@@ -1,0 +1,18 @@
+{
+  "dbType": "KYLIN",
+  "supportDatabase": true,
+  "supportSchema": false,
+  "driverConfigList": [
+    {
+      "url": "jdbc:kylin://192.168.0.120:7070/",
+      "custom": false,
+      "defaultDriver": true,
+      "downloadJdbcDriverUrls": [
+        "https://cdn.chat2db-ai.com/lib/kylin-jdbc-4.0.3.jar"
+      ],
+      "jdbcDriver": "kylin-jdbc-4.0.3.jar",
+      "jdbcDriverClass": "org.apache.kylin.jdbc.Driver"
+    }
+  ],
+  "name": "Apache Kylin"
+}

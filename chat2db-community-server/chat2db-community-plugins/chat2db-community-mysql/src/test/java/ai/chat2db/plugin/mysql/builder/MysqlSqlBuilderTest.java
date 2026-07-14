@@ -1,0 +1,281 @@
+package ai.chat2db.plugin.mysql.builder;
+
+import ai.chat2db.community.domain.api.config.DriverConfig;
+import ai.chat2db.community.domain.api.enums.plugin.DataTypeEnum;
+import ai.chat2db.community.domain.api.model.metadata.Table;
+import ai.chat2db.community.domain.api.model.metadata.TableColumn;
+import ai.chat2db.community.domain.api.model.metadata.TableIndex;
+import ai.chat2db.community.domain.api.model.metadata.TableIndexColumn;
+import ai.chat2db.community.domain.api.enums.plugin.EditStatusEnum;
+import ai.chat2db.community.domain.api.model.result.Header;
+import ai.chat2db.community.domain.api.model.result.QueryResponse;
+import ai.chat2db.community.domain.api.model.result.ResultOperation;
+import ai.chat2db.community.domain.api.config.TableBuilderConfig;
+import ai.chat2db.spi.sql.Chat2DBContext;
+import ai.chat2db.spi.model.datasource.ConnectInfo;
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class MysqlSqlBuilderTest {
+
+    @Test
+    void shouldDefaultDecimalPrecisionWhenOnlyScaleIsProvided() {
+        MysqlSqlBuilder builder = new MysqlSqlBuilder();
+        Table table = Table.builder()
+                .databaseName("test_db")
+                .name("payment")
+                .columnList(List.of(TableColumn.builder()
+                        .name("amount")
+                        .columnType("DECIMAL")
+                        .decimalDigits(4)
+                        .build()))
+                .indexList(List.of())
+                .build();
+
+        String sql = builder.ddl().table().buildCreateTable(table, TableBuilderConfig.defaultConfig());
+
+        assertTrue(sql.contains("`amount` DECIMAL(10,4) "));
+    }
+
+    @Test
+    void shouldDefaultUnsignedDecimalPrecisionWhenOnlyScaleIsProvided() {
+        MysqlSqlBuilder builder = new MysqlSqlBuilder();
+        Table table = Table.builder()
+                .databaseName("test_db")
+                .name("payment")
+                .columnList(List.of(TableColumn.builder()
+                        .name("amount")
+                        .columnType("DECIMAL UNSIGNED")
+                        .decimalDigits(4)
+                        .build()))
+                .indexList(List.of())
+                .build();
+
+        String sql = builder.ddl().table().buildCreateTable(table, TableBuilderConfig.defaultConfig());
+
+        assertTrue(sql.contains("`amount` DECIMAL(10,4)UNSIGNED "));
+    }
+
+    @Test
+    void shouldKeepBareDecimalWhenPrecisionAndScaleAreNotProvided() {
+        MysqlSqlBuilder builder = new MysqlSqlBuilder();
+        Table table = Table.builder()
+                .databaseName("test_db")
+                .name("payment")
+                .columnList(List.of(TableColumn.builder()
+                        .name("amount")
+                        .columnType("DECIMAL")
+                        .build()))
+                .indexList(List.of())
+                .build();
+
+        String sql = builder.ddl().table().buildCreateTable(table, TableBuilderConfig.defaultConfig());
+
+        assertTrue(sql.contains("`amount` DECIMAL "));
+    }
+
+    @Test
+    void shouldBuildAlterSqlWhenTableCharsetChanges() {
+        MysqlSqlBuilder builder = new MysqlSqlBuilder();
+        Table oldTable = Table.builder()
+                .databaseName("test_db")
+                .name("settlement_record")
+                .charset("utf8")
+                .collate("utf8_general_ci")
+                .engine("InnoDB")
+                .incrementValue(1L)
+                .columnList(List.of())
+                .indexList(List.of())
+                .build();
+        Table newTable = Table.builder()
+                .databaseName("test_db")
+                .name("settlement_record")
+                .charset("utf8mb4")
+                .collate("utf8mb4_general_ci")
+                .engine("InnoDB")
+                .incrementValue(1L)
+                .columnList(List.of())
+                .indexList(List.of())
+                .build();
+
+        String sql = builder.ddl().table().buildAlterTable(oldTable, newTable);
+
+        assertEquals("ALTER TABLE `test_db`.`settlement_record`\n"
+                + "\tDEFAULT CHARACTER SET=utf8mb4,\n"
+                + "\tCOLLATE=utf8mb4_general_ci;", sql);
+    }
+
+    @Test
+    void shouldBuildAlterSqlWhenTableEngineChanges() {
+        MysqlSqlBuilder builder = new MysqlSqlBuilder();
+        Table oldTable = Table.builder()
+                .databaseName("test_db")
+                .name("settlement_record")
+                .charset("utf8mb4")
+                .collate("utf8mb4_general_ci")
+                .engine("InnoDB")
+                .incrementValue(1L)
+                .columnList(List.of())
+                .indexList(List.of())
+                .build();
+        Table newTable = Table.builder()
+                .databaseName("test_db")
+                .name("settlement_record")
+                .charset("utf8mb4")
+                .collate("utf8mb4_general_ci")
+                .engine("MyISAM")
+                .incrementValue(1L)
+                .columnList(List.of())
+                .indexList(List.of())
+                .build();
+
+        String sql = builder.ddl().table().buildAlterTable(oldTable, newTable);
+
+        assertEquals("ALTER TABLE `test_db`.`settlement_record`\n"
+                + "\tENGINE=MyISAM;", sql);
+    }
+
+    @Test
+    void shouldBuildAlterSqlWithIndexMethodWhenAddingMysqlIndexes() {
+        MysqlSqlBuilder builder = new MysqlSqlBuilder();
+        Table oldTable = Table.builder()
+                .databaseName("enterprise_gateway_dev")
+                .name("access_control_approval_process")
+                .columnList(List.of())
+                .indexList(List.of())
+                .build();
+        Table newTable = Table.builder()
+                .databaseName("enterprise_gateway_dev")
+                .name("access_control_approval_process")
+                .columnList(List.of())
+                .indexList(List.of(
+                        TableIndex.builder()
+                                .name("idx_column1")
+                                .type("Normal")
+                                .method("BTREE")
+                                .editStatus(EditStatusEnum.ADD.name())
+                                .columnList(List.of(TableIndexColumn.builder()
+                                        .columnName("parent_id")
+                                        .ascOrDesc("ASC")
+                                        .build()))
+                                .build(),
+                        TableIndex.builder()
+                                .name("idx_column2")
+                                .type("Normal")
+                                .method("BTREE")
+                                .editStatus(EditStatusEnum.ADD.name())
+                                .columnList(List.of(TableIndexColumn.builder()
+                                        .columnName("id")
+                                        .ascOrDesc("ASC")
+                                        .build()))
+                                .build()))
+                .build();
+
+        String sql = builder.ddl().table().buildAlterTable(oldTable, newTable);
+
+        assertEquals("ALTER TABLE `enterprise_gateway_dev`.`access_control_approval_process`\n"
+                + "\tADD INDEX `idx_column1` (`parent_id` ASC) USING BTREE,\n"
+                + "\tADD INDEX `idx_column2` (`id` ASC) USING BTREE;", sql);
+    }
+
+    @Test
+    void shouldPreserveMultilineStringCellValueWhenBuildingUpdateSqlByQuery() {
+        ConnectInfo connectInfo = new ConnectInfo();
+        connectInfo.setDbType("MYSQL");
+        DriverConfig driverConfig = new DriverConfig();
+        driverConfig.setDbType("MYSQL");
+        connectInfo.setDriverConfig(driverConfig);
+        Chat2DBContext.putContext(connectInfo);
+
+        try {
+            String multiLineSql = "select \n  * \nfrom \n  ai_chat_message;";
+            QueryResponse queryResult = new QueryResponse();
+            queryResult.setTableName("ai_chat_message");
+            queryResult.setHeaderList(List.of(
+                    Header.builder()
+                            .name("Row Number")
+                            .dataType(DataTypeEnum.CHAT2DB_ROW_NUMBER.getCode())
+                            .columnType("BIGINT")
+                            .build(),
+                    Header.builder()
+                            .name("id")
+                            .dataType(DataTypeEnum.NUMERIC.getCode())
+                            .columnType("BIGINT")
+                            .primaryKey(true)
+                            .build(),
+                    Header.builder()
+                            .name("content")
+                            .dataType(DataTypeEnum.STRING.getCode())
+                            .columnType("VARCHAR")
+                            .build()));
+
+            ResultOperation operation = new ResultOperation();
+            operation.setType("UPDATE");
+            operation.setDataList(List.of("1", "42", multiLineSql));
+            operation.setOldDataList(List.of("1", "42", "old"));
+            queryResult.setOperations(List.of(operation));
+
+            String sql = new MysqlSqlBuilder().dml().buildByQueryResult(queryResult);
+
+            assertTrue(sql.contains("`content` = 'select \n  * \nfrom \n  ai_chat_message;'"));
+            assertTrue(sql.contains("where `id` = 42"));
+            assertFalse(sql.contains(" LIMIT 1;"));
+            assertFalse(sql.contains("`content` = 'select'"));
+        } finally {
+            Chat2DBContext.removeContext();
+        }
+    }
+
+    @Test
+    void shouldAppendLimitOneWhenUpdatingTableWithoutPrimaryKey() {
+        ConnectInfo connectInfo = new ConnectInfo();
+        connectInfo.setDbType("MYSQL");
+        DriverConfig driverConfig = new DriverConfig();
+        driverConfig.setDbType("MYSQL");
+        connectInfo.setDriverConfig(driverConfig);
+        Chat2DBContext.putContext(connectInfo);
+
+        try {
+            QueryResponse queryResult = new QueryResponse();
+            queryResult.setTableName("ai_chat_message");
+            queryResult.setHeaderList(List.of(
+                    Header.builder()
+                            .name("Row Number")
+                            .dataType(DataTypeEnum.CHAT2DB_ROW_NUMBER.getCode())
+                            .columnType("BIGINT")
+                            .build(),
+                    Header.builder()
+                            .name("id")
+                            .dataType(DataTypeEnum.NUMERIC.getCode())
+                            .columnType("BIGINT")
+                            .build(),
+                    Header.builder()
+                            .name("content")
+                            .dataType(DataTypeEnum.STRING.getCode())
+                            .columnType("VARCHAR")
+                            .build()));
+
+            ResultOperation updateOp = new ResultOperation();
+            updateOp.setType("UPDATE");
+            updateOp.setDataList(List.of("1", "42", "new"));
+            updateOp.setOldDataList(List.of("1", "42", "old"));
+
+            ResultOperation deleteOp = new ResultOperation();
+            deleteOp.setType("DELETE");
+            deleteOp.setDataList(List.of("1", "42", "old"));
+            deleteOp.setOldDataList(List.of("1", "42", "old"));
+
+            queryResult.setOperations(List.of(updateOp, deleteOp));
+
+            String sql = new MysqlSqlBuilder().dml().buildByQueryResult(queryResult);
+            assertEquals(2, sql.split(" LIMIT 1;", -1).length - 1);
+        } finally {
+            Chat2DBContext.removeContext();
+        }
+    }
+}

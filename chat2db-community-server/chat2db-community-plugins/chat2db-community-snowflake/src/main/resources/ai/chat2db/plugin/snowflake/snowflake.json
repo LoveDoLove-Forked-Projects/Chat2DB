@@ -1,0 +1,18 @@
+{
+  "dbType": "SNOWFLAKE",
+  "supportDatabase": true,
+  "supportSchema": false,
+  "driverConfigList": [
+    {
+      "url": "jdbc:snowflake://localhost:443/",
+      "custom": false,
+      "defaultDriver": true,
+      "downloadJdbcDriverUrls": [
+        "https://cdn.chat2db-ai.com/lib/snowflake-jdbc-3.15.0.jar"
+      ],
+      "jdbcDriver": "snowflake-jdbc-3.15.0.jar",
+      "jdbcDriverClass": "net.snowflake.client.jdbc.SnowflakeDriver"
+    }
+  ],
+  "name": "Snowflake"
+}

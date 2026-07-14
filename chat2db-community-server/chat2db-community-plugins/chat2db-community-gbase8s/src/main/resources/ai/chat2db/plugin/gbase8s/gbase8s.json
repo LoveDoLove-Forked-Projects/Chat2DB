@@ -1,0 +1,20 @@
+{
+  "dbType": "GBASE8S",
+  "supportDatabase": true,
+  "supportSchema": false,
+  "driverConfigList": [
+    {
+      "url": "jdbc:gbasedbt-sqli://localhost:91088/",
+      "custom": false,
+      "defaultDriver": true,
+      "downloadJdbcDriverUrls": [
+        "https://cdn.chat2db-ai.com/lib/jdbc-3.5.1.jar"
+      ],
+      "jdbcDriver": "jdbc-3.5.1.jar",
+      "jdbcDriverClass": "com.gbasedbt.jdbc.Driver"
+    }
+  ],
+  "systemDatabases": ["sysadmin", "sysmaster","sysuser","sysutils"],
+  "systemSchemas": ["informix"],
+  "name": "GBase8s"
+}

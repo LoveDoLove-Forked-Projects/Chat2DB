@@ -1,0 +1,18 @@
+{
+  "dbType": "OCEANBASE_ORACLE",
+  "supportDatabase": false,
+  "supportSchema": true,
+  "driverConfigList": [
+    {
+      "url": "jdbc:oceanbase://localhost:1521/",
+      "custom": false,
+      "defaultDriver": true,
+      "downloadJdbcDriverUrls": [
+        "https://cdn.chat2db-ai.com/lib/oceanbase-client-2.4.2.jar"
+      ],
+      "jdbcDriver": "oceanbase-client-2.4.2.jar",
+      "jdbcDriverClass": "com.oceanbase.jdbc.Driver"
+    }
+  ],
+  "name": "OceanBase Oracle"
+}

@@ -1,0 +1,87 @@
+<?xml version="1.0" ?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "https://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+ <dict>
+  <key>LSMinimumSystemVersion</key>
+  <string>10.11</string>
+  <key>CFBundleDevelopmentRegion</key>
+  <string>English</string>
+  <key>CFBundleAllowMixedLocalizations</key>
+  <true/>
+  <key>CFBundleExecutable</key>
+  <string>Chat2DB Community</string>
+  <key>CFBundleIconFile</key>
+  <string>Chat2DB Community.icns</string>
+  <key>CFBundleIdentifier</key>
+  <string>com.chat2db.community</string>
+  <key>CFBundleInfoDictionaryVersion</key>
+  <string>6.0</string>
+  <key>CFBundleName</key>
+  <string>Chat2DB Community</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+  <key>CFBundleSignature</key>
+  <string>????</string>
+  <key>LSApplicationCategoryType</key>
+  <string>public.app-category.developer-tools</string>
+
+  <key>CFBundleURLTypes</key>
+  <array>
+    <dict>
+        <key>CFBundleURLName</key>
+        <string>com.chat2db.community</string>
+        <key>CFBundleURLSchemes</key>
+        <array>
+            <string>chat2db-community</string>
+        </array>
+    </dict>
+  </array>
+  <key>CFBundleDocumentTypes</key>
+  <array>
+    <dict>
+      <key>LSItemContentTypes</key>
+       <array>
+        <string>com.chat2db.community.sql</string>
+       </array>
+      <key>CFBundleTypeName</key>
+      <string>SQL Script</string>
+      <key>LSHandlerRank</key>
+      <string>Owner</string>
+      <key>CFBundleTypeRole</key>
+      <string>Editor</string>
+      <key>LSIsAppleDefaultForType</key>
+      <true/>
+    </dict>
+  </array>
+
+  <key>UTExportedTypeDeclarations</key>
+  <array>
+    <dict>
+      <key>UTTypeIdentifier</key>
+      <string>com.chat2db.community.sql</string>
+      <key>UTTypeDescription</key>
+      <string>SQL Script</string>
+      <key>UTTypeConformsTo</key>
+       <array>
+        <string>public.data</string>
+       </array>
+      <key>UTTypeTagSpecification</key>
+      <dict>
+        <key>public.filename-extension</key>
+         <array>
+          <string>sql</string>
+         </array>
+        <key>public.mime-type</key>
+         <array>
+          <string>text/x-sql</string>
+         </array>
+      </dict>
+    </dict>
+  </array>
+
+  <key>NSHighResolutionCapable</key>
+  <string>true</string>
+  <key>NSMicrophoneUsageDescription</key>
+  <string>The application Chat2DB Community is requesting access to the microphone.</string>
+ </dict>
+</plist>
