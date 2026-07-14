@@ -460,7 +460,7 @@ jobs:
             name="$(basename "${file}")"
             destination="oss://${OSS_BUCKET_NAME}/community/${VERSION}/${name}"
             ossutil cp -f "${file}" "${destination}"
-            ossutil stat "${destination}" >/dev/null
+            ossutil stat "${destination}"
             if [ "${name}" != "SHA256SUMS" ]; then
               send_package_notification "${name}" "${CDN_BASE_URL}/community/${VERSION}/${name}"
             fi
@@ -470,7 +470,7 @@ jobs:
             name="$(basename "${file}")"
             destination="oss://${OSS_BUCKET_NAME}/community/updates/${VERSION}/${name}"
             ossutil cp -f "${file}" "${destination}"
-            ossutil stat "${destination}" >/dev/null
+            ossutil stat "${destination}"
           done
 
           if [ "${UPDATE_LATEST_VERSION_JSON}" = "true" ]; then
@@ -491,12 +491,12 @@ jobs:
           PY
             destination="oss://${OSS_BUCKET_NAME}/community/updates/latest_version.json"
             ossutil cp -f cdn-assets/latest_version.json "${destination}"
-            ossutil stat "${destination}" >/dev/null
+            ossutil stat "${destination}"
           fi
 
           manifest_destination="oss://${OSS_BUCKET_NAME}/community/${VERSION}/release-manifest.json"
           ossutil cp -f cdn-assets/release-manifest.json "${manifest_destination}"
-          ossutil stat "${manifest_destination}" >/dev/null
+          ossutil stat "${manifest_destination}"
 
       - name: Upload CDN distribution receipt
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
