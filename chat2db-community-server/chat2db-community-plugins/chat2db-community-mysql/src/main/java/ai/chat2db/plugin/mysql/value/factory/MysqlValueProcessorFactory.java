@@ -16,7 +16,7 @@ public class MysqlValueProcessorFactory {
         MysqlVarBinaryProcessor mysqlVarBinaryProcessor = new MysqlVarBinaryProcessor();
         MysqlTimestampProcessor mysqlTimestampProcessor = new MysqlTimestampProcessor();
         MysqlTextProcessor mysqlTextProcessor = new MysqlTextProcessor();
-        PROCESSOR_MAP = Map.ofEntries(
+        PROCESSOR_MAP = Map.<String, DefaultValueProcessor>ofEntries(
                 Map.entry(MysqlColumnTypeEnum.TEXT.name(), mysqlTextProcessor),
                 Map.entry(MysqlColumnTypeEnum.TINYTEXT.name(), mysqlTextProcessor),
                 Map.entry(MysqlColumnTypeEnum.MEDIUMTEXT.name(), mysqlTextProcessor),
