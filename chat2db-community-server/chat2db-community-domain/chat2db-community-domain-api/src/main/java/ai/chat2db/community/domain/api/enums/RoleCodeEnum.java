@@ -8,25 +8,21 @@ import lombok.Getter;
 public enum RoleCodeEnum implements IBaseEnum<String> {
 
 
-    DESKTOP("DESKTOP", 1L, "_desktop_default_user_name", "_desktop_default_user_name"),
+    DESKTOP("DESKTOP", 1L),
 
 
-    ADMIN("ADMIN", 2L, "chat2db", "chat2db"),
+    ADMIN("ADMIN", 2L),
 
 
-    USER("USER", null, null, null),
+    USER("USER", null),
 
     ;
     final String description;
     final Long defaultUserId;
-    final String userName;
-    final String password;
 
-    RoleCodeEnum(String description, Long defaultUserId, String userName, String password) {
+    RoleCodeEnum(String description, Long defaultUserId) {
         this.description = description;
         this.defaultUserId = defaultUserId;
-        this.userName = userName;
-        this.password = password;
     }
 
     @Override

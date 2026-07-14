@@ -102,7 +102,6 @@ public class TaskNcxImportServiceImpl implements ITaskNcxImportService {
                 connectionMap.put(map.get("ConnectionName") + map.get("ConnType"), map);
             }
             configMap.add(connectionMap);
-            log.info("insert to db, param:{}", JSON.toJSONString(configMap));
             int n = insertDBConfig(configMap);
             vo.setCount(n);
             log.info("insert to h2 success");
@@ -339,7 +338,6 @@ public class TaskNcxImportServiceImpl implements ITaskNcxImportService {
                     }
                 }
                 dataSourceDO.setSsh(sshInfo);
-                log.info("begin insert:{}", JSON.toJSONString(dataSourceDO));
                 n++;
                 insertDatasource(dataSourceDO);
             }

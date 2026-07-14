@@ -35,7 +35,6 @@ const sendClientSSERequest = (baseURL, message) => {
     }),
   );
 
-  console.log('res', res);
   window.javaQuery({
     request: JSON.stringify(res),
     onSuccess: function () {},
