@@ -1,5 +1,5 @@
-name: Bug report
-description: Report a reproducible problem in Chat2DB
+name: Database compatibility bug
+description: Report a database-specific connection, metadata, SQL, or editor problem
 type: Bug
 body:
   - type: markdown
@@ -23,7 +23,7 @@ body:
       required: true
 
   - type: input
-    id: version
+    id: chat2db-version
     attributes:
       label: Chat2DB Version
       description: Enter the version shown in Chat2DB. For a source build, enter the commit SHA.
@@ -63,34 +63,74 @@ body:
     validations:
       required: true
 
-  - type: input
+  - type: dropdown
     id: database
     attributes:
-      label: Database and Version
-      description: If this issue involves a database, enter its product and version. Otherwise, leave this blank.
-      placeholder: "MySQL 8.0.36"
+      label: Database
+      description: Select the database where the problem occurs.
+      options:
+        - MySQL
+        - PostgreSQL
+        - Oracle
+        - SQL Server
+        - ClickHouse
+        - MariaDB
+        - SQLite
+        - H2
+        - DB2
+        - DM
+        - Kingbase
+        - OceanBase
+        - Hive
+        - Presto
+        - MongoDB
+        - Redis
+        - Snowflake
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: database-version
+    attributes:
+      label: Database Version
+      description: Enter the exact database server version.
+      placeholder: "8.0.36"
+    validations:
+      required: true
+
+  - type: input
+    id: driver-version
+    attributes:
+      label: Driver Name and Version
+      description: Enter the driver name and version if known. Otherwise, leave this blank.
+      placeholder: "mysql-connector-j 8.0.33"
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected Area
+      description: Select the Chat2DB area where the problem occurs.
+      options:
+        - Connection
+        - Database tree and metadata
+        - SQL execution or DDL
+        - SQL editor
+        - Data editor
+        - Import or export
+        - Other
+    validations:
+      required: true
 
   - type: markdown
     attributes:
       value: "## Problem and Reproduction"
 
   - type: textarea
-    id: summary
+    id: reproduction
     attributes:
-      label: Problem Summary
-      description: In one or two sentences, explain what you were doing and what went wrong.
-    validations:
-      required: true
-
-  - type: textarea
-    id: steps
-    attributes:
-      label: Steps to Reproduce
-      description: List the shortest sequence that consistently triggers the problem.
-      placeholder: |
-        1. Start Chat2DB...
-        2. Connect to...
-        3. Run...
+      label: Minimal Reproduction
+      description: Paste the smallest sanitized DDL, SQL, and steps that reproduce the problem.
     validations:
       required: true
 
@@ -98,7 +138,7 @@ body:
     id: expected
     attributes:
       label: Expected Behavior
-      description: Describe what you expected to happen.
+      description: Describe what should happen.
     validations:
       required: true
 
@@ -106,7 +146,7 @@ body:
     id: actual
     attributes:
       label: Actual Behavior
-      description: Describe what happened instead, including the exact error when available.
+      description: Describe what happens instead, including the exact error when available.
     validations:
       required: true
 
@@ -145,6 +185,19 @@ body:
       required: true
 
   - type: dropdown
+    id: affected-scope
+    attributes:
+      label: Affected Scope
+      description: Choose how broadly this problem affects the selected database.
+      options:
+        - All users of this database
+        - A common database workflow
+        - A specific configuration or query
+        - Not sure
+    validations:
+      required: true
+
+  - type: dropdown
     id: workaround
     attributes:
       label: Workaround
@@ -164,7 +217,7 @@ body:
       options:
         - label: I reproduced this on the selected Chat2DB edition.
           required: true
-        - label: I searched existing issues for duplicates.
+        - label: I included a minimal sanitized reproduction.
           required: true
-        - label: I removed credentials and private data.
+        - label: I searched existing issues for duplicates.
           required: true

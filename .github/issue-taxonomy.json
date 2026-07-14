@@ -1,0 +1,265 @@
+{
+  "schemaVersion": 1,
+  "issueTypes": [
+    {
+      "name": "Bug",
+      "description": "An unexpected problem or behavior"
+    },
+    {
+      "name": "Feature",
+      "description": "A request, idea, or new functionality"
+    },
+    {
+      "name": "Task",
+      "description": "A specific piece of work"
+    }
+  ],
+  "priorities": [
+    {
+      "name": "P0 Critical",
+      "color": "RED",
+      "description": "Security, data loss, startup failure, or release blocker with no workaround",
+      "responseTarget": "Same day"
+    },
+    {
+      "name": "P1 High",
+      "color": "ORANGE",
+      "description": "Core workflow unavailable for many users with no reliable workaround",
+      "responseTarget": "2 business days"
+    },
+    {
+      "name": "P2 Normal",
+      "color": "YELLOW",
+      "description": "Normal confirmed issue or feature with limited impact or a workaround",
+      "responseTarget": "7 calendar days"
+    },
+    {
+      "name": "P3 Low",
+      "color": "GRAY",
+      "description": "Edge case, minor experience issue, or low-priority improvement",
+      "responseTarget": "Monthly backlog review"
+    }
+  ],
+  "labels": [
+    {
+      "name": "area/ai",
+      "color": "1D76DB",
+      "description": "AI models, prompts, chat, and generated SQL"
+    },
+    {
+      "name": "area/frontend",
+      "color": "1D76DB",
+      "description": "Ownership: Community frontend components and UI code"
+    },
+    {
+      "name": "area/backend",
+      "color": "1D76DB",
+      "description": "Community backend and domain services"
+    },
+    {
+      "name": "area/connection",
+      "color": "1D76DB",
+      "description": "Datasource connection and driver loading"
+    },
+    {
+      "name": "area/database-tree",
+      "color": "1D76DB",
+      "description": "Database tree, metadata, and object navigation"
+    },
+    {
+      "name": "area/sql-editor",
+      "color": "1D76DB",
+      "description": "SQL console, editor, completion, and execution"
+    },
+    {
+      "name": "area/data-editor",
+      "color": "1D76DB",
+      "description": "Result set and table data editing"
+    },
+    {
+      "name": "area/import-export",
+      "color": "1D76DB",
+      "description": "Data or schema import and export"
+    },
+    {
+      "name": "area/docker",
+      "color": "1D76DB",
+      "description": "Ownership: Dockerfile, image build, and Compose configuration"
+    },
+    {
+      "name": "area/jcef",
+      "color": "1D76DB",
+      "description": "JCEF desktop runtime and native packaging"
+    },
+    {
+      "name": "area/docs",
+      "color": "1D76DB",
+      "description": "Documentation and examples"
+    },
+    {
+      "name": "area/release",
+      "color": "1D76DB",
+      "description": "Build, release, update, and distribution"
+    },
+    {
+      "name": "db/mysql",
+      "color": "0E8A16",
+      "description": "MySQL-specific behavior"
+    },
+    {
+      "name": "db/postgresql",
+      "color": "0E8A16",
+      "description": "PostgreSQL-specific behavior"
+    },
+    {
+      "name": "db/oracle",
+      "color": "0E8A16",
+      "description": "Oracle-specific behavior"
+    },
+    {
+      "name": "db/sql-server",
+      "color": "0E8A16",
+      "description": "SQL Server-specific behavior"
+    },
+    {
+      "name": "db/clickhouse",
+      "color": "0E8A16",
+      "description": "ClickHouse-specific behavior"
+    },
+    {
+      "name": "db/mariadb",
+      "color": "0E8A16",
+      "description": "MariaDB-specific behavior"
+    },
+    {
+      "name": "db/sqlite",
+      "color": "0E8A16",
+      "description": "SQLite-specific behavior"
+    },
+    {
+      "name": "db/h2",
+      "color": "0E8A16",
+      "description": "H2-specific behavior"
+    },
+    {
+      "name": "db/db2",
+      "color": "0E8A16",
+      "description": "DB2-specific behavior"
+    },
+    {
+      "name": "db/dm",
+      "color": "0E8A16",
+      "description": "DM-specific behavior"
+    },
+    {
+      "name": "db/kingbase",
+      "color": "0E8A16",
+      "description": "Kingbase-specific behavior"
+    },
+    {
+      "name": "db/oceanbase",
+      "color": "0E8A16",
+      "description": "OceanBase-specific behavior"
+    },
+    {
+      "name": "db/hive",
+      "color": "0E8A16",
+      "description": "Hive-specific behavior"
+    },
+    {
+      "name": "db/presto",
+      "color": "0E8A16",
+      "description": "Presto-specific behavior"
+    },
+    {
+      "name": "db/mongodb",
+      "color": "0E8A16",
+      "description": "MongoDB-specific behavior"
+    },
+    {
+      "name": "db/redis",
+      "color": "0E8A16",
+      "description": "Redis-specific behavior"
+    },
+    {
+      "name": "db/snowflake",
+      "color": "0E8A16",
+      "description": "Snowflake-specific behavior"
+    },
+    {
+      "name": "db/other",
+      "color": "0E8A16",
+      "description": "Database-specific behavior without a dedicated label"
+    },
+    {
+      "name": "platform/windows",
+      "color": "5319E7",
+      "description": "Windows-specific behavior"
+    },
+    {
+      "name": "platform/macos",
+      "color": "5319E7",
+      "description": "macOS-specific behavior"
+    },
+    {
+      "name": "platform/linux",
+      "color": "5319E7",
+      "description": "Linux-specific behavior"
+    },
+    {
+      "name": "platform/docker",
+      "color": "5319E7",
+      "description": "Runtime: issue occurs only in a Docker deployment"
+    },
+    {
+      "name": "platform/web",
+      "color": "5319E7",
+      "description": "Runtime: issue occurs only in a browser or web deployment"
+    },
+    {
+      "name": "edition/community",
+      "color": "006B75",
+      "description": "Chat2DB Community"
+    },
+    {
+      "name": "edition/local",
+      "color": "006B75",
+      "description": "Chat2DB Local report requiring rerouting"
+    },
+    {
+      "name": "edition/pro",
+      "color": "006B75",
+      "description": "Chat2DB Pro report requiring rerouting"
+    },
+    {
+      "name": "edition/unknown",
+      "color": "006B75",
+      "description": "Product edition is not yet known"
+    },
+    {
+      "name": "needs/info",
+      "color": "FBCA04",
+      "description": "Needs more information from the reporter"
+    },
+    {
+      "name": "needs/reproduction",
+      "color": "FBCA04",
+      "description": "Needs a minimal reproducible example"
+    },
+    {
+      "name": "needs/decision",
+      "color": "FBCA04",
+      "description": "Needs a product or architecture decision"
+    },
+    {
+      "name": "contribution/good-first-issue",
+      "color": "7057FF",
+      "description": "Confirmed and scoped for a first contribution"
+    },
+    {
+      "name": "contribution/help-wanted",
+      "color": "7057FF",
+      "description": "Maintainers welcome an external contribution"
+    }
+  ]
+}
