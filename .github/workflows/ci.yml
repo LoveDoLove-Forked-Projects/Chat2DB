@@ -1,0 +1,86 @@
+name: Community CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: community-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend lint, test, and build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: chat2db-community-client
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 18.17.0
+          cache: yarn
+          cache-dependency-path: chat2db-community-client/yarn.lock
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Lint
+        run: yarn lint
+
+      - name: Run frontend test
+        run: yarn run test:sql-in-clipboard
+
+      - name: Build Community web client
+        run: yarn run build:web:community --app_version=4.0.0
+
+  backend:
+    name: Backend tests and package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Run backend tests
+        run: mvn -B test -Dmaven.test.skip=false -DskipTests=false -f chat2db-community-server/pom.xml
+
+      - name: Package backend
+        run: mvn -B package -DskipTests -Dmaven.test.skip=false -Dchat2db.finalName=chat2db-community -f chat2db-community-server/pom.xml -pl chat2db-community-start -am
+
+  repository:
+    name: Repository and documentation checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Validate required repository files
+        run: |
+          test -s README.md
+          test -s LICENSE
+          test -s SECURITY.md
+
+      - name: Parse YAML configuration files
+        shell: ruby {0}
+        run: |
+          require 'yaml'
+          Dir['.github/**/*.yml', '.github/**/*.yaml'].each do |path|
+            YAML.safe_load(File.read(path), aliases: false)
+            puts "validated #{path}"
+          end
+
