@@ -47,177 +47,27 @@ Chat2DB Proは、データベーステーブル構造の同期をサポートし
 
 ## 機能比較
 
-<table style="width: 100%;">
-  <tr>
-    <th align="center">機能</th>
-    <th align="center">コミュニティ オープンソース</th>
-    <th align="center">ローカル</th>
-    <th align="center">Pro</th>
-  </tr>
-  <tr>
-    <td align="center">データベースの種類</td>
-    <td align="center">16種類以上</td>
-    <td align="center">100種類以上を対象</td>
-    <td align="center">100種類以上を対象</td>
-  </tr>
-  <tr>
-    <td align="center">サポートされているAI</td>
-    <td align="center">AI設定が必要</td>
-    <td align="center">インストール時にAIが利用可能</td>
-    <td align="center">インストール時にAIが利用可能</td>
-  </tr>
-  <tr>
-    <td align="center">AI機能</td>
-    <td align="center">基本的</td>
-    <td align="center">多様</td>
-    <td align="center">多様</td>
-  </tr>
-  <tr>
-    <td align="center">視覚的テーブルエディタ</td>
-    <td align="center">✅</td>
-    <td align="center">✅</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">SQLコンソール</td>
-    <td align="center">✅</td>
-    <td align="center">✅</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">SQLフォーマット</td>
-    <td align="center">✅</td>
-    <td align="center">✅</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">クエリ記録の保存</td>
-    <td align="center">✅</td>
-    <td align="center">✅</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">テーマカラー設定</td>
-    <td align="center">✅</td>
-    <td align="center">✅</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">データ構造の同期</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">データベースのグループ化</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">データベース構造のインポート/エクスポート</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">データのインポート/エクスポート</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">データ移行</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">テーブルのコピー/削除</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">SQLファイルのオープンと実行</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">UMLダイアグラム</td>
-    <td align="center">❌</td>
-    <td align="center">開発中</td>
-    <td align="center">開発中</td>
-  </tr>
-  <tr>
-    <td align="center">コード生成</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">インサート/アップデートとして結果をコピー</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">クエリ結果の修正</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">インテリジェントSQLエディタ</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">AIによるテーブル作成</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">AIデータセット</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">Chat2Excel</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">インテリジェントダッシュボード</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">エディタ設定</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">カスタムショートカット</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">クロスデバイス使用</td>
-    <td align="center">❌</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-</table>
+Community、Pro、Enterprise は、同じデータベースクライアントの基本機能を共有します。商用版は別のデータベースエンジンを提供するのではなく、その基本機能に公式 AI、クラウドストレージ、マルチデバイス利用、コラボレーション、ガバナンスを追加します。
 
+| 機能 | Community | Pro（オンライン個人版） | Enterprise |
+| --- | --- | --- | --- |
+| データソース接続と認証情報管理 | ✅ | ✅ | ✅ |
+| データベースプラグインとメタデータ参照 | ✅ | ✅ | ✅ |
+| SQL の編集、補完、フォーマット、実行 | ✅ | ✅ | ✅ |
+| DDL/DML、オブジェクト管理、データ編集 | ✅ | ✅ | ✅ |
+| データのインポートとエクスポート | ✅ | ✅ | ✅ |
+| 保存済み SQL、履歴、タスク | ✅ | ✅ | ✅ |
+| ダッシュボードとチャート | ✅ | ✅ | ✅ |
+| CLI と MCP | ✅ | ✅ | ✅ |
+| カスタム AI モデル | ✅ | ✅ | ✅ |
+| Chat2DB 公式 AI とプリセットモデル | ❌ | ✅ | ✅ |
+| 公式 AI クレジットとクラウド会話履歴 | ❌ | ✅ | ✅ |
+| Chat2DB アカウント | ❌ | ✅ | ✅ |
+| クラウドとマルチデバイス | ❌ | ✅ | ✅ |
+| チームデータソースと共有資産 | ❌ | ❌ | ✅ |
+| メンバーとロール | ❌ | ❌ | ✅ |
+| 権限、承認、監査 | ❌ | ❌ | ✅ |
+| 組織データコンテキストと RAG | ❌ | ❌ | ✅ |
 
 ## ダウンロードとインストール
 Chat2DBは、Windows、MacOS、Linuxをサポートするクロスプラットフォームアプリケーションです。以下のリンクからChat2DBをダウンロードできます：

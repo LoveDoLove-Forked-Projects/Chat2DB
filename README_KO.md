@@ -64,148 +64,27 @@ Chat2DB Pro는 데이터베이스 테이블 구조 동기화를 지원하여 테
 
 ## 기능 비교
 
-<table style="width: 100%;">
-  <tr>
-    <th align="center">기능</th>
-    <th align="center">Community 소스 공개 버전</th>
-    <th align="center">Pro</th>
-  </tr>
-  <tr>
-    <td align="center">데이터베이스 유형</td>
-    <td align="center">16+</td>
-    <td align="center">목표 100+</td>
-  </tr>
-  <tr>
-    <td align="center">지원 AI</td>
-    <td align="center">AI 구성 필요</td>
-    <td align="center">설치 즉시 AI 사용 가능</td>
-  </tr>
-  <tr>
-    <td align="center">AI 기능</td>
-    <td align="center">기본</td>
-    <td align="center">다양함</td>
-  </tr>
-  <tr>
-    <td align="center">시각적 테이블 편집기</td>
-    <td align="center">✅</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">SQL 콘솔</td>
-    <td align="center">✅</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">SQL 서식 지정</td>
-    <td align="center">✅</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">쿼리 기록 저장</td>
-    <td align="center">✅</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">테마 색상 설정</td>
-    <td align="center">✅</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">데이터 구조 동기화</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">데이터베이스 그룹화</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">데이터베이스 구조 가져오기/내보내기</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">데이터 가져오기/내보내기</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">데이터 마이그레이션</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">테이블 복사/비우기</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">SQL 파일 열기 및 실행</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">UML 다이어그램</td>
-    <td align="center">❌</td>
-    <td align="center">개발 중</td>
-  </tr>
-  <tr>
-    <td align="center">코드 생성</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">결과를 Insert/Update로 복사</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">쿼리 결과 수정</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">지능형 SQL 편집기</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">AI 테이블 생성</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">AI 데이터 세트</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">Chat2Excel</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">지능형 대시보드</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">편집기 설정</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">사용자 지정 바로 가기 키</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">여러 기기에서 사용</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-</table>
+Community, Pro, Enterprise는 동일한 데이터베이스 클라이언트 기본 기능을 공유합니다. 상용 버전은 별도의 데이터베이스 엔진을 제공하는 것이 아니라 이 기본 기능에 공식 AI, 클라우드 저장소, 다중 기기 사용, 협업 및 거버넌스를 추가합니다.
+
+| 기능 | Community | Pro(온라인 개인용) | Enterprise |
+| --- | --- | --- | --- |
+| 데이터소스 연결 및 자격 증명 관리 | ✅ | ✅ | ✅ |
+| 데이터베이스 플러그인 및 메타데이터 탐색 | ✅ | ✅ | ✅ |
+| SQL 편집, 자동 완성, 서식 지정 및 실행 | ✅ | ✅ | ✅ |
+| DDL/DML, 객체 관리 및 데이터 편집 | ✅ | ✅ | ✅ |
+| 데이터 가져오기 및 내보내기 | ✅ | ✅ | ✅ |
+| 저장된 SQL, 기록 및 작업 | ✅ | ✅ | ✅ |
+| 대시보드 및 차트 | ✅ | ✅ | ✅ |
+| CLI 및 MCP | ✅ | ✅ | ✅ |
+| 사용자 지정 AI 모델 | ✅ | ✅ | ✅ |
+| Chat2DB 공식 AI 및 사전 설정 모델 | ❌ | ✅ | ✅ |
+| 공식 AI 크레딧 및 클라우드 채팅 기록 | ❌ | ✅ | ✅ |
+| Chat2DB 계정 | ❌ | ✅ | ✅ |
+| 클라우드 및 다중 기기 | ❌ | ✅ | ✅ |
+| 팀 데이터소스 및 공유 자산 | ❌ | ❌ | ✅ |
+| 구성원 및 역할 | ❌ | ❌ | ✅ |
+| 권한, 승인 및 감사 | ❌ | ❌ | ✅ |
+| 조직 데이터 컨텍스트 및 RAG | ❌ | ❌ | ✅ |
 
 ## 다운로드 및 설치
 Chat2DB는 Windows, MacOS 및 Linux를 지원하는 크로스 플랫폼 애플리케이션입니다. 다음 링크에서 Chat2DB를 다운로드할 수 있습니다.

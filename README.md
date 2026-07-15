@@ -64,148 +64,27 @@ Chat2DB Pro supports database table structure synchronization to help you sync d
 
 ## Feature Comparison
 
-<table style="width: 100%;">
-  <tr>
-    <th align="center">Feature</th>
-    <th align="center">Community Open Source</th>
-    <th align="center">Pro</th>
-  </tr>
-  <tr>
-    <td align="center">Database Types</td>
-    <td align="center">16+</td>
-    <td align="center">Target 100+</td>
-  </tr>
-  <tr>
-    <td align="center">Supported AI</td>
-    <td align="center">Requires AI Configuration</td>
-    <td align="center">AI ready on installation</td>
-  </tr>
-  <tr>
-    <td align="center">AI Capabilities</td>
-    <td align="center">Basic</td>
-    <td align="center">Varied</td>
-  </tr>
-  <tr>
-    <td align="center">Visual Table Editor</td>
-    <td align="center">✅</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">SQL Console</td>
-    <td align="center">✅</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">SQL Formatting</td>
-    <td align="center">✅</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">Save Query Records</td>
-    <td align="center">✅</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">Theme Color Settings</td>
-    <td align="center">✅</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">Data Structure Sync</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">Database Grouping</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">Database Structure Import/Export</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">Data Import/Export</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">Data Migration</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">Copy/Clear Table</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">Open and Run SQL Files</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">UML Diagram</td>
-    <td align="center">❌</td>
-    <td align="center">In Development</td>
-  </tr>
-  <tr>
-    <td align="center">Generate Code</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">Copy Results as Insert/Update</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">Modify Query Results</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">Intelligent SQL Editor</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">AI Table Creation</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">AI Data Sets</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">Chat2Excel</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">Intelligent Dashboard</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">Editor Settings</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">Custom Shortcuts</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">Cross-device Usage</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-</table>
+Community, Pro, and Enterprise share the same core database-client capabilities. Commercial editions add official AI services, cloud storage, multi-device access, collaboration, and governance around that core rather than replacing it with a different database engine.
+
+| Feature | Community | Pro (Online Personal) | Enterprise |
+| --- | --- | --- | --- |
+| Datasource connections and credential management | ✅ | ✅ | ✅ |
+| Database plugins and metadata browsing | ✅ | ✅ | ✅ |
+| SQL editing, completion, formatting, and execution | ✅ | ✅ | ✅ |
+| DDL/DML, object management, and data editing | ✅ | ✅ | ✅ |
+| Data import and export | ✅ | ✅ | ✅ |
+| Saved SQL, history, and tasks | ✅ | ✅ | ✅ |
+| Dashboards and charts | ✅ | ✅ | ✅ |
+| CLI and MCP | ✅ | ✅ | ✅ |
+| Custom AI models | ✅ | ✅ | ✅ |
+| Official Chat2DB AI and preset models | ❌ | ✅ | ✅ |
+| Official AI credits and cloud chat history | ❌ | ✅ | ✅ |
+| Chat2DB account | ❌ | ✅ | ✅ |
+| Cloud storage and multi-device | ❌ | ✅ | ✅ |
+| Team datasources and shared assets | ❌ | ❌ | ✅ |
+| Members and roles | ❌ | ❌ | ✅ |
+| Permissions, approvals, and audit | ❌ | ❌ | ✅ |
+| Organization data context and RAG | ❌ | ❌ | ✅ |
 
 ## Download and Installation
 Chat2DB is a cross-platform application that supports Windows, MacOS, and Linux. You can download Chat2DB from the following links:

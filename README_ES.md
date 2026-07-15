@@ -64,148 +64,27 @@ Chat2DB Pro permite sincronizar estructuras de tablas de bases de datos con mayo
 
 ## Comparación de funciones
 
-<table style="width: 100%;">
-  <tr>
-    <th align="center">Función</th>
-    <th align="center">Community Open Source</th>
-    <th align="center">Pro</th>
-  </tr>
-  <tr>
-    <td align="center">Tipos de bases de datos</td>
-    <td align="center">16+</td>
-    <td align="center">Objetivo: 100+</td>
-  </tr>
-  <tr>
-    <td align="center">IA compatible</td>
-    <td align="center">Requiere configurar la IA</td>
-    <td align="center">IA lista tras la instalación</td>
-  </tr>
-  <tr>
-    <td align="center">Capacidades de IA</td>
-    <td align="center">Básicas</td>
-    <td align="center">Variadas</td>
-  </tr>
-  <tr>
-    <td align="center">Editor visual de tablas</td>
-    <td align="center">✅</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">Consola SQL</td>
-    <td align="center">✅</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">Formato de SQL</td>
-    <td align="center">✅</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">Guardar registros de consultas</td>
-    <td align="center">✅</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">Configuración del color del tema</td>
-    <td align="center">✅</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">Sincronización de estructuras de datos</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">Agrupación de bases de datos</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">Importación/exportación de estructuras de bases de datos</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">Importación/exportación de datos</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">Migración de datos</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">Copiar/vaciar tablas</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">Abrir y ejecutar archivos SQL</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">Diagrama UML</td>
-    <td align="center">❌</td>
-    <td align="center">En desarrollo</td>
-  </tr>
-  <tr>
-    <td align="center">Generación de código</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">Copiar resultados como INSERT/UPDATE</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">Modificar resultados de consultas</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">Editor SQL inteligente</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">Creación de tablas con IA</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">Conjuntos de datos de IA</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">Chat2Excel</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">Panel inteligente</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">Configuración del editor</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">Atajos personalizados</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-  <tr>
-    <td align="center">Uso en varios dispositivos</td>
-    <td align="center">❌</td>
-    <td align="center">✅</td>
-  </tr>
-</table>
+Community, Pro y Enterprise comparten las mismas funciones básicas del cliente de bases de datos. Las ediciones comerciales añaden IA oficial, almacenamiento en la nube, acceso multidispositivo, colaboración y gobierno sobre esa base, en lugar de sustituirla por otro motor de base de datos.
+
+| Función | Community | Pro (personal en línea) | Enterprise |
+| --- | --- | --- | --- |
+| Conexiones a fuentes de datos y gestión de credenciales | ✅ | ✅ | ✅ |
+| Plugins de bases de datos y exploración de metadatos | ✅ | ✅ | ✅ |
+| Edición, autocompletado, formato y ejecución de SQL | ✅ | ✅ | ✅ |
+| DDL/DML, gestión de objetos y edición de datos | ✅ | ✅ | ✅ |
+| Importación y exportación de datos | ✅ | ✅ | ✅ |
+| SQL guardado, historial y tareas | ✅ | ✅ | ✅ |
+| Paneles y gráficos | ✅ | ✅ | ✅ |
+| CLI y MCP | ✅ | ✅ | ✅ |
+| Modelos de IA personalizados | ✅ | ✅ | ✅ |
+| IA oficial de Chat2DB y modelos preconfigurados | ❌ | ✅ | ✅ |
+| Créditos oficiales de IA e historial de chat en la nube | ❌ | ✅ | ✅ |
+| Cuenta de Chat2DB | ❌ | ✅ | ✅ |
+| Nube y varios dispositivos | ❌ | ✅ | ✅ |
+| Fuentes de datos de equipo y activos compartidos | ❌ | ❌ | ✅ |
+| Miembros y roles | ❌ | ❌ | ✅ |
+| Permisos, aprobaciones y auditoría | ❌ | ❌ | ✅ |
+| Contexto de datos de la organización y RAG | ❌ | ❌ | ✅ |
 
 ## Descarga e instalación
 Chat2DB es una aplicación multiplataforma compatible con Windows, MacOS y Linux. Puede descargar Chat2DB desde los enlaces siguientes:
