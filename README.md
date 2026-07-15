@@ -91,6 +91,19 @@ Chat2DB is a cross-platform application that supports Windows, MacOS, and Linux.
 - [Download Pro Version](https://chat2db.ai/download)
 - [Download Open Source Version](https://github.com/OtterMind/Chat2DB/releases)
 
+## Community Security Boundary
+
+> [!WARNING]
+> Chat2DB Community is a single-user, local-first application. It does not
+> provide user accounts, tenant isolation, or authorization boundaries between
+> multiple users. Keep the HTTP service bound to `127.0.0.1` or `::1` and do
+> not expose it directly to other users or untrusted networks.
+>
+> Custom JDBC drivers are executable Java code. Install them only from sources
+> you trust. Imported configuration files, archives, SQL files, database
+> contents, and AI responses remain untrusted data. See [Security Policy](SECURITY.md)
+> for the complete trust boundary and vulnerability reporting process.
+
 ## Community Edition Docker Installation
 
 ### System Requirements

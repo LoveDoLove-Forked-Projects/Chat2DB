@@ -91,6 +91,22 @@ Chat2DB es una aplicación multiplataforma compatible con Windows, MacOS y Linux
 - [Descargar la versión Pro](https://chat2db.ai/download)
 - [Descargar la versión de código abierto](https://github.com/OtterMind/Chat2DB/releases)
 
+## Límite de seguridad de Community Edition
+
+> [!WARNING]
+> Chat2DB Community es una aplicación para un solo usuario y de uso local. No
+> proporciona cuentas de usuario, aislamiento entre inquilinos ni límites de
+> autorización entre varios usuarios. Mantenga el servicio HTTP enlazado a
+> `127.0.0.1` o `::1` y no lo exponga directamente a otros usuarios ni a redes
+> que no sean de confianza.
+>
+> Los controladores JDBC personalizados son código Java ejecutable. Instálelos
+> solo desde fuentes de confianza. Los archivos de configuración, archivos
+> comprimidos, archivos SQL, contenidos de bases de datos y respuestas de IA
+> importados siguen siendo datos no confiables. Consulte la [Política de
+> seguridad](SECURITY.md) para conocer el límite de confianza completo y el
+> proceso de notificación de vulnerabilidades.
+
 ## Instalación de Community Edition con Docker
 
 ### Requisitos del sistema
