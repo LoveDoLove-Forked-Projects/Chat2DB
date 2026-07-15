@@ -251,7 +251,7 @@ docker logs --follow chat2db-community
 
 `http://localhost:10825` を開いてください。更新する場合は、新しいイメージを取得し、古いコンテナを削除してから上記のコマンドを再実行します。
 
-Chat2DB Community 4.0.0 は独立した `/root/.chat2db-community` ディレクトリを使用し、旧イメージの `/root/.chat2db` にあるデータを自動移行しません。
+Chat2DB Community 5.3.0 は独立した `/root/.chat2db-community` ディレクトリを使用し、旧イメージの `/root/.chat2db` にあるデータを自動移行しません。
 
 コンテナを再作成しても `~/.config/chat2db-community/encryption.key` を保持し、別途バックアップしてください。このファイルを置き換えたり失ったりすると、保存済みのデータソースパスワードと AI モデル API キーを復号できません。`chat2db.mode` が `DESKTOP` 以外の起動方式（通常の Web/headless 起動を含む）は、有効なキーがない場合に起動に失敗します。
 
@@ -347,7 +347,7 @@ $ java -Dloader.path=chat2db-community-server/chat2db-community-start/target/lib
 **ローカル Docker イメージのビルド**
 
 ```bash
-$ ./docker/docker-build.sh 4.0.0 chat2db/chat2db:4.0.0
+$ ./docker/docker-build.sh 5.3.0 chat2db/chat2db:5.3.0
 ```
 
 

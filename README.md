@@ -238,7 +238,7 @@ docker logs --follow chat2db-community
 
 Open `http://localhost:10825`. To update the container, pull the new image, remove the old container, and run the command above again.
 
-Chat2DB Community 4.0.0 uses the independent `/root/.chat2db-community` directory. It does not automatically migrate data from earlier images that used `/root/.chat2db`.
+Chat2DB Community 5.3.0 uses the independent `/root/.chat2db-community` directory. It does not automatically migrate data from earlier images that used `/root/.chat2db`.
 
 Keep `~/.config/chat2db-community/encryption.key` across container rebuilds and back it up separately. Replacing or losing it makes previously stored datasource passwords and AI model API keys unreadable. Startup with `chat2db.mode` other than `DESKTOP`, including normal Web/headless startup, fails when no valid key is provided.
 
@@ -334,7 +334,7 @@ $ java -Dloader.path=chat2db-community-server/chat2db-community-start/target/lib
 **Build a local Docker image**
 
 ```bash
-$ ./docker/docker-build.sh 4.0.0 chat2db/chat2db:4.0.0
+$ ./docker/docker-build.sh 5.3.0 chat2db/chat2db:5.3.0
 ```
 
 ## Contributing

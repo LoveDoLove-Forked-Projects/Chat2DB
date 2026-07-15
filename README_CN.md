@@ -279,7 +279,7 @@ docker logs --follow chat2db-community
 
 浏览器访问 `http://localhost:10825`。更新时先拉取新镜像、删除旧容器，再重新执行以上命令。
 
-Chat2DB Community 4.0.0 使用独立的 `/root/.chat2db-community` 目录，不会自动迁移旧镜像 `/root/.chat2db` 中的数据。
+Chat2DB Community 5.3.0 使用独立的 `/root/.chat2db-community` 目录，不会自动迁移旧镜像 `/root/.chat2db` 中的数据。
 
 容器重建时必须保留 `~/.config/chat2db-community/encryption.key`，并单独备份。替换或丢失该文件会导致已有数据源密码和 AI 模型 API Key 无法解密；`chat2db.mode` 不是 `DESKTOP` 的启动方式（包括常规 Web/headless 启动）缺少合法密钥时会直接启动失败。
 
@@ -376,7 +376,7 @@ $ java -Dloader.path=chat2db-community-server/chat2db-community-start/target/lib
 **构建本地 Docker 镜像**
 
 ```bash
-$ ./docker/docker-build.sh 4.0.0 chat2db/chat2db:4.0.0
+$ ./docker/docker-build.sh 5.3.0 chat2db/chat2db:5.3.0
 ```
 
 ## 常见问题

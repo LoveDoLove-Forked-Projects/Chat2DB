@@ -44,7 +44,7 @@ export const DEFAULT_AI_SETTINGS: GlobalAISettings = {
 };
 
 export const DEFAULT_APP_CONFIG: GlobalAppConfig = {
-  version: '0.0.0',
+  version: '5.3.0',
   countries: null,
   gatewayUrl: null,
   curCountry: null,

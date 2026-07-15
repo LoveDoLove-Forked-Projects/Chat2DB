@@ -280,7 +280,7 @@ script/package/package-community-jcef.sh 0.0.0-local prepare
 The desktop script's `mac`, `linux`, and `win` targets are platform-specific and
 may download a JBR. Signed macOS packages require CI secrets. A manual desktop
 workflow dispatch only uploads GitHub Actions artifacts. Pushing a numeric
-`v4.0.0`-style tag validates all nine native installers, adds `SHA256SUMS`,
+`v5.3.0`-style tag validates all nine native installers, adds `SHA256SUMS`,
 stages a draft GitHub Release, calls the reusable Docker workflow for the
 versioned and `latest` tags, and publishes the Release only after Docker
 succeeds. Neither path uploads to the updater CDN. These are external

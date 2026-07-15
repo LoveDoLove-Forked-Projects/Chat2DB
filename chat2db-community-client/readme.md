@@ -33,7 +33,7 @@ The Community development server listens on port `8889`.
 Build the Community renderer with an explicit public version:
 
 ```bash
-yarn run build:web:community --app_version=4.0.0
+yarn run build:web:community --app_version=5.3.0
 ```
 
 The generated renderer is written to `dist/`. For a web or Docker package, the
@@ -52,7 +52,7 @@ frontend, backend, and image build without manually staging these files.
 The JCEF desktop packaging entry point is repository-local:
 
 ```bash
-script/package/package-community-jcef.sh 4.0.0 prepare
+script/package/package-community-jcef.sh 5.3.0 prepare
 ```
 
 Run it from the repository root. Replace `prepare` with `mac`, `linux`, or `win`

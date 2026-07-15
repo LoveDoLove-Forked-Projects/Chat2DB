@@ -3,7 +3,7 @@
 # --- Usage ---
 # ./generate_metadata.sh <version> <source_directory> [base_url]
 # Example:
-# ./generate_metadata.sh 4.0.0 /path/to/your/files https://cdn.chat2db-ai.com/community/updates
+# ./generate_metadata.sh 5.3.0 /path/to/your/files https://cdn.chat2db-ai.com/community/updates
 
 # --- 1. Argument validation ---
 if [[ "$#" -lt 2 ]]; then

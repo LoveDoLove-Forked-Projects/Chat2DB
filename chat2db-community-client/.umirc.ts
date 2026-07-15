@@ -305,7 +305,7 @@ export default defineConfig({
     __RUNTIME_ENV__: buildProfile.runtimeMode,
     __APP_NAME__: buildProfile.appName,
     __BUILD_TIME__: generateBuildTime(),
-    __APP_VERSION__: yarn_config.app_version || '0.0.0',
+    __APP_VERSION__: yarn_config.app_version || '5.3.0',
     __PRINT_LOGS__: yarn_config.print_logs === 'true',
     __GATEWAY_URL__: yarn_config.gateway_url,
     __WEBAPP__: yarn_config.webapp === 'true',

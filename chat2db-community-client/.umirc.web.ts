@@ -2,7 +2,7 @@ import { defineConfig } from 'umi';
 import { extractYarnConfig } from './src/utils/package';
 const MonacoWebpackPlugin = require('monaco-editor-webpack-plugin');
 const yarn_config = extractYarnConfig(process.argv);
-const app_version = yarn_config.app_version || '4.0.0';
+const app_version = yarn_config.app_version || '5.3.0';
 const publicPath = yarn_config.public_path || './static/front/';
 
 const chainWebpack = (config: any, { webpack }: any) => {

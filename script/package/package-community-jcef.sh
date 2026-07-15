@@ -20,8 +20,8 @@ Environment:
   MAC_SIGNING_IDENTITY          macOS Developer ID Application identity.
 
 Examples:
-  script/package/package-community-jcef.sh 4.0.0 prepare
-  script/package/package-community-jcef.sh 4.0.0 mac
+  script/package/package-community-jcef.sh 5.3.0 prepare
+  script/package/package-community-jcef.sh 5.3.0 mac
 EOF
 }
 
