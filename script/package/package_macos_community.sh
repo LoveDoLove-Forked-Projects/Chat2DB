@@ -19,6 +19,7 @@ MAIN_CLASS="org.springframework.boot.loader.launch.PropertiesLauncher"
 APP_ICON_NAME="${APP_NAME}.icns"
 
 PROJECT_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
+LICENSE_FILE="${PROJECT_ROOT}/LICENSE"
 INPUT_DIR="${PROJECT_ROOT}/jpackage/input/mac"
 RESOURCE_TEMPLATE_DIR="${INPUT_DIR}/../macres"
 RESOURCE_DIR="${PROJECT_ROOT}/jpackage/output/macres-community"
@@ -48,6 +49,10 @@ validate_resources() {
     fi
     if [ ! -d "${RESOURCE_TEMPLATE_DIR}" ]; then
         echo "Error: macOS resource directory not found: ${RESOURCE_TEMPLATE_DIR}" >&2
+        exit 1
+    fi
+    if [ ! -f "${LICENSE_FILE}" ]; then
+        echo "Error: license file not found: ${LICENSE_FILE}" >&2
         exit 1
     fi
     if [ ! -f "${ICON_FILE}" ]; then
@@ -118,6 +123,7 @@ package_application() {
         "--main-class" "${MAIN_CLASS}"
         "--dest" "${OUTPUT_DIR}"
         "--runtime-image" "${MAC_RUNTIME_IMAGE}"
+        "--license-file" "${LICENSE_FILE}"
         "--file-associations" "${ASSOCIATIONS_FILE}"
         "--mac-sign"
         "--mac-signing-key-user-name" "${signing_identity}"

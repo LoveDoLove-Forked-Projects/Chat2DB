@@ -430,4 +430,7 @@ $ ./docker/docker-build.sh 5.3.0 chat2db/chat2db:5.3.0
 </a>
 
 ## License
-The primary license used by this software is the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0), supplemented by the [Chat2DB License](./Chat2DB_LICENSE).
+Chat2DB Community 5.3.0 及后续版本适用本仓库的
+[LICENSE](./LICENSE)。该许可基于 Apache License 2.0 并附加了使用条件，
+属于 Source Available 许可。Chat2DB 5.3.0 之前发布的所有版本，包括 0.3.7
+以及更早的历史版本，继续适用 Apache License 2.0。

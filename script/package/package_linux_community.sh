@@ -19,6 +19,7 @@ PROTOCOL_NAME="chat2db-community"
 PROTOCOL_DESCRIPTION="Chat2DB Community Protocol Handler"
 
 PROJECT_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
+LICENSE_FILE="${PROJECT_ROOT}/LICENSE"
 INPUT_DIR="${PROJECT_ROOT}/jpackage/input/linux"
 MAIN_JAR_PATH="${INPUT_DIR}/${MAIN_JAR}"
 LIB_DIR="${INPUT_DIR}/lib"
@@ -42,6 +43,10 @@ validate_resources() {
     fi
     if [ ! -f "${ICON_FILE}" ]; then
         echo "Error: Linux icon file not found: ${ICON_FILE}" >&2
+        exit 1
+    fi
+    if [ ! -f "${LICENSE_FILE}" ]; then
+        echo "Error: license file not found: ${LICENSE_FILE}" >&2
         exit 1
     fi
     if [ ! -d "${PROJECT_ROOT}/jpackage/input/runtime/linux/Home" ]; then
@@ -140,6 +145,7 @@ build_base_args() {
         "--main-class" "${MAIN_CLASS}"
         "--dest" "${dest_dir}"
         "--runtime-image" "${PROJECT_ROOT}/jpackage/input/runtime/linux/Home"
+        "--license-file" "${LICENSE_FILE}"
         "--icon" "${ICON_FILE}"
     )
 
@@ -198,7 +204,7 @@ build_rpm() {
         --install-dir "${INSTALL_DIR}" \
         --resource-dir "${resource_dir}" \
         --linux-package-name "${PACKAGE_NAME}" \
-        --linux-rpm-license-type Apache-2.0 \
+        --linux-rpm-license-type LicenseRef-Chat2DB \
         --linux-menu-group Development \
         --linux-app-category Development \
         --linux-shortcut

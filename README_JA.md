@@ -380,4 +380,8 @@ Chat2DBに貢献してくださったすべての方々に感謝します~~
 </a>
 
 ## License
-このソフトウェアで使用されている主なライセンスは[Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0)であり、[Chat2DB License](./Chat2DB_LICENSE)が補完されています。
+Chat2DB Community 5.3.0 以降には、このリポジトリの
+[LICENSE](./LICENSE) が適用されます。このライセンスは Apache License 2.0
+を基礎として追加条件を設けた Source Available ライセンスです。Chat2DB
+5.3.0 より前に公開されたすべてのリリース（0.3.7 およびそれ以前の履歴
+バージョンを含む）には、引き続き Apache License 2.0 が適用されます。

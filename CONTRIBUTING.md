@@ -139,9 +139,9 @@ Thank you for helping improve Chat2DB.
 
 ## License
 
-By contributing to Chat2DB, you agree that your contributions will be licensed under the project's existing licenses.
+By contributing to Chat2DB, you agree that your contributions will be licensed
+under the project's current [LICENSE](./LICENSE). You also agree that Chat2DB
+may use your contributions for commercial purposes and may include them in
+future releases made available under different license terms.
 
-Please review:
-
-- [Apache License 2.0](./LICENSE)
-- [Chat2DB License](./Chat2DB_LICENSE)
+Please review the [LICENSE](./LICENSE) before submitting a contribution.

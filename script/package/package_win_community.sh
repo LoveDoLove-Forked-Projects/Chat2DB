@@ -16,6 +16,7 @@ ARTIFACT_BASE="Chat2DB-Community"
 WIN_UPGRADE_UUID="4D7C78BC-B42F-4F81-9F5F-56E3F5E4E9B2"
 
 PROJECT_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
+LICENSE_FILE="${PROJECT_ROOT}/LICENSE"
 INPUT_DIR="${PROJECT_ROOT}/jpackage/input/win"
 MAIN_JAR_PATH="${INPUT_DIR}/${MAIN_JAR}"
 LIB_DIR="${INPUT_DIR}/lib"
@@ -43,6 +44,10 @@ fi
 if [ ! -f "${ICON_FILE}" ]; then
     echo "[warn] icon not found, jpackage will use default: ${ICON_FILE}"
 fi
+if [ ! -f "${LICENSE_FILE}" ]; then
+    echo "[error] license file not found: ${LICENSE_FILE}" >&2
+    exit 1
+fi
 
 rm -rf "${OUTPUT_DIR}"
 mkdir -p "${OUTPUT_DIR}"
@@ -68,6 +73,7 @@ JPACKAGE_ARGS=(
     --runtime-image "${RUNTIME_IMAGE_PATH}"
     --main-jar "${MAIN_JAR}"
     --main-class "${MAIN_CLASS}"
+    --license-file "${LICENSE_FILE}"
     --file-associations "${ASSOCIATIONS_FILE}"
     --win-shortcut
     --win-menu
