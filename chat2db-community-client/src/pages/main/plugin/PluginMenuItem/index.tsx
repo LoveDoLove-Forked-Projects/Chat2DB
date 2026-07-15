@@ -1,7 +1,6 @@
-import React from 'react';
-import { IPluginItem, PluginStatus } from '@/typings/plugin';
+import { IPluginItem } from '@/typings/plugin';
 import { useStyles } from './style';
-import { Flex, Spin } from 'antd';
+import { Flex } from 'antd';
 import i18n from '@/i18n';
 
 interface PluginMenuItemProps {
@@ -14,31 +13,16 @@ interface PluginMenuItemProps {
 const PluginMenuItem = ({ plugin, isActive, onClick, onButtonClick }: PluginMenuItemProps) => {
   const { styles } = useStyles({ isActive });
 
-  const renderButton = () => {
-    const statusToAction = {
-      [PluginStatus.INSTALLED]: 'launch',
-      [PluginStatus.UNINSTALLED]: 'install',
-      [PluginStatus.INSTALLING]: 'installing',
-      [PluginStatus.UPDATE]: 'update',
-    };
-
-    const action = statusToAction[plugin.pluginStatus];
-
-    if (!action) return null;
-
-    if (action === statusToAction[PluginStatus.INSTALLING]) {
-      return <Spin spinning={true} />;
-    }
-
+  const renderDownloadButton = () => {
     return (
       <div
-        className={styles[`${action}Button`]}
+        className={styles.downloadButton}
         onClick={(e) => {
           e.stopPropagation();
           onButtonClick && onButtonClick();
         }}
       >
-        {i18n(`plugin.${action}`)}
+        {i18n('plugin.download')}
       </div>
     );
   };
@@ -54,7 +38,7 @@ const PluginMenuItem = ({ plugin, isActive, onClick, onButtonClick }: PluginMenu
           <div className={styles.description}>{plugin.description}</div>
         </Flex>
 
-        {renderButton()}
+        {renderDownloadButton()}
       </Flex>
     </div>
   );

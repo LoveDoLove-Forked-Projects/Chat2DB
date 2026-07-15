@@ -1,18 +1,3 @@
-/**
- * Plug-in status
- */
-export enum PluginStatus {
-  // unknown
-  NONE = 'NONE',
-  // Installed
-  INSTALLED = 'INSTALLED',
-  // Installing
-  INSTALLING = 'INSTALLING',
-  // Not installed
-  UNINSTALLED = 'UNINSTALLED',
-  // To be updated
-  UPDATE = 'UPDATE',
-}
 export interface IPluginDataPackageVO {
   size: number;
   usedSize: number;
@@ -21,7 +6,7 @@ export interface IPluginDataPackageVO {
   runOutTime: number;
 }
 
-export type IPluginItem = IPluginVO & { pluginStatus: PluginStatus; token?: string };
+export type IPluginItem = IPluginVO & { token?: string };
 
 /**
  * Backend VO object

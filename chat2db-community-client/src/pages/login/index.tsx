@@ -148,7 +148,8 @@ export default memo<IProps>(() => {
     oauthServices
       .userLogin(p)
       .then(() => {
-        // Mark authentication through the login page so the app can report Google Ads registration without relying on the timezone-sensitive createTime.
+        // Mark authentication through the login page so the app can report
+        // Google Ads registration without relying on timezone-sensitive createTime.
         markGoogleAdsSignUpPending();
         const { redirect } = getAllUrlParams(window.location.href);
         if (redirect) {
@@ -235,7 +236,7 @@ export default memo<IProps>(() => {
         return;
       } else if (isDesktop) {
         console.log(`Desktop (non-JCEF): Opening URL in new window/tab: ${urlToOpen}`);
-        openWebPage(urlToOpen, '_blank'); // In Electron, _blank usually opens an external browser or a new window.
+        openWebPage(urlToOpen, '_blank');
         return;
       }
       // Standard web browser environment.

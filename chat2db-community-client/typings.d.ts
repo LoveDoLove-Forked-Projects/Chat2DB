@@ -25,38 +25,6 @@ declare global {
     _appTitleBarHeight: number;
     _PRINT_LOGS: boolean; // Whether to print logs
 
-    electronApi?: {
-      // Already compatible APIs
-      revealInExplorer: (url: string) => void;
-      selectDirectory: () => string;
-      maximizeWindow: () => void;
-      minimizeWindow: () => void;
-      isWindowMaximized: () => Promise<boolean>;
-      closeWindow: () => void;
-      appCheckUpdate: () => void;
-      webFrameSetZoom: (data: { action: 'zoomIn' | 'zoomOut' | 'zoomReset' }) => void;
-      openLog: () => void;
-      openDevTools: () => void;
-      saveFile: (data: { fileName: string; fileContent: string; fileType: string }) => void;
-      updateFileContent: (data: { filePath: string; fileContent: string }) => void;
-      getMacAddress: () => any;
-      
-      // Deprecated APIs
-      on: (data: any, fun: IFunction) => boolean;
-      off: (data: any, fun: IFunction) => void;
-
-      // APIs pending migration
-      updateAutoUpdaterConfig: (data: any) => void;
-      ipcRenderer: {
-        on: (data: string, fun: IFunction) => void; // Register a listener
-        removeListener: (data: string, fun: any) => void;
-        removeAllListeners: (data: string) => void;
-      };
-      scanPlugin: () => void;
-      installPlugin: (pluginName: string) => void;
-      openPlugin: (props: { pluginName: string; token: string }) => void;
-    };
-
     // JCEF bridge declarations
     /**
      * JCEF: Call Java methods from JavaScript.

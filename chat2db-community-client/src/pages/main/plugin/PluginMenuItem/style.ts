@@ -33,42 +33,7 @@ export const useStyles = createStyles(({ css, token }, { isActive }: { isActive:
       display: flex;
       justify-content: space-between;
     `,
-    launchButton: css`
-      font-size: 12px;
-      border-radius: 4px;
-      padding: 4px 12px;
-      color: ${token.colorPrimary};
-      background-color: ${token.colorPrimaryBg};
-      border: 1px solid ${token.colorPrimary};
-      cursor: pointer;
-      &:hover {
-        opacity: 0.8;
-      }
-    `,
-    installButton: css`
-      font-size: 12px;
-      border-radius: 4px;
-      padding: 4px 12px;
-      color: ${token.colorBgElevated};
-      background-color: ${token.colorPrimary};
-      cursor: pointer;
-      &:hover {
-        opacity: 0.8;
-      }
-    `,
-    updateButton: css`
-      font-size: 12px;
-      border-radius: 4px;
-      padding: 4px 12px;
-      color: ${token.colorBgElevated};
-      background-color: ${token.colorPrimary};
-      cursor: pointer;
-      &:hover {
-        opacity: 0.8;
-      }
-    `,
-
-    installingButton: css`
+    downloadButton: css`
       font-size: 12px;
       border-radius: 4px;
       padding: 4px 12px;

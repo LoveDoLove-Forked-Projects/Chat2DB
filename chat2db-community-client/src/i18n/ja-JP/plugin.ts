@@ -1,9 +1,6 @@
 export default {
   'plugin.title': 'プラグイン',
-  'plugin.install': 'インストール',
-  'plugin.update':  '更新',
-  'plugin.installing': 'インストール中',
-  'plugin.launch': '起動',
+  'plugin.download': 'ダウンロード',
 
   'plugin.item.intro': '紹介',
   'plugin.item.usage': '使用',

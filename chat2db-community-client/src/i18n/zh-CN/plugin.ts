@@ -1,9 +1,6 @@
 export default {
   'plugin.title': '插件',
-  'plugin.install': '安装',
-  'plugin.update': '更新',
-  'plugin.installing': '安装中',
-  'plugin.launch': '启动',
+  'plugin.download': '下载',
 
   'plugin.item.intro': '介绍',
   'plugin.item.usage': '使用',

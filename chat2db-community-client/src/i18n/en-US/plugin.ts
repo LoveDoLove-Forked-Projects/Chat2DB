@@ -1,9 +1,6 @@
 export default {
   'plugin.title': 'Plugin',
-  'plugin.install': 'Install',
-  'plugin.update': 'Update',
-  'plugin.installing': 'Installing',
-  'plugin.launch': 'Launch',
+  'plugin.download': 'Download',
 
   'plugin.item.intro': 'Introduction',
   'plugin.item.usage': 'Usage',

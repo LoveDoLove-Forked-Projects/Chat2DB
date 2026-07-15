@@ -12,7 +12,10 @@ import { getPersistableActiveConsoleId } from '../../utils/workspaceTabPersisten
 
 const RECENTLY_CLOSED_WORKSPACE_TAB_LIMIT = 20;
 
-const getPaneIdForWorkspaceTab = (workspaceTabSplitLayout: ConsoleState['workspaceTabSplitLayout'], tabId: string | number) => {
+const getPaneIdForWorkspaceTab = (
+  workspaceTabSplitLayout: ConsoleState['workspaceTabSplitLayout'],
+  tabId: string | number,
+) => {
   const paneTabIds = workspaceTabSplitLayout?.paneTabIds || {};
   return Object.keys(paneTabIds).find((paneId) => paneTabIds[paneId]?.includes(tabId));
 };
@@ -96,7 +99,6 @@ export const createConsoleAction: StateCreator<WorkspaceStore, [['zustand/devtoo
       set({
         consoleList: res?.data || [],
       });
-      // The useInitElectronApiOn file has a dependency on consoleList
     });
   },
   getSavedConsoleList: () => {
@@ -206,7 +208,7 @@ export const createConsoleAction: StateCreator<WorkspaceStore, [['zustand/devtoo
           editorList: newEditorList,
         });
       }
-    } catch (e) {
+    } catch (_error) {
       console.error('deleteEditor error');
     }
   },
@@ -314,7 +316,9 @@ export const createConsoleAction: StateCreator<WorkspaceStore, [['zustand/devtoo
     if (removedWorkspaceTab && !hasFunctionValue(removedWorkspaceTab.uniqueData)) {
       const recentlyClosedWorkspaceTabs = get().recentlyClosedWorkspaceTabs || [];
       const currentEditorValue = editorList?.[removedWorkspaceTab.id]?.getValue?.();
-      const uniqueData = removedWorkspaceTab.uniqueData ? stripFunctionValues(removedWorkspaceTab.uniqueData) : undefined;
+      const uniqueData = removedWorkspaceTab.uniqueData
+        ? stripFunctionValues(removedWorkspaceTab.uniqueData)
+        : undefined;
       if (uniqueData && currentEditorValue !== undefined) {
         uniqueData.ddl = currentEditorValue;
       }

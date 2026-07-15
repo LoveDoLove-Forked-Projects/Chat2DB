@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import PageTitle from '@/components/PageTitle';
 import pluginService from '@/service/plugin';
-import { IPluginItem, PluginStatus } from '@/typings/plugin';
+import { IPluginItem } from '@/typings/plugin';
+import { openWebPage } from '@/utils/url';
 import { useStyles } from './style';
 import PluginMenuItem from '../PluginMenuItem';
 import i18n from '@/i18n';
@@ -13,7 +14,6 @@ interface PluginMenuListProps {
 }
 const PluginMenuList = ({ curPlugin, onClick }: PluginMenuListProps) => {
   const [pluginList, setPluginList] = useState<IPluginItem[]>([]);
-  const scanPluginObj = useRef({});
   const { styles } = useStyles();
 
   const { curUser } = useUserStore((s) => ({
@@ -26,66 +26,18 @@ const PluginMenuList = ({ curPlugin, onClick }: PluginMenuListProps) => {
     queryPluginList();
   }, []);
 
-  const scanPluginCallback = useCallback(
-    (event, message) => {
-      scanPluginObj.current = message;
-      changePluginStatus(pluginList);
-    },
-    [pluginList],
-  );
-
-  useEffect(() => {
-    window.electronApi?.ipcRenderer?.on('plugins-scanned', scanPluginCallback);
-    return () => {
-      window.electronApi?.ipcRenderer?.removeAllListeners('plugins-scanned');
-    };
-  }, [pluginList]);
-
-  useEffect(() => {
-    triggerScanPlugin();
-    window.electronApi?.ipcRenderer?.on('plugins-scanned', scanPluginCallback);
-
-    window?.electronApi?.ipcRenderer?.on('message-from-main', (event, message) => {
-      console.log('message-from-main', event, message);
-      triggerScanPlugin();
-    });
-  }, []);
-
-  const triggerScanPlugin = () => {
-    // Trigger a plugin scan.
-    window?.electronApi?.scanPlugin?.();
-  };
-
   const queryPluginList = async () => {
     const res = await pluginService.queryPluginList();
-    const newPluginList = res.map((item) => ({ ...item, pluginStatus: PluginStatus.UNINSTALLED }));
-    setPluginList(newPluginList);
+    setPluginList(res);
 
-    if (!curPlugin && newPluginList[0]) {
+    if (!curPlugin && res[0]) {
       if (!isVip) {
         return staticMessage.error(i18n('plugin.item.usage.status.needBuy'));
       } else {
-        newPluginList[0].token = await pluginService.queryToken();
+        res[0].token = await pluginService.queryToken();
       }
-      handleClickItem(newPluginList[0]);
+      handleClickItem(res[0]);
     }
-    changePluginStatus(newPluginList);
-  };
-
-  const changePluginStatus = (pluginList) => {
-    const newPluginList = pluginList.map((item) => {
-      let pluginStatus = scanPluginObj.current[item.name] ? PluginStatus.INSTALLED : PluginStatus.UNINSTALLED;
-      // Mark an installed plugin as pending update when its version differs.
-      if (pluginStatus === PluginStatus.INSTALLED && scanPluginObj.current[item.name].version !== item.version) {
-        pluginStatus = PluginStatus.UPDATE;
-      }
-
-      return {
-        ...item,
-        pluginStatus,
-      };
-    });
-    setPluginList(newPluginList);
   };
 
   const handleClickItem = async (plugin) => {
@@ -98,24 +50,9 @@ const PluginMenuList = ({ curPlugin, onClick }: PluginMenuListProps) => {
     onClick(plugin);
   };
 
-  const handleButtonClick = async (plugin) => {
-    if (plugin.pluginStatus === PluginStatus.INSTALLED) {
-      if (!isVip) {
-        return staticMessage.error(i18n('plugin.item.usage.status.needBuy'));
-      }
-      if (!plugin.token) {
-        plugin.token = await pluginService.queryToken();
-      }
-      window.electronApi?.openPlugin({ pluginName: plugin.name, token: plugin.token });
-    }
-    if (plugin.pluginStatus === PluginStatus.UNINSTALLED || plugin.pluginStatus === PluginStatus.UPDATE) {
-      plugin.pluginStatus = PluginStatus.INSTALLING;
-      setPluginList([...pluginList]);
-      window.electronApi?.installPlugin(plugin.name);
-
-      // Call the backend to record the installation count.
-      pluginService.addPluginDownloadCount({ id: plugin.id });
-    }
+  const handleButtonClick = (plugin) => {
+    pluginService.addPluginDownloadCount({ id: plugin.id });
+    openWebPage(plugin.downloadUrl || plugin.url);
   };
   return (
     <div className={styles.container}>
