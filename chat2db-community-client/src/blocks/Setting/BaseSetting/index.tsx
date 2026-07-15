@@ -18,6 +18,8 @@ const languageOptions = [
   { value: LangType.ZH_CN, label: '简体中文' },
   { value: LangType.EN_US, label: 'English' },
   { value: LangType.JA_JP, label: '日本語' },
+  { value: LangType.ES_ES, label: 'Español' },
+  { value: LangType.KO_KR, label: '한국어' },
 ];
 
 const customFontSizeOptions = [

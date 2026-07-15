@@ -364,10 +364,15 @@ export function getLanguageType(language?: string) {
   if (!language) {
     return LangType.EN_US;
   }
-  if (language.includes('zh-CN')) {
+  const normalizedLanguage = language.toLowerCase();
+  if (normalizedLanguage.startsWith('zh-cn')) {
     return LangType.ZH_CN;
-  } else if (language.includes('ja')) {
+  } else if (normalizedLanguage.startsWith('ja')) {
     return LangType.JA_JP;
+  } else if (normalizedLanguage.startsWith('es')) {
+    return LangType.ES_ES;
+  } else if (normalizedLanguage.startsWith('ko')) {
+    return LangType.KO_KR;
   } else {
     return LangType.EN_US;
   }

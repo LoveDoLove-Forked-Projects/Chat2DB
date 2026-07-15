@@ -63,6 +63,7 @@ and installers are written under `jpackage/` and are not frontend source files.
 
 ```bash
 yarn run lint
+yarn run test:i18n
 yarn run test:sql-in-clipboard
 ```
 
@@ -73,4 +74,6 @@ yarn run test:sql-in-clipboard
   as `var(--control-item-bg-active)` in styles instead of hard-coded theme
   colors.
 - Use keys from `src/i18n/` through `i18n` or `i18nElement`. Placeholders use
-  `{1}`, `{2}`, and so on.
+  `{1}`, `{2}`, and so on. Spanish and Korean catalogs must keep exact module,
+  key, placeholder, and HTML-tag parity with `en-US`; update their source hashes
+  whenever the corresponding English wording changes.

@@ -47,6 +47,9 @@ export default memo<IProps>((props) => {
         return 56;
       case LangType.JA_JP:
         return 72;
+      case LangType.KO_KR:
+        return 72;
+      case LangType.ES_ES:
       case LangType.EN_US:
         return 92;
       default:
@@ -60,6 +63,9 @@ export default memo<IProps>((props) => {
         return 170;
       case LangType.JA_JP:
         return 220;
+      case LangType.KO_KR:
+        return 220;
+      case LangType.ES_ES:
       case LangType.EN_US:
         return 240;
       default:

@@ -2,6 +2,14 @@ import { InputType, AuthenticationType, SSHAuthenticationType } from './enum';
 import { DatabaseTypeCode, OperationColumn } from '@/constants';
 import { LangType } from '@/constants/settings';
 
+export type ILocalizedConnectionText = {
+  [LangType.EN_US]: string;
+  [LangType.ZH_CN]: string;
+  [LangType.JA_JP]: string;
+  [LangType.ES_ES]?: string;
+  [LangType.KO_KR]?: string;
+};
+
 export type ISelect = {
   value?: AuthenticationType | SSHAuthenticationType | string | boolean;
   label?: string;
@@ -15,29 +23,18 @@ export type ISelect = {
 export interface IFormItem {
   defaultValue: any;
   inputType: InputType;
-  labelName: {
-    [LangType.EN_US]: string;
-    [LangType.ZH_CN]: string;
-    [LangType.JA_JP]: string;
-  },
+  labelName: ILocalizedConnectionText,
   name: string;
   required: boolean;
   selected?: any;
   selects?: ISelect[];
   labelTextAlign?: 'right';
   disabled?: boolean;
-  placeholder?: {
-    [LangType.EN_US]: string;
-    [LangType.ZH_CN]: string;
-    [LangType.JA_JP]: string;
-  };
+  placeholder?: ILocalizedConnectionText;
   styles?: {
     width?: string; // Form width; percentages are recommended and the default is 100%.
-    labelWidth?: {
-      [LangType.EN_US]: string;
-      [LangType.ZH_CN]: string;
-      [LangType.JA_JP]: string;
-    }; // Form-label width for English; pixels are recommended and the default is 70px.
+    // Form-label width for English; pixels are recommended and the default is 70px.
+    labelWidth?: ILocalizedConnectionText;
     labelAlign?: string; // Label alignment; defaults to left.
   },
   hidden?: boolean;

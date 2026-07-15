@@ -1,10 +1,10 @@
 import { useGlobalStore } from "@/store/global";
 import { useLayoutEffect } from "react";
-import { LangType } from "@/constants/settings";
 import { IframeType } from "@/constants";
 import useIframeMessage from "./useIframeMessage";
 import { primaryColorsScales, ThemeAppearance } from "@chat2db/ui";
 import { isEmbedIframePage } from "@/utils/iframe";
+import { getLanguageType } from "@/utils";
 
 /** Initialize iframe */
 const useIframe = () => {
@@ -41,13 +41,7 @@ const useIframe = () => {
     }
 
     if (language) {
-      if(language === 'zh-CN') {
-        setLanguage(LangType.ZH_CN);
-      } else if (language === 'ja-JP') {
-        setLanguage(LangType.JA_JP);
-      } else {
-        setLanguage(LangType.EN_US);
-      }
+      setLanguage(getLanguageType(language));
     }
 
     if (primaryColor) {

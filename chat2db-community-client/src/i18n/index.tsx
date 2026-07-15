@@ -4,14 +4,36 @@ import { useGlobalStore } from '@/store/global';
 import { getUserComputerLanguage } from '@/utils';
 import React, { Fragment } from 'react';
 import en_US from './en-US';
+import es_ES from './es-ES';
 import ja_JP from './ja-JP';
+import ko_KR from './ko-KR';
 import zh_CN from './zh-CN';
 
 const locale = {
   [LangType.EN_US]: en_US,
   [LangType.ZH_CN]: zh_CN,
   [LangType.JA_JP]: ja_JP,
+  [LangType.ES_ES]: es_ES,
+  [LangType.KO_KR]: ko_KR,
 };
+
+const strictDevelopmentLocales = new Set([LangType.ES_ES, LangType.KO_KR]);
+
+function resolveTranslation(
+  langSet: Record<string, string>,
+  fallbackLangSet: Record<string, string>,
+  language: LangType,
+  key: string,
+) {
+  const translation = langSet[key];
+  if (translation !== undefined) {
+    return translation;
+  }
+  if (process.env.NODE_ENV !== 'production' && strictDevelopmentLocales.has(language)) {
+    return `[MISSING:${language}:${key}]`;
+  }
+  return fallbackLangSet[key];
+}
 
 function i18n(key: keyof typeof en_US, ...args: any[]) {
   const currentLang: LangType = useGlobalStore.getState().baseSetting.language;
@@ -22,7 +44,7 @@ function i18n(key: keyof typeof en_US, ...args: any[]) {
   if (runtimeEditionConfig.languageRegionRestricted && !isCN && currentLang === LangType.ZH_CN) {
     langSet = locale[LangType.EN_US];
   }
-  let result = langSet[key] ?? fallbackLangSet[key];
+  let result = resolveTranslation(langSet, fallbackLangSet, currentLang, key);
   if (result === undefined) {
     return `[${key}]`;
   } else {
@@ -48,7 +70,7 @@ function i18nElement(key: keyof typeof en_US, ...args: React.ReactNode[]) {
   if (runtimeEditionConfig.languageRegionRestricted && !isCN && currentLang === LangType.ZH_CN) {
     langSet = locale[LangType.EN_US];
   }
-  const str = langSet[key] ?? fallbackLangSet[key];
+  const str = resolveTranslation(langSet, fallbackLangSet, currentLang, key);
   if (str === undefined) {
     return `[${key}]`;
   } else {

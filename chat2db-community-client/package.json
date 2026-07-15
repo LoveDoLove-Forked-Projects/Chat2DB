@@ -26,6 +26,7 @@
     "lint": "yarn lint:eslint && yarn lint:style",
     "lint:eslint": "eslint \"src/**/*.{js,jsx,ts,tsx}\" --max-warnings=0",
     "lint:style": "stylelint \"src/**/*.{css,less}\" --max-warnings=0",
+    "test:i18n": "node ./scripts/validate-i18n.cjs",
     "test:sql-in-clipboard": "tsx src/utils/sqlInClipboard.test.ts",
     "modify:package:name": "node ./scripts/modify-package-name.js",
     "start": "APP_VERSION=${npm_config_app_version} UMI_DEV_SERVER_COMPRESS=none umi dev",

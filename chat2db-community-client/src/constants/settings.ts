@@ -6,6 +6,8 @@ export enum LangType {
   EN_US = 'en-US',
   ZH_CN = 'zh-CN',
   JA_JP = 'ja-JP',
+  ES_ES = 'es-ES',
+  KO_KR = 'ko-KR',
 }
 
 export enum UpdatedStatus {

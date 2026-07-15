@@ -13,7 +13,7 @@ import React, { ForwardedRef, Fragment, forwardRef, useEffect, useImperativeHand
 import Driver from './components/Driver';
 import { dataSourceFormConfigs } from './config/dataSource';
 import { InputType } from './config/enum';
-import { IConnectionConfig, IFormItem, ISelect } from './config/types';
+import { IConnectionConfig, IFormItem, ILocalizedConnectionText, ISelect } from './config/types';
 import styles from './index.less';
 import { formatJdbcHostForUrl, normalizeJdbcHostFromUrl } from './utils/jdbcUrl';
 
@@ -30,6 +30,94 @@ type ITabsType = 'ssh' | 'baseInfo' | 'driver';
 
 const OSCAR_JDBC_URL_PREFIX = 'jdbc:oscar://';
 const OSCAR_DRIVER_CLASS = 'com.oscar.Driver';
+
+const connectionFormTranslations: Partial<Record<LangType, Record<string, string>>> = {
+  [LangType.ES_ES]: {
+    'USE SSH': 'Usar SSH',
+    'SSH Hostname': 'Host SSH',
+    'SSH Port': 'Puerto SSH',
+    'SSH UserName': 'Usuario SSH',
+    LocalPort: 'Puerto local',
+    'Need not fill in': 'Opcional',
+    Authentication: 'Autenticación',
+    Password: 'Contraseña',
+    password: 'Contraseña',
+    'Private key file': 'Archivo de clave privada',
+    'Private key': 'Clave privada',
+    Passphrase: 'Frase de contraseña',
+    Env: 'Entorno',
+    Storage: 'Almacenamiento',
+    Port: 'Puerto',
+    Name: 'Nombre',
+    Host: 'Host',
+    User: 'Usuario',
+    Database: 'Base de datos',
+    'Service type': 'Tipo de servicio',
+    'Service name': 'Nombre del servicio',
+    Driver: 'Controlador',
+    'Account email': 'Correo de la cuenta',
+    'Project ID': 'ID del proyecto',
+    File: 'Archivo',
+    'Key file': 'Archivo de clave',
+    Server: 'Servidor',
+    Instance: 'Instancia',
+    Datatset: 'Conjunto de datos',
+    'Google Service Account': 'Cuenta de servicio de Google',
+    'User&Password': 'Usuario y contraseña',
+    LocalFile: 'Archivo local',
+    Service: 'Servicio',
+  },
+  [LangType.KO_KR]: {
+    'USE SSH': 'SSH 사용',
+    'SSH Hostname': 'SSH 호스트',
+    'SSH Port': 'SSH 포트',
+    'SSH UserName': 'SSH 사용자 이름',
+    LocalPort: '로컬 포트',
+    'Need not fill in': '선택 사항',
+    Authentication: '인증',
+    Password: '비밀번호',
+    password: '비밀번호',
+    'Private key file': '개인 키 파일',
+    'Private key': '개인 키',
+    Passphrase: '암호 구문',
+    Env: '환경',
+    Storage: '저장소',
+    Port: '포트',
+    Name: '이름',
+    Host: '호스트',
+    User: '사용자',
+    Database: '데이터베이스',
+    'Service type': '서비스 유형',
+    'Service name': '서비스 이름',
+    Driver: '드라이버',
+    'Account email': '계정 이메일',
+    'Project ID': '프로젝트 ID',
+    File: '파일',
+    'Key file': '키 파일',
+    Server: '서버',
+    Instance: '인스턴스',
+    Datatset: '데이터 세트',
+    'Google Service Account': 'Google 서비스 계정',
+    'User&Password': '사용자 및 비밀번호',
+    LocalFile: '로컬 파일',
+    Service: '서비스',
+  },
+};
+
+function localizeConnectionFormText(text: string | undefined, language: LangType) {
+  if (!text) {
+    return text;
+  }
+  return connectionFormTranslations[language]?.[text] || text;
+}
+
+function resolveLocalizedConnectionText(text: ILocalizedConnectionText | undefined, language: LangType) {
+  const directTranslation = text?.[language];
+  if (directTranslation) {
+    return directTranslation;
+  }
+  return localizeConnectionFormText(text?.[LangType.EN_US], language);
+}
 
 function hasDataSourceFormConfig(type?: string) {
   return !!type && dataSourceFormConfigs.some((item) => item.type === type);
@@ -699,16 +787,21 @@ function RenderForm(props: IRenderFormProps) {
       return null;
     }
     const curLanguage = useGlobalStore.getState().baseSetting.language;
-    const defaultLabelWidth = {
+    const defaultLabelWidth: Record<LangType, string> = {
       [LangType.EN_US]: '110px',
       [LangType.ZH_CN]: '70px',
       [LangType.JA_JP]: '100px',
+      [LangType.ES_ES]: '110px',
+      [LangType.KO_KR]: '100px',
     };
-    const label = t.labelName[curLanguage];
+    const label = resolveLocalizedConnectionText(t.labelName, curLanguage);
     const name = t.name;
     const width = t?.styles?.width || '100%';
-    const labelWidth = t?.styles?.labelWidth?.[curLanguage] || defaultLabelWidth[curLanguage];
-    const placeholder = t.placeholder?.[curLanguage];
+    const labelWidth =
+      t?.styles?.labelWidth?.[curLanguage] ||
+      t?.styles?.labelWidth?.[LangType.EN_US] ||
+      defaultLabelWidth[curLanguage];
+    const placeholder = resolveLocalizedConnectionText(t.placeholder, curLanguage);
     const labelAlign: any = t?.styles?.labelAlign || 'left';
 
     function handleFormItemValueChange(value: any) {
@@ -794,7 +887,7 @@ function RenderForm(props: IRenderFormProps) {
                   {selectItem?.color && (
                     <div className={styles.envTag} style={{ background: selectItem?.color.toLocaleLowerCase() }} />
                   )}
-                  {selectItem.label}
+                  {localizeConnectionFormText(selectItem.label, curLanguage)}
                 </div>
               </Option>
             ))}
