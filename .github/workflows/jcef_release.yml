@@ -459,7 +459,7 @@ jobs:
           for file in cdn-assets/release/*; do
             name="$(basename "${file}")"
             destination="oss://${OSS_BUCKET_NAME}/community/${VERSION}/${name}"
-            ossutil cp -f "${file}" "${destination}"
+            ossutil cp -f --meta "Cache-Control:no-cache" "${file}" "${destination}"
             ossutil stat "${destination}"
             if [ "${name}" != "SHA256SUMS" ]; then
               send_package_notification "${name}" "${CDN_BASE_URL}/community/${VERSION}/${name}"
@@ -469,7 +469,7 @@ jobs:
           for file in cdn-assets/updates/*; do
             name="$(basename "${file}")"
             destination="oss://${OSS_BUCKET_NAME}/community/updates/${VERSION}/${name}"
-            ossutil cp -f "${file}" "${destination}"
+            ossutil cp -f --meta "Cache-Control:no-cache" "${file}" "${destination}"
             ossutil stat "${destination}"
           done
 
@@ -490,12 +490,12 @@ jobs:
           )
           PY
             destination="oss://${OSS_BUCKET_NAME}/community/updates/latest_version.json"
-            ossutil cp -f cdn-assets/latest_version.json "${destination}"
+            ossutil cp -f --meta "Cache-Control:no-cache" cdn-assets/latest_version.json "${destination}"
             ossutil stat "${destination}"
           fi
 
           manifest_destination="oss://${OSS_BUCKET_NAME}/community/${VERSION}/release-manifest.json"
-          ossutil cp -f cdn-assets/release-manifest.json "${manifest_destination}"
+          ossutil cp -f --meta "Cache-Control:no-cache" cdn-assets/release-manifest.json "${manifest_destination}"
           ossutil stat "${manifest_destination}"
 
       - name: Upload CDN distribution receipt
