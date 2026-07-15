@@ -10,32 +10,24 @@ export const useStyles = createStyles(({ css, token }) => {
       position: relative;
     `,
     errorBox: css`
-      margin-top: 10px;
+      margin-top: 12px;
+    `,
+    errorTitle: css`
+      color: ${token.colorError};
+      font-weight: 500;
+    `,
+    errorMessage: css`
+      margin-top: 4px;
+      color: ${token.colorError};
+      line-height: 1.5;
+      overflow-wrap: anywhere;
     `,
     previewBox: css`
-      position: relative;
-      display: flex;
-      margin-bottom: 4px;
+      margin-bottom: 6px;
     `,
     previewText: css`
-      background: ${token.colorBgBase};
-      flex-shrink: 0;
-      margin-right: 10px;
-    `,
-    previewLine: css`
-      flex: 1;
-      position: relative;
-      &::after {
-        position: absolute;
-        left: 0;
-        right: 0px;
-        top: 50%;
-        content: '';
-        width: 100%;
-        height: 1px;
-        background: ${token.colorBorder};
-        transform: translateY(-50%);
-      }
+      color: ${token.colorTextSecondary};
+      font-weight: 500;
     `,
     createDatabaseDom: css`
       padding-top: 20px;

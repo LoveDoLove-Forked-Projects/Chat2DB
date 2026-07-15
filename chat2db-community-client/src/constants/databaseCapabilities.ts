@@ -13,6 +13,8 @@ export const databaseCapabilities = {
   databaseDeleteSupported: [DatabaseTypeCode.MYSQL, DatabaseTypeCode.POSTGRESQL],
   schemaDeleteSupported: [DatabaseTypeCode.POSTGRESQL],
   createDatabaseUnsupported: [DatabaseTypeCode.H2],
+  createDatabaseCharsetSupported: [DatabaseTypeCode.MYSQL],
+  createDatabaseCollationSupported: [DatabaseTypeCode.MYSQL],
   createSchemaUnsupported: [DatabaseTypeCode.ORACLE, DatabaseTypeCode.OSCAR],
   importExportUnsupported: [
     DatabaseTypeCode.REDIS,

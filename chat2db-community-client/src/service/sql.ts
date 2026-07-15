@@ -403,6 +403,8 @@ const getCreateDatabaseSql = createRequest<
   {
     dataSourceId: number;
     databaseName: string;
+    charset?: string;
+    collation?: string;
   },
   { sql: string }
 >('/api/rdb/database/create_database_sql', { method: 'post' });

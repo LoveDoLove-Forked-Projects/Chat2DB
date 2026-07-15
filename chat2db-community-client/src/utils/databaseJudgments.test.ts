@@ -5,6 +5,8 @@ import { EditColumnOperationType } from '@/constants/editTable';
 import {
   canCreateDatabase,
   canCreateSchema,
+  canSetCreateDatabaseCharset,
+  canSetCreateDatabaseCollation,
   canDeleteDatabase,
   canDeleteSchema,
   canExportData,
@@ -65,6 +67,12 @@ assert.equal(canDeleteSchema(DatabaseTypeCode.MYSQL), false);
 
 assert.equal(canCreateDatabase(DatabaseTypeCode.H2), false);
 assert.equal(canCreateDatabase(DatabaseTypeCode.MYSQL), true);
+assert.equal(canSetCreateDatabaseCharset(DatabaseTypeCode.MYSQL), true);
+assert.equal(canSetCreateDatabaseCharset(DatabaseTypeCode.POSTGRESQL), false);
+assert.equal(canSetCreateDatabaseCharset(DatabaseTypeCode.SQLITE), false);
+assert.equal(canSetCreateDatabaseCollation(DatabaseTypeCode.MYSQL), true);
+assert.equal(canSetCreateDatabaseCollation(DatabaseTypeCode.POSTGRESQL), false);
+assert.equal(canSetCreateDatabaseCollation(DatabaseTypeCode.SQLITE), false);
 assert.equal(canCreateSchema(DatabaseTypeCode.ORACLE), false);
 assert.equal(canCreateSchema(DatabaseTypeCode.OSCAR), false);
 assert.equal(canCreateSchema(DatabaseTypeCode.POSTGRESQL), true);

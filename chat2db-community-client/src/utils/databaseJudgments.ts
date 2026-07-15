@@ -68,6 +68,14 @@ export const canCreateDatabase = (databaseType?: DatabaseTypeInput): boolean => 
   return !containsStrict(databaseCapabilities.createDatabaseUnsupported, databaseType);
 };
 
+export const canSetCreateDatabaseCharset = (databaseType?: DatabaseTypeInput): boolean => {
+  return containsStrict(databaseCapabilities.createDatabaseCharsetSupported, databaseType);
+};
+
+export const canSetCreateDatabaseCollation = (databaseType?: DatabaseTypeInput): boolean => {
+  return containsStrict(databaseCapabilities.createDatabaseCollationSupported, databaseType);
+};
+
 export const canCreateSchema = (databaseType?: DatabaseTypeInput): boolean => {
   return !containsStrict(databaseCapabilities.createSchemaUnsupported, databaseType);
 };
