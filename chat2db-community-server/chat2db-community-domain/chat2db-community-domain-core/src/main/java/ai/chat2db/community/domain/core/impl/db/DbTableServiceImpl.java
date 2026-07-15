@@ -67,12 +67,12 @@ public class DbTableServiceImpl implements IDbTableService {
 
     @Override
     public String createTableExample(String dbType) {
-        return Chat2DBContext.getDBConfig().getSimpleCreateTable();
+        return Chat2DBContext.getDBConfig(dbType).getSimpleCreateTable();
     }
 
     @Override
     public String alterTableExample(String dbType) {
-        return Chat2DBContext.getDBConfig().getSimpleAlterTable();
+        return Chat2DBContext.getDBConfig(dbType).getSimpleAlterTable();
     }
 
     @Override

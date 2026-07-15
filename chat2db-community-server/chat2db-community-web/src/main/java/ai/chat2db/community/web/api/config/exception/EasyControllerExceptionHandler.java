@@ -134,12 +134,12 @@ public class EasyControllerExceptionHandler {
         if (exceptionConvertor == null) {
             if (exception instanceof BusinessException) {
                 exceptionConvertor = EXCEPTION_CONVERTOR_MAP.get(BusinessException.class);
-            } else if (exception instanceof SystemException) {
-                exceptionConvertor = EXCEPTION_CONVERTOR_MAP.get(SystemException.class);
             } else {
                 exceptionConvertor = DEFAULT_EXCEPTION_CONVERTOR;
             }
         }
-        return exceptionConvertor.convert(exception);
+        ActionResult result = exceptionConvertor.convert(exception);
+        result.errorDetail(null);
+        return result;
     }
 }
