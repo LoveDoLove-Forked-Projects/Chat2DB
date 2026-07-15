@@ -175,13 +175,16 @@ public class MysqlSqlBuilder extends DefaultSqlBuilder {
         }
         List<TableColumn> moveColumnList = movedElements(oldTable.getColumnList(), newTable.getColumnList());
         for (TableColumn tableColumn : newTable.getColumnList()) {
+            boolean moved = moveColumnList.stream()
+                    .anyMatch(oldColumn -> sameColumn(oldColumn, tableColumn));
+            boolean added = addColumnList.contains(tableColumn);
             if ((StringUtils.isNotBlank(tableColumn.getEditStatus()) && StringUtils.isNotBlank(tableColumn.getColumnType())
-                    && StringUtils.isNotBlank(tableColumn.getName())) || moveColumnList.contains(tableColumn) || addColumnList.contains(tableColumn)) {
+                    && StringUtils.isNotBlank(tableColumn.getName())) || moved || added) {
                 MysqlColumnTypeEnum typeEnum = MysqlColumnTypeEnum.getByType(tableColumn.getColumnType());
                 if (typeEnum == null) {
                     continue;
                 }
-                if (moveColumnList.contains(tableColumn) || addColumnList.contains(tableColumn)) {
+                if (moved || added) {
                     script.append(SQLConstants.TAB).append(typeEnum.buildModifyColumn(tableColumn, true, findPrevious(tableColumn, newTable)))
                             .append(SQLConstants.COMMA_LINE_SEPARATOR);
                 } else {
@@ -270,7 +273,7 @@ public class MysqlSqlBuilder extends DefaultSqlBuilder {
         int[][] dp = new int[original.size() + 1][modified.size() + 1];
         for (int i = 1; i <= original.size(); i++) {
             for (int j = 1; j <= modified.size(); j++) {
-                if (original.get(i - 1).getName().equals(modified.get(j - 1).getOldName())) {
+                if (sameColumn(original.get(i - 1), modified.get(j - 1))) {
                     dp[i][j] = dp[i - 1][j - 1] + 1;
                 } else {
                     dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
@@ -281,7 +284,7 @@ public class MysqlSqlBuilder extends DefaultSqlBuilder {
         int i = original.size();
         int j = modified.size();
         while (i > 0 && j > 0) {
-            if (original.get(i - 1).equals(modified.get(j - 1))) {
+            if (sameColumn(original.get(i - 1), modified.get(j - 1))) {
                 i--;
                 j--;
             } else if (dp[i - 1][j] >= dp[i][j - 1]) {
@@ -297,6 +300,11 @@ public class MysqlSqlBuilder extends DefaultSqlBuilder {
         }
 
         return moved;
+    }
+
+    private static boolean sameColumn(TableColumn original, TableColumn modified) {
+        String sourceName = StringUtils.defaultIfBlank(modified.getOldName(), modified.getName());
+        return StringUtils.equals(original.getName(), sourceName);
     }
 
     public String buildGenerateReorderColumnSql(Table oldTable, Table newTable) {

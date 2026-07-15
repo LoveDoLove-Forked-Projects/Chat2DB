@@ -1,18 +1,19 @@
 package ai.chat2db.plugin.mysql.builder;
 
 import ai.chat2db.community.domain.api.config.DriverConfig;
+import ai.chat2db.community.domain.api.config.TableBuilderConfig;
 import ai.chat2db.community.domain.api.enums.plugin.DataTypeEnum;
+import ai.chat2db.community.domain.api.enums.plugin.EditStatusEnum;
+import ai.chat2db.community.domain.api.model.metadata.Database;
 import ai.chat2db.community.domain.api.model.metadata.Table;
 import ai.chat2db.community.domain.api.model.metadata.TableColumn;
 import ai.chat2db.community.domain.api.model.metadata.TableIndex;
 import ai.chat2db.community.domain.api.model.metadata.TableIndexColumn;
-import ai.chat2db.community.domain.api.enums.plugin.EditStatusEnum;
 import ai.chat2db.community.domain.api.model.result.Header;
 import ai.chat2db.community.domain.api.model.result.QueryResponse;
 import ai.chat2db.community.domain.api.model.result.ResultOperation;
-import ai.chat2db.community.domain.api.config.TableBuilderConfig;
-import ai.chat2db.spi.sql.Chat2DBContext;
 import ai.chat2db.spi.model.datasource.ConnectInfo;
+import ai.chat2db.spi.sql.Chat2DBContext;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -22,6 +23,20 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class MysqlSqlBuilderTest {
+
+    @Test
+    void shouldBuildCreateDatabaseWithCharsetAndCollation() {
+        MysqlSqlBuilder builder = new MysqlSqlBuilder();
+        Database database = Database.builder()
+                .name("analytics")
+                .charset("utf8mb4")
+                .collation("utf8mb4_0900_ai_ci")
+                .build();
+
+        String sql = builder.database().buildCreateDatabase(database);
+
+        assertEquals("CREATE DATABASE `analytics` DEFAULT CHARACTER SET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci", sql);
+    }
 
     @Test
     void shouldDefaultDecimalPrecisionWhenOnlyScaleIsProvided() {
@@ -181,6 +196,80 @@ class MysqlSqlBuilderTest {
         assertEquals("ALTER TABLE `enterprise_gateway_dev`.`access_control_approval_process`\n"
                 + "\tADD INDEX `idx_column1` (`parent_id` ASC) USING BTREE,\n"
                 + "\tADD INDEX `idx_column2` (`id` ASC) USING BTREE;", sql);
+    }
+
+    @Test
+    void shouldKeepTargetPositionWhenRenamingAndMovingColumn() {
+        MysqlSqlBuilder builder = new MysqlSqlBuilder();
+        Table oldTable = mysqlTable(List.of(
+                mysqlVarcharColumn("a", "a", null),
+                mysqlVarcharColumn("b", "b", null),
+                mysqlVarcharColumn("c", "c", null),
+                mysqlVarcharColumn("d", "d", null)));
+        Table newTable = mysqlTable(List.of(
+                mysqlVarcharColumn("b", "b", null),
+                mysqlVarcharColumn("c", "c", null),
+                mysqlVarcharColumn("x", "a", EditStatusEnum.MODIFY.name()),
+                mysqlVarcharColumn("d", "d", null)));
+
+        String sql = builder.ddl().table().buildAlterTable(oldTable, newTable);
+
+        assertTrue(sql.contains("CHANGE COLUMN `a` `x`"));
+        assertTrue(sql.contains("AFTER `c`"), sql);
+    }
+
+    @Test
+    void shouldMoveRenamedColumnToFirst() {
+        MysqlSqlBuilder builder = new MysqlSqlBuilder();
+        Table oldTable = mysqlTable(List.of(
+                mysqlVarcharColumn("a", "a", null),
+                mysqlVarcharColumn("b", "b", null),
+                mysqlVarcharColumn("c", "c", null)));
+        Table newTable = mysqlTable(List.of(
+                mysqlVarcharColumn("x", "c", EditStatusEnum.MODIFY.name()),
+                mysqlVarcharColumn("a", "a", null),
+                mysqlVarcharColumn("b", "b", null)));
+
+        String sql = builder.ddl().table().buildAlterTable(oldTable, newTable);
+
+        assertTrue(sql.contains("CHANGE COLUMN `c` `x`"), sql);
+        assertTrue(sql.contains(" FIRST"), sql);
+    }
+
+    @Test
+    void shouldNotAddPositionWhenOnlyRenamingColumn() {
+        MysqlSqlBuilder builder = new MysqlSqlBuilder();
+        Table oldTable = mysqlTable(List.of(
+                mysqlVarcharColumn("a", "a", null),
+                mysqlVarcharColumn("b", "b", null)));
+        Table newTable = mysqlTable(List.of(
+                mysqlVarcharColumn("x", "a", EditStatusEnum.MODIFY.name()),
+                mysqlVarcharColumn("b", "b", null)));
+
+        String sql = builder.ddl().table().buildAlterTable(oldTable, newTable);
+
+        assertTrue(sql.contains("CHANGE COLUMN `a` `x`"), sql);
+        assertFalse(sql.contains(" FIRST"), sql);
+        assertFalse(sql.contains(" AFTER "), sql);
+    }
+
+    private static Table mysqlTable(List<TableColumn> columns) {
+        return Table.builder()
+                .databaseName("test_db")
+                .name("sample_table")
+                .columnList(columns)
+                .indexList(List.of())
+                .build();
+    }
+
+    private static TableColumn mysqlVarcharColumn(String name, String oldName, String editStatus) {
+        return TableColumn.builder()
+                .name(name)
+                .oldName(oldName)
+                .columnType("VARCHAR")
+                .columnSize(255)
+                .editStatus(editStatus)
+                .build();
     }
 
     @Test

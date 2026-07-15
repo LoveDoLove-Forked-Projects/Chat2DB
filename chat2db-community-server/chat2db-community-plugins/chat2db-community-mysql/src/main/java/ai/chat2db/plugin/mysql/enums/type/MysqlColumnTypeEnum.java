@@ -253,20 +253,29 @@ public enum MysqlColumnTypeEnum implements IColumnBuilder {
             return StringUtils.join("ADD COLUMN ", buildCreateColumnSql(tableColumn));
         }
         if (EditStatusEnum.MODIFY.name().equals(tableColumn.getEditStatus())) {
+            String sql;
             if (!StringUtils.equalsIgnoreCase(tableColumn.getOldName(), tableColumn.getName())) {
-                return StringUtils.join("CHANGE COLUMN `", tableColumn.getOldName(), "` ", buildCreateColumnSql(tableColumn));
+                sql = StringUtils.join("CHANGE COLUMN `", tableColumn.getOldName(), "` ", buildCreateColumnSql(tableColumn));
             } else {
-                return StringUtils.join("MODIFY COLUMN ", buildCreateColumnSql(tableColumn));
+                sql = StringUtils.join("MODIFY COLUMN ", buildCreateColumnSql(tableColumn));
             }
+            return appendColumnPosition(sql, isMove, columnName);
         }
         if (isMove) {
-            if (columnName.equals("-1")) {
-                return StringUtils.join("MODIFY COLUMN ", buildCreateColumnSql(tableColumn), " FIRST");
-            } else {
-                return StringUtils.join("MODIFY COLUMN ", buildCreateColumnSql(tableColumn), " AFTER ", "`"+columnName+"`");
-            }
+            return appendColumnPosition(StringUtils.join("MODIFY COLUMN ", buildCreateColumnSql(tableColumn)), true,
+                    columnName);
         }
         return "";
+    }
+
+    private String appendColumnPosition(String sql, boolean isMove, String columnName) {
+        if (!isMove) {
+            return sql;
+        }
+        if (columnName.equals("-1")) {
+            return StringUtils.join(sql, " FIRST");
+        }
+        return StringUtils.join(sql, " AFTER ", "`" + columnName + "`");
     }
 
     private String buildAutoIncrement(TableColumn column, MysqlColumnTypeEnum type) {
