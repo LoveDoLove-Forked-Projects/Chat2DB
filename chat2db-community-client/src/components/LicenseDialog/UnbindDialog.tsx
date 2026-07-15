@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, ModalProps, ActivationCodeInput, Input, TextArea } from '@chat2db/ui';
+import { Modal, ModalProps, TextArea } from '@chat2db/ui';
 import { Button, Flex } from 'antd';
 import { useStyles } from './style';
 import i18n from '@/i18n';

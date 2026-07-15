@@ -4,7 +4,6 @@ import Draggable from 'react-draggable';
 import { ResizableBox } from 'react-resizable';
 import 'react-resizable/css/styles.css';
 import { useStyles } from './style';
-import { IconfontSvg } from '@chat2db/ui';
 
 interface SizeConstraints {
   minWidth?: number;

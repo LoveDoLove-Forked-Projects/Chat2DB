@@ -1,4 +1,3 @@
-import React from 'react';
 import { useStyles } from './style';
 
 export interface IProps {
@@ -6,8 +5,7 @@ export interface IProps {
   isStreaming?: boolean;
 }
 
-const AIChatList = (props: IProps) => {
-  const { isStreaming = false } = props;
+const AIChatList = (_props: IProps) => {
   const { styles } = useStyles();
 
   return <div className={styles.container}>AIChatList</div>;

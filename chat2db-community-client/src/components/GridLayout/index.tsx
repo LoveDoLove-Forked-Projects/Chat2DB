@@ -36,24 +36,18 @@ export default memo<IProps>((props) => {
   }, [gridLayoutWidth]);
 
   useEffect(() => {
-    const gridBackground = createGridPattern(gridLayoutWidth / 12 - 8, 90, 8, 8, theme.colorBorder);
+    const nextGridBackground = createGridPattern(gridLayoutWidth / 12 - 8, 90, 8, 8, theme.colorBorder);
     setGridBackground({
-      background: `url(${gridBackground})`,
+      background: `url(${nextGridBackground})`,
       width: gridLayoutWidth,
     });
   }, [showDargBackground]);
 
   useEffect(() => {
-  // Track gridLayoutRef width changes.
+    // Track gridLayoutRef width changes.
     const gridLayoutObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
         setGridLayoutWidth(entry.contentRect.width);
-        if (gridLayoutRef.current) {
-          let totalHeight = 0;
-          Array.from(gridLayoutRef.current.children).forEach((child) => {
-            totalHeight += child.getBoundingClientRect().height;
-          });
-        }
       }
     });
     gridLayoutObserver.observe(gridLayoutRef.current as Element);

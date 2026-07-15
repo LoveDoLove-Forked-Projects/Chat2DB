@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import { memo } from 'react';
 import { createStyles } from 'antd-style';
 import i18n from '@/i18n';
 

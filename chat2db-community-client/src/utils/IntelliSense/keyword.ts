@@ -34,8 +34,8 @@ const getSQLFunctions = (functions: string[]) => {
 };
 
 export const resetSenseKeyword = () => {
-  intelliSenseKeyword.dispose(); 
-}
+  intelliSenseKeyword.dispose();
+};
 
 let intelliSenseKeyword = monaco.languages.registerCompletionItemProvider('sql', {
   provideCompletionItems: () => {
@@ -47,7 +47,7 @@ const registerIntelliSenseKeyword = (databaseCode?: DatabaseTypeCode) => {
   resetSenseKeyword();
   intelliSenseKeyword = monaco.languages.registerCompletionItemProvider('sql', {
     // triggerCharacters: [' ', '('], // Characters that trigger prompts
-    provideCompletionItems: (model, position) => {
+    provideCompletionItems: (_model, _position) => {
       // Get all editor instances
       const commonIntelliSense = Object.values(intelliSense).find((v) => v.type === databaseCode);
 

@@ -1,5 +1,4 @@
 // Pinned form
-import React from 'react';
 import { openModal } from '@/store/common/components';
 import i18n from '@/i18n';
 import SchemaSync from '@/blocks/SchemaSync';

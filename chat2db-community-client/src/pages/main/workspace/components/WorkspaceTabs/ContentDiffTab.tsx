@@ -1,4 +1,4 @@
-import React, { memo, useEffect, useRef } from 'react';
+import { memo, useEffect, useRef } from 'react';
 import * as monaco from 'monaco-editor';
 import { useGlobalStore } from '@/store/global';
 import { setupMonacoEnvironment } from '@/utils/monaco';

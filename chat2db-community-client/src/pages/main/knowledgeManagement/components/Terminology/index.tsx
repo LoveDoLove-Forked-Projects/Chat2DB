@@ -1,4 +1,4 @@
-import React, { memo, useEffect, useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import { useStyles } from './style';
 import PageTitle from '@/components/PageTitle';
 import i18n from '@/i18n';

@@ -1,4 +1,4 @@
-import React, { Fragment, memo, useEffect, useState, useRef } from 'react';
+import { Fragment, memo, useEffect, useState, useRef } from 'react';
 import WorkspaceExtendBody from '../WorkspaceExtend/WorkspaceExtendBody';
 import WorkspaceExtendNav from '../WorkspaceExtend/WorkspaceExtendNav';
 import { useWorkspaceStore } from '@/store/workspace';
@@ -6,7 +6,6 @@ import SplitPane from 'react-split-pane';
 import ExportProgressBar from '@/blocks/ImportAndExport/components/ExportProgressBar';
 import { canImportExport } from '@/utils/env';
 // import DragFileToApp from '@/components/DragFileToApp';
-import jcefApi from '@/jcef';
 
 // ----- components -----
 import WorkspaceTabs from '../WorkspaceTabs';
@@ -47,10 +46,6 @@ const WorkspaceRight = memo(() => {
       setSize(panelRightWidth || 320);
     }
   }, [panelRight, panelRightWidth]);
-
-  const handleDropCallback = (files: FileList) => {
-    jcefApi?.readFile(files[0].path);
-  };
 
   return (
     <div className={styles.workspaceRight}>

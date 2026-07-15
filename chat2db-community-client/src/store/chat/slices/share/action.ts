@@ -11,7 +11,7 @@ export interface ShareAction {
 
 export const createShareAction: StateCreator<ChatStore, [['zustand/devtools', never]], [], ShareAction> = (
   set,
-  get,
+  _get,
 ) => ({
   setOpenShareModal: (isOpenShare) => {
     set({ isOpenShare });

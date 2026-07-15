@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useStyles } from './style';
 import { Input, TextArea } from '@chat2db/ui';
 import Logo from '@/components/Logo';

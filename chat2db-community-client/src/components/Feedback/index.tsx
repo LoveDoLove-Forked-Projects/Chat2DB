@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { IconButton, IconfontSvg, Input, Modal, TextArea } from '@chat2db/ui';
 import { useStyles } from './style';
 import { Image, Button, Checkbox, Flex, Tooltip } from 'antd';

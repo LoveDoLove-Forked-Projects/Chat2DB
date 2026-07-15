@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { useStyles } from './style';
 import { Menu, MenuProps } from 'antd';
 import i18n from '@/i18n';

@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Button, Drawer, Input, Space, Table, Tag } from 'antd';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Button, Drawer, Space, Tag } from 'antd';
 import {
   AuthSubjectType,
   AuthType,
@@ -7,7 +7,7 @@ import {
   IAuthAdminRequest,
   IAuthDataAccessRequest,
 } from '@/typings/enterprise/permission';
-import { SearchOutlined, PlusOutlined } from '@ant-design/icons';
+import { PlusOutlined } from '@ant-design/icons';
 import permissionService from '@/service/enterprise/permission';
 import { useOrgStore } from '@/store/organization';
 import AuthAdminForm, { IAdminFrom } from '../components/adminForm';
@@ -131,13 +131,6 @@ function Authorization() {
         total: res.total,
       });
     }
-  };
-
-  const handleSearch = (searchKey: string) => {
-    setPagination({
-      ...pagination,
-      searchKey,
-    });
   };
 
   const handleTableChange = (p) => {

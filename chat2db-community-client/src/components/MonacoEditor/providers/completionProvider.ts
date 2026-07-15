@@ -105,7 +105,6 @@ export class CompletionProvider implements monaco.languages.CompletionItemProvid
     };
     const beforeContext = this.getTextBeforeSemicolon(model, position);
     const afterContext = this.getTextAfterSemicolon(model, position);
-    const lastToken = this.getLastToken(model, position);
     this.fetchController = new AbortController();
     const data = await MagicStickService.queryPrompt(
       {

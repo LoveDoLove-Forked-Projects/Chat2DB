@@ -3,7 +3,7 @@ import { createStyles } from 'antd-style';
 export const useStyles = createStyles(({ css, token }) => {
   return {
     statusBar: css`
-      /* On the windows side, this area will conflict with the horizontal scroll bar of the table. Adding user-select: none will not work, so use js to disable dragging. */
+      /* On Windows this area conflicts with the table scrollbar, so both selection and dragging are disabled. */
       user-select: none;
       -webkit-user-drag: none;
       position: relative;

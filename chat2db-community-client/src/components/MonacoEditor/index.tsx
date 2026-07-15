@@ -86,7 +86,7 @@ function MonacoEditor(props: IMonacoEditorProps, ref: ForwardedRef<IExportRefFun
   const {
     styles,
     theme: { appearance },
-  } = useStyles({ editorHeight });
+  } = useStyles();
   /** Global editor settings. */
   const { getEditorTheme } = useGlobalStore((s) => {
     return {

@@ -4,25 +4,6 @@ import { IBoundInfo } from '@/typings';
 import SQLParserService from '@/service/sqlParser';
 import { SqlStatement, StatementValidTypeEnum } from '@/typings/sqlParser';
 
-type IHoverArr = Array<{
-  /** Parent database. */
-  databaseName: string;
-  /** Parent schema. */
-  schemaName: string;
-  /** Parent table. */
-  tableName: string;
-  /** Data-source name. */
-  datasourceName: string;
-  /** Related view name. */
-  viewName: string;
-  /** Related trigger name. */
-  triggerName: string;
-  /** Related DDL. */
-  ddl: string;
-  /** Related comment. */
-  comment: string;
-}>;
-
 interface HoverProviderParams {
   dbInfo: IBoundInfo;
   sqlStatementListRef: React.MutableRefObject<SqlStatement[]>;

@@ -13,7 +13,8 @@ interface IProps {
 
 export interface TreeDropdownRef {
   setCurrentNode: (info: any) => void;
-  handleDoubleClick: (node: TreeNodeData) => boolean; // handles double-click events. true means double-click is possible. This component will handle it for you.
+  // Returns true when this component handles the double-click.
+  handleDoubleClick: (node: TreeNodeData) => boolean;
 }
 
 const TreeDropdown = (props: IProps, ref) => {

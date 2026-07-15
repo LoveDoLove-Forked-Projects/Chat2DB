@@ -21,6 +21,5 @@ export const generateJavaClass = async (props: ExportSqlFileProps) => {
     exportPath,
   };
 
-  importExportServices.generateJavaClass(params).then((res) => {});
-  return;
+  void importExportServices.generateJavaClass(params);
 };

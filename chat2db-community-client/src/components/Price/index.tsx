@@ -1,4 +1,3 @@
-import React from 'react';
 import PricePage from './PricePage';
 import CNPriceModal from './PriceModal';
 import OverseasPayModal from './OverseasPayModal';

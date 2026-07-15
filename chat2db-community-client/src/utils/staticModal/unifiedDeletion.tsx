@@ -1,4 +1,3 @@
-import React from 'react';
 import i18n from '@/i18n';
 import { staticModal } from '@chat2db/ui';
 import ModalTitle from '@/components/Modal/ModalTitle';

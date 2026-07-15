@@ -49,7 +49,7 @@ const useDeviceType = (ref?: RefObject<HTMLElement>): DeviceType => {
     if (ref?.current) {
       // Use ResizeObserver to monitor the width changes of the specified ref
       const observer = new ResizeObserver((entries) => {
-        for (let entry of entries) {
+        for (const entry of entries) {
           updateDeviceType(entry.contentRect.width);
         }
       });

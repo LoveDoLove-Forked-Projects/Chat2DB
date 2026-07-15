@@ -1,4 +1,4 @@
-import React, { memo, useState } from 'react';
+import { memo, useState } from 'react';
 import { Input, Button, Form } from 'antd';
 import Avatar from '@/components/Avatar';
 import { createStyles } from 'antd-style';

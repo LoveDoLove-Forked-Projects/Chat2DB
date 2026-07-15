@@ -28,7 +28,7 @@ export const useStyles = createStyles(({ css, token }) => {
       background-color: ${token.colorPrimaryBg};
       line-height: 24px;
       padding: 4px 8px;
-      /* In order to solve the problem of mismatch between the border-radius of tableHeader and the border-radius of tableContent */
+      /* Keep the table header and content border radii aligned. */
       border: 1px solid ${token.colorBorder};
       margin: -1px;
     `,

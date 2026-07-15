@@ -1,4 +1,4 @@
-import React, { useState, useImperativeHandle, ForwardedRef, forwardRef, useRef, useMemo, memo } from 'react';
+import { useState, useImperativeHandle, ForwardedRef, forwardRef, useRef, useMemo, memo } from 'react';
 import { useStyles } from './style';
 import { IChartItem } from '@/typings';
 import ChartCardBox from '@/blocks/BI/ChartCardBox';
@@ -45,7 +45,7 @@ const initChartIdsLayout = (chartIds: number[]) => {
 };
 
 const ChartCardList = forwardRef((props: IProps, ref: ForwardedRef<ChartCardListRef>) => {
-  const { className, isEditPermission, openCreateDashboardModal, setDraggableModalOpen, aiChartDetails } = props;
+  const { className, isEditPermission, openCreateDashboardModal, aiChartDetails } = props;
   const { styles, cx } = useStyles();
   const [activeChart, setActiveChart] = useState<number | null>(null);
   const endOfListRef = useRef<HTMLDivElement>(null);

@@ -40,9 +40,9 @@ export const formatCurrency = (currency?: string) => {
   return currencySymbol[currency] || currencySymbol['USD'];
 };
 
-export const formatPriceWithCurrency = (currency: string, price: string) => { 
+export const formatPriceWithCurrency = (currency: string, price: string) => {
   return `${formatCurrency(currency)}${formatPrice(price)}`;
-}
+};
 
 export const oldFormatPrice = (currency: string, price: string) => {
   const currencySymbol = {

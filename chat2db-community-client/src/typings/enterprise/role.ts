@@ -1,7 +1,7 @@
 export enum RoleCodeType {
   ADMIN = 'ADMIN',
   OPERATOR = 'OPERATOR',
-  OWNER='OWNER'
+  OWNER = 'OWNER',
 }
 
 export enum RoleStatusType {

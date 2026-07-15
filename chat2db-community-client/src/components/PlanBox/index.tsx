@@ -1,4 +1,4 @@
-import React, { memo, useState } from 'react';
+import { memo, useState } from 'react';
 import { useStyles } from './style';
 import { useOrgStore } from '@/store/organization';
 import { useUserStore } from '@/store/user';

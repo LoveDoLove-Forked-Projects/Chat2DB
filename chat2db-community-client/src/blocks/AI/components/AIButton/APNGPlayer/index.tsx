@@ -1,8 +1,7 @@
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import parseAPNG, { APNG } from 'apng-js';
 import apngUrl from '@/assets/img/ai/ai-click.png';
 import Player from 'apng-js/types/library/player';
-import { processAPNG } from './util';
 
 interface APNGPlayerProps {
   onClick: () => void;
@@ -18,9 +17,6 @@ const APNGPlayer = (props: APNGPlayerProps) => {
   }, []);
 
   const loadAPNG = async () => {
-    const targetWidth = 32; // target width
-    const targetHeight = 32; // target height
-
     const response = await fetch(apngUrl);
     const buffer = await response.arrayBuffer();
     const apng = parseAPNG(buffer);

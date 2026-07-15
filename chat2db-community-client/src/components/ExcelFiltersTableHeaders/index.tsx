@@ -81,22 +81,22 @@ export default memo<IProps>((props) => {
       return prev;
     });
 
-    let highlightColumns: any = [];
+    let nextHighlightColumns: any = [];
 
     if (activeSheet.tableType === 'vertical') {
-      highlightColumns = generateNumberSequence(...activeSheet.headerNumScope);
+      nextHighlightColumns = generateNumberSequence(...activeSheet.headerNumScope);
     }
 
-    let highlightRows: any = [];
+    let nextHighlightRows: any = [];
     if (activeSheet.tableType === 'horizontal') {
-      highlightRows = generateNumberSequence(...activeSheet.headerNumScope, -1);
+      nextHighlightRows = generateNumberSequence(...activeSheet.headerNumScope, -1);
     }
 
     return {
       columns: activeSheet?.columns || [],
       dataSource: activeSheet?.dataSource,
-      highlightColumns,
-      highlightRows,
+      highlightColumns: nextHighlightColumns,
+      highlightRows: nextHighlightRows,
     };
   }, [activeSheet]);
 
@@ -129,7 +129,7 @@ export default memo<IProps>((props) => {
     if (extend === 'true') {
       setSheetList((prev) => {
         if (prev) {
-          return prev.map((item, index) => {
+          return prev.map((item) => {
             if (flag) {
               return {
                 ...item,
@@ -152,7 +152,7 @@ export default memo<IProps>((props) => {
     }
   };
 
-  const { hasNext, hasLast, nextSheetName } = useMemo(() => {
+  const { hasNext, nextSheetName } = useMemo(() => {
     if (!sheetList) {
       return {
         hasNext: false,
@@ -244,7 +244,7 @@ export default memo<IProps>((props) => {
                 const sheet = sheetList?.find((item) => item.tableName === key);
                 setActiveSheet(sheet || null);
               }}
-              items={sheetList?.map((item, i) => {
+              items={sheetList?.map((item) => {
                 return {
                   label: item.sheetName,
                   key: item.tableName,

@@ -1,4 +1,4 @@
-import React, { memo, useState, useRef, useMemo, useEffect } from 'react';
+import { memo, useState, useRef, useMemo, useEffect } from 'react';
 import i18n from '@/i18n';
 import { useStyles } from './style';
 import { RedisDataItem } from '@/typings/redis';

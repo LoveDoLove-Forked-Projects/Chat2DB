@@ -1,4 +1,3 @@
-import React from 'react';
 import { useStyles } from './style';
 import { useCommonStyle } from '../commonStyle';
 import SettingSubsection from '../SettingSubsection';

@@ -73,8 +73,10 @@ export interface ProductDetailVO {
   attach?: string;
   title: string;
   price: string; // price
-  previousTwoMonthsPrice?: string; // Prices in the previous 2 months, if present, will be displayed first (mutually exclusive with freeTrialDays)
-  freeTrialDays?: number; // The number of free trial days, if it exists, "X-Day Free" will be displayed first (mutually exclusive with previousTwoMonthsPrice)
+  // Prefer this recent price when present; mutually exclusive with freeTrialDays.
+  previousTwoMonthsPrice?: string;
+  // Display the free-trial label first; mutually exclusive with previousTwoMonthsPrice.
+  freeTrialDays?: number;
   yearlyPrice?: string; // annual price
   originalPrice: string; // original price
   currency: string; // Currency
@@ -100,8 +102,10 @@ export interface ProductDetail {
   title: string;
   invitedDiscountPrice?: string; // Invite discount price
   price: string; // price
-  previousTwoMonthsPrice?: string; // Prices in the previous 2 months, if present, will be displayed first (mutually exclusive with freeTrialDays)
-  freeTrialDays?: number; // The number of free trial days, if it exists, "X-Day Free" will be displayed first (mutually exclusive with previousTwoMonthsPrice)
+  // Prefer this recent price when present; mutually exclusive with freeTrialDays.
+  previousTwoMonthsPrice?: string;
+  // Display the free-trial label first; mutually exclusive with previousTwoMonthsPrice.
+  freeTrialDays?: number;
   originalPrice?: string; // original price
   currency: string; // Currency
   currencySymbol: string; // currency symbol

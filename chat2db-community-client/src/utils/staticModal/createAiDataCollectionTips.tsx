@@ -1,4 +1,3 @@
-import React from 'react';
 import i18n from '@/i18n';
 import { v4 as uuid } from 'uuid';
 import { useWorkspaceStore } from '@/store/workspace';

@@ -1,4 +1,4 @@
-import React, { memo, useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import EChartsContainer from '@/blocks/BI/Chart/components/EChartsContainer';
 import { ChartType } from '../../constants';
 import { useStyles } from './style';

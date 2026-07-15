@@ -1,5 +1,4 @@
 import React, { memo } from 'react';
-import { useStyles } from './style';
 import { Loading } from '@chat2db/ui';
 
 // IProps extends native div attributes.
@@ -12,7 +11,6 @@ interface IProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 export default memo<IProps>((props) => {
-  const { styles, cx } = useStyles();
   const { children, empty, isLoading, isEmpty } = props;
 
   if (isEmpty) {

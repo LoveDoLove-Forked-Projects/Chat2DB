@@ -1,5 +1,4 @@
-import { IDashboardItem } from "@/typings";
-
+import { IDashboardItem } from '@/typings';
 
 export interface SettingState {
   /** Set up ChatVO in the pop-up box */

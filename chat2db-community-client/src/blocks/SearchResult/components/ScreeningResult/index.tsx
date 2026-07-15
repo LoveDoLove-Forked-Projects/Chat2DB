@@ -80,7 +80,7 @@ const ScreeningResult = forwardRef((props: IProps, ref: ForwardedRef<IScreeningR
   // registration prompt word
   const registerPromptWord = () => {
     fieldHintRef.current = monaco.languages.registerCompletionItemProvider('sql', {
-      provideCompletionItems: (model, position) => {
+      provideCompletionItems: () => {
         return {
           suggestions: promptWord.slice(1).map((item) => {
             return {
@@ -95,7 +95,7 @@ const ScreeningResult = forwardRef((props: IProps, ref: ForwardedRef<IScreeningR
     });
 
     keywordHintRef.current = monaco.languages.registerCompletionItemProvider('sql', {
-      provideCompletionItems: (model, position) => {
+      provideCompletionItems: () => {
         return {
           suggestions: keywordHintList.map((item) => {
             return {

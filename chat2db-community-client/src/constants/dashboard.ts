@@ -1,4 +1,3 @@
-import { ChartTypeItem } from '@/typings/dashboard';
 
 export enum ChartType {
   Line = 'Line',

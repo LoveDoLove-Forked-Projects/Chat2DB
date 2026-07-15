@@ -1,4 +1,4 @@
-import React, { memo, useRef, useEffect, useState } from 'react';
+import { memo, useEffect, useRef } from 'react';
 import styles from './index.less';
 import classnames from 'classnames';
 
@@ -17,7 +17,6 @@ export default memo<IProps>((props: IProps) => {
 
   const dividerRef = useRef<HTMLDivElement | null>(null);
   const dividerLine = useRef<HTMLDivElement | null>(null);
-  const [dragging, setDragging] = useState(false);
 
   const isRow = layout === 'row';
 
@@ -29,14 +28,12 @@ export default memo<IProps>((props: IProps) => {
     dividerRef.current.onmousedown = (e) => {
       if (!volatileRef?.current) return;
       e.preventDefault();
-      setDragging(true);
       const clientStart = isRow ? e.clientX : e.clientY;
       const volatileBoxXY = isRow ? volatileRef.current.offsetWidth : volatileRef.current.offsetHeight;
       document.onmousemove = (_e) => {
         moveHandle(isRow ? _e.clientX : _e.clientY, volatileRef.current, clientStart, volatileBoxXY);
       };
       document.onmouseup = () => {
-        setDragging(false);
         document.onmouseup = null;
         document.onmousemove = null;
       };
@@ -62,7 +59,7 @@ export default memo<IProps>((props: IProps) => {
   };
 
   return (
-    <div className={classnames(styles.box, { [styles.box_column]: !isRow }, className)}>
+    <div className={classnames(styles.box, { [styles.boxColumn]: !isRow }, className)}>
       {children[0]}
       {
         <div
@@ -70,7 +67,7 @@ export default memo<IProps>((props: IProps) => {
           ref={dividerLine}
           className={classnames(styles.divider, { [styles.displayDivider]: !children[1] })}
         >
-          <div ref={dividerRef} className={classnames(styles.dividerCenter, { [styles.dragging]: dragging })} />
+          <div ref={dividerRef} className={styles.dividerCenter} />
         </div>
       }
       {children[1]}

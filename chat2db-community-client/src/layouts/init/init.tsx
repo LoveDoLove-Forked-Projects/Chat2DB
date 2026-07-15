@@ -33,7 +33,8 @@ const useInit = () => {
     isCN: state.appConfig.isCN,
   }));
 
-  // Initialize Google Ads (linker + config) after the country is determined, which only takes effect on overseas Web; initGoogleAds is internally idempotent.
+  // Initialize Google Ads after the country is known.
+  // This only applies to the overseas web app, and initGoogleAds is idempotent.
   useEffect(() => {
     if (isDesktop || !runtimeEditionConfig.googleAds) {
       return;

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import PageTitle from '@/components/PageTitle';
 import { useStyles } from './style';
 import { Empty, EmptyImage, Icon, IconButton, ListItem, MenuLabel } from '@chat2db/ui';

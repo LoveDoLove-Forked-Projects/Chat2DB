@@ -1,4 +1,4 @@
-import React, { memo, useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { useStyles } from './style';
 import { Dropdown } from 'antd';
 import { IconButton, IconfontSvg } from '@chat2db/ui';

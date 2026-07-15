@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Modal, ModalProps, IconfontSvg } from '@chat2db/ui';
 import Logo from '@/components/Logo';
 import { useStyles } from './style';

@@ -1,4 +1,4 @@
-import React, { CSSProperties, HTMLAttributes, ReactNode } from 'react';
+import { CSSProperties, HTMLAttributes, ReactNode } from 'react';
 import { useStyles } from './style';
 
 interface MainSecondaryPanelProps extends HTMLAttributes<HTMLDivElement> {

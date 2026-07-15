@@ -3,8 +3,7 @@ import i18n from '@/i18n';
 
 export const resetSenseView = () => {
   intelliSenseView.dispose();
-
-}
+};
 
 /** Table under the current library */
 let intelliSenseView = monaco.languages.registerCompletionItemProvider('sql', {
@@ -26,10 +25,7 @@ const checkViewContext = (text) => {
   return false;
 };
 
-const registerIntelliSenseView = (
-  viewList: string[],
-  databaseName?: string | null,
-) => {
+const registerIntelliSenseView = (viewList: string[], databaseName?: string | null) => {
   resetSenseView();
   intelliSenseView = monaco.languages.registerCompletionItemProvider('sql', {
     // triggerCharacters: [' '],
@@ -55,7 +51,7 @@ const registerIntelliSenseView = (
             insertText: viewName,
             // range: monaco.Range.fromPositions(position),
             // documentation: tableName.comment,
-            sortText: isViewContext ? '01' : '08'
+            sortText: isViewContext ? '01' : '08',
           };
         }),
       };

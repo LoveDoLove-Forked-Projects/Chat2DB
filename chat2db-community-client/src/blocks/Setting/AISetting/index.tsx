@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import configService from '@/service/config';
 import { AIType } from '@/typings/ai';
 import { Alert, Button, Form, Input, Radio, RadioChangeEvent } from 'antd';

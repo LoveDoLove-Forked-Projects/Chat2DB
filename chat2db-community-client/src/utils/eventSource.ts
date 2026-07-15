@@ -1,11 +1,10 @@
-import { useGlobalStore } from '@/store/global';
 import { EventSourcePolyfill } from 'event-source-polyfill';
 
 const connectToEventSource = (params: {
   url: string;
-  onOpen: Function;
-  onMessage: Function;
-  onError: Function;
+  onOpen: () => void;
+  onMessage: (data: string) => void;
+  onError: (error: Event) => void;
 }) => {
   const { url, onOpen, onMessage, onError } = params;
 

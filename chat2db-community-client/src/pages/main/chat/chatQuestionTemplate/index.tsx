@@ -1,4 +1,4 @@
-import React, { memo, useEffect, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { useStyles } from './style';
 import chatService from '@/service/chat';
 import { ChatExamplePrompt } from '@/typings/chat';

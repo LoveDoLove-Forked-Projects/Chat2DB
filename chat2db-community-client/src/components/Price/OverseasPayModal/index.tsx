@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Skeleton } from 'antd';
 import { Modal } from '@chat2db/ui';
 import { useGlobalStore } from '@/store/global';
@@ -197,7 +197,9 @@ const OverseasPayModal = () => {
     }
   }, [appConfig.isCN]);
 
-  const defaultTab = appConfig.isCN ? frequencies[frequencies.length - 1] : frequencies.find((f) => f.value === SubscriptionType.yearly) || frequencies[0];
+  const defaultTab = appConfig.isCN
+    ? frequencies[frequencies.length - 1]
+    : frequencies.find((frequency) => frequency.value === SubscriptionType.yearly) || frequencies[0];
   const [activeTab, setActiveTab] = useState<ISubscriptionType>(defaultTab);
   const [productList, setProductList] = useState<any>();
   const [loading, setLoading] = useState(false);
@@ -239,7 +241,8 @@ const OverseasPayModal = () => {
         } else if (normalizedProduct.previousTwoMonthsPrice) {
           const promoDisplay = `${formatCurrency(normalizedProduct.currency)}${formatPrice(price)}${priceSuffix}`;
           const regularPerUnit = isYearly ? Number(normalizedProduct.price) / 12 : normalizedProduct.price;
-          const regularDisplay = `${formatCurrency(normalizedProduct.currency)}${formatPrice(regularPerUnit)}${priceSuffix}`;
+          const regularDisplay =
+            `${formatCurrency(normalizedProduct.currency)}${formatPrice(regularPerUnit)}${priceSuffix}`;
           thenPriceSuffix = i18n('price.text.previousTwoMonthsHint', promoDisplay, regularDisplay);
         }
 
@@ -269,7 +272,7 @@ const OverseasPayModal = () => {
           mostPopular: r.length >= 3 ? index === middleIndex : (localTemplate?.mostPopular || false),
           featuresTitle: '',
           features: descriptions.length
-            ? descriptions.map((label, index) => ({ icon: `icon-${index + 1}`, label }))
+            ? descriptions.map((label, featureIndex) => ({ icon: `icon-${featureIndex + 1}`, label }))
             : localTemplate?.features || [],
           buyButtonText: normalizedProduct.buttonText || `Upgrade to ${productTitle}`,
           freeTrial: isPersonalType ? freeTrial : false,

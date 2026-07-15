@@ -273,7 +273,7 @@ export const createSettingsAction: StateCreator<GlobalStore, [['zustand/devtools
   updateEditorSettings: (editorSettings) => {
     const { theme } = editorSettings;
     const { appearance } = get().baseSetting;
-    //  When setting the theme, lightTheme and darkTheme will be set simultaneously according to whether the current color is light or dark.
+    // Update the theme associated with the current appearance.
     if (appearance === 'light') {
       editorSettings.lightTheme = theme;
     } else if (appearance === 'dark') {

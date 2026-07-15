@@ -50,4 +50,4 @@ export interface ILLMStartup {
   createdTime: number;
 }
 
-export type ILLMStartupListItem = Omit<ILLMStartup, 'organizationId' | 'startupLog' | 'status' | 'createdTime'>
+export type ILLMStartupListItem = Omit<ILLMStartup, 'organizationId' | 'startupLog' | 'status' | 'createdTime'>;

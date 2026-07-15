@@ -16,7 +16,7 @@ const queryApprovalDetail = createRequest<{ id: number }, IApprovalProcessVO>(`$
 /** Update approval information */
 const updateApproval = createRequest<IApprovalProcesCanModifyVO, Partial<IApprovalProcessVO>>(`${prefix}/update`, {
   method: 'post',
-  errorLevel: 'toast'
+  errorLevel: 'toast',
 });
 
 export default { queryApprovalList, queryApprovalDetail, updateApproval };

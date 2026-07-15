@@ -1,6 +1,5 @@
 import {
   IApplyRolePermission,
-  IApplyDataPermission,
   IApplyRunScript,
   IAccessControlApplyRecordVO,
   IAccessControlAuthRecordVO,
@@ -27,42 +26,42 @@ const checkDataAccess = createRequest<
   { dataAccess: boolean; noPermissionDetail: string; scriptAccess: boolean }
 >(`${prefix}/check_data_access`, {
   method: 'post',
-  errorLevel: 'toast'
+  errorLevel: 'toast',
 });
 
 /** Authorized administrator */
 const authAdmin = createRequest<IAuthAdminRequest, null>(`${prefix}/auth_admin`, {
   method: 'post',
-  errorLevel: 'toast'
+  errorLevel: 'toast',
 });
 
 /** Apply for administrator */
 const applyAdmin = createRequest<IApplyRolePermission, null>(`${prefix}/apply_admin`, {
   method: 'post',
-  errorLevel: 'toast'
+  errorLevel: 'toast',
 });
 
 /** Authorized data permissions */
 const authDataPermission = createRequest<IAuthDataAccessRequest, null>(`${prefix}/auth_data_access`, {
   method: 'post',
-  errorLevel: 'toast'
+  errorLevel: 'toast',
 });
 
 /** Apply for data permission */
 const applyDataPermission = createRequest<IApplyDataAccessRequest, null>(`${prefix}/apply_data_access`, {
   method: 'post',
-  errorLevel: 'toast'
+  errorLevel: 'toast',
 });
 
 /** Apply for script execution permission */
 const applyScriptPermission = createRequest<Partial<IApplyRunScript>, null>(`${prefix}/apply_run_script`, {
   method: 'post',
-  errorLevel: 'toast'
+  errorLevel: 'toast',
 });
 
 /** View application details */
 const queryApplyDetail = createRequest<{ id: number }, IAccessControlApplyRecordVO>(`${prefix}/apply`, {
-  errorLevel: 'toast'
+  errorLevel: 'toast',
 });
 
 /** Check my application list */
@@ -72,29 +71,29 @@ const queryApplyList = createRequest<
     applyType: ApplyType;
   },
   IPageResponse<IAccessControlApplyRecordVO>
-  >(`${prefix}/apply_list`, {
-    errorLevel: 'toast'
+>(`${prefix}/apply_list`, {
+  errorLevel: 'toast',
 });
 
 /** View authorization details */
 const queryAuthDetail = createRequest<{ id: number }, IAccessControlAuthRecordVO>(`${prefix}/auth`, {
-  errorLevel: 'toast'
+  errorLevel: 'toast',
 });
 
 /** Query my authorization list */
 const queryAuthList = createRequest<
   IPageParams & { organizationId: number },
   IPageResponse<IAccessControlAuthRecordVO>
-  >(`${prefix}/auth_list`, {
-    errorLevel: 'toast'
+>(`${prefix}/auth_list`, {
+  errorLevel: 'toast',
 });
 
 /** View the authorization policy list */
 const queryPolicyList = createRequest<{ code?: string; scopeCode?: string }, IAccessControlPolicyVO[]>(
   `${prefix}/policy_list`,
   {
-    errorLevel: 'toast'
-  }
+    errorLevel: 'toast',
+  },
 );
 
 export default {

@@ -1,4 +1,4 @@
-import React, { memo, useMemo, useRef } from 'react';
+import { memo, useMemo, useRef } from 'react';
 import { useStyles } from './style';
 import DynamicForm from '@/blocks/DynamicForm';
 import { IDynamicFormItem } from '../DynamicForm/typings';

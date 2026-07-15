@@ -50,14 +50,12 @@ export const combineRefreshTargets = (sqlResult: IManageResultData[]) => {
  * @param sqlResult
  */
 const handleRefreshTreeByExecuteSQL = (sqlResult: IManageResultData[], databaseType: DatabaseTypeCode) => {
-
   const updateTreeNodeDataByDetail = useTreeStore.getState().updateTreeNodeDataByDetail;
 
   const refreshTargets = combineRefreshTargets(sqlResult);
 
   for (const refreshTarget of refreshTargets) {
     const { dataSourceId, databaseName, schemaName, tableName, sqlType } = refreshTarget;
-
 
     // TODO: Waiting for this function to be completed
     // if (sqlType === SqlTypeEnum.USE_DATABASE) {
@@ -93,4 +91,3 @@ const handleRefreshTreeByExecuteSQL = (sqlResult: IManageResultData[], databaseT
 };
 
 export default handleRefreshTreeByExecuteSQL;
- 

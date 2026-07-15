@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useEffect, useMemo, useRef } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useStyles } from './style';
 import { IconButton, SearchBar } from '@chat2db/ui';
 import { Tooltip } from 'antd';

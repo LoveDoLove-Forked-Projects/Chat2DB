@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useStyles } from './style';
-import { Flex, Input, Space } from 'antd';
-import type { InputRef } from 'antd';
+import { Flex, Input, type InputRef } from 'antd';
 
 interface IProps {
   onChange?: (value: string) => void;
@@ -92,8 +91,8 @@ const NumberCodeInput = ({ onChange, onFinished, value = '', numberCnt = 8 }: IP
     hanldeMoveCursor(codes);
   };
 
-  const hanldeMoveCursor = (codes) => {
-    const firstEmptyIndex = codes.findIndex((code) => code === '');
+  const hanldeMoveCursor = (nextCodes) => {
+    const firstEmptyIndex = nextCodes.findIndex((code) => code === '');
     if (firstEmptyIndex !== -1) {
       inputRefs.current[firstEmptyIndex]?.focus();
     } else {

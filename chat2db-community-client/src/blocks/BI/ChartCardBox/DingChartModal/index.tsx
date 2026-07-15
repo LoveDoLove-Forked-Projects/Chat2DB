@@ -1,4 +1,4 @@
-import React, { useState, forwardRef, useImperativeHandle, ForwardedRef } from 'react';
+import { useState, forwardRef, useImperativeHandle, ForwardedRef } from 'react';
 import { useStyles } from './style';
 import { Modal, Select, Button, Input } from 'antd';
 import { IChartItem, IDashboardItem } from '@/typings';

@@ -15,7 +15,8 @@ export interface IOptions {
   mock?: boolean;
   errorLevel?: IErrorLevel;
   permissionError?: PermissionError;
-  timeout?: boolean; // Whether a timeout is required, the default is true, currently only needs to be set to false when executing sql
+  // Defaults to true. SQL execution may disable the timeout explicitly.
+  timeout?: boolean;
   delayTime?: number | true;
   isFullPath?: boolean;
   dynamicUrl?: boolean;
@@ -56,9 +57,8 @@ request.interceptors.request.use((url, options) => {
 });
 
 // response interceptor, handles response
-request.interceptors.response.use(async (response, options) => {
+request.interceptors.response.use(async (response, _options) => {
   try {
-    const res = await response?.clone()?.json();
     if (isDesktop) {
       const Chat2db = response.headers.get('Chat2db') || '';
       if (Chat2db) {
@@ -73,7 +73,8 @@ request.interceptors.response.use(async (response, options) => {
 
 export default function createRequest<P = void, R = void>(url: string, options?: IOptions) {
   const { method = 'get', isFullPath, dynamicUrl, contentType } = options || {};
-  let { errorLevel = 'notification', timeout = true, permissionError = 'apply' } = options || {};
+  const { errorLevel: initialErrorLevel = 'notification', timeout = true, permissionError = 'apply' } = options || {};
+  let errorLevel = initialErrorLevel;
   return function (
     params: P,
     restParams?: {
@@ -188,8 +189,14 @@ export default function createRequest<P = void, R = void>(url: string, options?:
             });
             // If there is no need to pop up the toast error code
             if (ErrorCodesWithoutToast.includes(errorCode)) {
-              const { errorCode, errorMessage } = res;
-              interceptorsResponse({ errorCode, errorMessage, requestParams: params, errorLevel, permissionError });
+              const { errorCode: responseErrorCode, errorMessage: responseErrorMessage } = res;
+              interceptorsResponse({
+                errorCode: responseErrorCode,
+                errorMessage: responseErrorMessage,
+                requestParams: params,
+                errorLevel,
+                permissionError,
+              });
               return;
             }
             // Handle errors based on errorLevel

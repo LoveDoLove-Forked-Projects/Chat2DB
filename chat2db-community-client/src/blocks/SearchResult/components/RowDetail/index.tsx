@@ -1,4 +1,4 @@
-import React, { ForwardedRef, forwardRef, memo, useImperativeHandle, useMemo, useState } from 'react';
+import { ForwardedRef, forwardRef, memo, useImperativeHandle, useMemo, useState } from 'react';
 import { Button } from 'antd';
 import { Modal } from '@chat2db/ui';
 import i18n from '@/i18n';
@@ -46,7 +46,7 @@ export interface RowDetailRef {
 
 const formatValue = (value: any, cellMeta?: IResultCell) => {
   if (cellMeta?.largeValue) {
-    // The text of the large field is not in the result set. Here is the preview text returned by the backend. The complete content is loaded through the button.
+    // Large fields contain only a backend preview; the full content is loaded on demand.
     return cellMeta.value ?? null;
   }
   if (value === null || value === undefined) {

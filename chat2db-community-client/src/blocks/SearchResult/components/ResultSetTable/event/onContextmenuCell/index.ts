@@ -282,7 +282,8 @@ const onContextmenuCell = (props: IOnContextmenuEvent) => {
       return;
     }
 
-    // Because Vtable's contextmenu_cell monitors the mouse press event, it will trigger the close event of the antd menu when the right button is lifted, so here you need to monitor the mouse lift event.
+    // VTable opens context menus on mouse-down, while Ant Design closes them on mouse-up.
+    // Delay opening until mouse-up so the menu remains visible.
     // If the Vtable is changed later, you can remove this monitoring
     const mouseupFn = () => {
       tableInstance?.contextMenuRef?.current?.openDropdown({

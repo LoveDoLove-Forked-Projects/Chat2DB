@@ -1,4 +1,4 @@
-import React, { memo, forwardRef, useImperativeHandle, ForwardedRef, useState, useRef } from 'react';
+import { memo, forwardRef, useImperativeHandle, ForwardedRef, useState, useRef } from 'react';
 // import { useStyles } from './style';
 import { Modal } from 'antd';
 import i18n from '@/i18n';

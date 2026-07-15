@@ -1,5 +1,5 @@
 import * as Popover from '@radix-ui/react-popover';
-import React, { CSSProperties, memo } from 'react';
+import { CSSProperties, memo } from 'react';
 import { useStyles } from './style';
 import { IHoverInfo } from '@/typings/sqlParser';
 import SQLPreview from '@/components/SQLPreview';

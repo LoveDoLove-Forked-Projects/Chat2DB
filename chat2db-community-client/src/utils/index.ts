@@ -96,7 +96,7 @@ export function approximateTreeNode(treeData: ITreeNode[], target: string = '', 
 export function approximateList<T, K extends keyof T>(
   data: T[],
   target: string,
-  // @ts-ignore'
+  // @ts-expect-error The default key is valid for tree-like data used by this helper.
   keyName: K = 'name',
   isDelete = true,
 ) {
@@ -107,11 +107,11 @@ export function approximateList<T, K extends keyof T>(
       // if(item.children?.length){
       //   item.children = approximateTreeNode(item.children, target,false);
       // }
-      // @ts-ignore'
+      // @ts-expect-error Generic values are validated by the caller's key selection.
       if (item[keyName]?.toUpperCase()?.indexOf(target?.toUpperCase()) == -1 && isDelete) {
         delete newData[index];
       } else {
-        // @ts-ignore'
+        // @ts-expect-error String replacement is only used with string-valued keys.
         item[keyName] = item[keyName]?.replace(target, `<span style='color:red;'>${target}</span>`);
       }
     });
@@ -123,7 +123,9 @@ export function approximateList<T, K extends keyof T>(
 
 // Get the value of var variable
 export const callVar = (css: string) => {
-  return getComputedStyle(document.documentElement).getPropertyValue(css).trim();
+  return getComputedStyle(document.documentElement)
+    .getPropertyValue(css)
+    .trim();
 };
 
 // Give me an obj[], and the key and value of obj, and return the index to you.
@@ -139,7 +141,8 @@ export function findObjListValue<T, K extends keyof T>(list: T[], key: K, value:
   return flag;
 }
 
-// Clean up LocalStorage that is incompatible with older versions. Only clear the status of the current edition to avoid mutual clearing of Pro/Local/Community of the same origin.
+// Clean up incompatible LocalStorage for the current edition only. This avoids
+// clearing Pro, Local, and Community state when they share the same origin.
 export function clearOlderLocalStorage() {
   const versionKey = runtimeEditionConfig.localStorageVersionKey;
   if (localStorage.getItem(versionKey) !== 'v6') {
@@ -323,7 +326,7 @@ export function copyToClipboard(
 }
 
 export function refreshPage() {
-  // The purpose of this method is that if there is reload in the parameter on the desktop side, then there is no need to start the java service.
+  // When desktop reloads with this parameter, it does not need to restart the Java service.
   if (isDesktop) {
     const url = new URL(window.location.href);
     const params = new URLSearchParams(url.search);
@@ -537,7 +540,7 @@ export function isEqualMemo(...args: any[]) {
   return true;
 }
 
-// Give me a uuid, and I will splice a string chat2db_temporary in front of the uuid, which means that the id is temporary. If no id is passed, I will automatically generate a uuid.
+// Prefix an ID to mark it as temporary. Generate a UUID when no ID is supplied.
 export function getTemporaryId(id?: string | number) {
   if (id === undefined) {
     return `chat2db_temporary_${uuid()}`;
@@ -572,7 +575,7 @@ export function truncateString(str: string | null | undefined, length: number = 
   return str.substring(0, length) + '...';
 }
 
-// Accepts two numbers and an offset and returns an array of numbers containing all the numbers between the two numbers, each number increased by the offset
+// Return the inclusive range between two numbers, with an optional offset.
 export function generateNumberSequence(start?: number, end?: number, offset: number = 0) {
   // If one of the numbers does not exist, returns an empty array
   if (start === undefined || end === undefined) {
@@ -581,7 +584,7 @@ export function generateNumberSequence(start?: number, end?: number, offset: num
   return Array.from({ length: end - start + 1 }, (_, i) => start + i + offset);
 }
 
-// Given a value, it is not known whether it is json or other types. If it is json, the parsed object is returned. If it is not, the original value is returned.
+// Parse JSON values and return all other values unchanged.
 export function parseJson(value: any) {
   try {
     return JSON.parse(value);

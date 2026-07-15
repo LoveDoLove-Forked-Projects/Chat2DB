@@ -96,7 +96,8 @@ const CanvasTable = forwardRef((props: IProps, ref: ForwardedRef<CanvasTableRef>
   );
 
   useEffect(() => {
-    // On the windows side, this area will conflict with the horizontal scroll bar of the table. Adding user-select: none will not work, so use js to disable dragging.
+    // On Windows, this area conflicts with the table's horizontal scrollbar.
+    // CSS user-select does not prevent it, so disable dragging with JavaScript.
     const dragStart = (e: DragEvent) => {
       e.preventDefault();
     };
@@ -139,7 +140,9 @@ const CanvasTable = forwardRef((props: IProps, ref: ForwardedRef<CanvasTableRef>
         highlightMode: 'row' as any,
       },
       rowResizeMode: 'body' as any,
-      /* displays the frozen column icon. They may need to customize this chart and put this column in the first column and fix it. */
+      /*
+       * Displays the frozen-column icon. Custom implementations may need to place and pin this column first.
+       */
       // showFrozenIcon: true,
       // allowFrozenColCount: 2000, // Number of frozen columns allowed
       /* https://visactor.io/vtable/option/ListTable#keyboardOptions */

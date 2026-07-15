@@ -41,10 +41,6 @@ export interface ChartCardProps extends DivProps {
    * @description error status prompt
    */
   errorComment?: React.ReactNode;
-  /**
-   * @description Enter animation
-   */
-  enterAnimation?: boolean;
   // have editing permissions?
   isEditPermission?: boolean;
 
@@ -66,12 +62,11 @@ const ChartCard = forwardRef((props: ChartCardProps, ref: ForwardedRef<ChartCard
     editTextOnBlur,
     extendAction,
     errorComment,
-    enterAnimation = false,
     isEditPermission = true,
     chartDetail,
     ...rest
   } = props;
-  const { styles, cx } = useStyles({ enterAnimation });
+  const { styles, cx } = useStyles();
   const { chartSchema } = chartDetail || {};
   const chartBodyRef = useRef<any>(null);
 

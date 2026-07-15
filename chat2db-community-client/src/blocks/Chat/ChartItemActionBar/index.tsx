@@ -1,8 +1,7 @@
-import React, { Fragment, memo, useEffect, useMemo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { useStyles } from './style';
 import { IconButton } from '@chat2db/ui';
 import { AnswerVO } from '@/typings/chat';
-import { set } from 'lodash';
 import chatService from '@/service/chat';
 
 interface IProps {

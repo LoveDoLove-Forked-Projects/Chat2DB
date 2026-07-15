@@ -35,5 +35,5 @@ export default {
   getFineTuningList,
   getFineTuningDetail,
   trainFineTuning,
-  evalFineTuning
+  evalFineTuning,
 };

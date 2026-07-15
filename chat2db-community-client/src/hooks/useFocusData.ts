@@ -7,11 +7,11 @@ function useCopyFocusData() {
   // Register shortcut key to monitor cmd+c or ctrl+c to copy focusedContent
   useEffect(() => {
     const handleCopy = (e: KeyboardEvent) => {
-      const focusedContent = getFocusedContent()
+      const focusedContent = getFocusedContent();
       if (e.code === 'KeyC' && (e.metaKey || e.ctrlKey)) {
-        if (!focusedContent) return
+        if (!focusedContent) return;
         copyToClipboard(focusedContent);
-        // Prevent the default behavior. If you don't add it, there will be a bug. The copyToClipboard will be triggered first, and then the browser's copy event will be triggered.
+        // Prevent the browser copy event from running after copyToClipboard.
         // And it is necessary to load copy to prevent normal copy behavior from being blocked.
         e.preventDefault();
       }
@@ -24,9 +24,9 @@ function useCopyFocusData() {
 
   useEffect(() => {
     const handleClick = (event) => {
-      const targetElement = event.target  as Element;
+      const targetElement = event.target as Element;
       if (!targetElement.closest('[data-chat2db-general-can-copy-element]')) {
-        setFocusedContent(null)
+        setFocusedContent(null);
       }
     };
     document.addEventListener('click', handleClick);

@@ -31,6 +31,8 @@ const OrgContainer = ({ menuKey }: IProps) => {
         return <ApplyList />;
       case OrgNavType.SQLAudit:
         return <SQLAudit />;
+      default:
+        return null;
     }
   };
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Tree, Checkbox } from 'antd';
 import { SearchBar } from '@chat2db/ui';
 import { useStyles } from './style';

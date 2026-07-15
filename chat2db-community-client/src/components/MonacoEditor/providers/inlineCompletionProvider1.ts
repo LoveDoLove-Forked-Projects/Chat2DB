@@ -61,7 +61,8 @@ export class InLineCompletionProvider implements monacoTypes.languages.InlineCom
     }
 
         // beforeContext: content after the last semicolon between the start and the cursor.
-    const beforeContext = word.trimStart().split(';').pop() || '';
+    const beforeContext = word.trimStart().split(';')
+.pop() || '';
     if (beforeContext.length < 3) {
       return;
     }
@@ -139,19 +140,19 @@ export class InLineCompletionProvider implements monacoTypes.languages.InlineCom
   }
 
   handleItemDidShow(
-    completions: monacoTypes.languages.InlineCompletions<monacoTypes.languages.InlineCompletion>,
-    item: monacoTypes.languages.InlineCompletion,
-    updatedInsertText: string,
+    _completions: monacoTypes.languages.InlineCompletions<monacoTypes.languages.InlineCompletion>,
+    _item: monacoTypes.languages.InlineCompletion,
+    _updatedInsertText: string,
   ): void {}
 
   handlePartialAccept(
-    completions: monacoTypes.languages.InlineCompletions<monacoTypes.languages.InlineCompletion>,
-    item: monacoTypes.languages.InlineCompletion,
-    acceptedCharacters: number,
+    _completions: monacoTypes.languages.InlineCompletions<monacoTypes.languages.InlineCompletion>,
+    _item: monacoTypes.languages.InlineCompletion,
+    _acceptedCharacters: number,
   ): void {}
 
   freeInlineCompletions(
-    completions: monacoTypes.languages.InlineCompletions<monacoTypes.languages.InlineCompletion>,
+    _completions: monacoTypes.languages.InlineCompletions<monacoTypes.languages.InlineCompletion>,
   ): void {}
 
   toString?(): string {

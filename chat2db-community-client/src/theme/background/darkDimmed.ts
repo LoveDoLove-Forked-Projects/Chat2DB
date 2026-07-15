@@ -50,7 +50,7 @@ const antdLightTheme = {
     colorBorderSecondary: '#373e4766',
     controlItemBgActive: '#f1f1f414',
     boxShadow:
-    '0 6px 16px 0 rgba(241, 241, 244, 0.04), 0 3px 6px -4px rgba(241, 241, 244, 0.04), 0 9px 28px 8px rgba(241, 241, 244, 0.04)',
+      '0 6px 16px 0 rgba(241, 241, 244, 0.04), 0 3px 6px -4px rgba(241, 241, 244, 0.04), 0 9px 28px 8px rgba(241, 241, 244, 0.04)',
   },
 };
 

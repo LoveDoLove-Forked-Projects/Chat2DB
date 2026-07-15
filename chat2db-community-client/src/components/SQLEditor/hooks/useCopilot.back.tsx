@@ -48,7 +48,7 @@ const useArouseCopilot = ({ editorRef, canAI, placeholderContentWidget }: IProps
     });
 
     // Add an extra input listener.
-    const modelContentDisposable = editorIns.onDidChangeModelContent((e) => {
+    const modelContentDisposable = editorIns.onDidChangeModelContent(() => {
       const position = editorIns.getPosition();
       if (!position) return;
 

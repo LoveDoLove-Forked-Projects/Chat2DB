@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import PluginService from '@/service/plugin';
 import { IPluginDataPackageVO } from '@/typings/plugin';
-import { Flex, Table, Tag } from 'antd';
+import { Table, Tag } from 'antd';
 import { IconButton } from '@chat2db/ui';
 import { formatFileSize } from '@/utils/file';
 import i18n from '@/i18n';
@@ -16,8 +16,8 @@ const UsedContent = ({ token }) => {
     }
   }, []);
 
-  const queryPluginDataPackageList = async (token) => {
-    const res = await PluginService.queryPluginDataPackageList({ token });
+  const queryPluginDataPackageList = async (accessToken) => {
+    const res = await PluginService.queryPluginDataPackageList({ token: accessToken });
     setPluginDataPackageList(res);
   };
 

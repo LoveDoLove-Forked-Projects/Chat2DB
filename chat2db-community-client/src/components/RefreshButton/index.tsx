@@ -1,5 +1,4 @@
-import React, { memo } from 'react';
-import { useStyles } from './style';
+import { memo } from 'react';
 import { IconButton } from '@chat2db/ui';
 import { refreshPage } from '@/utils';
 
@@ -9,6 +8,5 @@ interface IProps {
 
 export default memo<IProps>((props) => {
   const { className } = props;
-  const { styles, cx } = useStyles();
-  return <IconButton code="icon-refresh" onClick={refreshPage} />;
+  return <IconButton className={className} code="icon-refresh" onClick={refreshPage} />;
 });

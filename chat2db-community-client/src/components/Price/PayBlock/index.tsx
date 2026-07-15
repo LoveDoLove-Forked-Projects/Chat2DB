@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button, DatePicker, Flex, Input, Segmented, Tooltip } from 'antd';
 import { SubscriptionType } from '..';
 import { useStyles } from './style';
@@ -161,7 +161,7 @@ const PayBlock = ({
 
       await buyPlan(params);
       setCreateOrderLoading(false);
-    } catch (error) {
+    } catch {
       setCreateOrderLoading(false);
     }
   };

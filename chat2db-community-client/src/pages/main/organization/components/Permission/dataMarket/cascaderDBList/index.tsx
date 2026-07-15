@@ -12,8 +12,8 @@ interface CascaderDBListProps {
   dataSourceList?: IConnectionListItem[] | null;
 }
 
-const CascaderDBList: FC<CascaderDBListProps> = ({ isPreview, dataSourceList, onChange, defaultValue }) => {
-  const { cx, styles } = useStyles();
+const CascaderDBList: FC<CascaderDBListProps> = ({ dataSourceList, onChange, defaultValue }) => {
+  const { styles } = useStyles();
   const [value, setValue] = useState<DBField[]>(defaultValue || [{}]);
 
   const handleDelete = (index: number) => {
@@ -25,18 +25,26 @@ const CascaderDBList: FC<CascaderDBListProps> = ({ isPreview, dataSourceList, on
   return (
     <div className={styles.container}>
       {(value || []).map((item, index) => {
-        const { dataSourceId, databaseName, schemaName, tableName } = item;
-        const defaultValue = [dataSourceId, databaseName, tableName];
+        const { dataSourceId, databaseName, tableName } = item;
+        const cascaderValue = [dataSourceId, databaseName, tableName];
         return (
-          <div className={styles.cascaderDiv}>
+          <div className={styles.cascaderDiv} key={`${dataSourceId}-${databaseName}-${tableName}-${index}`}>
             <CascaderDB
-              key={index}
-              value={defaultValue}
+              value={cascaderValue}
               dataSourceList={dataSourceList}
               onChange={(_, selectedOptions) => {
-                const { dataSourceId, databaseName, schemaName, tableName } =
-                  selectedOptions[selectedOptions.length - 1];
-                value[index] = { dataSourceId, databaseName, schemaName, tableName };
+                const {
+                  dataSourceId: selectedDataSourceId,
+                  databaseName: selectedDatabaseName,
+                  schemaName: selectedSchemaName,
+                  tableName: selectedTableName,
+                } = selectedOptions[selectedOptions.length - 1];
+                value[index] = {
+                  dataSourceId: selectedDataSourceId,
+                  databaseName: selectedDatabaseName,
+                  schemaName: selectedSchemaName,
+                  tableName: selectedTableName,
+                };
                 setValue([...value]);
                 onChange && onChange([...value]);
               }}

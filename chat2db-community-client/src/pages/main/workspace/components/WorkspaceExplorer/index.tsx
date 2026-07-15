@@ -92,7 +92,7 @@ const WorkspaceExplorer = memo(
     window.requestAnimationFrame(() => {
       try {
         activeRow.scrollIntoView({ block: 'nearest' });
-      } catch (error) {
+      } catch {
         activeRow.scrollIntoView(false);
       }
     });

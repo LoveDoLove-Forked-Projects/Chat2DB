@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, memo } from 'react';
+import { useEffect, useRef, useState, memo } from 'react';
 import { useStyles } from './style';
 import { history } from 'umi';
 import { i18n, i18nElement } from '@/i18n';

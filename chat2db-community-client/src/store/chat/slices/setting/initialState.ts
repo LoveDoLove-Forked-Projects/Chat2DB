@@ -12,5 +12,5 @@ export interface SettingState {
 export const initSettingState: SettingState = {
   isOpenSetting: false,
   settingChatVO: undefined,
-  settingInfo: undefined
+  settingInfo: undefined,
 };

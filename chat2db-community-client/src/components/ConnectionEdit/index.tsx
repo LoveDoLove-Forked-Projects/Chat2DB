@@ -515,10 +515,6 @@ interface IRenderFormProps {
 function RenderForm(props: IRenderFormProps) {
   const { tab, form, backfillData, dataSourceFormConfigProps } = props;
 
-  const { curIsPersonalOrg } = useOrgStore((s) => ({
-    curIsPersonalOrg: s.curIsPersonalOrg,
-  }));
-
   let aliasChanged = false;
 
   const [dataSourceFormConfig, setDataSourceFormConfig] = useState<IConnectionConfig>(dataSourceFormConfigProps);
@@ -829,8 +825,8 @@ function RenderForm(props: IRenderFormProps) {
         </div>
         {t.selects?.map((item) => {
           if (t.defaultValue === item.value) {
-            return item.items?.map((t) => {
-              return renderFormItem(t);
+            return item.items?.map((nestedItem) => {
+              return renderFormItem(nestedItem);
             });
           }
         })}

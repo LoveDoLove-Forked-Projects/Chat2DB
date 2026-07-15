@@ -1,4 +1,4 @@
-import React, { memo, useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { Menu, type MenuProps } from 'antd';
 
 import ShortcutMenuLabel from '@/components/ShortcutMenuLabel';

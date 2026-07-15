@@ -1,4 +1,4 @@
-import React, {
+import {
   memo,
   useMemo,
   useState,
@@ -18,7 +18,6 @@ import { ActionType } from '@/constants/redis';
 import lodash from 'lodash';
 import { StreamValue } from '@/typings/redis';
 import { openAddColumnModal } from './addColumn';
-import { isEqualMemo } from '@/utils';
 import i18n from '@/i18n';
 
 interface IProps {

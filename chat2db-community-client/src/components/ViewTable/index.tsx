@@ -1,4 +1,4 @@
-import React, { memo, useState, useEffect } from 'react';
+import { memo, useState, useEffect } from 'react';
 import SearchResult from '@/blocks/SearchResult';
 import { processResultDataList } from '@/utils/database';
 import { IManageResultData, IViewTableParams } from '@/typings';

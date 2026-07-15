@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Button, Table, Tag, type TableProps } from 'antd';
 import { staticMessage } from '@chat2db/ui';
 import { useStyles } from './style';

@@ -70,7 +70,7 @@ export default memo<IProps>((props) => {
     extraneousSubmitEditorChartCallback?.(_chartDetail);
     setChartDetail(_chartDetail);
     if (chartId) {
-      updateChart(chartDetailNormalization(_chartDetail)).then((res) => {});
+      void updateChart(chartDetailNormalization(_chartDetail));
     }
   };
 
@@ -116,11 +116,6 @@ export default memo<IProps>((props) => {
     return false;
   }, [chartDetail]);
 
-  const handleShowDingSubmitCallBack = (_chartDetail) => {
-    setChartDetail(_chartDetail);
-    EditorChartModalRef.current?.controlEditChartModal(false);
-  };
-
   const handleEditTextOnBlur = (text) => {
     const data = { ...chartDetail, chartSchema: { ...chartDetail?.chartSchema, title: text } };
     submitEditorChartCallback(data);
@@ -137,7 +132,6 @@ export default memo<IProps>((props) => {
         extendAction={extendAction}
         editTextOnBlur={handleEditTextOnBlur}
         // errorComment={errorComment}
-        enterAnimation={true}
         ref={chartCardRef}
         {...rest}
       />

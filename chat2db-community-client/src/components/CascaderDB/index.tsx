@@ -52,8 +52,8 @@ function CascaderDB(props: IProps) {
   const [isDataSourceLoading, setIsDataSourceLoading] = useState<boolean>(false);
   const [isDatabaseLoading, setIsDatabaseLoading] = useState<boolean>(false);
   const [isSchemaLoading, setIsSchemaLoading] = useState<boolean>(false);
-  const [isTableLoading, setIsTableLoading] = useState<boolean>(false);
-  const [isColumnLoading, setIsColumnLoading] = useState<boolean>(false);
+  const [isTableLoading] = useState<boolean>(false);
+  const [isColumnLoading] = useState<boolean>(false);
 
   useEffect(() => {
     if (initData && Object.keys(initData).length) {

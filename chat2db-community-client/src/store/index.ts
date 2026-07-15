@@ -10,14 +10,13 @@ import { clearTreeStore } from './tree/index';
 
 // Clean Store
 export const clearStore = () => {
-  clearChatStore()
-  clearDashboardStore()
-  clearCommonStore()
-  clearConnectionStore()
-  clearGlobalStore()
-  clearOrgStore()
-  clearUserStore()
-  clearWorkspaceStore()
-  clearTreeStore()
-}
-
+  clearChatStore();
+  clearDashboardStore();
+  clearCommonStore();
+  clearConnectionStore();
+  clearGlobalStore();
+  clearOrgStore();
+  clearUserStore();
+  clearWorkspaceStore();
+  clearTreeStore();
+};

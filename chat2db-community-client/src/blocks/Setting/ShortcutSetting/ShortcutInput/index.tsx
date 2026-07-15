@@ -91,7 +91,7 @@ const ShortcutInput: React.FC<IProps> = ({ value, onChange, disabled, placeholde
     if (disabled) return;
     if (!keysPressed.current.size) return;
 
-    // If the shortcut key is less than or equal to 1 key or does not contain any modifier keys, restore the original value
+    // Restore the original value for incomplete shortcuts without a supported single key or modifier.
     const pressedKeys = Array.from(keysPressed.current);
     const hasModifierKey = pressedKeys.some((key) => modifierKeys.has(key));
     const isAllowedSingleKey = pressedKeys.length === 1 && singleKeyShortcuts.has(pressedKeys[0]);

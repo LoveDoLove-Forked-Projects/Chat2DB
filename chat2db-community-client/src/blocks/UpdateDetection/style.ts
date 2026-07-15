@@ -1,7 +1,7 @@
 import { createStyles, keyframes } from 'antd-style';
 
 export const useStyles = createStyles(({ css, token }) => {
-  // Make an animation. The current div shakes like a bell, centered on the upper center point of the div, shaking 3px left and right.
+  // Shake around the element's upper center point.
   const shake = keyframes`
   0% {
     transform: rotate(0deg);

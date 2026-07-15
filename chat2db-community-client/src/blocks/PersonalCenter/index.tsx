@@ -98,7 +98,7 @@ export default memo(({ triggerSize = 36, children }: PersonalCenterProps) => {
   };
 
   const items = useMemo(() => {
-    const items: any[] = [
+    const menuItems: any[] = [
       {
         key: 'personal',
         icon: <IconfontSvg code="icon-user-circle" />,
@@ -198,14 +198,14 @@ export default memo(({ triggerSize = 36, children }: PersonalCenterProps) => {
     ].filter(Boolean) as any[];
 
     if (onlineMenuItems.length > 0) {
-      const settingDividerIndex = items.findIndex((item) => item.type === 'divider');
-      items.splice(settingDividerIndex + 1, 0, ...onlineMenuItems);
+      const settingDividerIndex = menuItems.findIndex((item) => item.type === 'divider');
+      menuItems.splice(settingDividerIndex + 1, 0, ...onlineMenuItems);
     }
 
-    // If the current orgList has a team version, add a button to switch to the team in front of the create or join team button.
+    // Add the team switcher before the create/join action when a team organization exists.
     if (orgList?.find((org) => org.type === OrganizationType.TEAM)) {
-      const index = items.findIndex((item) => item.key === 'createOrg');
-      items.splice(index, 0, {
+      const index = menuItems.findIndex((item) => item.key === 'createOrg');
+      menuItems.splice(index, 0, {
         key: 'switchTeam',
         icon: <IconfontSvg code="icon-switch-horizontal" />,
         label: <MenuLabel label={i18n('setting.nav.switchOrg')} />,
@@ -213,11 +213,11 @@ export default memo(({ triggerSize = 36, children }: PersonalCenterProps) => {
       });
     }
 
-    // If you are currently in the team version, add a button to switch to individual after the create or join team button.
+    // In a team organization, add the personal switcher after the create/join action.
     if (!curIsPersonalOrg()) {
       // Find index based on key
-      const index = items.findIndex((item) => item.key === 'createOrg');
-      items.splice(index + 1, 0, {
+      const index = menuItems.findIndex((item) => item.key === 'createOrg');
+      menuItems.splice(index + 1, 0, {
         key: 'switchPersonal',
         icon: <IconfontSvg code="icon-user-circle" />,
         label: <MenuLabel label={i18n('setting.nav.switchPersonal')} />,
@@ -227,7 +227,7 @@ export default memo(({ triggerSize = 36, children }: PersonalCenterProps) => {
         },
       });
     }
-    return items;
+    return menuItems;
   }, [curOrg?.id, orgList]);
 
   const handleClick = () => {

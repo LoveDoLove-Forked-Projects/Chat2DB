@@ -4,7 +4,7 @@ import { SORT_TEXT } from '@/components/MonacoEditor/providers/completionProvide
 
 export const resetSenseDatabase = () => {
   intelliSenseDatabase.dispose();
-}
+};
 
 let intelliSenseDatabase = monaco.languages.registerCompletionItemProvider('sql', {
   provideCompletionItems: () => {
@@ -12,32 +12,11 @@ let intelliSenseDatabase = monaco.languages.registerCompletionItemProvider('sql'
   },
 });
 
-const checkTableContext = (text) => {
-  const normalizedText = text.trim().toUpperCase();
-  const tableKeywords = ['FROM', 'JOIN', 'INNER JOIN', 'LEFT JOIN', 'RIGHT JOIN', 'UPDATE'];
-
-  for (const keyword of tableKeywords) {
-    if (normalizedText.endsWith(keyword)) {
-      return true;
-    }
-  }
-
-  return false;
-};
-
 const registerIntelliSenseDatabase = (databaseName: Array<{ name: string; dataSourceName: string }>) => {
   resetSenseDatabase();
   intelliSenseDatabase = monaco.languages.registerCompletionItemProvider('sql', {
     // triggerCharacters: [' ', '.'],
-    provideCompletionItems: (model, position) => {
-      const lineContentUntilPosition = model.getValueInRange({
-        startLineNumber: position.lineNumber,
-        startColumn: 1,
-        endLineNumber: position.lineNumber,
-        endColumn: position.column,
-      });
-      const isTableContext = checkTableContext(lineContentUntilPosition);
-
+    provideCompletionItems: (_model, _position) => {
       return {
         suggestions: (databaseName || []).map(({ name, dataSourceName }) => ({
           label: {

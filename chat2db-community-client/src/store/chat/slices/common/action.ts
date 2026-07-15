@@ -83,7 +83,7 @@ export const createCommonAction: StateCreator<ChatStore, [['zustand/devtools', n
     });
   },
   updateChatInfo: async (chatBasicInfo) => {
-    chatService.updateChatInfo(chatBasicInfo).then((res) => {
+    chatService.updateChatInfo(chatBasicInfo).then(() => {
       const chatList = get().chatList;
       const index = chatList.findIndex((item) => item.id === chatBasicInfo.id);
       if (index === -1) return;

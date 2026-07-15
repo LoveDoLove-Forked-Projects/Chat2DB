@@ -1,4 +1,4 @@
-import React, { useState, useImperativeHandle, ForwardedRef, forwardRef, useMemo, useRef } from 'react';
+import { useState, useImperativeHandle, ForwardedRef, forwardRef, useMemo, useRef } from 'react';
 import { useStyles } from './style';
 import EditorChart from '../EditorChart';
 import EditorChartSql, { EditorChartSqlRef } from '../EditorChartSql';

@@ -1,10 +1,9 @@
-import React, { FC, useEffect, useMemo, useState } from 'react';
+import { FC, useEffect, useMemo, useState } from 'react';
 import { Form, Input, InputNumber, ModalProps, Select } from 'antd';
 import { Modal } from '@chat2db/ui';
 import i18n from '@/i18n';
 import { useDashboardStore } from '@/store/dashboard/store';
 import ModalTitle from '@/components/Modal/ModalTitle';
-import { useStyles } from './style';
 import { AUTO_REFRESH, AUTO_REFRESH_DASHBOARD_OPTIONS } from '@/blocks/BI/Chart/constants';
 
 export interface DashboardSettingProps extends ModalProps {}
@@ -15,7 +14,6 @@ const DashboardSetting: FC<DashboardSettingProps> = () => {
     handleConfirmSettingModal: state.handleConfirmSettingModal,
     setSettingDashboard: state.setSettingDashboard,
   }));
-  const { styles } = useStyles();
   const [form] = Form.useForm();
   const [formData, setFormData] = useState<any>({});
 

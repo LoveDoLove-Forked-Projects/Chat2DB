@@ -1,4 +1,3 @@
-
 import { IConnectionListItem } from '@/typings/connection';
 import { IDatabaseItem as DBItem } from '@/typings/database';
 import { ISchemaItem as SchemaItem } from '@/typings/schema';

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { extendConfig } from '../config';
 import { useWorkspaceStore } from '@/store/workspace';
 import { useStyles } from './style';

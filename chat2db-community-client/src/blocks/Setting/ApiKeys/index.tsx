@@ -1,9 +1,9 @@
-import React, { memo, useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { useStyles } from './style';
 import SettingSubsection from '../SettingSubsection';
 import i18n, { i18nElement } from '@/i18n';
-import { Table, Button, Form, Input } from 'antd';
-import { Modal, IconButton, IconfontSvg } from '@chat2db/ui';
+import { Button, Form, Input } from 'antd';
+import { Modal, IconButton } from '@chat2db/ui';
 import apiKeysServices, { ApiKeyDetail } from '@/service/apiKeys';
 import ModalFooterButton from '@/components/Modal/ModalFooterButton';
 import dayjs from 'dayjs';
@@ -23,9 +23,6 @@ export default memo<IProps>((props) => {
   const [loading, setLoading] = useState(false);
   const [apiKeys, setApiKeys] = useState<ApiKeyDetail[]>([]);
   const [currentApiKey, setCurrentApiKey] = useState<ApiKeyDetail | null>(null);
-  const [tableScrollY, setTableScrollY] = useState(0);
-  const tableBoxRef = useRef<any>(null);
-  const [tableLoading, setTableLoading] = useState(false);
 
   const { openUnifiedConfirmationModal, appUrlConfig } = useGlobalStore((state) => {
     return {
@@ -37,24 +34,6 @@ export default memo<IProps>((props) => {
   useEffect(() => {
     getApiKeyList();
   }, []);
-
-  // monitors the height change of tableBoxRef and sets tableScrollY. You need to consider the resize situation.
-  useEffect(() => {
-    const resizeObserver = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        const { height } = entry.contentRect;
-        setTableScrollY(height - 82);
-      }
-    });
-
-    if (tableBoxRef.current) {
-      resizeObserver.observe(tableBoxRef.current);
-    }
-
-    return () => {
-      resizeObserver.disconnect();
-    };
-  }, [tableBoxRef.current]);
 
   const renderDescribe = () => {
     return (
@@ -70,14 +49,10 @@ export default memo<IProps>((props) => {
   };
 
   const getApiKeyList = () => {
-    setTableLoading(true);
     apiKeysServices
       .getApiKeyList()
       .then((res) => {
         setApiKeys(res);
-      })
-      .finally(() => {
-        setTableLoading(false);
       });
   };
 

@@ -3,9 +3,8 @@ import * as VTable from '@visactor/vtable';
 import { ReferencePosition } from '@visactor/vtable-editors';
 import * as ReactDOM from 'react-dom/client';
 import { DatePicker, TimePicker } from 'antd';
-import dayjs from 'dayjs';
+import dayjs, { type Dayjs } from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
-import type { Dayjs } from 'dayjs';
 import { useStyles } from './style';
 import { useStylesStore } from '@/store/styles';
 import { copyToClipboard } from '@/utils';
@@ -143,7 +142,7 @@ const InputReact = forwardRef((props: IProps, ref) => {
         }
       }
       if (e.code === 'KeyC' && (e.metaKey || e.ctrlKey)) {
-        // will be interfered by the copy event of Vtable, so it prevents bubbling and handles the default event by itself.
+        // VTable's copy event interferes here, so stop propagation and handle copying locally.
         e.stopPropagation();
         e.preventDefault();
         const selection = window.getSelection()?.toString();

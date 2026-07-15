@@ -1,4 +1,4 @@
-import React, { memo, Fragment } from 'react';
+import { memo, Fragment } from 'react';
 import { Button } from 'antd';
 import i18n from '@/i18n';
 import { useStyles } from './style';

@@ -16,7 +16,7 @@ let intelliSenseField = monaco.languages.registerCompletionItemProvider('sql', {
 
 export const resetSenseField = () => {
   intelliSenseField.dispose();
-}
+};
 
 const addIntelliSenseField = async (props: {
   tableName: string;
@@ -37,19 +37,6 @@ const addIntelliSenseField = async (props: {
   }
 };
 
-function checkFieldContext(text) {
-  const normalizedText = text.trim().toUpperCase();
-  const columnKeywords = ['SELECT', 'WHERE', 'AND', 'OR', 'GROUP BY', 'ORDER BY', 'SET'];
-
-  for (const keyword of columnKeywords) {
-    if (normalizedText.endsWith(keyword)) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
 const registerIntelliSenseField = (tableList: string[], dataSourceId, databaseName, schemaName) => {
   resetSenseField();
   fieldList = {};
@@ -64,7 +51,6 @@ const registerIntelliSenseField = (tableList: string[], dataSourceId, databaseNa
         endColumn: position.column,
       });
 
-      const isFieldContext = checkFieldContext(textUntilPosition);
       const match = textUntilPosition.match(/(\b\w+\b)[^\w]*$/);
 
       let word;

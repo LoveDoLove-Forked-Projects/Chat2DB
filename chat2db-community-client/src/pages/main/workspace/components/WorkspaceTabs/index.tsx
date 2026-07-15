@@ -74,7 +74,8 @@ function getWorkspaceTabPaneIdFromDroppableId(id: string): WorkspaceTabPaneId | 
 }
 
 function createWorkspaceTabPaneId() {
-  return `pane_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  return `pane_${Date.now()}_${Math.random().toString(36)
+.slice(2, 8)}`;
 }
 
 function createPaneNode(id: WorkspaceTabPaneId): IWorkspaceTabPaneNode {
@@ -356,7 +357,12 @@ function orderPinnedWorkspaceTabsFirst(tabs: IWorkspaceTab[]) {
   return [...tabs.filter((tab) => tab.pinned), ...tabs.filter((tab) => !tab.pinned)];
 }
 
-function createTemporaryWorkspaceTabCopy(item: IWorkspaceTab, ddl: string | undefined, idPrefix: string, title: string) {
+function createTemporaryWorkspaceTabCopy(
+  item: IWorkspaceTab,
+  ddl: string | undefined,
+  idPrefix: string,
+  title: string,
+) {
   const snapshot = createWorkspaceTabSnapshot(item, ddl, { stripFunctions: false });
   return {
     ...snapshot,
@@ -394,7 +400,10 @@ function getWorkspaceTabMap(workspaceTabList: IWorkspaceTab[]) {
   return new Map<string | number, IWorkspaceTab>(workspaceTabList.map((item) => [item.id, item]));
 }
 
-function getValidOrderedPaneTabIds(ids: Array<string | number> = [], workspaceTabMap: Map<string | number, IWorkspaceTab>) {
+function getValidOrderedPaneTabIds(
+  ids: Array<string | number> = [],
+  workspaceTabMap: Map<string | number, IWorkspaceTab>,
+) {
   const dedupedIds: Array<string | number> = [];
   ids.forEach((id) => {
     if (workspaceTabMap.has(id) && !dedupedIds.includes(id)) {
@@ -411,7 +420,10 @@ function getActivePaneTabId(ids: Array<string | number>, activeId?: string | num
   return ids[0] ?? null;
 }
 
-function getPaneIdForTab(layout: IWorkspaceTabSplitLayout | null | undefined, tabId: string | number): WorkspaceTabPaneId {
+function getPaneIdForTab(
+  layout: IWorkspaceTabSplitLayout | null | undefined,
+  tabId: string | number,
+): WorkspaceTabPaneId {
   if (layout) {
     const paneId = Object.keys(layout.paneTabIds || {}).find((id) => layout.paneTabIds[id]?.includes(tabId));
     if (paneId) {
@@ -577,7 +589,8 @@ function getNextActiveWorkspaceTabIdAfterClose(params: {
     const paneTabIds = layout.paneTabIds[activePaneId] || [];
     const activeIndex = paneTabIds.findIndex((id) => id === activeConsoleId);
     const isAvailableTabId = (id: string | number) => !closeTabIds.has(id) && workspaceTabMap.has(id);
-    const previousTabId = paneTabIds.slice(0, Math.max(activeIndex, 0)).reverse().find(isAvailableTabId);
+    const previousTabId = paneTabIds.slice(0, Math.max(activeIndex, 0)).reverse()
+.find(isAvailableTabId);
     const nextTabId = paneTabIds.slice(activeIndex + 1).find(isAvailableTabId);
     const fallbackPaneTabId = paneTabIds.find(isAvailableTabId);
 
@@ -1215,7 +1228,9 @@ const WorkspaceTabs = memo(() => {
     const overId = String(event.over.id);
     const overPaneId = getWorkspaceTabPaneIdFromDroppableId(overId);
     const overTabId = getWorkspaceTabIdFromDndId(overId, workspaceTabList || []);
-    const targetPaneId = overPaneId || (overTabId !== undefined ? getPaneIdForTab(workspaceTabSplitLayout, overTabId) : undefined);
+    const targetPaneId =
+      overPaneId ||
+      (overTabId !== undefined ? getPaneIdForTab(workspaceTabSplitLayout, overTabId) : undefined);
     if (!targetPaneId) {
       return;
     }
@@ -1639,7 +1654,9 @@ const WorkspaceTabs = memo(() => {
         onDragCancel={() => setDraggingWorkspaceTabKey(undefined)}
       >
         <div className={styles.splitTabBox}>
-          {renderWorkspaceTabPaneNode(workspaceTabSplitLayout.root || createDefaultSplitRoot(workspaceTabSplitLayout.direction))}
+          {renderWorkspaceTabPaneNode(
+            workspaceTabSplitLayout.root || createDefaultSplitRoot(workspaceTabSplitLayout.direction),
+          )}
         </div>
       </DndContext>
     ) : (

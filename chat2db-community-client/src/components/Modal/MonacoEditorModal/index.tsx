@@ -1,6 +1,6 @@
-import React, { memo } from 'react';
+import { memo } from 'react';
 import { Modal } from 'antd';
-import MonacoEditor, { IExportRefFunction } from '@/components/MonacoEditor';
+import MonacoEditor from '@/components/MonacoEditor';
 
 const TriggeredModal = memo<ITriggeredModal>(() => {
   return (

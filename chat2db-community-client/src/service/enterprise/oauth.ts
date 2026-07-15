@@ -13,23 +13,22 @@ export interface LoginAddress {
 // Get the Google, GitHub, and Watcha third-party login URLs.
 const getLoginUrl = createRequest<void, LoginAddress>('/api/oauth/get_login_url', {
   method: 'get',
-  errorLevel: 'toast'
+  errorLevel: 'toast',
 });
-
 
 /** User email/mobile phone number registration */
 const userRegister = createRequest<Partial<IUserVO> | { passcode: string; registerType: LoginType }, IUserVO>(
   `/api/oauth/register_a`,
   {
     method: 'post',
-    errorLevel: 'toast'
+    errorLevel: 'toast',
   },
 );
 
 /** User login */
 const userLogin = createRequest<IUserLoginVO, any>(`/api/oauth/login_a`, {
   method: 'post',
-  errorLevel: false
+  errorLevel: false,
 });
 
 /** Get current user login information */
@@ -38,7 +37,7 @@ const getUserInfo = createRequest<void, IUserVO>('/api/oauth/user_a', { method: 
 /** User logout */
 const userLogout = createRequest<void, void>('/api/oauth/logout_a', {
   method: 'post',
-  errorLevel: 'toast'
+  errorLevel: 'toast',
 });
 
 /** Reset password */
@@ -51,26 +50,29 @@ const resetPassword = createRequest<
   void
 >(`/api/oauth/reset_password`, {
   method: 'post',
-  errorLevel: 'toast'
+  errorLevel: 'toast',
 });
 
 // APP configuration
 const getAppConfig = createRequest<void, ServiceAppConfig>('/api/oauth/get_app_config', {
   method: 'get',
-  errorLevel: false
+  errorLevel: false,
 });
 
 // Get WeChat QR code
-const getWechatQrCode = createRequest<void, { wechatQrCodeUrl: string; token: string; tip: string }>('/api/oauth/wechat_qr_a', {
-  method: 'get',
-  errorLevel: false
-})
+const getWechatQrCode = createRequest<void, { wechatQrCodeUrl: string; token: string; tip: string }>(
+  '/api/oauth/wechat_qr_a',
+  {
+    method: 'get',
+    errorLevel: false,
+  },
+);
 
 // Get WeChat login status
 const getWechatLoginStatus = createRequest<{ token: string }, { status: string }>('/api/oauth/wechat_login_a', {
   method: 'get',
-  errorLevel: false
-})
+  errorLevel: false,
+});
 
 export default {
   getLoginUrl,
@@ -81,5 +83,5 @@ export default {
   getUserInfo,
   getAppConfig,
   getWechatQrCode,
-  getWechatLoginStatus
+  getWechatLoginStatus,
 };

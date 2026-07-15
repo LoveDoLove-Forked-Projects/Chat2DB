@@ -11,10 +11,8 @@ export enum RoleType {
 
 export enum MemberType {
   TEAM = 'TEAM',
-  USER = 'USER'
+  USER = 'USER',
 }
-
-
 
 // ===================== DataSource ==================
 
@@ -60,7 +58,6 @@ export interface IEnvironmentVO {
   style?: string;
 }
 
-
 export interface IDataSourceAccessVO {
   /**
    * Authorization object
@@ -79,7 +76,6 @@ export interface IDataSourceAccessVO {
    */
   id: number;
 }
-
 
 export interface IDataSourceAccessObjectVO {
   /**
@@ -105,8 +101,8 @@ export interface IDataSourceAccessObjectVO {
 
 export interface IUserVO {
   /**
- * Primary key
- */
+   * Primary key
+   */
   id: number;
 
   /**
@@ -135,7 +131,6 @@ export interface IUserVO {
   userName: string;
 }
 
-
 export interface IUserWithTeamVO {
   /**
    * Primary key
@@ -162,7 +157,6 @@ export interface IUserWithDataSourceVO {
    */
   userId?: number;
 }
-
 
 // ===================== Team =====================
 
@@ -212,5 +206,5 @@ export interface ITeamAndUserVO {
   code?: string;
   id?: number;
   name?: string;
-  type?: MemberType
+  type?: MemberType;
 }

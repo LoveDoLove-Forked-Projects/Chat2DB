@@ -1,4 +1,4 @@
-import React, { memo, useEffect, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { useStyles } from './style';
 import AntdTable from '@/components/AntdTable';
 import i18n from '@/i18n';

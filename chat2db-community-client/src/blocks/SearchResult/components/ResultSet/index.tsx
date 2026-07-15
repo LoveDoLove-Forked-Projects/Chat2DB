@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useStyles } from './style';
 import ResultSetToolbar, { ResultSetToolbarRef, ToolbarOperationType } from '../ResultSetToolbar';
 import ScreeningResult, { IScreeningResultRef } from '../ScreeningResult';
@@ -64,12 +64,12 @@ export default memo<IProps>(
       setResultData(props.resultData);
     }, [props.resultData]);
 
-    // Here we only need to rely on resultData, because databaseBaseInfo will not change, pageSize, pageNo are controlled by ResultSetToolbar
+    // Only resultData changes here. Database metadata is stable, and the toolbar controls pagination.
     const handleExecuteSQL = useCallback(
       ({ pageNo: _pageNo }: { pageNo?: number } = {}) => {
         // Clear operation records
         resultSetTableRef.current?.operationRecordUtils?.clearOperationRecord?.();
-        // If there is no ResultSetToolbarRef.current, it means that the ResultSetToolbar has not been rendered yet and will not be executed.
+        // Do not execute before the result toolbar is mounted.
         if (!resultSetToolbarRef.current) return;
         // If there is no executeSqlParams, the execution information is not known, and no execution is performed.
         if (!resultData.executeSqlParams) return;

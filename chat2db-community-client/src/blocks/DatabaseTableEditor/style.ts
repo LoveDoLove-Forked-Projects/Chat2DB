@@ -1,6 +1,6 @@
 import { createStyles } from 'antd-style';
 
-export const useStyles = createStyles(({ css, token }) => {
+export const useStyles = createStyles(({ css }) => {
   return {
     tableEditor: css`
       height: 100%;

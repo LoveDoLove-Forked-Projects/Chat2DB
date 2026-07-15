@@ -138,19 +138,3 @@ export default class CryptographyUtil {
     return this.bufferToHex(signatureArrayBuffer);
   }
 }
-// Usage example
-async function demo() {
-  const cryptographyService = new CryptographyUtil('your_access_key', 'your_secret_key', 'CN', 'Asia/Shanghai');
-  const encryptedQueryString = await cryptographyService.encryptAes('query_string_here');
-  console.log('Encrypted Query String:', encryptedQueryString);
-
-  const decryptedQueryString = await cryptographyService.decryptAes(encryptedQueryString);
-  console.log('Decrypted Query String:', decryptedQueryString);
-
-  // Hypothetical Canonical Request string
-  const canonicalRequest = 'GET\n/exampleuri\nquery_string\nhashed_payload';
-  const signature = await cryptographyService.calculateSignature(canonicalRequest);
-  console.log('Signature:', signature);
-}
-
-// demo().catch(console.error);

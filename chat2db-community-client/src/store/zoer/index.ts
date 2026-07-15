@@ -24,10 +24,7 @@ export interface ZoerAction {
 
 export type ZoerStore = ZoerState & ZoerAction;
 
-export const createUserAction: StateCreator<ZoerStore, [['zustand/devtools', never]], [], ZoerAction> = (
-  set,
-  get,
-) => ({
+export const createUserAction: StateCreator<ZoerStore, [['zustand/devtools', never]], [], ZoerAction> = (set, _get) => ({
   setZoerBoundInfo: (boundInfo) => {
     set({ zoerBoundInfo: boundInfo });
   },

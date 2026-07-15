@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import userServices from '@/service/enterprise/user';
 import { Select } from 'antd';
 import { Outlet, history } from 'umi';

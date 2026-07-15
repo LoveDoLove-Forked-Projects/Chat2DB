@@ -7,7 +7,7 @@ import { StateCreator } from 'zustand/vanilla';
 import { Theme } from 'antd-style';
 
 interface StylesState {
-  theme: Omit<Theme, "prefixCls"> | null;
+  theme: Omit<Theme, 'prefixCls'> | null;
 }
 
 const initialState: StylesState = {
@@ -15,7 +15,7 @@ const initialState: StylesState = {
 };
 
 export interface StylesAction {
-  setTheme: (theme: Omit<Theme, "prefixCls">) => void;
+  setTheme: (theme: Omit<Theme, 'prefixCls'>) => void;
 }
 
 export type StylesStore = StylesState & StylesAction;

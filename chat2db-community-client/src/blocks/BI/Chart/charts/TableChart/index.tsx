@@ -1,4 +1,4 @@
-import React, { memo, useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { useStyles } from './style';
 import CanvasTable from '@/blocks/CanvasTable';
 import { INormalizedData } from '@/blocks/BI/Chart/typings';

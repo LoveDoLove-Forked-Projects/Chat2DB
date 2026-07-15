@@ -65,7 +65,7 @@ export const extractDataFromSchema = (schema?: string): any[] | null => {
   try {
     const { data } = JSON.parse(schema);
     return data;
-  } catch (error) {
+  } catch {
     return null;
   }
 };
@@ -83,7 +83,7 @@ export const deconstructSchema = (schema?: string): DragLayoutItem[] | null => {
   }
   try {
     result = JSON.parse(schema);
-  } catch (error) {
+  } catch {
     result = null;
   }
   return result;
@@ -201,7 +201,7 @@ export const updateSchemaValue = (value: Record<string, any>, schema?: string) =
   let schemaObj: any = null;
   try {
     schemaObj = JSON.parse(schema);
-  } catch (error) {
+  } catch {
     return schema;
   }
 

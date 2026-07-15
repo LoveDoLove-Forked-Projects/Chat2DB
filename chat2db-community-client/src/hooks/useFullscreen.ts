@@ -14,8 +14,6 @@ export const useFullscreen = (elementRef: React.RefObject<HTMLElement>): Fullscr
     if (elementRef.current) {
       if (elementRef.current.requestFullscreen) {
         elementRef.current.requestFullscreen();
-      } else if (elementRef.current.requestFullscreen) { 
-        elementRef.current.requestFullscreen();
       }
       setIsFullscreen(true);
     }
@@ -24,9 +22,7 @@ export const useFullscreen = (elementRef: React.RefObject<HTMLElement>): Fullscr
   const exitFullscreen = useCallback(() => {
     if (document.exitFullscreen) {
       document.exitFullscreen();
-    } else if (document.exitFullscreen) { 
-      document.exitFullscreen();
-    } 
+    }
     setIsFullscreen(false);
   }, []);
 

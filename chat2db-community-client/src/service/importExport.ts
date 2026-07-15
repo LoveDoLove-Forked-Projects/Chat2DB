@@ -16,7 +16,7 @@ export interface ImportOtherFileParams extends IDatabaseBaseInfo {
 export interface ExportSqlFileParams extends IDatabaseBaseInfo {
   exportPath: string;
   tableName?: string;
-  scope?:  'ALL' | 'SCHEMA' | 'TABLE';
+  scope?: 'ALL' | 'SCHEMA' | 'TABLE';
   containsHeader?: boolean;
 }
 
@@ -31,13 +31,18 @@ const importOtherFile = createRequest<ImportOtherFileParams, number>('/api/impor
 const exportSqlFile = createRequest<ExportSqlFileParams, number>('/api/export/sql_file', { method: 'post' });
 const exportOtherFile = createRequest<IDatabaseBaseInfo, number>('/api/export/other_file', { method: 'post' });
 
-const getTaskList = createRequest<TaskListParams, IPageResponse<ImportExportTaskDetails>>('/api/task/list', { method: 'get', errorLevel: false });
+const getTaskList = createRequest<TaskListParams, IPageResponse<ImportExportTaskDetails>>('/api/task/list', {
+  method: 'get',
+  errorLevel: false,
+});
 const getTaskDetails = createRequest<{ id: number }, ImportExportTaskDetails>('/api/task/get', { method: 'get' });
 
 const stopTask = createRequest<{ id: string }, void>('/api/task/stop', { method: 'get' });
 
 // Generate Java classes
-const generateJavaClass = createRequest<ExportSqlFileParams, number>('/api/rdb/table/generate/class', { method: 'post' });
+const generateJavaClass = createRequest<ExportSqlFileParams, number>('/api/rdb/table/generate/class', {
+  method: 'post',
+});
 
 export default {
   importSqlFile,
@@ -47,5 +52,5 @@ export default {
   getTaskList,
   getTaskDetails,
   stopTask,
-  generateJavaClass
+  generateJavaClass,
 };

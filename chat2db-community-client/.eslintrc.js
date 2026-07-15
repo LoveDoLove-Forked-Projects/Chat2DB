@@ -4,11 +4,12 @@ module.exports = {
     browser: true,
     es2021: true,
   },
-  plugins: ['@typescript-eslint', 'babel', 'react-hooks', 'react'],
+  plugins: ['@typescript-eslint', 'babel', 'react-hooks', 'react', 'unused-imports'],
   extends: [
     'eslint:recommended',
     'plugin:@typescript-eslint/recommended',
     'plugin:react/recommended',
+    'plugin:react/jsx-runtime',
     // 'airbnb-base', // airbnb-base already includes eslint-plugin-import.
     // 'prettier', // Disable conflicting ESLint formatting rules in favor of Prettier.
     // 'prettier/@typescript-eslint', // Disable conflicting TypeScript formatting rules in favor of Prettier.
@@ -28,7 +29,16 @@ module.exports = {
     ecmaVersion: 'latest',
     sourceType: 'module',
   },
-  ignorePatterns: ['src/main'],
+  settings: {
+    react: {
+      version: 'detect',
+    },
+  },
+  ignorePatterns: [
+    // Alibaba Iconfont exports. Regenerate these files instead of editing the minified vendor runtime.
+    'src/assets/fonts/new-chat2db-colourful-iconfont.js',
+    'src/assets/fonts/new-chat2db-iconfont.js',
+  ],
   rules: {
     'func-names': 0, // Allow anonymous function expressions.
     'one-var': [1, 'never'], // Warn unless variables use separate declarations.
@@ -66,7 +76,21 @@ module.exports = {
     'class-methods-use-this': 0, // Allow class methods that do not reference this.
     'prefer-destructuring': 0, // Do not require array or object destructuring.
     'no-unused-vars': 0, // Let the TypeScript-specific rule handle unused variables.
-    '@typescript-eslint/no-unused-vars': 1, // Warn about unused variables.
+    '@typescript-eslint/no-unused-vars': 0,
+    'unused-imports/no-unused-imports': 2,
+    'unused-imports/no-unused-vars': [
+      2,
+      {
+        args: 'after-used',
+        argsIgnorePattern: '^_',
+        caughtErrors: 'all',
+        caughtErrorsIgnorePattern: '^_',
+        destructuredArrayIgnorePattern: '^_',
+        ignoreRestSiblings: true,
+        vars: 'all',
+        varsIgnorePattern: '^_',
+      },
+    ],
     'react/self-closing-comp': 2, // Require self-closing syntax for components without children.
     'react/jsx-indent-props': [2, 2], // Require two-space JSX prop indentation.
     'no-plusplus': 0, // Allow ++ and --.
@@ -77,8 +101,6 @@ module.exports = {
     //     ignoreStateless: true,
     //   },
     // ],
-    'react/jsx-uses-react': 2, // Mark React as used when JSX is present.
-    'react/react-in-jsx-scope': 2, // Require React to be in scope when using JSX.
     'react/sort-comp': 1, // Warn about component method ordering.
     'react/jsx-tag-spacing': 2, // Enforce spacing around JSX tag delimiters.
     'react/jsx-no-bind': 0, // Allow bind and arrow functions in JSX props.

@@ -2,10 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 
 /**
  * A custom Hook to provide automatic scrolling to the bottom in a scrollable container.
- * When new content is added, it automatically scrolls to the bottom, regardless of whether the user scrolls up manually.
+ * When new content is added, it automatically scrolls to the bottom,
+ * regardless of whether the user scrolls up manually.
  * If in streaming output state, it will automatically decide whether to scroll to the bottom based on user behavior.
  *
- * @param triggerData The dependent data that triggers scrolling. When the data changes, the scrolling logic will be retriggered.
+ * @param triggerData The dependent data that triggers scrolling.
+ * When the data changes, the scrolling logic runs again.
  * @param isStreaming Whether it is in streaming output state, used to control automatic scrolling logic.
  * @returns a ref object that needs to be bound to the scrollable container element.
  */

@@ -1,11 +1,11 @@
 import React from 'react';
 import * as ReactDom from 'react-dom/client';
-import AppTheme from '@/components/AppTheme'
+import AppTheme from '@/components/AppTheme';
 
 export function insertOpenScreenAnimationExpand(element: React.ReactElement) {
-  const open_screen_animation_expand = document.getElementById('open_screen_animation_expand')
-  if(open_screen_animation_expand){
-    ReactDom.createRoot(open_screen_animation_expand).render(<AppTheme>{element}</AppTheme> );
+  const open_screen_animation_expand = document.getElementById('open_screen_animation_expand');
+  if (open_screen_animation_expand) {
+    ReactDom.createRoot(open_screen_animation_expand).render(<AppTheme>{element}</AppTheme>);
   }
 }
 

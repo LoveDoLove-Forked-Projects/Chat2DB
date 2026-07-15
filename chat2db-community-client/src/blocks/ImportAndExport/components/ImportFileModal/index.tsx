@@ -1,5 +1,4 @@
-import React, { memo, useEffect, useRef, useState } from 'react';
-import { useStyles } from './style';
+import { memo, useEffect, useRef, useState } from 'react';
 import { Modal, IconfontSvg } from '@chat2db/ui';
 import { Button } from 'antd';
 import i18n from '@/i18n';
@@ -16,21 +15,17 @@ interface IProps {
   className?: string;
 }
 
-export default memo<IProps>((props) => {
-  const { className } = props;
-  const { styles, cx } = useStyles();
+export default memo<IProps>((_props) => {
   const [isReady, setIsReady] = useState(false);
   const importExportFileRef = useRef<ImportExportFileRef>(null);
   const [taskId, setTaskId] = useState<number>();
   const [taskDetails, setTaskDetails] = useState<ImportExportTaskDetails>();
 
-  const { importExportDataBoundInfo, setImportExportDataBoundInfo, getTaskList, setShowExportToolbar } =
-    useImportExportStore((state) => {
+  const { importExportDataBoundInfo, setImportExportDataBoundInfo, getTaskList } = useImportExportStore((state) => {
       return {
         importExportDataBoundInfo: state.importExportDataBoundInfo,
         setImportExportDataBoundInfo: state.setImportExportDataBoundInfo,
         getTaskList: state.getTaskList,
-        setShowExportToolbar: state.setShowExportToolbar,
       };
     });
 

@@ -19,7 +19,7 @@ export const endAnswer = (questionId: number, getRecommendListParams, step) => {
   magicStickServices
     .getRecommendList(getRecommendListParams)
     .then((res: any) => {
-      // Make a judgment. If the current question is not the last question, the recommended questions will no longer be displayed.
+      // Do not display recommendations when this is no longer the latest question.
       const chatDetailsIds = useChatStore.getState().chatDetailsIds;
       const lastQuestionId = chatDetailsIds?.[chatDetailsIds.length - 1];
       let isLast = false;

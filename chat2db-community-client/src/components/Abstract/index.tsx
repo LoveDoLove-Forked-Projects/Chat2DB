@@ -1,4 +1,4 @@
-import React, { memo, useMemo, useRef, useState } from 'react';
+import { memo, useMemo, useRef, useState } from 'react';
 import { Modal } from 'antd';
 import { isNumber } from 'lodash';
 import * as VTable from '@visactor/vtable';

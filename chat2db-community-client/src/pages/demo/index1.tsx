@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import EditTableView from '@/blocks/EditTableView';
 import viewServices from '@/service/database/view';
 

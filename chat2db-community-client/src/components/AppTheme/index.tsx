@@ -1,4 +1,4 @@
-import React, { ReactNode, memo, useMemo } from 'react';
+import { ReactNode, memo, useMemo } from 'react';
 import { PrimaryColors, ThemeProvider, ThemeAppearance } from '@chat2db/ui';
 import { useGlobalStore } from '@/store/global';
 import { settingSelectors } from '@/store/global/selectors';

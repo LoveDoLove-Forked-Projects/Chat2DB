@@ -48,7 +48,7 @@ export function getAllUrlParams(url?: string) {
   // Iterate through all parameters
   query.forEach((value, key) => {
     // If the key already exists, add the value to the array
-    if (params.hasOwnProperty(key)) {
+    if (Object.prototype.hasOwnProperty.call(params, key)) {
       if (!Array.isArray(params[key])) {
         params[key] = [params[key]]; // Convert single value to array
       }

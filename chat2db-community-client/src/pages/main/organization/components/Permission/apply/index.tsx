@@ -1,6 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Button, Drawer, Segmented, Space, Tabs } from 'antd';
-import { getAllUrlParams, getUrlParam } from '@/utils/url';
+import { useEffect, useRef, useState } from 'react';
+import { Button, Drawer, Space, Tabs } from 'antd';
 import permissionService from '@/service/enterprise/permission';
 import ScriptTable from './script-table';
 import DataTable from './data-table';

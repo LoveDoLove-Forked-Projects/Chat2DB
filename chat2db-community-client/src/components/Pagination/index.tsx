@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { InputNumber, Tooltip, Dropdown } from 'antd';
 import { IResultConfig } from '@/typings';
 import i18n from '@/i18n';

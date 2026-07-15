@@ -1,4 +1,4 @@
-import React, { memo, useMemo, Fragment } from 'react';
+import { memo, useMemo, Fragment } from 'react';
 import { AnswerPartsType, QuestionType } from '@/constants/chat';
 import { ChartType } from '@/constants/dashboard';
 import RenderChartCardBox from './RenderChartCardBox';

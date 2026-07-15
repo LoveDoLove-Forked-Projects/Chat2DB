@@ -6,7 +6,6 @@ import { useOrgStore } from '@/store/organization';
 import { debounce } from 'lodash';
 import dayjs from 'dayjs';
 import { BooleanType } from '@/typings/common';
-import Iconfont from '@/components/Iconfont';
 import { databaseMap } from '@/constants';
 import styles from './index.less';
 import i18n from '@/i18n';

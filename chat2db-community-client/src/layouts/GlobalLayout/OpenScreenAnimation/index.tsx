@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import { memo } from 'react';
 import styles from './index.less';
 import classnames from 'classnames';
 import Logo from '@/components/Logo';

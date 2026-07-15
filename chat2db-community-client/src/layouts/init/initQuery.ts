@@ -27,16 +27,15 @@ const useInitQuery = () => {
     queryOrgList: state.queryOrgList,
   }));
 
-  const { appConfig, isEmbedIframe, setOpenGuideDialog, setGuideDialogStatus, setConfetti, fetchSpm } = useGlobalStore(
-    (state) => ({
+  const { appConfig, isEmbedIframe, setOpenGuideDialog, setGuideDialogStatus, setConfetti, fetchSpm } =
+    useGlobalStore((state) => ({
       appConfig: state.appConfig,
       isEmbedIframe: state.isEmbedIframe,
       setOpenGuideDialog: state.setOpenGuideDialog,
       setGuideDialogStatus: state.setGuideDialogStatus,
       setConfetti: state.setConfetti,
       fetchSpm: state.fetchSpm,
-    }),
-  );
+    }));
 
   const { isReady } = appConfig;
 
@@ -61,11 +60,10 @@ const useInitQuery = () => {
   const isNewAccount = curOrg && dayjs().diff(dayjs(curOrg?.createTime), 'seconds') < 5;
   const hasExpiredSubscription = curOrgSubscription && dayjs().diff(dayjs(curOrgSubscription.endTime)) > 0;
 
-  // Registration conversion trigger: no longer relies on curOrg.createTime - createTime returned by the backend has time zone deviation
-  // (up to ±16 hours in overseas server scenarios), any window of "number creation within N seconds/minutes" is unreliable.
-  // Instead, use "authentication just completed on the login page" as the signal: the login page writes the sessionStorage tag in the authentication action.
-  // (edition independent sessionStorage tag, still survives jumps across third-party logins), enter the app and report it once after getting the organization.
-  // And googleAds internally removes duplication according to the localStorage of orgId, ensuring that each organization can report it at most once.
+  // Do not infer registration conversion from curOrg.createTime because backend time zones can differ.
+  // The login page records successful authentication in sessionStorage instead.
+  // That edition-independent marker survives third-party login redirects.
+  // Report it after organization data loads; Google Ads deduplicates each organization by orgId.
   useEffect(() => {
     if (!runtimeEditionConfig.googleAds) {
       return;
@@ -91,7 +89,7 @@ const useInitQuery = () => {
   }, [curOrg]);
 
   useEffect(() => {
-    // There are only 5 seconds left to create an account, and it is not a VIP. Display the pop-up box when entering for the first time
+    // Show the guide on the first entry for a non-VIP account created within five seconds.
     if (!curOrg || curOrg?.vip || isEmbedIframe || isEmbedIframePage() || !isNewAccount) {
       return;
     }
@@ -153,7 +151,8 @@ const useInitQuery = () => {
   ]);
 
   useEffect(() => {
-    // The price pop-up box will automatically pop up for non-members (excluding the first login and membership expiration scenarios, it will no longer pop up automatically within one day after closing)
+    // Auto-open pricing for non-members outside first-login and expiration flows.
+    // Do not open it again within one day after dismissal.
     if (
       !curOrg ||
       curOrg?.vip ||

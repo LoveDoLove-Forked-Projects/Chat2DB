@@ -1,6 +1,6 @@
 import { createStyles } from 'antd-style';
 
-export const useStyles = createStyles(({ css }, { editorHeight }: { editorHeight: string }) => {
+export const useStyles = createStyles(({ css }) => {
   return {
     editorContainer: css`
       height: 100%;

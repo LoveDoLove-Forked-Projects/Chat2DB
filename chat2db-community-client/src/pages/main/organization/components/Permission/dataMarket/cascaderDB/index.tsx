@@ -1,4 +1,4 @@
-import React, { ReactNode, useEffect, useState } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import connection from '@/service/connection';
 import sqlService from '@/service/sql';
 import { Cascader } from 'antd';
@@ -100,7 +100,9 @@ const CascaderDB = (props: CascaderDBProps) => {
       }));
       dataSource.children = formattedData;
       setOptions([...options]);
-    } catch (error) {}
+    } catch (error) {
+      console.log(error);
+    }
   };
 
   const loadTable = async (dataBase: Option) => {
@@ -130,7 +132,9 @@ const CascaderDB = (props: CascaderDBProps) => {
       }));
       dataBase.children = formattedData;
       setOptions([...options]);
-    } catch (error) {}
+    } catch (error) {
+      console.log(error);
+    }
   };
 
   const handleLoaderCascader = (selectedOptions) => {

@@ -1,4 +1,3 @@
-import { IBoundInfo } from '@/typings';
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 import intelliSense from '@/constants/IntelliSense';
 import { DatabaseTypeCode } from '@/constants/common';
@@ -279,7 +278,7 @@ export class CompletionProvider implements monaco.languages.CompletionItemProvid
 
   /** Table completions. */
   async getTableSuggestion(databaseInfo?: IDatabaseInfo): Promise<monaco.languages.CompletionItem[]> {
-    return this.formatTableSuggestion(tableInfo || []);
+    return this.formatTableSuggestion(databaseInfo?.tableInfo || this.getCurrentTableList());
   }
 
   /** Schema completions. */

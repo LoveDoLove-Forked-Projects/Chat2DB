@@ -1,4 +1,4 @@
-import React, { memo, useEffect, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { useStyles } from './style';
 import sqlServices from '@/service/sql';
 import { useWorkspaceStore } from '@/store/workspace';

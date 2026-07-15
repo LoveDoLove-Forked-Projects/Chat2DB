@@ -1,4 +1,4 @@
-import React, { memo, useMemo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { Select, Dropdown } from 'antd';
 import { IChartItem } from '@/typings';
 import { newFormattedSqlExecuteData } from '@/utils/dashboard';

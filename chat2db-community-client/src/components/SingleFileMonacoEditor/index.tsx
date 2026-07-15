@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useMemo, ForwardedRef, forwardRef, useImperativeHandle, useRef } from 'react';
+import { memo, useCallback, useMemo, ForwardedRef, forwardRef, useImperativeHandle, useRef } from 'react';
 import styles from './index.less';
 import classnames from 'classnames';
 import MonacoEditor, { IExportRefFunction } from '@/components/MonacoEditor';

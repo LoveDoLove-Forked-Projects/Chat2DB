@@ -11,9 +11,6 @@ export default function useActive(
 ) {
   const [activePaths, setActivePaths] = useState<string[]>([]);
 
-  // Add a ref to reference the DOM element of the currently active item
-  const activeItemRef = React.useRef<HTMLDivElement>(null);
-
   /** Get items by column index */
   const getItems = (colIndex: number, paths = activePaths) => {
     let currentItems = items;

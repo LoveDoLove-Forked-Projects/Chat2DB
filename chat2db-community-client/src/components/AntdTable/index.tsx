@@ -1,4 +1,4 @@
-import React, { memo, useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { useStyles } from './style';
 import { Table, type TableProps } from 'antd';
 
@@ -12,7 +12,6 @@ export default memo<IProps>((props) => {
   const { styles, cx } = useStyles();
   const tableBoxRef = useRef<any>(null);
   const [tableScrollY, setTableScrollY] = useState(0);
-  const [tableLoading, setTableLoading] = useState(false);
 
   // Track tableBoxRef height changes and update tableScrollY when resized.
   useEffect(() => {
@@ -39,7 +38,6 @@ export default memo<IProps>((props) => {
   return (
     <div className={cx(className, styles.tableBox)} ref={tableBoxRef}>
       <Table
-        loading={tableLoading}
         scroll={{ y: tableScrollY }}
         style={{
           height: '100%',

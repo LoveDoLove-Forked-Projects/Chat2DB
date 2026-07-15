@@ -27,7 +27,7 @@ export const useTableStyles = createStyles(({ css, token }) => {
           border-left: 0;
         }
         td.last {
-          border-right: 0px  ;
+          border-right: 0px;
         }
       }
       .art-table-cell {
@@ -94,10 +94,14 @@ export const useTableStyles = createStyles(({ css, token }) => {
       /* The newly added empty state height is 100% */
       .empty {
         height: 100%;
-        .art-loading-wrapper,.art-table-wrapper,.art-loading-content-wrapper,.art-table,table {
+        .art-loading-wrapper,
+        .art-table-wrapper,
+        .art-loading-content-wrapper,
+        .art-table,
+        table {
           height: 100%;
         }
-        .art-table-body{
+        .art-table-body {
           height: calc(100% - 32px);
         }
         td.first {

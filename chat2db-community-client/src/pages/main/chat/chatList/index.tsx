@@ -9,7 +9,6 @@ import { v4 as uuidv4 } from 'uuid';
 import i18n from '@/i18n';
 import ChatScroll from '@/components/ChatScroll';
 import { useGlobalStore } from '@/store/global';
-import { use } from 'echarts';
 
 const ChatList = ({ trigger, forcibleTrigger }) => {
   const { styles } = useStyles();

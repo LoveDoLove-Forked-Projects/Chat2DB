@@ -70,20 +70,19 @@
 }
 
 .insert-value-highlight {
-  background-color: rgba(255, 193, 7, 0.28);
+  background-color: rgb(255 193 7 / 28%);
 }
 
 .parameter-hint-widget {
   max-width: min(960px, calc(100vw - 96px));
   padding: 2px 6px 4px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  color: rgba(226, 232, 240, 0.72);
+  overflow: auto hidden;
+  color: rgb(226 232 240 / 72%);
   white-space: nowrap;
-  background: rgba(37, 41, 48, 0.72);
-  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgb(37 41 48 / 72%);
+  border: 1px solid rgb(148 163 184 / 18%);
   border-radius: 4px;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.14);
+  box-shadow: 0 3px 10px rgb(0 0 0 / 14%);
   font-size: 12px;
   line-height: 18px;
   scrollbar-width: thin;
@@ -98,22 +97,22 @@
 
 .parameter-hint-item.active {
   color: #2d2410;
-  background: rgba(246, 211, 101, 0.86);
+  background: rgb(246 211 101 / 86%);
   border-radius: 3px;
   padding: 0 3px;
 }
 
 .parameter-hint-separator {
-  color: rgba(226, 232, 240, 0.32);
+  color: rgb(226 232 240 / 32%);
 }
 
 .table-identifier-underline {
-  border-bottom: 1px dashed rgba(64, 158, 255, 0.8);
+  border-bottom: 1px dashed rgb(64 158 255 / 80%);
   cursor: pointer;
 }
 
 .monaco-editor .margin {
-  border-right: 1px solid rgba(148, 163, 184, 0.26);
+  border-right: 1px solid rgb(148 163 184 / 26%);
 }
 
 .content-diff-active .margin-view-overlays .folding,
@@ -176,7 +175,7 @@
   flex-direction: column;
   overflow: hidden;
   background: #252b34;
-  border: 1px solid rgba(148, 163, 184, 0.2);
+  border: 1px solid rgb(148 163 184 / 20%);
   border-radius: 4px;
 }
 
@@ -188,7 +187,7 @@
   gap: 4px;
   padding: 0 8px;
   background: #1d222b;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+  border-bottom: 1px solid rgb(148 163 184 / 16%);
 }
 
 .content-diff-inline-action,
@@ -199,7 +198,7 @@
   width: 22px;
   height: 22px;
   padding: 0;
-  color: rgba(229, 231, 235, 0.76);
+  color: rgb(229 231 235 / 76%);
   cursor: pointer;
   background: transparent;
   border: 0;
@@ -210,17 +209,17 @@
 .content-diff-inline-action-icon {
   width: 16px;
   height: 16px;
-  fill: currentColor;
+  fill: currentcolor;
 }
 
 .content-diff-inline-action:hover,
 .content-diff-inline-close:hover {
   color: #fff;
-  background: rgba(148, 163, 184, 0.16);
+  background: rgb(148 163 184 / 16%);
 }
 
 .content-diff-inline-action:disabled {
-  color: rgba(229, 231, 235, 0.28);
+  color: rgb(229 231 235 / 28%);
   cursor: default;
   background: transparent;
 }
@@ -230,7 +229,7 @@
   min-height: 0;
   overflow: auto;
   padding: 4px 0;
-  font-family: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
+  font-family: 'JetBrains Mono', SFMono-Regular, Consolas, monospace;
   font-size: inherit;
 }
 
@@ -242,13 +241,13 @@
 }
 
 .content-diff-inline-row-deleted {
-  color: rgba(255, 202, 202, 0.96);
-  background: rgba(248, 81, 73, 0.18);
+  color: rgb(255 202 202 / 96%);
+  background: rgb(248 81 73 / 18%);
 }
 
 .content-diff-inline-row-added {
-  color: rgba(203, 244, 201, 0.96);
-  background: rgba(63, 185, 80, 0.18);
+  color: rgb(203 244 201 / 96%);
+  background: rgb(63 185 80 / 18%);
 }
 
 .content-diff-inline-sign {
@@ -274,6 +273,7 @@
   .mtk21 {
     color: #6aab73 !important; /* Set the color to green. */
   }
+
   .mtk4 {
     color: #34b149 !important; /* Set the color to green. */
   }

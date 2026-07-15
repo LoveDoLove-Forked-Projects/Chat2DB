@@ -1,6 +1,6 @@
 import { createStyles } from 'antd-style';
 
-export const useCommonStyle = createStyles(({ css, token }) => {
+export const useCommonStyle = createStyles(({ css }) => {
   return {
     containerBlock: css`
       /* display: flex;

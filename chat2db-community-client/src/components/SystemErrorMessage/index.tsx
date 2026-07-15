@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useState } from 'react';
+import React, { useLayoutEffect, useState } from 'react';
 import { Button, notification, Space, Modal } from 'antd';
 import i18n from '@/i18n';
 import { IconType } from 'antd/es/notification/interface';

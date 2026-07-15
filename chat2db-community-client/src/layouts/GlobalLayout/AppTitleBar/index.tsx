@@ -1,14 +1,11 @@
-import React, { memo } from 'react';
+import { memo } from 'react';
 // import { IconButton } from '@chat2db/ui';
 import { useStyles } from './style';
-import { Dropdown, Button, type MenuProps } from 'antd';
+import { Dropdown, type MenuProps } from 'antd';
 import { refreshPage } from '@/utils';
-import { useGlobalStore } from '@/store/global';
 import { history } from 'umi';
-import i18n from '@/i18n';
 import { Platform } from '@/constants/os';
 import jcefApi from '@/jcef';
-import { checkIsSharePage } from '@/utils/url';
 // import { JcefEventBus, JavaPushActionType } from '@/jcef/eventBus';
 
 interface AppBarProps {
@@ -18,13 +15,6 @@ interface AppBarProps {
 const AppBar = memo<AppBarProps>(({ className }) => {
   const { styles, cx } = useStyles();
   // const [isMaximized, setIsMaximized] = useState(false);
-
-  const { isEmbedIframe, appUrlConfig } = useGlobalStore((state) => {
-    return {
-      isEmbedIframe: state.isEmbedIframe,
-      appUrlConfig: state.appUrlConfig,
-    };
-  });
 
   // useLayoutEffect(() => {
   //   // Monitor window status changes

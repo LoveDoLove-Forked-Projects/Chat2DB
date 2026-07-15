@@ -54,7 +54,7 @@ export const createCommonAction: StateCreator<DashboardStore, [['zustand/devtool
         currentDashboard: newDashboard,
       });
       staticMessage.success(i18n('common.tips.createSuccess'));
-    } catch (error) {
+    } catch (_error) {
       staticMessage.error('创建失败');
     }
   },

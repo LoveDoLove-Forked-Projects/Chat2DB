@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import { memo } from 'react';
 import classnames from 'classnames';
 import { Upload, type UploadProps } from 'antd';
 import miscService from '@/service/misc';

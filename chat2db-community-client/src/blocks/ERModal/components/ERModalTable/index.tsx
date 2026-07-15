@@ -1,4 +1,4 @@
-import React, { memo, useState } from 'react';
+import { memo, useState } from 'react';
 import { useStyles } from './style';
 import { Handle, Position } from '@xyflow/react';
 import { IconfontSvg } from '@chat2db/ui';

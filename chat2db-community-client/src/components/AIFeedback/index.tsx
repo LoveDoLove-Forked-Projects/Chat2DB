@@ -1,6 +1,6 @@
 import { Button, Flex } from 'antd';
 import { useStyles } from './style';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import i18n from '@/i18n';
 
 export enum AIFeedbackType {

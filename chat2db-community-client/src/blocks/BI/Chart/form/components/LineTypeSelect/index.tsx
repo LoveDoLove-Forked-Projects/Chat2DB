@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import { memo } from 'react';
 import { Segmented } from 'antd';
 import { LineType } from '@/blocks/BI/Chart/constants';
 import i18n from '@/i18n';

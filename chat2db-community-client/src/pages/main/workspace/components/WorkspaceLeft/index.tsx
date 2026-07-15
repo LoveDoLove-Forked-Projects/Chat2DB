@@ -9,7 +9,7 @@ import type { TreeNodeData } from '@/typings';
 import { isCommunityEnv, isDesktop, isDesktopEnv, isWebEnv } from '@/utils/env';
 import feedback from '@/utils/feedback';
 import { Flex } from 'antd';
-import React, { memo, useCallback, useEffect, useMemo, useRef, useState, type Key } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type Key } from 'react';
 import {
   getActiveTabLocateTarget,
   type ActiveTabDatabaseCandidate,
@@ -213,7 +213,7 @@ const WorkspaceLeft = memo(() => {
       if (result.node.children === undefined && !result.node.isLeaf) {
         try {
           await treeStore.handleLoadData(result.node);
-        } catch (error) {
+        } catch {
           return false;
         }
       } else {

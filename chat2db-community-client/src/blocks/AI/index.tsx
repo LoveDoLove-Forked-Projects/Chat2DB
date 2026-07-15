@@ -124,7 +124,8 @@ function normalizeAiMarkdown(content: string) {
     .replace(/\r\n/g, '\n')
     .replace(/([^\n])```chart/g, '$1\n\n```chart')
     .replace(/```chart\s*(\{[\s\S]*?\})\s*```/g, '```chart\n$1\n```');
-  // is segmented by code fence (including fences that have not been closed during streaming), and the repair rules only apply to text outside the fence.
+  // Segment by code fence, including fences that have not been closed during streaming.
+  // Apply repair rules only to text outside the fence.
   // avoids accidentally changing ##, ---, -- comments, etc. in the code
   return repaired
     .split(/(```[\s\S]*?(?:```|$))/)
@@ -135,12 +136,14 @@ function normalizeAiMarkdown(content: string) {
 /** applies format repair rules to normal text segments outside code fences */
 function normalizeTextSegment(text: string) {
   return text
-    // The title is stuck at the end of the previous paragraph: only the "text### title" / "text###1." form is recognized to avoid accidentally damaging the inline ## (such as URL anchor point)
+    // Repair headings stuck to the previous paragraph only for "text### title" and "text###1." forms.
+    // This avoids damaging inline ## fragments such as URL anchors.
     .replace(/([^\s#\n])(#{2,6}) (?=\S)/g, '$1\n\n$2 ')
     .replace(/([^\s#\n])(#{2,6})(?=\d)/g, '$1\n\n$2 ')
     // The title at the beginning of the line is missing a space (###1. → ### 1.)
     .replace(/(^|\n)(#{2,6})(?=[^#\s])/g, '$1$2 ')
-    // The separator line is stuck at the end of the sentence (text---\n → independent line); it is required to follow the end of the line and not be preceded by |, :, or blank.
+    // Move a separator stuck to a sentence onto its own line (text---\n).
+    // It must end the line and cannot be preceded by |, :, or whitespace.
     // Avoid accidentally damaging the table separator line | --- | and alignment syntax: ---
     .replace(/([^\n|:\s-])(-{3,})(?=\n|$)/g, '$1\n\n$2')
     .replace(/((?:-\s*\d{4}-\d{2}-\d{2}\s*[:：]\s*[-+]?\d+(?:\.\d+)?\s*)+)/g, (segment) =>
@@ -164,7 +167,10 @@ const TableClickContext = React.createContext<((tableName: string) => void) | nu
 /** SQL nailed to the Context of the Console */
 const PinSqlContext = React.createContext<((sql: string) => void) | null>(null);
 
-/** code block component:lang=chart rendering chart,table:: prefix renders the clickable table name, otherwise the rendering code */
+/**
+ * Code block component: language=chart renders a chart, table:: renders a clickable table name,
+ * and all other languages render code.
+ */
 function MarkdownCodeBlock({ className, children }: { className?: string; children?: React.ReactNode }) {
   const { styles } = useStyles();
   const [copied, setCopied] = useState(false);

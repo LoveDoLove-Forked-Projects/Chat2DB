@@ -1,4 +1,4 @@
-import React, { FC } from 'react';
+import { FC } from 'react';
 import ChatMenuList from './chatMenuList';
 import ChatContainer from './chatContainer';
 import { getAllUrlParams } from '@/utils/url';

@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ApprovalStatusMap, ApprovalStatusType, IApprovalProcessVO } from '@/typings/enterprise/approval';
-import { Button, Drawer, Flex, Input, Segmented, Table, Tag } from 'antd';
+import { Button, Drawer, Segmented, Tag } from 'antd';
 import approvalService from '@/service/enterprise/approval';
 import styles from './index.less';
 import ApprovalFlow from './approvalFlow';
@@ -109,15 +109,11 @@ function Approve() {
         ...pagination,
         total: res?.total,
       });
+    } catch {
+      setDataSource([]);
+    } finally {
       setLoading(false);
-    } catch (error) {}
-  };
-
-  const handleSearch = (searchKey: string) => {
-    setPagination({
-      ...pagination,
-      searchKey,
-    });
+    }
   };
 
   const handleFliterChange = (approvalStatus: ApprovalStatusType) => {

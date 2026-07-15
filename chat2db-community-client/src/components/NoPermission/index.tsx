@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import { memo } from 'react';
 import classnames from 'classnames';
 import Iconfont from '@/components/Iconfont';
 import { useStyles } from './style';

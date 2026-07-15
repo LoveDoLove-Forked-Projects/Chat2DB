@@ -1,11 +1,10 @@
-import React, { useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useStyles } from './style';
 import { useOrgStore } from '@/store/organization';
 import OrgItem from '../OrgItem';
 import { Menu, MenuProps } from 'antd';
 import { AppstoreOutlined, MailOutlined, SettingOutlined } from '@ant-design/icons';
 import i18n from '@/i18n';
-import { RoleCodeType } from '@/typings/enterprise/role';
 import { OrgUserRoleCode } from '@/typings/enterprise/organization';
 
 interface IProps {

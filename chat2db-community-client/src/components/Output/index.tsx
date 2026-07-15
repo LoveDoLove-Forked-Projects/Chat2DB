@@ -41,7 +41,12 @@ function getHistoryDataSourceFallback(item: IDatasource) {
 }
 
 function getHistoryDataSourceName(item: IDatasource, sourceInfo?: TreeNodeData, cachedSourceName?: string) {
-  return item.dataSourceName || cachedSourceName || sourceInfo?.extraParams?.dataSourceName || getHistoryDataSourceFallback(item);
+  return (
+    item.dataSourceName ||
+    cachedSourceName ||
+    sourceInfo?.extraParams?.dataSourceName ||
+    getHistoryDataSourceFallback(item)
+  );
 }
 
 function getHistoryTitle(item: IDatasource, sourceInfo?: TreeNodeData, cachedSourceName?: string) {
@@ -149,8 +154,10 @@ export default memo<IProps>((props) => {
     async (item: IDatasource) => {
       const detail = await getFullHistoryRecord(item);
       const tabId = getTemporaryId(`execution-log-${item.id || Date.now()}`);
-      const sourceInfo = dataSourceInfoMap[getHistorySourceKey(detail)] || dataSourceInfoMap[getHistorySourceKey(item)];
-      const cachedSourceName = dataSourceNameMap[getHistorySourceKey(detail)] || dataSourceNameMap[getHistorySourceKey(item)];
+      const sourceInfo =
+        dataSourceInfoMap[getHistorySourceKey(detail)] || dataSourceInfoMap[getHistorySourceKey(item)];
+      const cachedSourceName =
+        dataSourceNameMap[getHistorySourceKey(detail)] || dataSourceNameMap[getHistorySourceKey(item)];
       const dataSourceName = getHistoryDataSourceName(detail, sourceInfo, cachedSourceName);
       const title = getHistoryTitle(detail, sourceInfo, cachedSourceName);
       const popoverContent = getHistoryPopover(detail, sourceInfo, cachedSourceName);

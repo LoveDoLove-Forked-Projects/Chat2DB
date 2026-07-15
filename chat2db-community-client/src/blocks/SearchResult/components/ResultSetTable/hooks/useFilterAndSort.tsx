@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import * as VTable from '@visactor/vtable';
 import { Theme } from 'antd-style';
 import { hexToRgba } from '@/utils/color';
@@ -215,7 +215,7 @@ const useFilterAndSort: IUseFilterAndSort = ({
         tableInstance.updateFilterRules(filterRulesRef.current);
         setActiveFilterCount(filterRulesRef.current.length);
 
-        // TODO: Because Vtable does not provide a callback after filtering is completed, a timer is used to determine whether filtering and rendering are completed.
+        // VTable has no post-filter callback, so poll until filtering and rendering have completed.
         const timerId = setInterval(() => {
           const afterGetRowNumberList = getRowNumberList(tableInstance);
           if (beforeGetRowNumberList.join(',') !== afterGetRowNumberList.join(',')) {

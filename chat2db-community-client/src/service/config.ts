@@ -56,7 +56,7 @@ const getAIWhiteAccess = createRequest<{ apiKey: string }, boolean>('/api/ai/emb
   method: 'get',
 });
 
-// The detector is updated to obtain the latest version information. If the return result is null, it means there is no update.
+// Return the latest version information, or null when no update is available.
 const getLatestVersion = createRequest<{ currentVersion: string }, ILatestVersion>('/api/system/get_latest_version', {
   method: 'get',
   errorLevel: false,

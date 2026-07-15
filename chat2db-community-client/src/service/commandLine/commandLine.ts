@@ -72,9 +72,9 @@ export const commandLineRequest = <R>(data: ICommandLineRequest, options: IOptio
         return value;
       }),
     );
-  if (__PRINT_LOGS__ || window._PRINT_LOGS) {
-    console.log('%cCHAT2DB_IPC_REQUEST', 'color: #00008B', JSON.stringify(res));
-  }
+    if (__PRINT_LOGS__ || window._PRINT_LOGS) {
+      console.log('%cCHAT2DB_IPC_REQUEST', 'color: #00008B', JSON.stringify(res));
+    }
     // Prepare for a cancellation request
     options?.restParams?.signal?.({ id, reject });
     let requestTimeoutTimer: any = null;

@@ -5,7 +5,6 @@ import {
   IOrganizationVO,
   IUpdateOrganizationVORequest,
   OrgUserRoleCode,
-  OrganizationStatusType,
 } from '@/typings/enterprise/organization';
 import { Subscription } from '@/typings/enterprise/user';
 

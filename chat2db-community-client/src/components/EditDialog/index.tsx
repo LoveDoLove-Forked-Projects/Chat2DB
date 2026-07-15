@@ -1,7 +1,7 @@
-import React, { memo, useEffect, useRef, useState, ForwardedRef } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import styles from './index.less';
 import classnames from 'classnames';
-import MonacoEditor, { IExportRefFunction, IRangeType } from '@/components/MonacoEditor';
+import MonacoEditor, { IRangeType } from '@/components/MonacoEditor';
 import { Modal } from 'antd';
 
 interface IProps {
@@ -14,7 +14,7 @@ interface IProps {
   };
 }
 
-export default memo<IProps>(function EditDialog(props) {
+export default memo<IProps>((props) => {
   const { className, verifyDialog, value, title } = props;
   const [open, setOpen] = useState<boolean>();
   const monacoEditorRef = useRef<any>();
@@ -39,7 +39,7 @@ export default memo<IProps>(function EditDialog(props) {
 
         // onCancel={(() => { setVerifyDialog(false) })}
       >
-        <MonacoEditor id="edit-dialog" ref={monacoEditorRef}></MonacoEditor>
+        <MonacoEditor id="edit-dialog" ref={monacoEditorRef} />
       </Modal>
     </div>
   );

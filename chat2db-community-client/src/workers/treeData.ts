@@ -2,7 +2,7 @@ import { TreeNodeType } from '@/constants/tree';
 
 export const formatObject = (obj: Record<string, any>): Record<string, string | any> => {
   return Object.keys(obj).reduce((acc: Record<string, string | any>, key: string) => {
-    // Because sometimes parameters are passed in null or '', they need to be converted to undefined to ensure that there will be no problems when creating the key.
+    // Normalize empty values before generating stable tree keys.
     acc[key] = obj[key] === '' || obj[key] === null ? undefined : obj[key];
     return acc;
   }, {});

@@ -1,7 +1,5 @@
 import React, { memo } from 'react';
 import { useStyles } from './style';
-import UserAvatar from '@/components/UserAvatar';
-import Logo from '@/components/Logo';
 
 export interface ChatItemProps {
   className?: string;
@@ -14,25 +12,8 @@ export interface ChatItemProps {
 }
 
 export default memo<ChatItemProps>((props) => {
-  const { className, renderMessage, renderFooter, avatar, type } = props;
+  const { className, renderMessage, renderFooter, type } = props;
   const { styles, cx } = useStyles();
-  const isUser = avatar === 'user';
-
-  const renderAvatar = () => {
-    if (isUser) {
-      // return null;
-      return (
-        <div className="avatarBox">
-          <UserAvatar size={40} />
-        </div>
-      );
-    }
-    return (
-      <div className="avatarBox">
-        <Logo size={40} className="avatarBoxLogo" />
-      </div>
-    );
-  };
 
   return (
     <div
@@ -43,9 +24,8 @@ export default memo<ChatItemProps>((props) => {
         className,
       )}
     >
-      {/* {renderAvatar()} */}
       <div className="messageContainer">
-        <div className="timeBox"></div>
+        <div className="timeBox" />
         <div className="messageContent">
           <div className="messageBox">
             {renderMessage()}

@@ -1,4 +1,4 @@
-import { ChatVO } from "@/typings/chat";
+import { ChatVO } from '@/typings/chat';
 
 export interface ShareState {
   /** Whether the Chat sharing pop-up box is open */

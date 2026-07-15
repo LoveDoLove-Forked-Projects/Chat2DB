@@ -1,4 +1,4 @@
-import React, { memo, useState } from 'react';
+import { memo, useState } from 'react';
 import { Input, Button, Form } from 'antd';
 import { createStyles } from 'antd-style';
 import i18n from '@/i18n';

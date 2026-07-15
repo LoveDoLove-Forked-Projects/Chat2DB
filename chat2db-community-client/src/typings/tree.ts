@@ -32,7 +32,8 @@ export interface DecorativeParams {
 
 export interface TreeNodeData extends AntdTreeDataNode {
   key: string;
-  id?: number; // The id returned in the back segment is used to update data. The key of the front-end node uses the key in AntdTreeDataNode.
+  // Backend ID used for updates; the frontend node identity remains AntdTreeDataNode.key.
+  id?: number;
   position?: number; // location
   // Whether it is the last node, relative to the same level node
   isLastInSiblings?: boolean;

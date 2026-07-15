@@ -1,4 +1,4 @@
-import React, { memo, useState, forwardRef, ForwardedRef, useImperativeHandle, useMemo, useEffect } from 'react';
+import { memo, useState, forwardRef, ForwardedRef, useImperativeHandle, useMemo, useEffect } from 'react';
 import { useStyles } from './style';
 import { Modal, IconfontSvg } from '@chat2db/ui';
 import i18n from '@/i18n';
@@ -10,7 +10,6 @@ import { IPriceData } from '@/typings/pricing';
 import { PayType } from '@/constants/pricing';
 import { formatPrice } from '@/utils/price';
 import { useUserStore } from '@/store/user';
-import { isDesktop } from '@/utils/env';
 import { openWebPage } from '@/utils/url';
 import { useGlobalStore } from '@/store/global';
 
@@ -198,7 +197,7 @@ const TeamSeatModal = forwardRef((props: IProps, ref: ForwardedRef<TeamSeatModal
     try {
       const res = await fetchCreateOrder(priceData);
       setPayDetail(res);
-    } catch (error) {
+    } catch {
       setCreateOrderLoading(false);
     } finally {
       setCreateOrderLoading(false);

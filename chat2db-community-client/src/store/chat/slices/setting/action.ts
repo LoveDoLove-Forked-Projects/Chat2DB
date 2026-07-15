@@ -13,7 +13,7 @@ export interface SettingAction {
 
 export const createSettingAction: StateCreator<ChatStore, [['zustand/devtools', never]], [], SettingAction> = (
   set,
-  get,
+  _get,
 ) => ({
   setSettingChatVO: (chatVO) => {
     set({ settingChatVO: chatVO });
@@ -21,7 +21,7 @@ export const createSettingAction: StateCreator<ChatStore, [['zustand/devtools', 
   setOpenSettingModal: (isOpenSetting) => {
     set({ isOpenSetting });
   },
-  setSettingInfo: (chat) => { 
+  setSettingInfo: (chat) => {
     set({ settingInfo: chat });
-  }
+  },
 });

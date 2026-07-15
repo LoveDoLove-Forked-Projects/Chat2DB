@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button, Form, Input, InputNumber, Modal, Popconfirm, Select, Switch, Tag } from 'antd';
 import i18n from '@/i18n';
 import feedback from '@/utils/feedback';

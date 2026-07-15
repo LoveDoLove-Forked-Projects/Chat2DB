@@ -24,7 +24,7 @@ const sendClientSSERequest = (baseURL, message) => {
     console.log('%cCHAT2DB_IPC_REQUEST-SSE', 'color: #FF0000', new Date().toISOString(), commandLineParams);
   }
 
-  // commandLineParams may contain properties that cannot be serialized, such as functions or objects containing circular references.
+  // commandLineParams may include functions or circular references that cannot be serialized.
   const res = JSON.parse(
     JSON.stringify(commandLineParams, (key, value) => {
       // Remove functions and undefined properties

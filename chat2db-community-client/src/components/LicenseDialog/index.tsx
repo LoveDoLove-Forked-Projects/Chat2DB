@@ -1,5 +1,5 @@
 import { ModalProps, staticMessage } from '@chat2db/ui';
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useGlobalStore } from '@/store/global';
 import { useUserStore } from '@/store/user';
 import LicenseService from '@/service/license';

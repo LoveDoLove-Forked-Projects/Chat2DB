@@ -1,4 +1,4 @@
-// Given an object contains{row: number, col: number}, gives another two-dimensional array Each element is an object contains{row: number, col: number}, determine whether this object is in this two-dimensional array
+// Determine whether a row/column coordinate exists in a two-dimensional array of coordinates.
 import { ITableInstance } from '@/blocks/CanvasTable/typings';
 
 export const isSelected = (

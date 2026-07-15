@@ -1,7 +1,8 @@
 import { createStyles } from 'antd-style';
 
-export const useStyles = createStyles(({ css, token }, { minWidth, maxLines }: { minWidth: number, maxLines?:number }) => {
-  return {
+export const useStyles = createStyles(
+  ({ css, token }, { minWidth, maxLines }: { minWidth: number; maxLines?: number }) => {
+    return {
     fieldPromptInput: css`
       display: flex;
       align-items: stretch;
@@ -46,5 +47,6 @@ export const useStyles = createStyles(({ css, token }, { minWidth, maxLines }: {
         color: ${token.colorPrimary};
       }
     `,
-  };
-});
+    };
+  },
+);

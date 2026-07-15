@@ -10,14 +10,12 @@ const useArouseCopilot = ({ editorIns, canAI, placeholderContentWidget, isFocus 
   useEffect(() => {
     if (!editorIns) return;
 
-    let disposable;
-  // Do not trigger AI while the editor lacks focus.
+    // Do not trigger AI while the editor lacks focus.
     if (!isFocus) {
-      disposable?.dispose();
       return;
     }
-  // Register the shortcut.
-    disposable = editorIns.addAction({
+    // Register the shortcut.
+    const disposable = editorIns.addAction({
       id: 'slash-insertion',
       label: 'slash',
       keybindings: [monaco.KeyCode.Slash],

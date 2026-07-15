@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { Flex } from 'antd';
 import { useStyles } from './style';
 import { formatDate } from '@/utils/date';

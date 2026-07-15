@@ -1,6 +1,6 @@
 import { DivProps } from '@/typings/common';
 import { createStyles } from 'antd-style';
-import React, { ReactNode, memo } from 'react';
+import { ReactNode, memo } from 'react';
 
 export interface PageTitleProps extends DivProps {
   title: string;

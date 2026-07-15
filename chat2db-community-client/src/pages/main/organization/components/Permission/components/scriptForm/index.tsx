@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { IApplyRunScript } from '@/typings/enterprise/permission';
 import { Button, DatePicker, Drawer, Form, Input, Radio } from 'antd';
 import dayjs from 'dayjs';

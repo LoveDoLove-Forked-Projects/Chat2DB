@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useStyles } from './style';
 import SettingSubsection from '../SettingSubsection';
 import { Form, Input, Select, Button, Typography, Flex, Popconfirm } from 'antd';
@@ -60,7 +60,7 @@ const DeviceCer = () => {
         setCer(res);
         setOpenModal(true);
       }
-    } catch (error) {
+    } catch {
       staticMessage.error(i18n('license.getCertificateError'));
     } finally {
       setIsLoading(false);

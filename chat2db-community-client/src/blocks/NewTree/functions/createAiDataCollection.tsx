@@ -1,5 +1,5 @@
 // Pinned form
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Button, Input } from 'antd';
 import i18n from '@/i18n';
 import { openModal } from '@/store/common/components';

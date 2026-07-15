@@ -1,4 +1,3 @@
-import React from 'react';
 import { i18n } from '@/i18n';
 import { useGlobalStore } from '@/store/global';
 import Logo from '@/components/Logo';

@@ -1,12 +1,12 @@
 import { DataCollectionElementType } from '@/constants/aiDataCollection';
 
-export interface AiDataCollectionItem { 
+export interface AiDataCollectionItem {
   id: number;
   title: string;
   elements: AiDataCollectionElement[];
 }
 
-export interface AiDataCollectionElement { 
+export interface AiDataCollectionElement {
   id: number;
   tableName: string;
   dataSourceId: string;

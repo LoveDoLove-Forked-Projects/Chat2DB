@@ -1,4 +1,4 @@
-import React, { CSSProperties, memo, useMemo } from 'react';
+import { CSSProperties, memo, useMemo } from 'react';
 import { CodeHighlighter, type CodeHighlighterProps } from '@chat2db/ui';
 import { useStyles } from './style';
 

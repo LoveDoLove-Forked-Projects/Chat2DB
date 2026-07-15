@@ -167,7 +167,7 @@ export interface ITreeConfigItem {
 // receives an object. When the value in the object contains '' or null, it is converted to undefined.
 export const formatObject = (obj: Record<string, any>): Record<string, string | any> => {
   return Object.keys(obj).reduce((acc: Record<string, string | any>, key: string) => {
-    // Because sometimes parameters are passed in as null or '', they need to be converted into undefined to ensure that there will be no problems when creating the key.
+    // Normalize null and empty values before using them to construct a key.
     acc[key] = obj[key] === '' || obj[key] === null ? undefined : obj[key];
     return acc;
   }, {});
@@ -579,7 +579,12 @@ export const treeConfig: { [key in TreeNodeType]: ITreeConfigItem } = {
     },
     createTreeNodeKey: (params) => {
       const { dataSourceId, aiDataCollectionId, aiDataCollectionElementId } = formatObject(params);
-      return `dataSource_${dataSourceId}-aiDataCollectionItem_${aiDataCollectionId}-aiDataCollectionElement_${aiDataCollectionElementId}-uuid_${uuid()}`;
+      return [
+        `dataSource_${dataSourceId}`,
+        `-aiDataCollectionItem_${aiDataCollectionId}`,
+        `-aiDataCollectionElement_${aiDataCollectionElementId}`,
+        `-uuid_${uuid()}`,
+      ].join('');
     },
   },
 
@@ -591,7 +596,12 @@ export const treeConfig: { [key in TreeNodeType]: ITreeConfigItem } = {
     },
     createTreeNodeKey: (params) => {
       const { dataSourceId, aiDataCollectionId, aiDataCollectionElementId } = formatObject(params);
-      return `dataSource_${dataSourceId}-aiDataCollectionItem_${aiDataCollectionId}-aiDataCollectionElement_${aiDataCollectionElementId}-uuid_${uuid()}`;
+      return [
+        `dataSource_${dataSourceId}`,
+        `-aiDataCollectionItem_${aiDataCollectionId}`,
+        `-aiDataCollectionElement_${aiDataCollectionElementId}`,
+        `-uuid_${uuid()}`,
+      ].join('');
     },
   },
 

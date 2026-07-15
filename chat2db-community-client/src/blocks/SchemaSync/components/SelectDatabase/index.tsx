@@ -1,4 +1,4 @@
-import React, { memo, useEffect, useState, forwardRef, useImperativeHandle, ForwardedRef } from 'react';
+import { memo, useEffect, useState, forwardRef, useImperativeHandle, ForwardedRef } from 'react';
 import { useStyles } from './style';
 import { Form, Select } from 'antd';
 import i18n from '@/i18n';
@@ -69,7 +69,6 @@ export default memo<IProps>((props) => {
             <div className={styles.fromTitle}>{i18n('workspace.targetDatabase')}</div>
             <div>
               <SelectDatabaseForm onChanges={handleTargetChange} />
-              {/* <SelectDatabaseForm astrictDatabaseType={sourceData?.databaseType} onChanges={handleTargetChange} /> */}
             </div>
             {/* <div className={styles.databaseMessage}>2</div> */}
           </div>

@@ -2,9 +2,9 @@
  * ThemeColorSelect
  * report theme color selector
  */
-import React, { memo } from 'react';
+import { memo } from 'react';
 // import { useStyles } from './style';
-import { Checkbox, Col, Radio, Row } from 'antd';
+import { Checkbox, Col, Row } from 'antd';
 import i18n from '@/i18n';
 import { ChartType } from '../../../constants';
 

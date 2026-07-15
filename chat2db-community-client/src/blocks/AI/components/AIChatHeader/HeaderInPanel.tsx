@@ -1,4 +1,4 @@
-import React, { FC, useMemo } from 'react';
+import { FC, useMemo } from 'react';
 import AIChatHeader, { AIChatHeaderProps } from '.';
 import { Dropdown, Flex } from 'antd';
 import { IconButton } from '@chat2db/ui';

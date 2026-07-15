@@ -2,7 +2,7 @@
  * ThemeColorSelect
  * report theme color selector
  */
-import React, { memo, useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { Select } from 'antd';
 import { IChartItem } from '@/typings';
 import { newFormattedSqlExecuteData } from '@/utils/dashboard';

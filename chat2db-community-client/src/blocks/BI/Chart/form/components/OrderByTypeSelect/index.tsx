@@ -2,7 +2,7 @@
  * ThemeColorSelect
  * report theme color selector
  */
-import React, { memo } from 'react';
+import { memo } from 'react';
 import { Radio } from 'antd';
 import { OrderByType } from '@/blocks/BI/Chart/constants';
 import i18n from '@/i18n';

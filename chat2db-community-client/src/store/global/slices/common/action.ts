@@ -15,7 +15,15 @@ export interface CommonAction {
   /**
    * Set main page active tab
    */
-  setMainPageActiveTab: ({page, pathName, searchParams}: {page: string, pathName?: string, searchParams?: Record<string, string>}) => void;
+  setMainPageActiveTab: ({
+    page,
+    pathName,
+    searchParams,
+  }: {
+    page: string;
+    pathName?: string;
+    searchParams?: Record<string, string>;
+  }) => void;
   /**
    * set focused content
    */
@@ -46,25 +54,31 @@ export const createCommonAction: StateCreator<GlobalStore, [['zustand/devtools',
       appTitleBarRightComponent: data,
     });
   },
-  setMainPageActiveTab: ({page, pathName, searchParams}: {page: string, pathName?: string, searchParams?: Record<string, string>}) => {
-    // When carrying searchParams or pathName, the URL needs to be updated even if the page is the same (such as switching sessions)
+  setMainPageActiveTab: ({
+    page,
+    pathName,
+    searchParams,
+  }: {
+    page: string;
+    pathName?: string;
+    searchParams?: Record<string, string>;
+  }) => {
+    // Search parameters and path changes must update the URL even when the active page is unchanged.
     if (page === get().mainPageActiveTab && !searchParams && !pathName) return;
 
-    if (page === 'connections') {
-      page = 'workspace';
-    }
+    const nextPage = page === 'connections' ? 'workspace' : page;
 
     let url: any = null;
     if (isHashHistoryEnv || isDesktop) {
       url = new URL(window.location.href);
-      const hashPath = pathName || `/${page}`;
+      const hashPath = pathName || `/${nextPage}`;
       url.hash = hashPath.startsWith('#') ? hashPath : `#${hashPath.startsWith('/') ? hashPath : `/${hashPath}`}`;
       if (url.protocol !== 'file:') {
         url.pathname = '/';
       }
     } else {
       url = new URL(window.location.href);
-      url.pathname = pathName || page;
+      url.pathname = pathName || nextPage;
     }
 
     // Clean up application-level searchParams and write new ones
@@ -79,7 +93,7 @@ export const createCommonAction: StateCreator<GlobalStore, [['zustand/devtools',
 
     window.history.pushState({}, '', url.toString());
     set({
-      mainPageActiveTab: page,
+      mainPageActiveTab: nextPage,
     });
   },
   setFocusedContent: (data) => {

@@ -1,49 +1,53 @@
-// @/xxxx cannot be recognized in .umirc, so webpack.ts is opened separately. This file can only write functions and cannot introduce other components.
+// Umi config cannot resolve @/ aliases here, so this module must stay dependency-free.
 
 // Separate the parameters added in the yarn startup command
-export function extractYarnConfig(argv: string[]){
-  const newArgv = argv.slice(2)
-  const yarn_config:{[k in string]: string} = {}
-  newArgv.forEach(t=>{
-    if(t && t.startsWith("--")){
+export function extractYarnConfig(argv: string[]) {
+  const newArgv = argv.slice(2);
+  const yarn_config: { [k in string]: string } = {};
+  newArgv.forEach((t) => {
+    if (t && t.startsWith('--')) {
       const regex = /--(.+?)=(.+)/;
       const matches = t.match(regex);
       if (matches) {
         const key = matches[1];
         const value = matches[2];
-        yarn_config[key] = value
+        yarn_config[key] = value;
       }
     }
-  })
-  return yarn_config
+  });
+  return yarn_config;
 }
 
 export function formatDate(date: any, fmt = 'yyyy-MM-dd') {
   if (!date) {
     return '';
   }
-  if (typeof date == 'number' || typeof date == 'string') {
-    date = new Date(date);
-  }
-  if (!(date instanceof Date) || isNaN(date.getTime())) {
+  const parsedDate = typeof date === 'number' || typeof date === 'string' ? new Date(date) : date;
+  if (!(parsedDate instanceof Date) || Number.isNaN(parsedDate.getTime())) {
     return '';
   }
-  var o: any = {
-    'M+': date.getMonth() + 1,
-    'd+': date.getDate(),
-    'h+': date.getHours(),
-    'm+': date.getMinutes(),
-    's+': date.getSeconds(),
-    'q+': Math.floor((date.getMonth() + 3) / 3),
-    S: date.getMilliseconds(),
+  const o: any = {
+    'M+': parsedDate.getMonth() + 1,
+    'd+': parsedDate.getDate(),
+    'h+': parsedDate.getHours(),
+    'm+': parsedDate.getMinutes(),
+    's+': parsedDate.getSeconds(),
+    'q+': Math.floor((parsedDate.getMonth() + 3) / 3),
+    S: parsedDate.getMilliseconds(),
   };
-  if (/(y+)/.test(fmt)) fmt = fmt.replace(RegExp.$1, (date.getFullYear() + '').substr(4 - RegExp.$1.length));
-  for (var k in o)
-    if (new RegExp('(' + k + ')').test(fmt))
-      fmt = fmt.replace(RegExp.$1, RegExp.$1.length == 1 ? o[k] : ('00' + o[k]).substr(('' + o[k]).length));
-  return fmt;
+  let formatted = fmt;
+  if (/(y+)/.test(formatted)) {
+    formatted = formatted.replace(RegExp.$1, String(parsedDate.getFullYear()).slice(4 - RegExp.$1.length));
+  }
+  for (const k in o)
+    if (new RegExp(`(${k})`).test(formatted)) {
+      formatted = formatted.replace(
+        RegExp.$1,
+        RegExp.$1.length === 1 ? o[k] : `00${o[k]}`.slice(String(o[k]).length),
+      );
+    }
+  return formatted;
 }
-
 
 export function generateBuildTime() {
   // Get current server time

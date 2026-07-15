@@ -1,4 +1,4 @@
-import React, { memo, useEffect, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { useStyles } from './style';
 import { Modal } from '@chat2db/ui';
 import { useGlobalStore } from '@/store/global';

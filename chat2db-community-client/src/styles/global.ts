@@ -9,7 +9,7 @@ export const useStyles = createStyles(() => {
 
 const GlobalStyle = createGlobalStyle(({ theme: token }) => {
   const { theme } = useStyles();
-  
+
   const setTheme = useStylesStore((s) => s.setTheme);
 
   useEffect(() => {
@@ -60,7 +60,7 @@ const GlobalStyle = createGlobalStyle(({ theme: token }) => {
       &::-webkit-scrollbar-thumb:hover {
         background-color: ${token.colorFill};
       }
-      
+
       &::-webkit-scrollbar-corner {
         display: none;
       }
@@ -85,7 +85,7 @@ const GlobalStyle = createGlobalStyle(({ theme: token }) => {
     .ResizerHidden .Resizer {
       display: none;
     }
-    
+
     /* When the dragged line is on the right, the style when it is collapsed */
     .ResizerSizeIsZeroRight .Resizer.vertical {
       margin: 0 -5px 0px 0px;
@@ -110,8 +110,9 @@ const GlobalStyle = createGlobalStyle(({ theme: token }) => {
       width: 100%;
     }
 
-     /* When the horizontal drag bar is dragged */
-    .Resizer.horizontal:hover, .Resizer.horizontal:active {
+    /* When the horizontal drag bar is dragged */
+    .Resizer.horizontal:hover,
+    .Resizer.horizontal:active {
       border-top: 2px solid ${token.colorBorder};
       border-bottom: 2px solid ${token.colorBorder};
       background: ${token.colorBorder};
@@ -119,7 +120,7 @@ const GlobalStyle = createGlobalStyle(({ theme: token }) => {
       z-index: 30;
     }
 
-     /* Vertical drag bar */
+    /* Vertical drag bar */
     .Resizer.vertical {
       width: 5px;
       margin: 0 -2px;
@@ -129,7 +130,8 @@ const GlobalStyle = createGlobalStyle(({ theme: token }) => {
     }
 
     /* When dragging the vertical drag bar */
-    .Resizer.vertical:hover, .Resizer.vertical:active {
+    .Resizer.vertical:hover,
+    .Resizer.vertical:active {
       border-left: 2px solid ${token.colorBorder};
       border-right: 2px solid ${token.colorBorder};
       background: ${token.colorBorder};
@@ -244,7 +246,7 @@ const GlobalStyle = createGlobalStyle(({ theme: token }) => {
       border: 1px solid ${token.colorBorderSecondary} !important;
     }
 
-    /* In order to adapt to the problem of some antd elements being blocked caused by _appTitleBarHeight on the desktop */
+    /* Offset Ant Design overlays below the desktop title bar. */
     .ant-drawer {
       top: ${window._appTitleBarHeight || 0}px;
     }

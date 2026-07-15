@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import i18n from '@/i18n';
 import { useUserStore } from '@/store/user';
 import Upload from '@/components/Upload';
@@ -137,7 +137,7 @@ const EditorAvatar = ({
       onChange={({ file }) => {
         if (file?.response?.res?.status === 200) {
           const { cdn, name } = file?.response || {};
-          org ? updateOrg({ id: org?.id!, organizationAvatar: cdn + name }) : updateUser({ avatar: cdn + name });
+          org ? updateOrg({ id: org.id, organizationAvatar: cdn + name }) : updateUser({ avatar: cdn + name });
         }
       }}
     >

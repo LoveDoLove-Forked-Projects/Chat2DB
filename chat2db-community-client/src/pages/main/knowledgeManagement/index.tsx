@@ -1,4 +1,4 @@
-import React, { memo, useState } from 'react';
+import { memo, useState } from 'react';
 import { useStyles } from './style';
 import NavList, { NavType } from './components/NavList';
 import SwitchContainer from './components/SwitchContainer';

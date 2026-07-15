@@ -251,7 +251,8 @@ function MainPage() {
   const handleInitPage = useCallback(() => {
     let _initNavConfig = [...initNavConfig];
 
-    // Show the team entry only for confirmed team or enterprise organizations; hide it while curOrg is unloaded and for PERSONAL or offline contexts.
+    // Show the team entry only for confirmed team or enterprise organizations.
+    // Hide it while curOrg is unloaded and for PERSONAL or offline contexts.
     const isTeamOrg = curOrg?.type === OrganizationType.TEAM || curOrg?.type === OrganizationType.ENTERPRISE;
     if (!isTeamOrg || !runtimeEditionConfig.teamWorkspace) {
       _initNavConfig = _initNavConfig.filter((item) => item.key !== 'team');

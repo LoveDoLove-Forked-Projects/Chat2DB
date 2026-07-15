@@ -32,7 +32,8 @@ export default memo<IProps>((props) => {
         return;
       }
       setSql(res || '');
-    }).catch(() => {
+    })
+.catch(() => {
       // Keep current error handling behavior in the service layer.
     });
   }, [data]);

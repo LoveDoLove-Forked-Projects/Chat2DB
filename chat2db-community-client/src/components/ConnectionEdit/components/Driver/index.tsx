@@ -82,7 +82,7 @@ export default memo<IProps>((props) => {
       setDesktopLoading(false);
       setUploadDriverModal(false);
       getDriverList();
-    } catch (error) {
+    } catch {
       setDesktopLoading(false);
     }
   }

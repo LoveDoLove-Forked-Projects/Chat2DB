@@ -186,10 +186,10 @@ const prepareDeleteSchema = createRequest<ISchemaDeletePrepareParams, IDatabaseO
   { method: 'post', errorLevel: 'toast' },
 );
 
-const executeDeleteSchema = createRequest<IDatabaseObjectDeleteExecuteParams, void>(
-  '/api/rdb/delete/schema/execute',
-  { method: 'post', errorLevel: 'toast' },
-);
+const executeDeleteSchema = createRequest<IDatabaseObjectDeleteExecuteParams, void>('/api/rdb/delete/schema/execute', {
+  method: 'post',
+  errorLevel: 'toast',
+});
 
 const createTableExample = createRequest<{ dbType: DatabaseTypeCode }, string>('/api/rdb/ddl/create/example', {
   method: 'get',
@@ -333,10 +333,13 @@ const getTableDetails = createRequest<
     refresh: boolean;
   },
   IEditTableInfo
-  >('/api/rdb/table/query', { method: 'get' });
+>('/api/rdb/table/query', { method: 'get' });
 
 /** Get view details */
-const getViewDetails = createRequest<{ dataSourceId: number; databaseName?: string; schemaName?: string; tableName: string }, IEditTableInfo>('/api/rdb/view/query', { method: 'get' });
+const getViewDetails = createRequest<
+  { dataSourceId: number; databaseName?: string; schemaName?: string; tableName: string },
+  IEditTableInfo
+>('/api/rdb/view/query', { method: 'get' });
 
 /** Get all tables in the library */
 const getAllTableList = createRequest<
@@ -426,9 +429,12 @@ const copyTable = createRequest<ICopyTableParams, void>('/api/rdb/table/copy', {
 
 const checkIsSelectSQL = createRequest<{ sql: string; dbType: DatabaseTypeCode }, boolean>('/api/sql/valid_select');
 
-const getDataSourceList = createRequest<IPageParams, IPageResponse<IConnectionDetails>>('/api/connection/datasource/list', {
-  errorLevel: false,
-});
+const getDataSourceList = createRequest<IPageParams, IPageResponse<IConnectionDetails>>(
+  '/api/connection/datasource/list',
+  {
+    errorLevel: false,
+  },
+);
 
 export default {
   copyTable,
@@ -483,5 +489,5 @@ export default {
   getAllFieldByTable,
   exportResultTable,
   checkIsSelectSQL,
-  getDataSourceList
+  getDataSourceList,
 };

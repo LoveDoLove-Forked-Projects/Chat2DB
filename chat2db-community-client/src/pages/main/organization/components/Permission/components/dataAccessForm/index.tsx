@@ -1,15 +1,10 @@
-import { DatePicker, Drawer, Form, Input, InputNumber, Radio, Select, TreeSelect, Button, Tag, Flex } from 'antd';
+import { DatePicker, Drawer, Form, Input, Select, Button, Tag, Flex } from 'antd';
 import React, { useEffect, useMemo, useState } from 'react';
 import { debounce } from 'lodash';
 import { useOrgStore } from '@/store/organization';
 import orgService from '@/service/enterprise/organization';
-import permissionService from '@/service/enterprise/permission';
 import connectionService from '@/service/connection';
 import dayjs from 'dayjs';
-import CascaderDB from '@/components/CascaderDB';
-
-import { DefaultOptionType } from 'antd/es/select';
-import Iconfont from '@/components/Iconfont';
 import { databaseMap } from '@/constants';
 
 import { BooleanType } from '@/typings/common';
@@ -64,16 +59,11 @@ function DataAccessForm(props: IProps) {
   const [userOptions, setUserOptions] = useState<{ label: string; value: number }[]>([]);
   const [userFetching, setUserFetching] = useState(false);
   const [dataSourceOptions, setDataSourceOptions] = useState<IOption[]>([]);
-  const [policyList, setPolicyList] = useState<DefaultOptionType[]>([]);
   const [openWorkflow, setOpenWorkflow] = useState(false);
 
   const [form] = Form.useForm();
-  const isAllSchema = Form.useWatch('isAllSchema', form);
-  const isNoExpire = Form.useWatch('noExpire', form);
-  const dataSourceId = Form.useWatch('dataSourceId', form);
-
   useEffect(() => {
-    handlePolicyList();
+    initializePolicyList();
     handleSearchUser('');
     handleSearchDataSource('');
     if (isPreview) {
@@ -91,33 +81,7 @@ function DataAccessForm(props: IProps) {
     }
   }, []);
 
-  const handlePolicyList = async () => {
-    const res = await permissionService.queryPolicyList({});
-    const options = (res ?? []).reduce((acc: DefaultOptionType[], cur) => {
-      const { code, scopeCode, scopeDescription } = cur;
-      const scope = acc.find((i) => i.value === scopeCode);
-      if (!scope) {
-        acc.push({
-          label: `${scopeCode}(${scopeDescription})`,
-          value: scopeCode,
-          children: [
-            {
-              label: code,
-              value: code,
-            },
-          ],
-        });
-      } else {
-        (scope?.children || []).push({
-          label: code,
-          value: code,
-        });
-      }
-
-      return acc;
-    }, []);
-    setPolicyList(options);
-
+  const initializePolicyList = () => {
     const initPolicy = form.getFieldValue('policyVOList');
     form.setFieldValue('policyVOList', initPolicy ? initPolicy : ['SELECT']);
   };

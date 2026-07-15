@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import * as QRCode from 'qrcode';
 import { Alert, Tabs } from 'antd';
 import { useStyles } from './style';
@@ -62,7 +62,8 @@ const PriceMain = ({ tabIndex, onTabChange, isSinglePage, productParams }: IProp
 
   const timer = useRef<any>();
   const curOrderIndex = useRef(0);
-      // Preserve the order response, including amount and currency, for conversion reporting after polling confirms payment.
+      // Preserve the order response, including amount and currency,
+      // for conversion reporting after polling confirms payment.
       // Use a ref instead of curOrderInfo state because recursive polling captures state from before setState.
   const orderInfoRef = useRef<CreateOrderResponse>();
 

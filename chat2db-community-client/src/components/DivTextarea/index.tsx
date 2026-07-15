@@ -1,4 +1,4 @@
-import React, { memo, forwardRef, useImperativeHandle, ForwardedRef, useRef, useEffect } from 'react';
+import { memo, forwardRef, useImperativeHandle, ForwardedRef, useRef, useEffect } from 'react';
 import { useStyles } from './style';
 
 interface IProps {

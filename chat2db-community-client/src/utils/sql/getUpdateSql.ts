@@ -1,4 +1,4 @@
-import executeSqlServer, {IUpdateDataSql} from '@/service/executeSql';
+import executeSqlServer, { IUpdateDataSql } from '@/service/executeSql';
 
 // Get a unified entrance to update sql
 export function getUpdateSql(props: IUpdateDataSql) {

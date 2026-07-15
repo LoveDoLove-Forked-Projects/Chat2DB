@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useState } from 'react';
+import { FC, useEffect, useState } from 'react';
 import { useStyles } from './style';
 import { EmptyImage, IconButton, Empty } from '@chat2db/ui';
 import i18n from '@/i18n';

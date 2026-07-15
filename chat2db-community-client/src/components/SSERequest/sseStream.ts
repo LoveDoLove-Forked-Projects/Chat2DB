@@ -83,7 +83,8 @@ export type SSEOutput = Partial<Record<SSEFields, any>>;
  *
  * @link https://developer.mozilla.org/en-US/docs/Web/API/EventSource
  *
- * When handling responses with `Content-Type: text/event-stream`, the following standard practices are commonly observed:
+ * When handling responses with `Content-Type: text/event-stream`,
+ * the following standard practices are commonly observed:
  * - Double newline characters (`\n\n`) are used to separate individual events.
  * - Single newline characters (`\n`) are employed to separate line within an event.
  */

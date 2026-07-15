@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, forwardRef, useImperativeHandle, useCallback } from 'react';
+import { useRef, useEffect, useState, forwardRef, useImperativeHandle, useCallback } from 'react';
 import * as monaco from 'monaco-editor';
 import { useGlobalStore } from '@/store/global';
 import { debounce } from 'lodash';

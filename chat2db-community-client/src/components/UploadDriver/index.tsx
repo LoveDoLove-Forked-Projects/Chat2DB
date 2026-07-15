@@ -1,4 +1,4 @@
-import React, { memo, useEffect, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import i18n from '@/i18n';
 import { Form, Input } from 'antd';
 import { DatabaseTypeCode } from '@/constants';

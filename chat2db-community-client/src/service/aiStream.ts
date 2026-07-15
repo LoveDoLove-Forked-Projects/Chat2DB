@@ -36,13 +36,10 @@ export interface IChatMessage {
 const getModelCatalog = createRequest<void, IModelCatalogItem[]>('/api/v3/ai/model/list');
 const getModelOptions = createRequest<void, IModelOptionItem[]>('/api/v3/ai/model/options');
 const getChatSessions = createRequest<void, IChatSession[]>('/api/v3/ai/chat/history/sessions');
-const getChatMessages = createRequest<{ sessionId: string }, IChatMessage[]>(
-  '/api/v3/ai/chat/history/messages',
-);
-const deleteChatSession = createRequest<{ id: string }, void>(
-  '/api/v3/ai/chat/history/session/delete',
-  { method: 'post' },
-);
+const getChatMessages = createRequest<{ sessionId: string }, IChatMessage[]>('/api/v3/ai/chat/history/messages');
+const deleteChatSession = createRequest<{ id: string }, void>('/api/v3/ai/chat/history/session/delete', {
+  method: 'post',
+});
 
 export default {
   getModelCatalog,

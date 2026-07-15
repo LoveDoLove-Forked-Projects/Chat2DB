@@ -1,4 +1,4 @@
-import React, { memo, useEffect, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import i18n from '@/i18n';
 import { useStyles } from './style';
 import { IconfontSvg, ToolbarBtn } from '@chat2db/ui';

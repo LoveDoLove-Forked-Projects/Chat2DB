@@ -1,4 +1,4 @@
-import React, { memo, useEffect, useMemo, forwardRef, useImperativeHandle, ForwardedRef, useCallback } from 'react';
+import { memo, useEffect, useMemo, forwardRef, useImperativeHandle, ForwardedRef, useCallback } from 'react';
 import { useStyles } from './style';
 import CanvasTable from '@/blocks/CanvasTable';
 import { ITableInstance } from '@/blocks/CanvasTable/typings';

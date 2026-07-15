@@ -86,7 +86,9 @@ export function getRoutineParameterHintContext(
         parameterIndex: index,
         parameterName: parameter.parameterName,
         parameterType: parameter.parameterType,
-        label: parameter.parameterType ? `${parameter.parameterName}:${parameter.parameterType}` : parameter.parameterName,
+        label: parameter.parameterType
+          ? `${parameter.parameterName}:${parameter.parameterType}`
+          : parameter.parameterName,
         range,
         active: index === activeIndex,
       };
@@ -224,7 +226,11 @@ function getActiveArgumentIndex(cursorPosition: TextPosition, argumentRanges: Te
 }
 
 function getRoutineNameCandidates(routineName?: string) {
-  const candidates = [routineName, stripSqlIdentifierQuote(routineName), stripSqlIdentifierQuote(getLastNamePart(routineName))]
+  const candidates = [
+    routineName,
+    stripSqlIdentifierQuote(routineName),
+    stripSqlIdentifierQuote(getLastNamePart(routineName)),
+  ]
     .map((name) => (name || '').trim())
     .filter(Boolean);
   return Array.from(new Set(candidates));

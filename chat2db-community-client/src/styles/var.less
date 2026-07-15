@@ -8,7 +8,6 @@
   word-break: break-word;
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  box-orient: vertical;
   -webkit-line-clamp: @lines;
   line-clamp: @lines;
   overflow: hidden;
@@ -36,15 +35,13 @@
 
 .f-fill-absolute {
   position: absolute;
-  top: 0;
-  right: 0;
-  left: 0;
-  bottom: 0;
+  inset: 0;
 }
 
 .f-button {
   display: flex !important;
   align-items: center;
+
   span {
     font-size: 12px !important;
     font-weight: 400 !important;
@@ -60,6 +57,7 @@
   0% {
     transform: rotate(0deg);
   }
+
   100% {
     transform: rotate(360deg);
   }

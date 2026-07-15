@@ -1,11 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import historyService, { IHistoryRecord, OperationTypeEnum } from '@/service/history';
-import { Button, Input, Table } from 'antd';
-import { SearchOutlined } from '@ant-design/icons';
+import { Button } from 'antd';
 import i18n from '@/i18n';
 import { useStyles } from './style';
 import PageTitle from '@/components/PageTitle';
-import { IconButton, IconfontSvg } from '@chat2db/ui';
+import { IconfontSvg } from '@chat2db/ui';
 import AntdTable from '@/components/AntdTable';
 /**
  historyService
@@ -72,13 +71,6 @@ const SQLAudit = () => {
         total: res.total,
       });
     }
-  };
-
-  const handleSearch = (searchKey: string) => {
-    setPagination({
-      ...pagination,
-      searchKey,
-    });
   };
 
   const handleTableChange = (p) => {

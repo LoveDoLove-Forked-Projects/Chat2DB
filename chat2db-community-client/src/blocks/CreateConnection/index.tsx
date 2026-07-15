@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import { memo } from 'react';
 import { IConnectionDetails } from '@/typings';
 import ConnectionEdit from '@/components/ConnectionEdit';
 import { useStyles } from './style';
@@ -10,7 +10,8 @@ type IEditConnectionDetail = IConnectionDetails | null | Pick<IConnectionDetails
 
 interface IProps {
   className?: string;
-  onSubmit?: (data: IConnectionDetails) => Promise<any>; // Click the save or modify callback and I will give you the data
+  // Called with the edited connection data when the user saves.
+  onSubmit?: (data: IConnectionDetails) => Promise<any>;
   connectionDetail: IEditConnectionDetail | null | undefined;
   noPermission?: boolean;
   closeCreateConnection: () => void;

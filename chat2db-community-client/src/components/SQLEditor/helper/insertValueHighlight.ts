@@ -482,7 +482,14 @@ function isEditingInsertValueSlot(
   if (!valueText.trim()) {
     return true;
   }
-  if (comparePosition(cursorPosition.lineNumber, cursorPosition.column, valueRange.endLineNumber, valueRange.endColumn) < 0) {
+  if (
+    comparePosition(
+      cursorPosition.lineNumber,
+      cursorPosition.column,
+      valueRange.endLineNumber,
+      valueRange.endColumn,
+    ) < 0
+  ) {
     return true;
   }
   return !isFollowedByValueDelimiter(textAfterCursor);

@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
 import { useStyles } from './style';
-import { Iconfont, ToolbarBtn } from '@chat2db/ui';
+import { Iconfont } from '@chat2db/ui';
 
 interface IProps extends React.HTMLAttributes<HTMLDivElement> {
   className?: string;

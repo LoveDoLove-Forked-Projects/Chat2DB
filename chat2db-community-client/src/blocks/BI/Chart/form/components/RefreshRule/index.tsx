@@ -2,7 +2,7 @@
  * ThemeColorSelect
  * report theme color selector
  */
-import React, { memo, useEffect } from 'react';
+import { memo, useEffect } from 'react';
 // import { useStyles } from './style';
 import { Form, InputNumber, Select, TimePicker } from 'antd';
 import i18n from '@/i18n';

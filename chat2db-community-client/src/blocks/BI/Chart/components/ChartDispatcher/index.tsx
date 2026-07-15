@@ -1,10 +1,9 @@
-import React, { memo, useRef } from 'react';
+import React, { memo } from 'react';
 import { ChartType } from '@/constants/dashboard';
 import BarChart from '@/blocks/BI/Chart/charts/BarChart';
 import LineChart from '@/blocks/BI/Chart/charts/LineChart';
 import PieChart from '@/blocks/BI/Chart/charts/PieChart';
 import { DivProps } from '@/typings/common';
-import { useStyles } from '../../style';
 
 export interface ChartProps extends DivProps {
   className?: string;
@@ -14,11 +13,10 @@ export interface ChartProps extends DivProps {
 }
 
 const Chart = (props: ChartProps) => {
-  const { chartType, className, ...rest } = props;
-  const { styles, cx } = useStyles();
+  const { chartType } = props;
 
-  const dispatcher = (chartType?: ChartType) => {
-    switch (chartType) {
+  const dispatcher = (type?: ChartType) => {
+    switch (type) {
       case ChartType.Bar:
       case ChartType.Column:
         return <BarChart />;

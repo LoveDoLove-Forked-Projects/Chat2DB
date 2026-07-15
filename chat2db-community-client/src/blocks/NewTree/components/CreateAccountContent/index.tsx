@@ -1,4 +1,3 @@
-import React from 'react';
 import { Form, Input, type FormInstance } from 'antd';
 import i18n from '@/i18n';
 

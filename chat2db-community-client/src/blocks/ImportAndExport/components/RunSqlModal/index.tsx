@@ -1,7 +1,6 @@
-import React, { memo, useState, useRef, useEffect } from 'react';
-import { useStyles } from './style';
-import { Modal, IconfontSvg } from '@chat2db/ui';
-import { Form, Input, Select, Checkbox, Button } from 'antd';
+import { memo, useState, useRef, useEffect } from 'react';
+import { Modal } from '@chat2db/ui';
+import { Button } from 'antd';
 import i18n from '@/i18n';
 import RunSql, { RunSqlRef } from '../RunSql';
 import { useImportExportStore } from '@/store/importExport';
@@ -14,10 +13,7 @@ interface IProps {
   className?: string;
 }
 
-export default memo<IProps>((props) => {
-  const { className } = props;
-  const { styles, cx } = useStyles();
-  const [form] = Form.useForm();
+export default memo<IProps>((_props) => {
   const [isReady, setIsReady] = useState(false);
   const runSqlRef = useRef<RunSqlRef>(null);
   const [taskId, setTaskId] = useState<number>();

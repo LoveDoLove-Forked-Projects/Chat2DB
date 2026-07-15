@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { Button } from 'antd';
 import styles from './index.less';
 import { openWebPage } from '@/utils/url';

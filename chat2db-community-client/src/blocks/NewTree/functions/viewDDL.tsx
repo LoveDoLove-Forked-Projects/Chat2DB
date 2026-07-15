@@ -1,5 +1,5 @@
 // Pinned form
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import mysqlService from '@/service/sql';
 import { createStyles } from 'antd-style';
 import SQLPreview from '@/components/SQLPreview';

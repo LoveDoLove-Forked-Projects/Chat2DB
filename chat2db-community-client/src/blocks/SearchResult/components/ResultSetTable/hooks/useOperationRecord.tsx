@@ -71,7 +71,7 @@ const useOperationRecord: IUseOperationRecord = ({ tableInstance, theme }) => {
 
       // Normal cell value change record
       const _cellChangeRecordList = cellChangeRecordLisLRef.current;
-      // Find whether there is the same record in cellChangeRecordList. If there is, delete it and add it again. If not, add it.
+      // Replace an existing record for this cell, or append a new one.
       const index = _cellChangeRecordList.findIndex(
         (_item) => _item.field === record.field && _item.rowId === record.rowId,
       );
@@ -79,12 +79,12 @@ const useOperationRecord: IUseOperationRecord = ({ tableInstance, theme }) => {
       if (index > -1) {
         const previousRecord = _cellChangeRecordList.splice(index, 1)?.[0];
         const currentValue = previousRecord.currentValue;
-        // currentValue needs to record the initial value and does not care about the value modified in the middle.
+        // Preserve the initial value rather than any intermediate edit.
         newRecord.currentValue = currentValue;
         newRecord.restoreValue =
           newRecord.restoreValue !== undefined ? newRecord.restoreValue : previousRecord.restoreValue;
         newRecord.restoreCellMeta = newRecord.restoreCellMeta || previousRecord.restoreCellMeta;
-        // If you find that the changed value has changed to the original value, then delete this record and clear the cell mark
+        // Remove the record and cell marker when the value returns to its original state.
         if (currentValue === record.changedValue) {
           handleRevocationCellStyle({
             field: newRecord.field,
@@ -430,8 +430,8 @@ const useOperationRecord: IUseOperationRecord = ({ tableInstance, theme }) => {
     if (!tableInstance) return;
     // TODO: There is a problem here, only as of VTable version 1.10.0
     // bug description: Change the color of a cell to A, then to B, then to A. At this time, the cell has no color.
-    // But I don’t know why I added the following line of code. It’s fine. The attribute customCellStylePlugin.customCellStyleArrangement is not in the document. I found it in ts.
-    // Logically speaking, this code will clear customCellStyleArrangement, which will affect all custom styles, but it will not cancel the delete and create styles. It is magical.
+    // Resetting this undocumented VTable arrangement fixes update colors that cycle A -> B -> A.
+    // Registered create/delete styles remain intact after the reset.
     if (tableInstance?.customCellStylePlugin) {
       tableInstance.customCellStylePlugin.customCellStyleArrangement = [];
     }
@@ -455,7 +455,7 @@ const useOperationRecord: IUseOperationRecord = ({ tableInstance, theme }) => {
     const rowNumbers = findRowNumbersByIds(tableInstance, createRowRecordList);
     rowNumbers.map((row) => {
       tableInstance?.arrangeCustomCellStyle(
-        // TODO: If col is larger than the actual column, an error will be reported. You may need to give Vtable an Issue here, although I have already monitored the columns here.
+        // VTable errors when the range exceeds the actual columns; the dependency should clamp this internally.
         { range: { start: { row, col: 0 }, end: { row, col: columns.length } } },
         'custom-create-cell',
       );
@@ -468,7 +468,7 @@ const useOperationRecord: IUseOperationRecord = ({ tableInstance, theme }) => {
 
     rowNumbers?.map((row) => {
       tableInstance?.arrangeCustomCellStyle(
-        // TODO: If col is larger than the actual column, an error will be reported. You may need to give Vtable an Issue here, although I have already monitored the columns here.
+        // VTable errors when the range exceeds the actual columns; the dependency should clamp this internally.
         { range: { start: { row, col: 0 }, end: { row, col: columns.length } } },
         'custom-delete-cell',
       );
@@ -490,8 +490,15 @@ const useOperationRecord: IUseOperationRecord = ({ tableInstance, theme }) => {
     const createRows = currentCreateRowRecordList;
 
     updateRows.forEach((rowId) => {
-      const operation = buildUpdateOperation(rowId, getRowOriginData(tableInstance, rowId), currentCellChangeRecordList);
-      if (Object.values(operation.dataList || {}).some((value: any) => value === 'CHAT2DB_LARGE_VALUE_PREVIEW:PARTIAL')) {
+      const operation = buildUpdateOperation(
+        rowId,
+        getRowOriginData(tableInstance, rowId),
+        currentCellChangeRecordList,
+      );
+      const containsPartialLargeValue = Object.values(operation.dataList || {}).some(
+        (value: any) => value === 'CHAT2DB_LARGE_VALUE_PREVIEW:PARTIAL',
+      );
+      if (containsPartialLargeValue) {
         return;
       }
       operations.push(operation);

@@ -1,4 +1,4 @@
-import React, { Fragment, memo, useMemo } from 'react';
+import { Fragment, memo, useMemo } from 'react';
 import ChatItem from '@/blocks/Chat/ChatItem';
 import { useChatStore } from '@/store/chat';
 import { getChatDetailById } from '@/store/chat/slices/chatDetails/selectors';

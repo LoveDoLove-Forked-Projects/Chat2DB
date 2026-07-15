@@ -1,5 +1,5 @@
 export const light = {
-  	"focusBorder": "#ffaa33b3",
+		"focusBorder": "#ffaa33b3",
 		"foreground": "#8a9199",
 		"widget.shadow": "#00000026",
 		"selection.background": "#035bd626",

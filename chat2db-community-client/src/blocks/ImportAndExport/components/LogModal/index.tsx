@@ -1,5 +1,4 @@
-import React, { memo, useEffect, useState, forwardRef, ForwardedRef, useImperativeHandle, useRef } from 'react';
-import { useStyles } from './style';
+import { memo, useState, forwardRef, ForwardedRef, useImperativeHandle, useRef } from 'react';
 import { Modal, IconfontSvg } from '@chat2db/ui';
 import Log from '@/blocks/ImportAndExport/components/Log';
 import ModalFooterButton from '@/components/Modal/ModalFooterButton';
@@ -15,9 +14,7 @@ interface IProps {
 
 export interface LogModalRef {}
 
-const LogModal = forwardRef((props: IProps, ref: ForwardedRef<LogModalRef>) => {
-  const { className } = props;
-  const { styles, cx } = useStyles();
+const LogModal = forwardRef((_props: IProps, ref: ForwardedRef<LogModalRef>) => {
   const logRef = useRef(null);
   const [taskDetails, setTaskDetails] = useState<ImportExportTaskDetails>();
   const { logModalTaskId, openLogModal } = useImportExportStore((state) => {
@@ -65,8 +62,8 @@ const LogModal = forwardRef((props: IProps, ref: ForwardedRef<LogModalRef>) => {
     // openLogModal,
   }));
 
-  const finish = (taskDetails: ImportExportTaskDetails) => {
-    setTaskDetails(taskDetails);
+  const finish = (details: ImportExportTaskDetails) => {
+    setTaskDetails(details);
   };
 
   return (

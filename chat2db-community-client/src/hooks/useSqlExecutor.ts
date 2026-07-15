@@ -40,17 +40,17 @@ const useSqlExecutor = (props?: IUseSqlExecutorProps) => {
       const requestUuid = uuidv4();
       setExecuting(true);
       return new Promise((resolve, reject) => {
-        let offEvent: (() => void) | undefined;
-        offEvent = onSqlExecutionEvent(requestUuid, (event) => {
+        const subscription: { unsubscribe?: () => void } = {};
+        subscription.unsubscribe = onSqlExecutionEvent(requestUuid, (event) => {
           onExecutionEvent(event);
           if (event.eventType === 'finished') {
-            offEvent?.();
+            subscription.unsubscribe?.();
             setExecuting(false);
             setExecutionId(undefined);
             resolve([]);
           }
           if (event.eventType === 'failed' || event.eventType === 'cancelled') {
-            offEvent?.();
+            subscription.unsubscribe?.();
             setExecuting(false);
             setExecutionId(undefined);
             if (event.eventType === 'cancelled') {
@@ -63,7 +63,7 @@ const useSqlExecutor = (props?: IUseSqlExecutorProps) => {
         startSqlExecution(params, requestUuid)
           .then((res) => {
             if (!res?.executionId) {
-              offEvent?.();
+              subscription.unsubscribe?.();
               setExecuting(false);
               reject(getStartExecutionError(res));
               return;
@@ -71,7 +71,7 @@ const useSqlExecutor = (props?: IUseSqlExecutorProps) => {
             setExecutionId(res.executionId);
           })
           .catch((err) => {
-            offEvent?.();
+            subscription.unsubscribe?.();
             setExecuting(false);
             reject(err);
           });

@@ -1,4 +1,4 @@
-import React, { memo, useRef, useState, useMemo, useEffect, forwardRef, useImperativeHandle } from 'react';
+import { memo, useRef, useState, useMemo, useEffect, forwardRef, useImperativeHandle } from 'react';
 import MonacoEditor, { IExportRefFunction } from '@/components/MonacoEditor';
 import i18n from '@/i18n';
 import { formatSql } from '@/utils/sql/formatSql';

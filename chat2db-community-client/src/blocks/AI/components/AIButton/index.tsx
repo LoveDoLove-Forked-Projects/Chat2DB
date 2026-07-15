@@ -1,4 +1,3 @@
-import React from 'react';
 import { useStyles } from './style';
 import { useAIStore } from '@/store/ai';
 import { IconButton } from '@chat2db/ui';

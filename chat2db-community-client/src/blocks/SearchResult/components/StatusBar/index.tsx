@@ -1,4 +1,4 @@
-import React, { memo, useEffect } from 'react';
+import { memo } from 'react';
 import classnames from 'classnames';
 import i18n from '@/i18n';
 import { useStyles } from './style';

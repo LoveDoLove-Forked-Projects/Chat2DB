@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useState } from 'react';
 import SplitPane from 'react-split-pane';
 import { useStyles } from './style';
 import PluginMenuList from './PluginMenuList';

@@ -16,9 +16,12 @@ function transformColor(color: string) {
   if (color.startsWith('rgba')) {
     const rgba = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*[\d.]+)?\)/);
     if (rgba) {
-      const r = parseInt(rgba[1]).toString(16).padStart(2, '0');
-      const g = parseInt(rgba[2]).toString(16).padStart(2, '0');
-      const b = parseInt(rgba[3]).toString(16).padStart(2, '0');
+      const r = parseInt(rgba[1]).toString(16)
+.padStart(2, '0');
+      const g = parseInt(rgba[2]).toString(16)
+.padStart(2, '0');
+      const b = parseInt(rgba[3]).toString(16)
+.padStart(2, '0');
       return `#${r}${g}${b}`;
     }
   }

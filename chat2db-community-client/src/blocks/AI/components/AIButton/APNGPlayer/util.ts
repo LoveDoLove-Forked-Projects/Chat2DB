@@ -56,12 +56,12 @@ export async function resizeAPNG(buffer, targetWidth, targetHeight) {
   }
 
   // Creates a new APNG object
-  return APNG({
-    width: targetWidth,
-    height: targetHeight,
-    frames: resizedFrames,
-    numPlays: apng.numPlays,
-  });
+  const resizedAPNG = new APNG();
+  resizedAPNG.width = targetWidth;
+  resizedAPNG.height = targetHeight;
+  resizedAPNG.frames = resizedFrames;
+  resizedAPNG.numPlays = apng.numPlays;
+  return resizedAPNG;
 }
 
 // usage example

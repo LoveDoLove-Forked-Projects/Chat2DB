@@ -3,11 +3,7 @@ import { StateCreator } from 'zustand';
 import { AIState } from './initialState';
 
 export interface AIAction {
-  addDefaultDataCollectionList: (param: {
-    type: 'dashboard' | 'console' | 'chat';
-    id: number;
-    value: number;
-  }) => void;
+  addDefaultDataCollectionList: (param: { type: 'dashboard' | 'console' | 'chat'; id: number; value: number }) => void;
   increaseCreateAiDataCollectionTipsCount: () => void;
   openConsoleAiInput: (params: AIState['consoleAiInputParams']) => void;
   clearConsoleAiInputParams: () => void;
@@ -17,10 +13,10 @@ export const createAIAction: StateCreator<WorkspaceStore, [['zustand/devtools', 
   set,
   get,
 ) => ({
-  openConsoleAiInput: (consoleAiInputParams) => { 
+  openConsoleAiInput: (consoleAiInputParams) => {
     set({ consoleAiInputParams });
   },
-  clearConsoleAiInputParams: () => { 
+  clearConsoleAiInputParams: () => {
     set({ consoleAiInputParams: false });
   },
   addDefaultDataCollectionList: ({ type, id, value }) => {
@@ -30,23 +26,22 @@ export const createAIAction: StateCreator<WorkspaceStore, [['zustand/devtools', 
       set({
         defaultDataCollectionList: newDefaultDataCollectionList,
       });
-    }
-    catch {
+    } catch {
       const newDefaultDataCollectionList = {
         dashboard: {},
         console: {},
         chat: {},
         [type]: {
           [id]: value,
-        }
-      }
+        },
+      };
       set({
         defaultDataCollectionList: newDefaultDataCollectionList,
       });
       console.log('error');
     }
   },
-  increaseCreateAiDataCollectionTipsCount: () => { 
+  increaseCreateAiDataCollectionTipsCount: () => {
     set((state) => ({ createAiDataCollectionTipsCount: state.createAiDataCollectionTipsCount + 1 }));
-  }
+  },
 });

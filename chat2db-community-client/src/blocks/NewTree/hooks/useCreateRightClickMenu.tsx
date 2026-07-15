@@ -1,6 +1,5 @@
 import i18n from '@/i18n';
 import { Form } from 'antd';
-import React from 'react';
 import { v4 as uuid } from 'uuid';
 
 import { ConsoleOpenedStatus, OperationColumn, TreeNodeType, WorkspaceTabType, databaseTypeList } from '@/constants';
@@ -122,7 +121,7 @@ const aiDataCollectionOperations = new Set<OperationColumn>([
 
 export const useCreateRightClickMenu = () => {
   const [createAccountForm] = Form.useForm<CreateAccountValues>();
-  // Only the method is fetched here, but the data is not fetched, because the data is dynamic and needs to be reacquired every time
+  // Read only store actions here; dynamic data must be fetched again for each operation.
   const {
     setEditingTreeNode,
     createGroup,

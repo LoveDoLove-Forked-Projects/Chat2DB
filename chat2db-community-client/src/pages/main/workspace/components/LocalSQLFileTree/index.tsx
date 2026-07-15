@@ -396,7 +396,7 @@ const LocalSQLFileTree = forwardRef<LocalSQLFileTreeRef, LocalSQLFileTreeProps>(
     window.requestAnimationFrame(() => {
       try {
         selectedRow.scrollIntoView({ block: 'nearest' });
-      } catch (error) {
+      } catch {
         selectedRow.scrollIntoView(false);
       }
     });
@@ -662,7 +662,7 @@ const LocalSQLFileTree = forwardRef<LocalSQLFileTreeRef, LocalSQLFileTreeProps>(
         return undefined;
       }
       return payload;
-    } catch (error) {
+    } catch {
       return undefined;
     }
   }

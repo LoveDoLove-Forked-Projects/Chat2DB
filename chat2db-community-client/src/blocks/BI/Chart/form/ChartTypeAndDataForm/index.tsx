@@ -1,4 +1,4 @@
-import React, { memo, useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { IChartItem } from '@/typings/dashboard';
 import ChartForm from '@/blocks/BI/Chart/form';
 import { barConfig } from '../config/barConfig';

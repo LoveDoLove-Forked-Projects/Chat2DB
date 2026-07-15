@@ -1,6 +1,6 @@
 import { MonacoEditor, MonacoEditorRef } from '@/components/SQLEditor';
 import { Button, Flex } from 'antd';
-import React, { useRef } from 'react';
+import { useRef } from 'react';
 
 const EditorTest = () => {
   const editorRef = useRef<MonacoEditorRef>(null);

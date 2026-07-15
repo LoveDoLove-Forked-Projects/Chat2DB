@@ -1,4 +1,4 @@
-import React, { FC, useMemo } from 'react';
+import { FC, useMemo } from 'react';
 import { useStyles } from './style';
 import { Subscription } from '@/typings/enterprise/user';
 import dayjs from 'dayjs';
@@ -26,7 +26,7 @@ const RecordItem: FC<IProps> = ({ item }) => {
           <Flex align="center" gap={12}>
             <div className={styles.title}>{isPersonal ? '个人套餐' : '团队套餐'}</div>
             {/* TODO:  */}
-            <div></div>
+            <div />
           </Flex>
           <div className={styles.price}>{`${unit}${item.price}`}</div>
         </Flex>

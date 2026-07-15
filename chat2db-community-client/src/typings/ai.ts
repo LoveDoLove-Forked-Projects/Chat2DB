@@ -1,7 +1,7 @@
 import { IDatabaseBaseInfo } from './database';
 import { DatabaseTypeCode } from '@/constants';
 import { PromptTableVO } from './chat';
-import { ChatSourceType, QuestionType } from '@/constants/chat';
+import { ChatSourceType } from '@/constants/chat';
 
 export enum AIType {
   CHAT2DBAI = 'CHAT2DBAI',

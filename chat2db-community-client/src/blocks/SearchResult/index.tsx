@@ -1,4 +1,4 @@
-import React, {
+import {
   memo,
   useCallback,
   useEffect,
@@ -138,7 +138,7 @@ const SearchResult = forwardRef((props: IProps, ref: ForwardedRef<ISearchResultR
       ? [...(resultDataList || []), ...(historyResultDataList || [])]
       : resultDataList || [];
     if (!visibleResultDataList?.length) return [];
-    // also needs to have an independent tab, so that error information can be viewed in the tab and AI repair can be triggered.
+    // Keep errors in their own tabs so users can inspect them and trigger AI repair.
     const newResultDataList = visibleResultDataList?.filter((d) => d.headerList?.length > 1 || !d.success);
 
     const tabsListRes =

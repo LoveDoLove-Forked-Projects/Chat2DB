@@ -1,12 +1,8 @@
-import React, { memo, useState, useMemo, forwardRef, ForwardedRef, useImperativeHandle, useEffect } from 'react';
+import React, { memo, useMemo, forwardRef, ForwardedRef, useImperativeHandle } from 'react';
 import { useStyles } from './style';
 import { useTableStyles } from '@/styles/table';
-import i18n from '@/i18n';
-import { Tooltip, Spin, ConfigProvider } from 'antd';
-import type { GetProp, TableProps } from 'antd';
-import { IconButton, EditText, Empty } from '@chat2db/ui';
-import { copyToClipboard, isEqualMemo } from '@/utils';
-import { Table } from 'antd';
+import { ConfigProvider, Spin, Table, type GetProp, type TableProps } from 'antd';
+import { isEqualMemo } from '@/utils';
 import { useSize } from 'ahooks';
 
 type ColumnsType<
@@ -60,21 +56,12 @@ const NewBaseTable = forwardRef((props: IProps, ref: ForwardedRef<BaseTableRef>)
     className,
     dataSource,
     columns,
-    sizes: entheticSizes,
-    tooltip = false,
-    immutableFirstColumn,
-    draggableColumn = true,
-    editable = false,
-    onChangeCell,
-    selectedRows,
-    onSelectedRowsChange,
     loading,
     highlightRows,
     highlightColumns,
   } = props;
-  const { styles, cx, theme } = useStyles();
+  const { styles, cx } = useStyles();
   const { styles: tableStyles } = useTableStyles();
-  const [sizes, setColumnResize] = useState<number[]>(entheticSizes || []);
   const supportBaseTableBoxRef = React.createRef<HTMLDivElement>();
 
   // Table column configuration.
@@ -87,8 +74,6 @@ const NewBaseTable = forwardRef((props: IProps, ref: ForwardedRef<BaseTableRef>)
         if (columnConfig.transitionValue) {
           _value = columnConfig.transitionValue(value, rowData);
         }
-
-        // const isSelected = selectedRows?.includes(index) || false;
 
         // Determine whether highlighting is needed.
         const isHighlightRows = highlightRows?.includes(rowIndex);
@@ -130,7 +115,7 @@ const NewBaseTable = forwardRef((props: IProps, ref: ForwardedRef<BaseTableRef>)
         render,
       };
     });
-  }, [columns, selectedRows, highlightRows, highlightColumns]);
+  }, [columns, highlightRows, highlightColumns]);
 
   const scrollTo = (index) => {
     supportBaseTableBoxRef.current?.scrollTo({
@@ -225,138 +210,3 @@ export default memo(NewBaseTable, (prevProps, nextProps) => {
     [prevProps.selectedRows, nextProps.selectedRows],
   );
 });
-
-export interface TableCellProps {
-  columnConfig: any;
-  rowData: any;
-  value: any;
-  index: number;
-  tooltip?: boolean;
-  editable?: boolean;
-  onChangeCell?: (index, columnName, value) => void;
-  isSelected?: boolean;
-  setSelectedRows?: (selectedRows: number[]) => void;
-  styles: any;
-  cx: any;
-}
-
-const TableCell = memo<TableCellProps>(
-  ({
-    columnConfig,
-    value,
-    rowData,
-    index,
-    tooltip,
-    editable,
-    onChangeCell,
-    isSelected,
-    setSelectedRows,
-    styles,
-    cx,
-  }) => {
-        // Delay tooltip rendering to avoid virtual-scroll performance issues.
-    const [goodTiming, setGoodTiming] = useState(false);
-
-    // useEffect(() => {
-    //   const timer = setTimeout(() => {
-    //     setGoodTiming(true);
-    //   }, 500);
-
-    //   return () => {
-    //     clearTimeout(timer);
-    //   };
-    // }, []);
-
-    // console.log('goodTiming', goodTiming);
-
-  // Determine whether the cell is controlled in edit/read mode or uncontrolled.
-    const isEditable = () => {
-      if (typeof columnConfig.editable === 'function') {
-        return columnConfig.editable(rowData);
-      }
-
-      if (columnConfig.editable === true) {
-        return undefined;
-      }
-
-      if (columnConfig.editable === false) {
-        return false;
-      }
-
-      if (editable === true) {
-        return undefined;
-      }
-
-      return false;
-    };
-
-    const handelClickCell = () => {
-      setSelectedRows?.([index]);
-    };
-
-    const renderTooltipTitle = (_value) => {
-      return (
-        <div className={styles.tooltipTitle}>
-          {_value}
-          <Tooltip title={i18n('common.button.copy')} mouseEnterDelay={1}>
-            <IconButton
-              onClick={() => {
-                copyToClipboard(_value);
-              }}
-              className={styles.copyButton}
-              code="icon-copy"
-              size="xs"
-            />
-          </Tooltip>
-        </div>
-      );
-    };
-
-    const editing = useMemo(() => {
-      return isEditable();
-    }, [editable, columnConfig]);
-
-    const editText = useMemo(() => {
-      return (
-        <EditText
-          onlyNumber={columnConfig.onlyNumber}
-          editing={editing}
-          className={cx(styles.tableCell, { [styles.isSelectedTableCell]: isSelected })}
-          textClassName={styles.editTextTextClass}
-          inputClassName={styles.editTextInputClass}
-          hoverShowBorder={editing !== false}
-          placeholder={value === null ? '<null>' : undefined}
-          onClick={() => {
-            handelClickCell();
-          }}
-          onBlur={(_value) => {
-            onChangeCell?.(index, columnConfig.name, _value);
-          }}
-        >
-          {value}
-        </EditText>
-      );
-    }, [value, editing, isSelected]);
-
-    if (!goodTiming) {
-      return <div className={styles.plainText}>{value}</div>;
-    }
-
-    // console.log('goodTiming', goodTiming);
-
-    return tooltip ? (
-      <Tooltip placement="topLeft" title={renderTooltipTitle(value)} mouseEnterDelay={0.5}>
-        {editText}
-      </Tooltip>
-    ) : (
-      editText
-    );
-  },
-  (prevProps, nextProps) => {
-    return isEqualMemo(
-      [prevProps.columnConfig, nextProps.columnConfig],
-      [prevProps.value, nextProps.value],
-      [prevProps.isSelected, nextProps.isSelected],
-    );
-  },
-);

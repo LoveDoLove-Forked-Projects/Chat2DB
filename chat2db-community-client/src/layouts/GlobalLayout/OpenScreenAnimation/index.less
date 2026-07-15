@@ -1,9 +1,6 @@
 .openScreenAnimation {
   position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -33,6 +30,7 @@
   0% {
     width: 0;
   }
+
   100% {
     width: 200px;
   }
@@ -42,6 +40,7 @@
   0% {
     display: flex;
   }
+
   100% {
     display: none;
   }

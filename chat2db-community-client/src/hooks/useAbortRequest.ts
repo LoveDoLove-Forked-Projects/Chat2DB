@@ -19,9 +19,8 @@ const useAbortRequest: UseDiscardRequestType = () => {
 
   const abortRequest = useCallback(() => {
     if (isDesktop) {
-      
       if (!desktopController) return;
-      // Remove the id in the command line request list item, so that even if the backend returns parameters, the frontend will not process the result.
+      // Remove the request id so that a later backend response is ignored by the frontend.
       useGlobalStore.getState().removeCommandLineRequestListItem(desktopController.id);
       // Promise requested by the terminal
       desktopController.reject({ message: 'signal is aborted without reason' });
@@ -66,4 +65,4 @@ export default useAbortRequest;
 // Click Cancel Request
 // <div onClick={abortRequest}>Cancel request</div>
 
-// If a page has multiple requests, you can use multiple useAbortRequest so that different requests can be canceled separately.
+// Use multiple hook instances when a page needs to cancel requests independently.

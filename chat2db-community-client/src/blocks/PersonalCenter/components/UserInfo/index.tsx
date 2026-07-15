@@ -1,4 +1,4 @@
-import React, { memo, useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { useStyles } from './style';
 import Avatar from '@/components/Avatar';
 import { IconfontSvg } from '@chat2db/ui';

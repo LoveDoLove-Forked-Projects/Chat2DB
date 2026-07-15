@@ -7,7 +7,7 @@ export interface PanelAction {
   togglePanel: () => void;
 }
 
-export const createPanelAction: StateCreator<AIStore, [['zustand/devtools', never]], [], PanelAction> = (set, get) => ({
+export const createPanelAction: StateCreator<AIStore, [['zustand/devtools', never]], [], PanelAction> = (set, _get) => ({
   setSize: (size) => {
     set({ size });
   },

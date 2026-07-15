@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import PriceIntro from '../PriceIntro';
 import PriceMain from '../PriceMain';
 import { OrganizationType } from '@/typings/enterprise/organization';

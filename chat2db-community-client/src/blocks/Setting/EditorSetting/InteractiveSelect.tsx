@@ -1,11 +1,11 @@
-import React, { useState, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { Select } from 'antd';
 
 const InteractiveSelect = ({ onChange, options, ...props }) => {
   const [open, setOpen] = useState(false);
   const isSelectingRef = useRef(false);
 
-  const handleSelect = (selectedValue, option) => {
+  const handleSelect = (selectedValue) => {
     onChange(selectedValue);
     isSelectingRef.current = true;
     setOpen(true);

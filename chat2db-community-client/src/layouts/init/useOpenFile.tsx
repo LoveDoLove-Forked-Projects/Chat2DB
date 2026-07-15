@@ -15,7 +15,8 @@ const useOpenFile = () => {
     setFilePath(data.data);
   };
 
-  // After consoleList rendering is completed, open the file again, otherwise addWorkspaceTab will be overwritten by consoleList.
+  // Wait for consoleList to render before opening the file;
+  // otherwise consoleList overwrites the workspace tab.
   // Or should we change this to: only data is stored here, and the tab logic is handled externally?
   useEffect(() => {
     if (consoleList && filePath) {

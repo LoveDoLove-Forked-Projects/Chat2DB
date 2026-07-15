@@ -47,7 +47,7 @@ export const handleExcelData = (excelData: IExcelSheetDataVO[]): any | null => {
 
     let headerNumScope: number[] = [];
 
-    if (sheet.tableType === 'horizontal') { 
+    if (sheet.tableType === 'horizontal') {
       headerNumScope = [headerStartRowNum + 1, headerEndRowNum + 1];
     } else {
       headerNumScope = [headerStartColNum + 1, headerEndColNum + 1];

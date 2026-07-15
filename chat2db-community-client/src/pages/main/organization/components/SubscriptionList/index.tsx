@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useStyles } from './style';
 import PageTitle from '@/components/PageTitle';
-import { Input, Table, Tag } from 'antd';
+import { Tag } from 'antd';
 import { useOrgStore } from '@/store/organization';
 import { Subscription } from '@/typings/enterprise/user';
 import dayjs from 'dayjs';
@@ -87,16 +87,6 @@ const SubscriptionList = () => {
     ],
     [],
   );
-
-  useEffect(() => {
-    querySubscriptionList();
-  }, [pagination.searchKey, pagination.current, pagination.pageSize]);
-
-  const querySubscriptionList = async () => {};
-
-  const handleSearch = () => {
-    console.log('search');
-  };
 
   const handleTableChange = (p) => {
     setPagination({

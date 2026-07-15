@@ -1,4 +1,4 @@
-import React, { memo, useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { useStyles } from './style';
 import ChartCardBox from '@/blocks/BI/ChartCardBox';
 import { AnswerPartsStatus } from '@/constants/chat';

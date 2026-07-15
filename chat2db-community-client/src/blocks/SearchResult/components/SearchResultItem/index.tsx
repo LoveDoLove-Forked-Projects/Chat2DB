@@ -1,4 +1,4 @@
-import React, { memo, Fragment } from 'react';
+import { memo, Fragment } from 'react';
 import { Button } from 'antd';
 import Iconfont from '@/components/Iconfont';
 import StatusBar from '../StatusBar';
@@ -78,5 +78,6 @@ export default memo<IProps>(
       <Fragment key={resultData.uuid}>{resultData.success ? renderSuccessResult() : renderErrorResult()}</Fragment>
     );
   },
-  (prevProps, nextProps) => prevProps.resultData === nextProps.resultData && prevProps.viewTable === nextProps.viewTable,
+  (prevProps, nextProps) =>
+    prevProps.resultData === nextProps.resultData && prevProps.viewTable === nextProps.viewTable,
 );

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { ITableInstance } from '@/blocks/CanvasTable/typings';
 import ContextMenu, { ContextMenuRef } from '@/components/ContextMenu';
 import { useStyles } from '../style';

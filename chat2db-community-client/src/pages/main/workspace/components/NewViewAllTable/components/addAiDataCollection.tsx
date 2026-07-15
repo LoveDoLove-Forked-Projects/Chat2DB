@@ -1,5 +1,5 @@
 // Pin the table to the top.
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button, Select, Space } from 'antd';
 import i18n from '@/i18n';
 import { openModal } from '@/store/common/components';

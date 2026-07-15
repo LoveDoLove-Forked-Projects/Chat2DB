@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useOrgStore } from '@/store/organization';
 import { IOrganizationVO, OrganizationType } from '@/typings/enterprise/organization';
-import { Dropdown, Flex, Tag } from 'antd';
+import { Dropdown, Flex } from 'antd';
 import Avatar from '@/components/Avatar';
 import { useStyles } from './style';
 
@@ -33,7 +33,7 @@ const OrgSelect = () => {
     );
   };
 
-  const renderDropdown = (menu: React.ReactNode) => {
+  const renderDropdown = () => {
     return (
       <div className={styles.dropdownWrapper}>
         <div className={styles.dropdownTitle}>请选择团队</div>

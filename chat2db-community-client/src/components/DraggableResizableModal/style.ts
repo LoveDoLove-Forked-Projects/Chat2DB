@@ -12,7 +12,14 @@ export const useStyles = createStyles(({ css, token }) => {
       .modal-container{
         position: relative;
       }
-      .react-resizable-handle-e,.react-resizable-handle-s,.react-resizable-handle-se,.react-resizable-handle-sw,.react-resizable-handle-nw,.react-resizable-handle-ne,.react-resizable-handle-n,.react-resizable-handle-w {
+      .react-resizable-handle-e,
+      .react-resizable-handle-s,
+      .react-resizable-handle-se,
+      .react-resizable-handle-sw,
+      .react-resizable-handle-nw,
+      .react-resizable-handle-ne,
+      .react-resizable-handle-n,
+      .react-resizable-handle-w {
         position: absolute;
         transform: none;
         padding: 0px;

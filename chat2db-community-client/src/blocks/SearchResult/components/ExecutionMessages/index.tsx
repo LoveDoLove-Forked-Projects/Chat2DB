@@ -1,4 +1,4 @@
-import React, { memo, useEffect, useRef } from 'react';
+import { memo, useEffect, useRef } from 'react';
 import { Empty, Tag } from 'antd';
 import i18n from '@/i18n';
 import { useStyles } from './style';

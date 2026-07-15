@@ -18,7 +18,7 @@ const appendIconfontScript = (id: string, src: string) => {
 };
 
 export const initializeDevEnvironmentIcon = () => {
-  // The decolorized iconfont needs to be available offline in the desktop package and cannot only rely on the development environment CDN.
+  // The monochrome icon font must remain available offline in the desktop package.
   appendIconfontScript(MONOCHROME_ICONFONT_SCRIPT_ID, MONOCHROME_ICONFONT_SCRIPT);
 
   if (isDevelopment) {

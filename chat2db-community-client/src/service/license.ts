@@ -78,7 +78,9 @@ const licenseService =
           method: 'post',
         });
 
-        const listCertificate = createRequest<{ licenseId: string }, ILicenseDeviceCerVO[]>(`${prefix}/list_certificate`);
+        const listCertificate = createRequest<{ licenseId: string }, ILicenseDeviceCerVO[]>(
+          `${prefix}/list_certificate`,
+        );
 
         const deactivateOnline = createRequest<{ deviceId: string }, void>(`${prefix}/deactivate_online`, {
           method: 'post',

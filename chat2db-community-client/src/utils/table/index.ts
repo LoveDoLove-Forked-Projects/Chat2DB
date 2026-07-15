@@ -1,4 +1,4 @@
-// Accepts a string and returns the width of the page that this string needs to occupy. If it is greater than 200, it will return 200. If it is less than 60, it will return 60. You need to use the actual rendering width.
+// Measure the rendered text and clamp its width between 60 and 200 pixels.
 export function getTextWidth(text, moreSpace) {
   if (!text) return 60;
   // Create an off-screen div to measure text width
@@ -25,7 +25,7 @@ const getCellDisplayValue = (cell) => {
   return cell;
 };
 
-// Accepts a headerList and DataList, and determines the required width based on the name field in the headerList and the value in the dataList.
+// Determine column widths from header names and result data.
 export function getTableWidth(queryResultData) {
   const tableWidth: any = [];
   queryResultData?.headerList?.map((item) => {

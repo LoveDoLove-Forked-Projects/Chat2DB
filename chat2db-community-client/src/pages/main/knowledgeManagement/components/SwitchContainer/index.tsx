@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import { memo } from 'react';
 import { useStyles } from './style';
 import Terminology from '../Terminology';
 import { NavType } from '../NavList';

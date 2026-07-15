@@ -1,4 +1,4 @@
-import React, { memo, useEffect, useMemo } from 'react';
+import { memo, useEffect, useMemo } from 'react';
 import { Splitter } from 'antd';
 import { useStyles } from './style';
 import DashboardContent from './DashboardContent';

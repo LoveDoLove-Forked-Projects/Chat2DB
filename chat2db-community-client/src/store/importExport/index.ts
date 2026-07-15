@@ -1,4 +1,4 @@
-import { PersistOptions, devtools, persist } from 'zustand/middleware';
+import { devtools } from 'zustand/middleware';
 import { shallow } from 'zustand/shallow';
 import { createWithEqualityFn } from 'zustand/traditional';
 import { StateCreator } from 'zustand/vanilla';
@@ -105,15 +105,6 @@ const createStore: StateCreator<ImportExportStore, [['zustand/devtools', never]]
   ...initialState,
   ...createImportExportAction(...parameters),
 });
-
-// type GlobalPersist = Pick<ImportExportStore, ''>;
-
-// // local-storage Options
-const persistOptions: PersistOptions<ImportExportStore> = {
-  name: 'Chat2DB_ImportExport_Store',
-  // partialize: (state) => ({
-  // }),
-};
 
 export const useImportExportStore = createWithEqualityFn<ImportExportStore>()(
   devtools(createStore, {

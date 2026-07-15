@@ -85,7 +85,8 @@ const IndexList = forwardRef((props: IProps, ref: ForwardedRef<IIndexListRef>) =
     databaseBaseInfo: { databaseType },
   } = useContext(Context);
   const [dataSource, setDataSource] = useState<IIndexItem[]>([createInitialData()]);
-  const [oldDataSource, setOldDataSource] = useState<IIndexItem[]>([]); // is used to record the last data and compare whether there are any changes.
+  // Retain the previous data so changes can be detected.
+  const [oldDataSource, setOldDataSource] = useState<IIndexItem[]>([]);
   const [form] = Form.useForm();
   const [editingData, setEditingData] = useState<IIndexItem | null>(null);
   const [includeColModalOpen, setIncludeColModalOpen] = useState(false);

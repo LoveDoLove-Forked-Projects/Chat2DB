@@ -17,8 +17,7 @@ export interface HeaderDropdownRef {
   setHeaderInfo: (info: HeaderDropdownInfo) => void;
 }
 
-const HeaderDropdown = (props: IProps, ref) => {
-  const {} = props;
+const HeaderDropdown = (_props: IProps, ref) => {
   const [headerInfo, setHeaderInfo] = useState<HeaderDropdownInfo>(null);
   const headerInfoRef = useRef<HeaderDropdownInfo>(null);
 

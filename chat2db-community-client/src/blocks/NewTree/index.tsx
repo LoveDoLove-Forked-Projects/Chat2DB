@@ -195,7 +195,8 @@ const NewTree = (props: IProps, ref: React.ForwardedRef<NewTreeRef>) => {
       lastTreeSize.current = treeSize;
     }
 
-    // In order to solve the problem that when the page is cut away, the height of the div is 0. When the page is cut back, the tree needs to be recalculated and the rendering will be particularly performance consuming.
+    // Preserve the last non-zero height while the page is hidden.
+    // This avoids an expensive tree recalculation when the page becomes visible again.
     // Actual tree height
     const treeHeight = treeSize?.height || lastTreeSize.current?.height;
 
@@ -207,7 +208,8 @@ const NewTree = (props: IProps, ref: React.ForwardedRef<NewTreeRef>) => {
       height: treeHeight,
       selectedKeys,
       expandedKeys,
-      // Here antd@5.21.5 supports switcherLoadingIcon and switcherIcon customization. You can consider using it in the future. You need to pay attention to the changes in arrow expansion and collapse.
+      // Ant Design 5.21.5 supports custom loading and switcher icons.
+      // Any future implementation must preserve the current expand/collapse behavior.
       // switcherLoadingIcon: <LoadingGracile />,
       // switcherIcon: ({ isLeaf, expanded }) => {
       //   if (isLeaf) {

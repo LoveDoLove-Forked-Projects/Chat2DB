@@ -1,5 +1,4 @@
-import React, { memo } from 'react';
-import { useStyles } from './style';
+import { memo } from 'react';
 import { Logo, type LogoProps } from '@chat2db/ui';
 import { APP_CONFIG } from '@/constants/appConfig';
 

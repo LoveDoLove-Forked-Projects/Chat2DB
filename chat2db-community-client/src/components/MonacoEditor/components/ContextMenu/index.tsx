@@ -1,5 +1,5 @@
 // import * as ContextMenu from '@radix-ui/react-dropdown-menu';
-import React, { CSSProperties, ReactNode } from 'react';
+import { CSSProperties, ReactNode } from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useStyles } from './style';
 import { QuestionType } from '@/constants/chat';

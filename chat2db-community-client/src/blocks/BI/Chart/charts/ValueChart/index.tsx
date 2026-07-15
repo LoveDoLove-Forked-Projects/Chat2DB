@@ -1,4 +1,4 @@
-import React, { memo, useRef, useEffect, useMemo, useCallback } from 'react';
+import React, { memo, useRef, useMemo, useCallback } from 'react';
 import { useStyles } from './style';
 import { INormalizedData, ChartSchema } from '@/blocks/BI/Chart/typings';
 import { pieDataTreating } from './dataTreating';

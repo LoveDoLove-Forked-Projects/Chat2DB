@@ -1,4 +1,3 @@
-import React from 'react';
 import { useStyles } from './style';
 import AIHeader from '../AIChatHeader';
 import AIChatList from '../AIChatList';

@@ -3,7 +3,10 @@ export function parseClipboardTextToSqlInTokens(text: string): string[] {
     return [];
   }
 
-  const normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
+  const normalized = text
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .trim();
   if (!normalized) {
     return [];
   }

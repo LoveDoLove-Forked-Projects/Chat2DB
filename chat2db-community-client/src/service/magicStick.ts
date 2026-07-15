@@ -1,9 +1,13 @@
-import { GetChatTokenResponse } from '@/typings/ai';
-import { TextToSQLParams, TextToCreateTableParams, TextToAlterTableParams } from '@/typings/ai';
+import {
+  GetChatTokenResponse,
+  TextToAlterTableParams,
+  TextToCreateTableParams,
+  TextToSQLParams,
+} from '@/typings/ai';
 import createRequest from './base';
 import { ChatSourceType } from '@/constants/chat';
 import { DatabaseTypeCode } from '@/constants';
-import { IEditTableInfo, IColumnItemNew } from '@/typings';
+import { IEditTableInfo } from '@/typings';
 
 const prefix = '/api/ai/slash_magic';
 
@@ -32,10 +36,13 @@ const optimizeSQL = createRequest<TextToSQLParams, GetChatTokenResponse>(`${pref
 });
 
 /** SQL conversion */
-const convertSQL = createRequest<TextToSQLParams & { targetSqlType: string }, GetChatTokenResponse>(`${prefix}/sql_convert`, {
-  method: 'post',
-  errorLevel: false,
-});
+const convertSQL = createRequest<TextToSQLParams & { targetSqlType: string }, GetChatTokenResponse>(
+  `${prefix}/sql_convert`,
+  {
+    method: 'post',
+    errorLevel: false,
+  },
+);
 
 /** CRUD generation */
 const generateCRUD = createRequest<TextToSQLParams, GetChatTokenResponse>(`${prefix}/crud_generate`, {
@@ -92,9 +99,12 @@ const textToCreateTable = createRequest<
   IEditTableInfo
 >(`${prefix}/text_to_create_table_stream`, { method: 'post' });
 
-const textToCreateColumn = createRequest<TextToCreateTableParams, GetChatTokenResponse>(`${prefix}/text_to_create_column`, {
-  method: 'post',
-});
+const textToCreateColumn = createRequest<TextToCreateTableParams, GetChatTokenResponse>(
+  `${prefix}/text_to_create_column`,
+  {
+    method: 'post',
+  },
+);
 
 const textToAlterTable = createRequest<TextToAlterTableParams, GetChatTokenResponse>(`${prefix}/text_to_alter_column`, {
   method: 'post',
@@ -105,7 +115,6 @@ const streamQA = createRequest<TextToSQLParams, GetChatTokenResponse>(`/stream_q
   method: 'post',
   errorLevel: false,
 });
-
 
 // Two non-streaming interfaces
 /** Generate Excel questions and answers */
@@ -128,13 +137,10 @@ const text2Chart = createRequest<TextToSQLParams, GetChatTokenResponse & { chart
 );
 
 // Get similar questions
-const getRecommendList = createRequest<TextToSQLParams, any>(
-  `/api/ai/slash_magic/recommend/list`,
-  {
-    method: 'post',
-    errorLevel: false,
-  },
-);
+const getRecommendList = createRequest<TextToSQLParams, any>(`/api/ai/slash_magic/recommend/list`, {
+  method: 'post',
+  errorLevel: false,
+});
 
 export default {
   text2SQL,
@@ -152,5 +158,5 @@ export default {
   text2Chart,
   excelChat,
   streamQA,
-  getRecommendList
+  getRecommendList,
 };

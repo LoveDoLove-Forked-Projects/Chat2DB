@@ -1,4 +1,4 @@
-import React, { FC, useMemo } from 'react';
+import { FC, useMemo } from 'react';
 import AIChatHeader, { AIChatHeaderProps } from '.';
 import { IconButton } from '@chat2db/ui';
 import { Share2 } from 'lucide-react';

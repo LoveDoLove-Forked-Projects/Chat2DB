@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AIChatInput, { ChatInputPropsRef, SendParams } from '@/blocks/AI/components/AIChatInput';
 import { useWorkspaceStore } from '@/store/workspace';
 import { ChatSourceType, QuestionType } from '@/constants/chat';

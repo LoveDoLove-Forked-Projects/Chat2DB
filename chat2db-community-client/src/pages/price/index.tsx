@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { PricePage } from '@/components/Price';
 import { useGlobalStore } from '@/store/global';
 import { getAllUrlParams } from '@/utils/url';

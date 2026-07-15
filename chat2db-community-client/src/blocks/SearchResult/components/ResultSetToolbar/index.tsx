@@ -1,4 +1,4 @@
-import React, { memo, useState, ForwardedRef, forwardRef, useImperativeHandle, useRef, useMemo } from 'react';
+import { memo, useState, ForwardedRef, forwardRef, useImperativeHandle, useRef, useMemo } from 'react';
 import Pagination from '@/components/Pagination';
 import i18n from '@/i18n';
 import { IconButton } from '@chat2db/ui';
@@ -56,7 +56,7 @@ const ResultSetToolbar = forwardRef((props: IProps, ref: ForwardedRef<ResultSetT
   const showCreateChart = useMemo(() => !zoerBoundInfo, [zoerBoundInfo]);
 
   useUpdateEffect(() => {
-    // // If it cannot be converted into a number, it means that the total number of pages is xxx+, then take the latest fuzzyTotal
+    // Use the latest fuzzy total when the displayed total is not numeric (for example, "1000+").
     let total = paginationConfig.total;
     const numericTotal = _.toNumber(total);
     if (_.isNaN(numericTotal)) {

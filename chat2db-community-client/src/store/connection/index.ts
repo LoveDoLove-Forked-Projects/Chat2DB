@@ -75,10 +75,9 @@ export const getConnectionEnvList = () => {
   connectionService.getEnvList().then((res) => {
     setConnectionEnvList(res);
   });
-}
+};
 
 // clear connection store
 export const clearConnectionStore = () => {
   useConnectionStore.setState(initConnectionStore);
 };
-

@@ -6,14 +6,14 @@ import { ActionType, NotificationVO } from '@/typings/notification';
  * Query the number of unread notifications
  */
 const queryUnreadCount = createRequest<void, number>('/api/notification/unread/count', {
-  errorLevel: false
+  errorLevel: false,
 });
 
 /**
  * Query notification list
  */
 const queryNotificationList = createRequest<IPageParams, IPageResponse<NotificationVO>>('/api/notification/list', {
-  errorLevel: false
+  errorLevel: false,
 });
 
 /**
@@ -28,15 +28,15 @@ const takeNotificationAction = createRequest<
   void
 >('/api/notification/take/action', {
   method: 'post',
-  errorLevel: false
+  errorLevel: false,
 });
 
 const queryPopNotification = createRequest<void, NotificationVO>('/api/notification/pop', {
-  errorLevel: false
+  errorLevel: false,
 });
 
 const getNotification = createRequest<{ type: string }, NotificationVO>('/api/notification/get', {
-  errorLevel: false
+  errorLevel: false,
 });
 
 export default {
@@ -44,5 +44,5 @@ export default {
   queryNotificationList,
   takeNotificationAction,
   queryPopNotification,
-  getNotification
+  getNotification,
 };

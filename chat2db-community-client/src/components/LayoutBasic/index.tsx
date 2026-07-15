@@ -1,14 +1,16 @@
-import React from 'react';
-import style from './index.less'
+import classNames from 'classnames';
+import style from './index.less';
 
-interface IProps{
+interface IProps {
   className: string;
 }
 
-function LayoutBasic(props: IProps) {
-  return <div className={style.layoutBasic}>
-    <div></div>
-  </div>;
+function LayoutBasic({ className }: IProps) {
+  return (
+    <div className={classNames(style.layoutBasic, className)}>
+      <div />
+    </div>
+  );
 }
 
 export default LayoutBasic;

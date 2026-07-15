@@ -10,7 +10,7 @@ interface IProps extends TooltipPropsWithTitle {
 }
 
 function MyTooltip(props: IProps) {
-  const { title, color, children, className } = props;
+  const { title, children, className } = props;
   return title ? (
     <Tooltip
       {...props}

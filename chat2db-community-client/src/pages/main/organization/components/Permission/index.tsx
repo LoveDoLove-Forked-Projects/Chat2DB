@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { FileProtectOutlined, DatabaseOutlined } from '@ant-design/icons';
 import { Flex, Tabs } from 'antd';
 import Authorization from './authorization';

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { EditorType, SQLOptType } from '../../type';
 import { useStyles } from './style';
 import { isRoutineOperationSupportedDatabaseType, WorkspaceTabType } from '@/constants';

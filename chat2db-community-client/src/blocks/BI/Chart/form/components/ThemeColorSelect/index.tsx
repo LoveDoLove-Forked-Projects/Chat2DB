@@ -3,7 +3,7 @@
  * ThemeColorSelect
  * report theme color selector
  */
-import React, { memo } from 'react';
+import { memo } from 'react';
 import { useStyles } from './style';
 import { Select, type SelectProps } from 'antd';
 import { CHART_COLORS, CHART_COLORS_MAP } from '@/blocks/BI/Chart/constants';

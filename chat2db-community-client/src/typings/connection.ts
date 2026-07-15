@@ -47,7 +47,7 @@ export interface IConnectionListItem {
   alias: string;
   environment: IConnectionEnv;
   type: DatabaseTypeCode;
-  supportDatabase: boolean; 
+  supportDatabase: boolean;
   supportSchema: boolean;
 }
 

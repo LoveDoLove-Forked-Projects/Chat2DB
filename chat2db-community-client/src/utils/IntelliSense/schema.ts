@@ -1,5 +1,4 @@
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
-import i18n from '@/i18n';
 import { SORT_TEXT } from '@/components/MonacoEditor/providers/completionProvider';
 
 export const resetSenseSchema = () => {
@@ -16,7 +15,7 @@ const registerIntelliSenseSchema = (schemaList: Array<{ name: string }>) => {
   resetSenseSchema();
   intelliSenseSchema = monaco.languages.registerCompletionItemProvider('sql', {
     // triggerCharacters: [' ', '.'],
-    provideCompletionItems: (model, position) => {
+    provideCompletionItems: (_model, _position) => {
       return {
         suggestions: (schemaList || []).map(({ name }) => ({
           label: {

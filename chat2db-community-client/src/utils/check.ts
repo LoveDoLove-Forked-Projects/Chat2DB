@@ -9,7 +9,7 @@ const isType =
 export const getType = (obj: any) => toString.call(obj);
 export const isArr = Array.isArray;
 export const isValid = (val: any) => val !== null && val !== undefined;
-export const isFn = (val: any): val is Function => typeof val === 'function';
+export const isFn = (val: any): val is (...args: any[]) => unknown => typeof val === 'function';
 export const isPlainObj = isType<object>('Object');
 export const isStr = isType<string>('String');
 export const isBool = isType<boolean>('Boolean');

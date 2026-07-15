@@ -1,5 +1,4 @@
 import { INormalizedData, ChartSchema } from '@/blocks/BI/Chart/typings';
-import _ from 'lodash';
 
 export interface DataTreatingProps {
   data?: INormalizedData;

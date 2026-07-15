@@ -1,4 +1,4 @@
-import React, { FC, useMemo, useState } from 'react';
+import { FC, useMemo, useState } from 'react';
 import { CopyButton, Input, Modal, ModalProps, Select } from '@chat2db/ui';
 import { ChatVO } from '@/typings/chat';
 import { Button, Form, Spin } from 'antd';

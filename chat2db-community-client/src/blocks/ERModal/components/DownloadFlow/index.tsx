@@ -1,4 +1,3 @@
-import React from 'react';
 import { useReactFlow, getNodesBounds, getViewportForBounds } from '@xyflow/react';
 import { toPng } from 'html-to-image';
 import { IconfontSvg } from '@chat2db/ui';

@@ -17,12 +17,12 @@ export interface IExecuteSqlParams extends IDatabaseBaseInfo {
   pageSize?: number;
 }
 
-export interface IUpdateDataSql { 
+export interface IUpdateDataSql {
   dataSourceId: number;
   databaseName?: string;
   schemaName?: string;
   tableName: string;
-  headerList: any,
+  headerList: any;
   operations: {
     type: CRUD;
     dataList: (string | null)[];
@@ -46,7 +46,7 @@ export interface ICopyInValuesSqlParams extends IDatabaseBaseInfo {
 const executeSql = createRequest<IExecuteSqlParams, IManageResultData[]>('/api/rdb/dml/execute', {
   method: 'post',
   errorLevel: false,
-  timeout: false
+  timeout: false,
 });
 
 /** Get the sql to modify the table */
@@ -67,7 +67,9 @@ const getUpdateDataSql = createRequest<any, string>('/api/rdb/dml/get_update_sql
 const getCopyUpdateDataSql = createRequest<any, string>('/api/rdb/dml/copy_update_sql', { method: 'post' });
 
 /** Get the list of SQL IN values */
-const getCopyInValuesSql = createRequest<ICopyInValuesSqlParams, string>('/api/rdb/dml/copy_in_values_sql', { method: 'post' });
+const getCopyInValuesSql = createRequest<ICopyInValuesSqlParams, string>('/api/rdb/dml/copy_in_values_sql', {
+  method: 'post',
+});
 
 /** Execute sql that modifies table data */
 const executeUpdateDataSql = createRequest<IExecuteSqlParams, { success: boolean; message: string; sql: string }>(
@@ -75,7 +77,10 @@ const executeUpdateDataSql = createRequest<IExecuteSqlParams, { success: boolean
   { method: 'post', errorLevel: false },
 );
 
-const viewTable = createRequest<IExecuteSqlParams, IManageResultData[]>('/api/rdb/dml/execute_table', { method: 'post', errorLevel: false });
+const viewTable = createRequest<IExecuteSqlParams, IManageResultData[]>('/api/rdb/dml/execute_table', {
+  method: 'post',
+  errorLevel: false,
+});
 
 export default {
   executeSql,

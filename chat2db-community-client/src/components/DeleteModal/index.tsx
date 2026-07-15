@@ -1,5 +1,4 @@
-import React, { memo, useEffect } from 'react';
-import { useStyles } from './style';
+import { memo, useEffect } from 'react';
 import { Modal } from 'antd';
 import { useGlobalStore } from '@/store/global';
 
@@ -7,9 +6,7 @@ interface IProps {
   className?: string;
 }
 
-export default memo<IProps>((props) => {
-  const { className } = props;
-  const { styles, cx } = useStyles();
+export default memo<IProps>(() => {
   const [modal, contextHolder] = Modal.useModal();
   const setDeleteModal = useGlobalStore((s) => s.setDeleteModal);
 

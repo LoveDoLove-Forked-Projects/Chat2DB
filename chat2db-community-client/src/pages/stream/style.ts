@@ -1,6 +1,6 @@
 import { createStyles } from 'antd-style';
 
-export const useStyles = createStyles(({ css, token }) => ({
+export const useStyles = createStyles(({ css }) => ({
   fullContainer: css`
     width: 100%;
     height: 100%;

@@ -20,7 +20,7 @@ export default memo<IProps>((props) => {
   const { styles, cx } = useStyles();
   const [inputValue, setInputValue] = useState('');
   const [isAdding, setIsAdding] = useState(false);
-  const [enumList, setEnumList] = useState<EnumItem[]>([]);
+  const [enumList] = useState<EnumItem[]>([]);
 
   const handleAdd = () => {
     setIsAdding(true);

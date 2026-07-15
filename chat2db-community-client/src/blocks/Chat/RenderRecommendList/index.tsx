@@ -1,4 +1,4 @@
-import React, { memo, useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { useStyles } from './style';
 import Lottie from 'lottie-react';
 import loading_test_1 from '@/assets/lottieFiles/loading_test_1.json';

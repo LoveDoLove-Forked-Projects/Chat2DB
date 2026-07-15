@@ -1,6 +1,6 @@
-import { Modal, Input, TextArea, ModalProps, IconfontSvg, staticMessage, Empty, EmptyImage } from '@chat2db/ui';
+import { Modal, Input, TextArea, ModalProps, IconfontSvg, Empty, EmptyImage } from '@chat2db/ui';
 import { Button, Flex, Form, Select } from 'antd';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStyles } from './style';
 import domesticCity from '@/data/domestic_city.json';
 import abroadCity from '@/data/abroad_city.json';
@@ -56,8 +56,7 @@ const CreateOrJoinOrgDialog = ({ open }: CreateOrJoinOrgDialogProps) => {
   const [form] = Form.useForm();
   const { styles, cx } = useStyles();
 
-  const { curOrg, setCurOrg, createNewOrg, setOpenCreateOrJoinOrgDialog } = useOrgStore((s) => ({
-    curOrg: s.curOrg,
+  const { setCurOrg, createNewOrg, setOpenCreateOrJoinOrgDialog } = useOrgStore((s) => ({
     setCurOrg: s.setCurOrg,
     createNewOrg: s.createNewOrg,
     setOpenCreateOrJoinOrgDialog: s.setOpenCreateOrJoinOrgDialog,
@@ -334,7 +333,7 @@ const CreateOrJoinOrgDialog = ({ open }: CreateOrJoinOrgDialogProps) => {
                   const res = await organizationService.queryOrgByTeamCode({ teamCode });
                   setApplyOrg(res);
                   isValidateCode.current = res ? ValidateStatus.success : ValidateStatus.error;
-                } catch (error) {
+                } catch {
                   isValidateCode.current = ValidateStatus.error;
                 }
 

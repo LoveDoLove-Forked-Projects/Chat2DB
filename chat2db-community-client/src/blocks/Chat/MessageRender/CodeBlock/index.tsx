@@ -1,4 +1,4 @@
-import React, { FC, useState, useCallback, memo } from 'react';
+import { FC, useState, useCallback, memo } from 'react';
 import { CodeHighlighter, CopyButton, IconButton, IconfontSvg } from '@chat2db/ui';
 import { useStyles } from './style';
 import i18n from '@/i18n';
@@ -41,7 +41,7 @@ const CodeBlock: FC<CodeBlockProps> = memo((props) => {
   const { styles } = useStyles();
   const [resultDataList, setResultDataList] = useState<IManageResultData[] | null>();
   const { executeSQL } = useSqlExecutor();
-  const [isResultVisible, setIsResultVisible] = useState(true);
+  const isResultVisible = true;
   const [openConfirm, setOpenConfirm] = useState(false);
 
   const handleExecuteSQL = useCallback(async () => {
@@ -75,7 +75,7 @@ const CodeBlock: FC<CodeBlockProps> = memo((props) => {
       });
       // Mock API call - you can replace this with real API call later
       return !res;
-    } catch (error) {
+    } catch {
       return true;
     }
   };

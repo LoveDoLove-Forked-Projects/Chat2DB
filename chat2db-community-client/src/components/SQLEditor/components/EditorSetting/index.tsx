@@ -1,4 +1,4 @@
-import React, { FC } from 'react';
+import { FC } from 'react';
 import { Flex, Select, InputNumber } from 'antd';
 import { editorThemes } from '../../config';
 import { useGlobalStore } from '@/store/global';

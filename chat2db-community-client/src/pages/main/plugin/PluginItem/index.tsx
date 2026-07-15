@@ -1,4 +1,3 @@
-import React from 'react';
 import { useStyles } from './style';
 import { Flex, TabsProps, Tabs } from 'antd';
 import { IconfontSvg, Markdown } from '@chat2db/ui';
@@ -46,7 +45,7 @@ const PluginItem = ({ plugin }: PluginItemProps) => {
             </div>
           </Flex>
         </Flex>
-        <div className={styles.button}></div>
+        <div className={styles.button} />
       </div>
 
       <div className={styles.content}>

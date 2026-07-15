@@ -1,7 +1,7 @@
 import { createStyles } from 'antd-style';
 import backgroundImg from '@/assets/img/bg.webp';
 
-export const useStyles = createStyles(({ css, token }) => {
+export const useStyles = createStyles(({ css }) => {
   return {
     page: css`
       height: 100%;

@@ -1,5 +1,5 @@
 // Pinned form
-import React, { useState } from 'react';
+import { useState } from 'react';
 import mysqlService from '@/service/sql';
 import { Button, Checkbox } from 'antd';
 import { openModal } from '@/store/common/components';

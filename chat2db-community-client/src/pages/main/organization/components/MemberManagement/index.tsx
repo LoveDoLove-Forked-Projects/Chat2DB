@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import orgService from '@/service/enterprise/organization';
 import { PlusOutlined, CopyOutlined, LinkOutlined } from '@ant-design/icons';
 import { IOrganizationUserVO, OrgUserRoleCode, OrganizationStatusType } from '@/typings/enterprise/organization';
-import { Button, Flex, Input, Modal, Popconfirm, Table, Tag } from 'antd';
+import { Button, Flex, Input, Modal, Popconfirm, Tag } from 'antd';
 import dayjs from 'dayjs';
 import { copyToClipboard } from '@/utils';
 import { useUserStore } from '@/store/user';
@@ -27,11 +27,10 @@ function UserList() {
     curOrg: state.curOrg,
   }));
 
-  const { curUser, setPricingModalStatus, setSubscriptType, subscriptionList } = useUserStore((state) => ({
+  const { curUser, setPricingModalStatus, setSubscriptType } = useUserStore((state) => ({
     curUser: state.curUser,
     setPricingModalStatus: state.setPricingModalStatus,
     setSubscriptType: state.setSubscriptType,
-    subscriptionList: state.subscriptionList,
   }));
   const { styles } = useStyles();
 
@@ -184,6 +183,8 @@ function UserList() {
               case OrgUserRoleCode.OPERATOR:
                 color = 'green';
                 roleName = i18n('team.member.role.member');
+                break;
+              default:
                 break;
             }
             return <Tag color={color}>{roleName}</Tag>;

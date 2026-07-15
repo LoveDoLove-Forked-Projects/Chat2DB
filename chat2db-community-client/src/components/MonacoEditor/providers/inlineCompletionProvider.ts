@@ -91,7 +91,7 @@ export class InlineCompletionsProvider implements monaco.languages.InlineComplet
     };
   }
 
-  freeInlineCompletions(completions: monaco.languages.InlineCompletions<monaco.languages.InlineCompletion>) {
+  freeInlineCompletions(_completions: monaco.languages.InlineCompletions<monaco.languages.InlineCompletion>) {
     // Release resources.
   }
 

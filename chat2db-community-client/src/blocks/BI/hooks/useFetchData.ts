@@ -57,11 +57,11 @@ export const useFetchData = (props: UseRequestDataProps): UseRequestDataReturn =
 
   // Start scheduled tasks
   const enablingScheduledTask = (params: RefreshRule) => { 
-    const { refreshType, refreshCycle } = params;
-    if (refreshType === AUTO_REFRESH.MINUTES && refreshCycle) {
+    const { refreshType: taskRefreshType, refreshCycle: taskRefreshCycle } = params;
+    if (taskRefreshType === AUTO_REFRESH.MINUTES && taskRefreshCycle) {
       const rule = new schedule.RecurrenceRule();
       // analysis refresh period is minutes
-      const cycleInMinutes = parseInt(refreshCycle, 10);
+      const cycleInMinutes = parseInt(taskRefreshCycle, 10);
       rule.minute = new schedule.Range(0, 59, cycleInMinutes);
 
       const job = schedule.scheduleJob(rule, () => {

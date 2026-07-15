@@ -34,9 +34,9 @@ function generateWordCloudData(originalData, size) {
     }
 
     // uses dynamic multiples to supplement data
-    scaleFactors.forEach((factor) => {
+    scaleFactors.forEach((scaleFactor) => {
       originalData.forEach((item) => {
-        scaledData.push({ name: item.name, value: item.value / factor, originalValue: item.value });
+        scaledData.push({ name: item.name, value: item.value / scaleFactor, originalValue: item.value });
       });
     });
   }

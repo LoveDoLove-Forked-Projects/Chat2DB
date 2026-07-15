@@ -1,4 +1,4 @@
-import React, { memo, useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { useStyles } from './style';
 import EditableCell from './components/InputEditableCell';
 import AntdTable from '@/components/AntdTable';

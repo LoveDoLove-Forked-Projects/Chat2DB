@@ -1,5 +1,4 @@
-import React, { memo } from 'react';
-import { useStyles } from './style';
+import { memo } from 'react';
 import { Avatar } from 'antd';
 import { useUserStore } from '@/store/user';
 
@@ -10,7 +9,6 @@ interface IProps {
 
 export default memo<IProps>((props) => {
   const { className, size = 40 } = props;
-  const { styles, cx } = useStyles();
   const { avatar, firstNameChar } = useUserStore((s) => {
     return {
       avatar: s.curUser?.avatar,
@@ -18,7 +16,7 @@ export default memo<IProps>((props) => {
     };
   });
   return (
-    <Avatar size={size} src={avatar}>
+    <Avatar className={className} size={size} src={avatar}>
       {!avatar && firstNameChar}
     </Avatar>
   );

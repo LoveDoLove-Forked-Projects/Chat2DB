@@ -1,4 +1,4 @@
-import React, { FC, ReactNode, useEffect, useState } from 'react';
+import { FC, useEffect } from 'react';
 import { CollectionSourceDataType, IDataSourceCollection } from '@/typings/dataMarket';
 import { Modal, Input, staticMessage } from '@chat2db/ui';
 import { Form } from 'antd';
@@ -38,7 +38,7 @@ const DataMarketModal: FC<DataMarketModalProps> = ({ openModal, dataItem, setOpe
       title,
       elements,
       collectionSource: CollectionSourceDataType.DATA_SOURCE,
-    }).then((res) => {
+    }).then(() => {
       staticMessage.success(dataItem?.id ? '更新成功' : '创建成功');
       onConfirm && onConfirm();
       handleCancel();

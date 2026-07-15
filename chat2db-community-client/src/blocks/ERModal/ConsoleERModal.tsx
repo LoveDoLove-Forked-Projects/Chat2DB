@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import ERModal, { ERModalRef } from './index';
 import { IBoundInfo } from '@/typings';
 import { IERTableDetail } from '@/typings/er';

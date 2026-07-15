@@ -1,7 +1,7 @@
 /*
  * Report type selection
  */
-import React, { memo, useEffect, useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import { useStyles } from './style';
 import { Select, type SelectProps } from 'antd';
 type LabelRender = SelectProps['labelRender'];

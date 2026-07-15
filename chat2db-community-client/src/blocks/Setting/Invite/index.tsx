@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useStyles } from './style';
 import { Button, Flex, Form, Table, Tag } from 'antd';
 import { CopyButton, IconButton, Input, Modal, staticMessage } from '@chat2db/ui';
@@ -61,7 +61,8 @@ const Invite = () => {
     try {
       const res = await invitationService.getInvitationOrderItem();
       setInvitationOrder(res);
-    } catch (error) {
+    } catch {
+      return;
     } finally {
       setLoading(false);
     }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Flex, Button, Input } from 'antd';
 import jcefApi from '@/jcef';
 import feedback from '@/utils/feedback';

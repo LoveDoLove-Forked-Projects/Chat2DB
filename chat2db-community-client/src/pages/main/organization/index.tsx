@@ -1,8 +1,6 @@
 import SplitPane from 'react-split-pane';
 import OrgNavList, { OrgNavType } from './components/OrgNavList';
 import OrgContainer from './components/OrgContainer';
-import { useEffect, useState } from 'react';
-import { getUrlParam } from '@/utils/url';
 import { useOrgStore } from '@/store/organization';
 
 const Organization = () => {

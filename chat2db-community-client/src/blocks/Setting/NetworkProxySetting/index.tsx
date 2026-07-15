@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button, Form, Input, InputNumber, Radio, Select, Tooltip } from 'antd';
 import { CircleHelp } from 'lucide-react';
 import { staticMessage } from '@chat2db/ui';

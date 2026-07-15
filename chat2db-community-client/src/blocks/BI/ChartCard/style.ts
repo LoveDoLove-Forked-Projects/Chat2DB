@@ -1,12 +1,6 @@
-import { createStyles, keyframes } from 'antd-style';
+import { createStyles } from 'antd-style';
 
-export const useStyles = createStyles(
-  ({ css, token }, { enterAnimation }: { enterAnimation: boolean }) => {
-    const borderFlash = keyframes`
-    0% { border-color: transparent; }
-    50% { border-color: ${token.colorPrimary}; }
-    100% { border-color: transparent; }
-  `;
+export const useStyles = createStyles(({ css, token }) => {
     return {
       chatCard: css`
         display: flex;
@@ -60,5 +54,4 @@ export const useStyles = createStyles(
         height: 100%;
       `,
     };
-  },
-);
+});

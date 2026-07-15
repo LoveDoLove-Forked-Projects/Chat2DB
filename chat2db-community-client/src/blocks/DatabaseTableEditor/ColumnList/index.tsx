@@ -24,8 +24,6 @@ import { isSqliteExistingColumnReadonly, shouldShowSqlServerSparse } from '@/uti
 import CustomSelect from '@/components/CustomSelect';
 import Iconfont from '@/components/Iconfont';
 import { useStyles } from './style';
-import { useStyles as useGlobalStyle } from '@/styles/useGlobalStyle';
-import magicStickServices from '@/service/magicStick';
 import { Resizable } from 'react-resizable';
 import 'react-resizable/css/styles.css';
 import { normalizeColumnForSubmit } from './normalizeColumn';
@@ -111,7 +109,6 @@ const createInitialData = () => {
 
 const ColumnList = forwardRef((props: IProps, ref: ForwardedRef<IColumnListRef>) => {
   const { styles, cx } = useStyles();
-  const { styles: globalStyle } = useGlobalStyle();
   const {
     databaseSupportField,
     databaseBaseInfo: { databaseType, databaseName, schemaName },
@@ -124,10 +121,6 @@ const ColumnList = forwardRef((props: IProps, ref: ForwardedRef<IColumnListRef>)
   const tableRef = useRef<any>(null);
   const tableBoxRef = useRef<any>(null);
   const [tableScrollY, setTableScrollY] = useState(0);
-  const isComposingRef = useRef(false);
-  const aiColumnCreating = useRef<any>(false);
-  //  ai is generating column names
-  const [isAIGenerating, setIsAIGenerating] = useState(false);
   // column width array
   const [columnsWidth, setColumnsWidth] = useState([40, 160, 200, 120, 100, 50, undefined, 40]);
 
@@ -149,8 +142,8 @@ const ColumnList = forwardRef((props: IProps, ref: ForwardedRef<IColumnListRef>)
     };
   }, [tableBoxRef.current]);
 
-  const ResizableTitle = useCallback((props) => {
-    const { onResize, width, ...restProps } = props;
+  const ResizableTitle = useCallback((titleProps) => {
+    const { onResize, width, ...restProps } = titleProps;
 
     if (!width) {
       return <th {...restProps} />;
@@ -202,60 +195,6 @@ const ColumnList = forwardRef((props: IProps, ref: ForwardedRef<IColumnListRef>)
     }
   }, [tableDetails]);
 
-  const handleNameInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    const columnName = form.getFieldValue('name');
-    if (e.key === 'Enter' && !isComposingRef.current && columnName) {
-      if (aiColumnCreating.current) {
-        return;
-      }
-      e.preventDefault();
-      aiColumnCreating.current = true;
-      setIsAIGenerating(true);
-      magicStickServices
-        .textToCreateColumn({
-          tableName: tableDetails?.name,
-          columnName,
-          databaseType: databaseType!,
-        })
-        .then((res) => {
-          const newData = [
-            {
-              touched: true,
-              validating: false,
-              errors: [],
-              warnings: [],
-              name: ['name'],
-              validated: false,
-              value: res?.[0] || '',
-            },
-          ];
-          const newData2 = [
-            {
-              touched: true,
-              validating: false,
-              errors: [],
-              warnings: [],
-              name: ['comment'],
-              validated: false,
-              value: columnName,
-            },
-          ];
-          const editNewData: any = {
-            ...editingData,
-            name: res?.[0],
-            comment: columnName,
-          };
-          handleFieldsChange(newData);
-          handleFieldsChange(newData2);
-          edit(editNewData);
-        })
-        .finally(() => {
-          aiColumnCreating.current = false;
-          setIsAIGenerating(false);
-        });
-    }
-  };
-
   const columns = useMemo(() => {
     const isEditing = (record: IColumnItemNew) => record.key === editingData?.key;
     return [
@@ -276,16 +215,7 @@ const ColumnList = forwardRef((props: IProps, ref: ForwardedRef<IColumnListRef>)
             <div>
               {editable ? (
                 <Form.Item name="name" style={{ margin: 0 }}>
-                  <Input
-                    className={cx(styles.columnNameInput, {
-                      [globalStyle.aiMoveGradient]: isAIGenerating,
-                    })}
-                    onCompositionStart={() => (isComposingRef.current = true)}
-                    onCompositionEnd={() => (isComposingRef.current = false)}
-                    // onKeyDown={handleNameInputKeyDown}
-                    autoComplete="off"
-                    // placeholder={i18n('editTable.placeholder.columnName')}
-                  />
+                  <Input className={styles.columnNameInput} autoComplete="off" />
                 </Form.Item>
               ) : (
                 <div className={styles.editableCell}>{text}</div>
@@ -413,7 +343,7 @@ const ColumnList = forwardRef((props: IProps, ref: ForwardedRef<IColumnListRef>)
         },
       },
     ];
-  }, [columnsWidth, editingData, editingConfig, isAIGenerating, databaseType, dataSource]);
+  }, [columnsWidth, editingData, editingConfig, databaseType, dataSource]);
 
   const handleResize = useCallback(
     (index) =>
@@ -451,7 +381,7 @@ const ColumnList = forwardRef((props: IProps, ref: ForwardedRef<IColumnListRef>)
         if (_data.key === item.key) {
           primaryKeyOrder = null;
         } else {
-          // If the current field is the primary key, when canceling the primary key, the order of the fields greater than the current field order will be -1
+          // When removing this primary key, shift every following primary-key position down by one.
           if (_data.primaryKeyOrder && item.primaryKeyOrder && item.primaryKeyOrder >= _data.primaryKeyOrder) {
             primaryKeyOrder = item.primaryKeyOrder - 1;
           }

@@ -14,18 +14,9 @@
     display: flex;
     justify-content: space-between;
     flex-wrap: wrap;
+
     .ant-form-item-label {
       width: var(--form-label-width);
-    }
-  }
-}
-
-.extendInfoBox .form {
-  :global {
-    .custom-form-item {
-      > div > div:nth-of-type(1) {
-        width: 200px;
-      }
     }
   }
 }
@@ -35,6 +26,16 @@
     .custom-form-item {
       > div > div:nth-of-type(1) {
         text-align: right;
+      }
+    }
+  }
+}
+
+.extendInfoBox .form {
+  :global {
+    .custom-form-item {
+      > div > div:nth-of-type(1) {
+        width: 200px;
       }
     }
   }
@@ -52,9 +53,11 @@
   display: flex;
   justify-content: space-between;
   padding-top: 20px;
+
   .cancel {
     .f-button();
   }
+
   .save {
     margin-left: 20px;
   }
@@ -75,18 +78,21 @@
 }
 
 .testSSHConnect {
-  margin: 10px 0px;
+  margin: 10px 0;
   display: flex;
   align-items: center;
+
   i {
     margin-right: 10px;
     color: var(--success-color);
   }
+
   .testSSHConnectText {
     margin-left: 4px;
     font-size: 12px;
     color: var(--color-primary);
     cursor: pointer;
+
     &:hover {
       text-decoration: underline;
     }
@@ -96,24 +102,30 @@
 .extendTable {
   max-height: 300px;
   overflow-y: auto;
+
   input {
-    border: 0px;
+    border: 0;
   }
+
   :global {
     .custom-input[disabled],
     .custom-input-disabled {
       background-color: transparent;
     }
+
     .custom-table-tbody > tr.custom-table-row:hover > td {
       background-color: transparent;
     }
+
     .custom-input {
-      padding: 0px;
+      padding: 0;
     }
+
     .custom-input:focus {
-      border: 0px;
+      border: 0;
       box-shadow: none;
     }
+
     thead .custom-table-cell {
       box-sizing: content-box;
       height: 28px;

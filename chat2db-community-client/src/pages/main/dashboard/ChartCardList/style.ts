@@ -1,7 +1,5 @@
 import { createStyles, keyframes } from 'antd-style';
-import { createVar } from '@/styles/var';
-export const useStyles = createStyles(({ css, cx, token }) => {
-  const vatStyles = createVar(token);
+export const useStyles = createStyles(({ css, token }) => {
   const rotateGradient = keyframes`
     0% {
       background-position: 0% 50%;

@@ -1,4 +1,4 @@
-import React, { forwardRef, useImperativeHandle, ForwardedRef } from 'react';
+import { forwardRef, useImperativeHandle, ForwardedRef } from 'react';
 import { Form, Input, Select, Checkbox } from 'antd';
 import { IDynamicFormItem } from './typings';
 import { InputType } from './constants';

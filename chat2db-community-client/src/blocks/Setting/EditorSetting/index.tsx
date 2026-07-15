@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import i18n from '@/i18n';
 import { useStyles } from './style';
 import SettingSubsection from '../SettingSubsection';

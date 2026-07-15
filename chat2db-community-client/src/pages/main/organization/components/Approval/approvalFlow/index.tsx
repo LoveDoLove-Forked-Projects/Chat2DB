@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ApprovalStatusMap, ApprovalStatusType, IApprovalProcessVO } from '@/typings/enterprise/approval';
 import { Button, Drawer, Modal, Spin, Timeline, TimelineItemProps } from 'antd';
 import dayjs from 'dayjs';
@@ -40,8 +40,8 @@ function ApprovalFlow(props: IProps) {
         id: approvalId,
       });
       setApprovalProcess(res);
-    } catch (error) {
-      // console.log('error', error);
+    } catch {
+      setApprovalProcess(undefined);
     } finally {
       setLoading(false);
     }
@@ -54,22 +54,22 @@ function ApprovalFlow(props: IProps) {
     if (res) {
       const {
         id,
-        name,
-        description,
+        name: applyName,
+        description: applyDescription,
         noExpire,
         validUntil,
         columnNames,
         policyVOList,
         dataAccessControlList,
-        approvalId,
+        approvalId: applyApprovalId,
       } = res;
       const { dataSourceId, databaseName, tableName, schemaName, rowCount, rowFilter } =
         dataAccessControlList?.[0] || {};
 
       dataFormValuesRef.current = {
         id,
-        name,
-        description,
+        name: applyName,
+        description: applyDescription,
         // Check whether the authorization covers the entire database.
         isAllSchema: databaseName === 'ALL_DATABASE_GRANTED',
         dataSourceId,
@@ -84,23 +84,27 @@ function ApprovalFlow(props: IProps) {
         policyVOList,
         rowCount,
         rowFilter,
-        approvalId,
+        approvalId: applyApprovalId,
       };
     }
     setOpenApply(true);
   };
 
   const renderExtra = (item: IApprovalProcessVO) => {
-    // eslint-disable-next-line @typescript-eslint/no-shadow
-    const { approvalStatus, applyUser, awaitingUser, approveUser } = item;
+    const {
+      approvalStatus: itemApprovalStatus,
+      applyUser,
+      awaitingUser,
+      approveUser,
+    } = item;
     //
-    if (approvalStatus === ApprovalStatusType.INVOKED) {
+    if (itemApprovalStatus === ApprovalStatusType.INVOKED) {
       return (
         <div>
           {i18n('team.approval.flow.list.apply')}：{applyUser?.displayName}
         </div>
       );
-    } else if (approvalStatus === ApprovalStatusType.PENDING) {
+    } else if (itemApprovalStatus === ApprovalStatusType.PENDING) {
       return (
         <>
           <div>
@@ -157,7 +161,7 @@ function ApprovalFlow(props: IProps) {
           )}
         </>
       );
-    } else if (approvalStatus === ApprovalStatusType.APPROVED) {
+    } else if (itemApprovalStatus === ApprovalStatusType.APPROVED) {
       return (
         <div>
           {' '}

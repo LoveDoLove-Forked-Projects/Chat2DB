@@ -35,8 +35,6 @@ export const barDataTreating = (props: DataTreatingProps) => {
   if (orderByType === OrderByType.X_AXIS || orderByType === OrderByType.Y_AXIS) {
     const isXAxis = orderByType === OrderByType.X_AXIS;
     const dataToSort = isXAxis ? xAxisData : yAxisData;
-    const otherData = isXAxis ? yAxisData : xAxisData;
-
     const sortedIndices = dataToSort
       .map((_, index) => index)
       .sort((a, b) => {

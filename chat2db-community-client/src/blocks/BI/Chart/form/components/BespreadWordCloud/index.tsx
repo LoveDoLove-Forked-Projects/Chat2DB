@@ -2,7 +2,7 @@
  * BespreadWordCloud
  * Is the content covered with word clouds?
  */
-import React, { memo } from 'react';
+import { memo } from 'react';
 import { Checkbox } from 'antd';
 import i18n from '@/i18n';
 

@@ -1,5 +1,5 @@
 import { useOrgStore } from '@/store/organization';
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { useStyles } from './style';
 import { Button, Flex } from 'antd';
 import { IconfontSvg } from '@chat2db/ui';
@@ -22,11 +22,10 @@ const UserStatus = () => {
     curUser: s.curUser,
   }));
 
-  const { curOrg, curOrgSubscription, orgList, setOpenCreateOrJoinOrgDialog } = useOrgStore((state) => ({
+  const { curOrg, curOrgSubscription, orgList } = useOrgStore((state) => ({
     curOrg: state.curOrg,
     curOrgSubscription: state.curOrgSubscription,
     orgList: state.orgList,
-    setOpenCreateOrJoinOrgDialog: state.setOpenCreateOrJoinOrgDialog,
   }));
 
   const {

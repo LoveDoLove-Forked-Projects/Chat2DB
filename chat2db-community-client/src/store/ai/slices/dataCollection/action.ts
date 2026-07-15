@@ -12,7 +12,7 @@ export const createDataCollectionAction: StateCreator<
   [['zustand/devtools', never]],
   [],
   DataCollectionAction
-> = (set, get) => ({
+> = (set, _get) => ({
   getDataCollectionList: async () => {
     const dataCollectionList = await aiDataCollectionService.getAiDataCollectionList({
       pageNo: 1,

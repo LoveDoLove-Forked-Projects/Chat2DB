@@ -2,13 +2,12 @@ import { IChartItem, IDashboardItem, IPageParams, IPageResponse } from '@/typing
 import createRequest from './base';
 
 /** Get report list */
-const getDashboardList = createRequest<IPageParams, IPageResponse<IDashboardItem>>('/api/dashboard/list', { method: 'get' });
+const getDashboardList = createRequest<IPageParams, IPageResponse<IDashboardItem>>('/api/dashboard/list', {
+  method: 'get',
+});
 const getDashboardById = createRequest<{ id: number }, IDashboardItem>('/api/dashboard', { method: 'get' });
 /** Create reports */
-const createDashboard = createRequest<IDashboardItem, number>(
-  '/api/dashboard/create',
-  { method: 'post' },
-);
+const createDashboard = createRequest<IDashboardItem, number>('/api/dashboard/create', { method: 'post' });
 /** Update report */
 const updateDashboard = createRequest<IDashboardItem, boolean>('/api/dashboard/update', { method: 'post' });
 /** Delete report */
@@ -16,11 +15,14 @@ const deleteDashboard = createRequest<{ id: number }, string>('/api/dashboard', 
 
 /** Query chart details based on id */
 const getChartById = createRequest<{ id: number }, IChartItem>('/api/v1/chart', { method: 'get' });
-/** Query chart details based on id. The difference between this and getChartById is that the backend of this interface automatically executes sql */
-const getChartByIdAutoExecuteSQL = createRequest<{
-  chartId: number,
-  refresh: boolean,
-}, IChartItem>('/api/chart/detail', { method: 'get' });
+/** Query chart details and let the backend execute the associated SQL automatically. */
+const getChartByIdAutoExecuteSQL = createRequest<
+  {
+    chartId: number;
+    refresh: boolean;
+  },
+  IChartItem
+>('/api/chart/detail', { method: 'get' });
 /** Create charts */
 const createChart = createRequest<IChartItem, number>('/api/v1/chart/create', { method: 'post' });
 /** Update chart */

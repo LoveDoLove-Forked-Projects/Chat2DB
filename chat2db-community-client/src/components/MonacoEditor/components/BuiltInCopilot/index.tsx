@@ -1,4 +1,4 @@
-import React, { memo, useEffect, useMemo, useRef } from 'react';
+import { memo, useEffect, useMemo, useRef } from 'react';
 import AIFloatLayer from '@/pages/main/workspace/components/AIFloatLayer';
 import { useStyles } from './style';
 

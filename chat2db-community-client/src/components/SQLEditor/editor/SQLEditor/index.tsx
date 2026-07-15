@@ -1,4 +1,4 @@
-import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import SQLParserService from '@/service/sqlParser';
 import { IBoundInfo } from '@/typings';
 import { useGlobalStore } from '@/store/global';
@@ -319,7 +319,7 @@ const SQLEditor = forwardRef<SQLEditorRef, SQLEditorProps>(
       if (!sql) {
         sqlStatementListRef.current = [];
         markMessageListRef.current = [];
-        clearBackendEditorHints(getInstance());
+        clearBackendEditorHints();
         hideParameterHint();
         return;
       }
@@ -392,7 +392,7 @@ const SQLEditor = forwardRef<SQLEditorRef, SQLEditorProps>(
         if (!sql.trim()) {
           backendEditorHintsRequestRef.current += 1;
           backendEditorHintsEpochRef.current += 1;
-          clearBackendEditorHints(editor);
+          clearBackendEditorHints();
           hideParameterHint();
           return;
         }
@@ -489,22 +489,22 @@ const SQLEditor = forwardRef<SQLEditorRef, SQLEditorProps>(
       return parameterHintWidgetRef.current;
     }
 
-    function hideParameterHint(options?: { suppressAuto?: boolean }) {
+    function hideParameterHint(hideOptions?: { suppressAuto?: boolean }) {
       parameterHintVisibleRef.current = false;
-      if (options?.suppressAuto) {
+      if (hideOptions?.suppressAuto) {
         parameterHintAutoSuppressedRef.current = true;
       }
       parameterHintWidgetRef.current?.hide();
     }
 
-    function clearBackendEditorHints(editor: monaco.editor.IStandaloneCodeEditor | null) {
+    function clearBackendEditorHints() {
       backendEditorHintsRef.current = backendEditorHintStoreRef.current.clear();
     }
 
-    function applyBackendEditorHints(editorHints: ISqlEditorHintVO[], options?: ApplyBackendEditorHintsOptions) {
+    function applyBackendEditorHints(editorHints: ISqlEditorHintVO[], hintOptions?: ApplyBackendEditorHintsOptions) {
       const editor = getInstance();
-      if (options?.scope) {
-        backendEditorHintsRef.current = backendEditorHintStoreRef.current.commitScoped(options.scope, editorHints);
+      if (hintOptions?.scope) {
+        backendEditorHintsRef.current = backendEditorHintStoreRef.current.commitScoped(hintOptions.scope, editorHints);
       } else if (editorHints.length > 0) {
         backendEditorHintsRef.current = backendEditorHintStoreRef.current.commitHints(editorHints);
       } else {
@@ -541,7 +541,9 @@ const SQLEditor = forwardRef<SQLEditorRef, SQLEditorProps>(
       });
     }
 
-    function localInsertValueParameterHint(editor: monaco.editor.IStandaloneCodeEditor | null): ParameterHintContext | null {
+    function localInsertValueParameterHint(
+      editor: monaco.editor.IStandaloneCodeEditor | null,
+    ): ParameterHintContext | null {
       if (!editor) {
         return null;
       }
@@ -553,7 +555,9 @@ const SQLEditor = forwardRef<SQLEditorRef, SQLEditorProps>(
       }
 
       const currentStatement = findSqlStatement(position, sqlStatementListRef.current);
-      const context = getInsertValueHintContext(currentStatement, position, (range) => model.getValueInRange(range));
+      const context = getInsertValueHintContext(currentStatement, position, (range) =>
+        model.getValueInRange(range),
+      );
       return parameterHintContextFromInsertValue(context);
     }
 
@@ -567,7 +571,8 @@ const SQLEditor = forwardRef<SQLEditorRef, SQLEditorProps>(
         return null;
       }
       const position = editor.getPosition();
-      const context = parameterHintContextFromEditorHints(backendEditorHintsRef.current, position) || fallbackContext || null;
+      const context =
+        parameterHintContextFromEditorHints(backendEditorHintsRef.current, position) || fallbackContext || null;
       if (!context) {
         hideParameterHint();
         return null;
@@ -636,7 +641,7 @@ const SQLEditor = forwardRef<SQLEditorRef, SQLEditorProps>(
       backendEditorHintsRequestRef.current += 1;
       backendEditorHintsEpochRef.current += 1;
       refreshBackendParameterHints.cancel();
-      clearBackendEditorHints(getInstance());
+      clearBackendEditorHints();
       hideParameterHint();
     }, [
       dbInfo.consoleId,

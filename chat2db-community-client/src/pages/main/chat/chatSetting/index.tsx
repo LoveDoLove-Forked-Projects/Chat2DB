@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useMemo, useState } from 'react';
+import { FC, useEffect, useMemo, useState } from 'react';
 import { ChatVO } from '@/typings/chat';
 import { ChatSourceType, ChatCornerstoneType } from '@/constants/chat';
 import { Modal, ModalProps, Select, IconfontSvg, Iconfont } from '@chat2db/ui';

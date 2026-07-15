@@ -16,26 +16,12 @@ let intelliSenseTable = monaco.languages.registerCompletionItemProvider('sql', {
   },
 });
 
-const checkTableContext = (text) => {
-  const normalizedText = text.trim().toUpperCase();
-  const tableKeywords = ['FROM', 'JOIN', 'INNER JOIN', 'LEFT JOIN', 'RIGHT JOIN', 'UPDATE'];
-
-  for (const keyword of tableKeywords) {
-    if (normalizedText.endsWith(keyword)) {
-      return true;
-    }
-  }
-
-  return false;
-};
-
 const handleInsertText = (keyword: string, tableName: string, databaseCode: DatabaseTypeCode) => {
-
-  if(/^[A-Za-z]/.test(keyword)){
-    return tableName
+  if (/^[A-Za-z]/.test(keyword)) {
+    return tableName;
   }
 
-  if (/^[\"\`\[]/.test(keyword)) {
+  if (/^["`[]/.test(keyword)) {
     return tableName;
   }
 
@@ -65,7 +51,6 @@ const registerIntelliSenseTable = (
         endColumn: position.column,
       });
 
-      const isTableContext = checkTableContext(lineContentUntilPosition);
       // Get the character that triggered the prompt
       const match = lineContentUntilPosition.match(/\S+$/);
       const word = match ? match[0] : '';

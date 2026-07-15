@@ -1,5 +1,16 @@
-import { GlobalAISettings, GlobalAppConfig, GlobalBaseSettings, ShortcutOverrides, DataTableSettings } from '@/typings/settings';
-import { DEFAULT_AI_SETTINGS, DEFAULT_BASE_SETTINGS, DEFAULT_APP_CONFIG, DATA_TABLE_SETTINGS } from '@/constants/settings';
+import {
+  GlobalAISettings,
+  GlobalAppConfig,
+  GlobalBaseSettings,
+  ShortcutOverrides,
+  DataTableSettings,
+} from '@/typings/settings';
+import {
+  DEFAULT_AI_SETTINGS,
+  DEFAULT_BASE_SETTINGS,
+  DEFAULT_APP_CONFIG,
+  DATA_TABLE_SETTINGS,
+} from '@/constants/settings';
 import { DEFAULT_EDITOR_SETTINGS, EditorSettings } from '@/components/SQLEditor';
 
 export interface GlobalSettings {

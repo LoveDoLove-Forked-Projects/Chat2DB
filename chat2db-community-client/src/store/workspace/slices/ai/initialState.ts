@@ -10,20 +10,22 @@ export interface DBParams {
 }
 
 export interface defaultDataCollectionItem {
-  [key: number]: number
+  [key: number]: number;
 }
 
 export interface AIState {
-  consoleAiInputParams: {
-    questionType: QuestionType;
-    /**
-     * Only needs to be passed when the current Console information is not needed
-     * For example, CRUD generation generates test data
-     */
-    messageContent?: any;
-    matchTable?: boolean;
-    value: string;
-  } | false,
+  consoleAiInputParams:
+    | {
+        questionType: QuestionType;
+        /**
+         * Only needs to be passed when the current Console information is not needed
+         * For example, CRUD generation generates test data
+         */
+        messageContent?: any;
+        matchTable?: boolean;
+        value: string;
+      }
+    | false;
   // Store the default AI dataset value.
   defaultDataCollectionList: {
     dashboard: defaultDataCollectionItem;

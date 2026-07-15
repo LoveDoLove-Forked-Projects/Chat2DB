@@ -29,7 +29,7 @@ const analyzingConfig = {
 
 export default memo<IProps>((props) => {
   const { className, parts } = props;
-  const { partType, status, step, loadingText } = parts;
+  const { partType, status, loadingText } = parts;
   // const loading = status === AnswerPartsStatus.LOADING;
   const { styles, cx } = useStyles();
   const currentConfig = analyzingConfig[partType || AnswerPartsType.MARKDOWN];

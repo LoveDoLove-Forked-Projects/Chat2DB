@@ -1,4 +1,3 @@
-import React from 'react';
 import { SubscriptionType } from '@/constants/subscriptionType';
 
 const EmptyPriceSurface = () => null;

@@ -5,7 +5,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { IManageResultData, IExecuteSqlParams } from '@/typings';
 import { getDatabaseSupport as getDatabaseJudgmentSupport, quoteOpenTableIdentifier } from './databaseJudgments';
 
-
 /**
  * Compatible with processing database names
  * @param databaseName
@@ -76,7 +75,10 @@ export const resultAndTreeNodeMap = (sqlType: SqlTypeEnum, databaseType: Databas
 };
 
 // Perform initial processing on the execution results given by the backend. Add uuid and execution parameters
-export const processResultDataList = (res: IManageResultData[], executeSqlParams: Omit<IExecuteSqlParams, 'sql'> & { sql?: string }) => { 
+export const processResultDataList = (
+  res: IManageResultData[],
+  executeSqlParams: Omit<IExecuteSqlParams, 'sql'> & { sql?: string },
+) => {
   return res.map((item) => {
     return {
       ...item,
@@ -90,4 +92,4 @@ export const processResultDataList = (res: IManageResultData[], executeSqlParams
       },
     };
   });
-}
+};

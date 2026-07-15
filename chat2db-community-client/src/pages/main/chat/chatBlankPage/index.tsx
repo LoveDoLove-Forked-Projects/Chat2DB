@@ -1,4 +1,4 @@
-import React, { memo, useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { useStyles } from './style';
 import emptyLight from '@/assets/img/empty/chat-guide.png';
 import emptyDark from '@/assets/img/empty/chat-guide-dark.png';

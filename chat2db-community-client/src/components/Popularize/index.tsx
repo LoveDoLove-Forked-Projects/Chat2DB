@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import { memo } from 'react';
 import styles from './index.less';
 import classnames from 'classnames';
 import i18n from '@/i18n';
@@ -12,7 +12,7 @@ interface IProps {
 const url =
   'http://oss.sqlgpt.cn/static/chat2db-wechat.jpg?x-oss-process=image/auto-orient,1/resize,m_lfit,w_256/quality,Q_80/format,webp';
 
-export default memo<IProps>(function Popularize(props) {
+export default memo<IProps>((props) => {
   const { className } = props;
 
   const renderTip = () => {

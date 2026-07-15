@@ -1,6 +1,6 @@
 import { css } from 'antd-style';
 
-export const createVar = (token) => ({
+export const createVar = (_token) => ({
   singleLine: css`
     overflow: hidden;
     white-space: nowrap;

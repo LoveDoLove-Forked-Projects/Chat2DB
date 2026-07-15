@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import classnames from 'classnames';
 import i18n from '@/i18n';
 import { extendConfig } from '../config';

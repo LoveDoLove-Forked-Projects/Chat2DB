@@ -1,7 +1,6 @@
-import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from 'react';
 import { ApplyType, IAccessControlApplyRecordVO } from '@/typings/enterprise/permission';
-import { Button, Input, Table, Tag } from 'antd';
-import { SearchOutlined } from '@ant-design/icons';
+import { Button, Tag } from 'antd';
 import permissionService from '@/service/enterprise/permission';
 import i18n from '@/i18n';
 import styles from './index.less';
@@ -99,13 +98,6 @@ const DataTable = forwardRef((props: IProps, ref) => {
     });
   };
 
-  const handleSearch = (searchKey: string) => {
-    setPagination({
-      ...pagination,
-      searchKey,
-    });
-  };
-
   const handleTableChange = (p) => {
     setPagination({
       ...pagination,
@@ -134,7 +126,7 @@ const DataTable = forwardRef((props: IProps, ref) => {
         </Button>
       </div>
       <AntdTable
-         className={styles.antdTable}
+        className={styles.antdTable}
         rowKey={'id'}
         dataSource={dataSource}
         columns={columns}

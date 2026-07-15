@@ -1,7 +1,7 @@
 import { DatabaseTypeCode, TableDataType } from '@/constants';
 import { SqlTypeEnum } from './sqlParser';
 
-// Context parameters for database operations, used to locate the specific database environment when executing operations such as SQL and query table structures.
+// Identify the database context used for SQL execution and metadata queries.
 export interface IDBContextInfo {
   dataSourceId?: number;
   databaseName?: string;
@@ -150,7 +150,8 @@ export interface IManageResultData {
   duration: number;
   updateCount?: number; // If it is modified. The backend will return the number of modified items
   canEdit?: boolean; // Whether the returned data can be edited
-  tableName?: string; // If it can be edited. The backend returns the table name. Modification requires passing the table name to the backend
+  // Editable results include the table name required for update requests.
+  tableName?: string;
   sqlType: SqlTypeEnum;
   refreshTargets: IRefreshTargets[];
   comment?: string; // Comment

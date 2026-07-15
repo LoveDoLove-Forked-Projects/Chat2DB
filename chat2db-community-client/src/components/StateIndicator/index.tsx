@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import { memo } from 'react';
 import styles from './index.less';
 import classnames from 'classnames';
 import { Spin } from 'antd';
@@ -10,26 +10,11 @@ interface IProps {
   image?: boolean;
 }
 
-const config = {
-  loading: {
-    icon: '\ue6cd;',
-  },
-  empty: {
-    icon: '\ue760',
-  },
-  error: {
-    icon: '\ue755',
-  },
-  success: {
-    icon: '\ue62e',
-  },
-};
-
 const StateIndicator = ({ className, state, text, image = false }: IProps) => {
   const renderState = () => {
     switch (state) {
       case 'loading':
-        return <Spin />
+        return <Spin />;
       case 'error':
         return (
           <div className={styles.errorBox}>

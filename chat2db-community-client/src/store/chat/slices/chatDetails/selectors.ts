@@ -7,6 +7,6 @@ export const getChatDetailById = (id: string) => {
     return {
       answers,
       question,
-    }
+    };
   };
 };

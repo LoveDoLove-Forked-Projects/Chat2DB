@@ -1,19 +1,17 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import i18n from '@/i18n';
 import { Button, Flex, Table, Tag } from 'antd';
 import dayjs from 'dayjs';
 import dataMarketService from '@/service/dataMarket';
 
-import { BooleanType, IPageParams } from '@/typings';
+import { IPageParams } from '@/typings';
 import { useStyles } from './style';
 import { IDataSourceCollection } from '@/typings/dataMarket';
 import DataMarketModal from './dataModal';
 import { SearchBar } from '@chat2db/ui';
 import { ColumnsType } from 'antd/es/table';
 
-export interface DataMarketProps {}
-
-const DataMarket = ({}) => {
+const DataMarket = () => {
   const { styles } = useStyles();
 
   const [openModal, setOpenModal] = useState(false);

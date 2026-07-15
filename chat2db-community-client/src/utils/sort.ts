@@ -39,25 +39,24 @@ export function compareStrings(a: string, b: string) {
 export function sortData(data, field, order) {
   const dataCopy = [...data];
   return dataCopy.sort((a, b) => {
-      const fieldA = a[field];
-      const fieldB = b[field];
+    const fieldA = a[field];
+    const fieldB = b[field];
 
-      // Handling null and undefined cases
-      if (fieldA === null || fieldA === undefined) return order === 'asc' ? -1 : 1;
-      if (fieldB === null || fieldB === undefined) return order === 'asc' ? 1 : -1;
+    // Handling null and undefined cases
+    if (fieldA === null || fieldA === undefined) return order === 'asc' ? -1 : 1;
+    if (fieldB === null || fieldB === undefined) return order === 'asc' ? 1 : -1;
 
-      // If the field value is a number
-      if (!isNaN(fieldA) && !isNaN(fieldB)) {
-          return order === 'asc' ? fieldA - fieldB : fieldB - fieldA;
-      }
+    // If the field value is a number
+    if (!isNaN(fieldA) && !isNaN(fieldB)) {
+      return order === 'asc' ? fieldA - fieldB : fieldB - fieldA;
+    }
 
-      // If the field value is a string
-      if (typeof fieldA === 'string' && typeof fieldB === 'string') {
-          return order === 'asc' ? fieldA.localeCompare(fieldB) : fieldB.localeCompare(fieldA);
-      }
+    // If the field value is a string
+    if (typeof fieldA === 'string' && typeof fieldB === 'string') {
+      return order === 'asc' ? fieldA.localeCompare(fieldB) : fieldB.localeCompare(fieldA);
+    }
 
-      // In other cases (such as different types of data), keep the original order
-      return 0;
+    // In other cases (such as different types of data), keep the original order
+    return 0;
   });
 }
-

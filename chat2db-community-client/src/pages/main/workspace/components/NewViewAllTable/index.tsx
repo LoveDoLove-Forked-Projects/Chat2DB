@@ -1,4 +1,4 @@
-import React, { memo, useEffect, useMemo, useState, useRef } from 'react';
+import { memo, useEffect, useMemo, useState, useRef } from 'react';
 import { useStyles } from './style';
 import { useTableStyles } from '@/styles/table';
 import i18n from '@/i18n';
@@ -18,7 +18,6 @@ import { getDatabaseSupport } from '@/utils/database';
 import { useWorkspaceStore } from '@/store/workspace';
 import { v4 as uuid } from 'uuid';
 import { DataCollectionElementType } from '@/constants/aiDataCollection';
-import { treeConfig } from '@/blocks/NewTree/treeConfig';
 
 interface IProps {
   className?: string;

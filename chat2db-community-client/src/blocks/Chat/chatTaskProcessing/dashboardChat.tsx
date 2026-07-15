@@ -7,17 +7,17 @@ import { useChatStore } from '@/store/chat';
 export const chatGenerateDashboard = (props: IQueryTableDataParams, questionId, isStep) => {
   const { appendAnswerParts, updateAnswerId } = useChatStore.getState();
 
-  chatService.queryAnswer({ questionId }).then((res) => {
-    if (!res?.[0]?.questionId) {
+  chatService.queryAnswer({ questionId }).then((answerResponse) => {
+    if (!answerResponse?.[0]?.questionId) {
       return;
     }
-    const { questionId, id: answerId } = res[0];
+    const { questionId: answerQuestionId, id: answerId } = answerResponse[0];
     // update answerId
-    updateAnswerId(questionId, answerId!);
+    updateAnswerId(answerQuestionId, answerId!);
     const params = {
       ...props,
       answerId,
-      questionId,
+      questionId: answerQuestionId,
     };
     if (isStep) {
       // Add loading effect of query data
@@ -27,19 +27,19 @@ export const chatGenerateDashboard = (props: IQueryTableDataParams, questionId, 
           status: AnswerPartsStatus.LOADING,
           step: 2,
         },
-        questionId,
+        questionId: answerQuestionId,
       });
       // filter sql
       miscServices.characterHandler({ text: props.sql || '' }).then((filteredSql) => {
         params.sql = filteredSql;
-        chatService.queryTableData(params).then((res) => {
+        chatService.queryTableData(params).then((queryResult) => {
           appendAnswerParts({
             data: {
-              ...res,
+              ...queryResult,
               status: AnswerPartsStatus.FINISH,
               step: 2,
             },
-            questionId,
+            questionId: answerQuestionId,
           });
 
           appendAnswerParts({
@@ -48,15 +48,15 @@ export const chatGenerateDashboard = (props: IQueryTableDataParams, questionId, 
               status: AnswerPartsStatus.LOADING,
               step: 3,
             },
-            questionId,
+            questionId: answerQuestionId,
           });
 
           // The third step is to generate a chart
-          dashboardChatThirdStep(params, questionId);
+          dashboardChatThirdStep(params, answerQuestionId);
         });
       });
     } else {
-      endAnswer(questionId, params, 2);
+      endAnswer(answerQuestionId, params, 2);
     }
   });
 };

@@ -1,6 +1,6 @@
 import { toMajorCurrencyUnit } from './price';
 
-// Match the existing *.test.ts convention: a standalone assertion script runnable with `npx tsx src/utils/price.test.ts`.
+// Standalone assertion script runnable with `npx tsx src/utils/price.test.ts`.
 function assertEqual(actual: any, expected: any, message: string) {
   if (actual !== expected) {
     throw new Error(`${message}: expected ${expected}, got ${actual}`);

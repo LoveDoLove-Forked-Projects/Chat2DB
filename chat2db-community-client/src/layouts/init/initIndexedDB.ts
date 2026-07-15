@@ -1,4 +1,3 @@
-import indexedDB from '@/indexedDB';
 
 /** Initialize indexedDB */
 const initIndexedDB = () => {

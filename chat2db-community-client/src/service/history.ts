@@ -6,7 +6,8 @@ import { ICreateConsole, IConsole, IPageResponse, IPageParams } from '@/typings'
 export interface IGetSavedListParams extends IPageParams {
   tabOpened?: 'y' | 'n';
   status?: ConsoleStatus;
-  orderByDesc?: boolean; // If it is passed, the order will be in descending order of update time. By default, if it is not passed, it will be in ascending order of creation time.
+  // When true, order by update time descending; otherwise use creation time ascending.
+  orderByDesc?: boolean;
 }
 
 export enum OperationTypeEnum {

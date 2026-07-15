@@ -1,4 +1,4 @@
-import React, { memo, useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import EChartsContainer from '@/blocks/BI/Chart/components/EChartsContainer';
 import { useStyles } from './style';
 import { INormalizedData, ChartSchema } from '@/blocks/BI/Chart/typings';
@@ -15,8 +15,6 @@ const FunnelChart = (props: BarChartProps) => {
   const { theme } = useStyles();
 
   const { data, chartSchema } = props;
-  const { chartType } = chartSchema;
-
   const { seriesData } = pieDataTreating({ data, chartSchema });
 
   const { colorBgContainer, colorTextSecondary } = theme;

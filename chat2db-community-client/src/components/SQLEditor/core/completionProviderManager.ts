@@ -315,7 +315,9 @@ class CompletionProviderManager {
     }
   }
 
-  public bindSnippetPlaceholderCompletion(editor: monaco.editor.ICodeEditor | null | undefined): monaco.IDisposable | null {
+  public bindSnippetPlaceholderCompletion(
+    editor: monaco.editor.ICodeEditor | null | undefined,
+  ): monaco.IDisposable | null {
     if (!editor) {
       return null;
     }
@@ -324,7 +326,11 @@ class CompletionProviderManager {
         return;
       }
       const model = editor.getModel();
-      if (!model || !this.hasActiveSnippetNavigationSession(model.uri.toString()) || !this.isEditorInSnippetMode(editor)) {
+      if (
+        !model ||
+        !this.hasActiveSnippetNavigationSession(model.uri.toString()) ||
+        !this.isEditorInSnippetMode(editor)
+      ) {
         return;
       }
       const before = this.getSnippetNavigationSnapshot(model, editor);

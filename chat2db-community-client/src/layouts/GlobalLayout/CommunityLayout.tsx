@@ -1,4 +1,4 @@
-import React, { FC, useEffect } from 'react';
+import { FC, useEffect } from 'react';
 import { Outlet } from 'umi';
 import { Spin } from 'antd';
 import { createStyles } from 'antd-style';

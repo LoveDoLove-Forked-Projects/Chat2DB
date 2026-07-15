@@ -10,35 +10,35 @@ const userResetPassword = createRequest<{ email: string; passcode: string; newPa
   `/api/user/reset_password`,
   {
     method: 'post',
-    errorLevel: 'toast'
+    errorLevel: 'toast',
   },
 );
 
 /** Update user information */
 const updateUser = createRequest<Partial<IUserVO>, Partial<IUserVO>>(`/api/user/update`, {
   method: 'post',
-  errorLevel: 'toast'
+  errorLevel: 'toast',
 });
 
 /** Send mobile phone verification code */
 const sendPhoneSMS = createRequest<{ phoneNumber: string }, number>(`/api/user/send_sms`, {
-  errorLevel: 'toast'
+  errorLevel: 'toast',
 });
 
 /** Send mobile phone verification code */
 const sendEmailSMS = createRequest<{ email: string }, number>(`/api/user/send_sms_email`, {
-  errorLevel: 'toast'
+  errorLevel: 'toast',
 });
 
 /** Obtain WeChat QR code */
 const getWechatQRCode = createRequest<null, { img: string }>(`/api/user/wechat_qr`, {
-  errorLevel: 'toast'
+  errorLevel: 'toast',
 });
 
 /** Get user list */
 const getUserList = createRequest<IPageParams, IPageResponse<IUserVO>>(`/api/user/list`, {
   method: 'get',
-  errorLevel: 'toast'
+  errorLevel: 'toast',
 });
 
 /** Generate invitation link */
@@ -47,27 +47,27 @@ export const generateInviteLink =
     ? async () => ({ url: '' })
     : createRequest<{ organizationId: number }, { url: string }>(`/api/user/invite`, {
         method: 'post',
-        errorLevel: 'toast'
+        errorLevel: 'toast',
       });
 
 /** The front end passes the Token to the server */
-// Because there is no port on the desktop, you need to get the third-party login token from the gateway on the front end and pass it to the server.
-const setAuthorizationToken = createRequest<{token:string}, void>('/api/oauth/login_token', {
+// Desktop obtains the third-party login token from the gateway and forwards it to the server.
+const setAuthorizationToken = createRequest<{ token: string }, void>('/api/oauth/login_token', {
   method: 'post',
-  errorLevel: 'toast'
-})
+  errorLevel: 'toast',
+});
 
 // Get list of countries
 const getCountries = createRequest<void, CountryItem[]>('/api/oauth/get_countries', {
   method: 'get',
-  errorLevel: 'toast'
-})
+  errorLevel: 'toast',
+});
 
 // setCountry
-const setCountry = createRequest<{country: string}, void>('/api/oauth/set_country', {
+const setCountry = createRequest<{ country: string }, void>('/api/oauth/set_country', {
   method: 'post',
-  errorLevel: 'toast'
-})
+  errorLevel: 'toast',
+});
 
 export default {
   userResetPassword,
@@ -79,5 +79,5 @@ export default {
   generateInviteLink,
   setAuthorizationToken,
   getCountries,
-  setCountry
+  setCountry,
 };

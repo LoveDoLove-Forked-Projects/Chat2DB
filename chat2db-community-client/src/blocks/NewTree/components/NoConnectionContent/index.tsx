@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import { memo } from 'react';
 import { useStyles } from './style';
 import { i18n } from '@/i18n';
 import { useTreeStore } from '@/store/tree';

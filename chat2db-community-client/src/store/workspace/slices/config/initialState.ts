@@ -14,4 +14,4 @@ export const initConfigState: ConfigState = {
     panelLeftWidth: 260,
     panelRightWidth: 300,
   },
-}
+};

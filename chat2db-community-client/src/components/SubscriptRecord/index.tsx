@@ -1,6 +1,6 @@
 import { useOrgStore } from '@/store/organization';
 import { useUserStore } from '@/store/user';
-import { Empty, EmptyImage, IconfontSvg, Modal } from '@chat2db/ui';
+import { Empty, EmptyImage, Modal } from '@chat2db/ui';
 import RecordItem from './RecordItem';
 import { useStyles } from './style';
 

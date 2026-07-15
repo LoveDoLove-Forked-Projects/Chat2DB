@@ -1,4 +1,4 @@
-import React, {
+import {
   memo,
   useState,
   useEffect,
@@ -35,7 +35,8 @@ const EditorChartSql = forwardRef((props: IProps, ref: ForwardedRef<EditorChartS
 
   useImperativeHandle(ref, () => ({
     getDatabaseInfoAndMetaData: () => {
-      // If the user does not run sql, then there is no databaseInfoAndMetaData. If the user clicks save, then manually obtain sqlExecuteRef.current?.getDatabaseInfo()
+      // When SQL has not run, databaseInfoAndMetaData is unavailable.
+      // If the user saves anyway, read the database information directly from the executor.
       if (!databaseInfoAndMetaData) {
         return {
           databaseInfo: sqlExecuteRef.current?.getDatabaseInfo(),

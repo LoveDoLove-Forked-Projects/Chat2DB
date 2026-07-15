@@ -153,8 +153,10 @@ export const isSqliteExistingColumnReadonly = (
   databaseType?: DatabaseTypeInput,
   editStatus?: EditColumnOperationType | null,
 ): boolean => {
-  return containsStrict(databaseCapabilities.tableEditorSqliteExistingColumnReadonly, databaseType)
-    && editStatus !== EditColumnOperationType.Add;
+  return (
+    containsStrict(databaseCapabilities.tableEditorSqliteExistingColumnReadonly, databaseType) &&
+    editStatus !== EditColumnOperationType.Add
+  );
 };
 
 export const shouldShowSqlServerSparse = (databaseType?: DatabaseTypeInput): boolean => {

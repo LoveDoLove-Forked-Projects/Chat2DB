@@ -1,6 +1,6 @@
 import { ConsoleStatus, DatabaseTypeCode, WorkspaceTabType, ConsoleOpenedStatus } from '@/constants';
 
-export interface ICreateConsoleParams { 
+export interface ICreateConsoleParams {
   name?: string;
   ddl?: string;
   dataSourceId: number;
@@ -30,4 +30,3 @@ export interface IConsole {
 }
 
 export type ICreateConsole = Omit<IConsole, 'id' | 'dataSourceName' | 'connectable'>;
-

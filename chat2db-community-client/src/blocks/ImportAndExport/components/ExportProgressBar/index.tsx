@@ -1,4 +1,4 @@
-import React, { memo, useEffect, useState, useRef } from 'react';
+import { memo, useEffect, useState, useRef } from 'react';
 import { useStyles } from './style';
 import { IconfontSvg, IconButton, Empty, EmptyImage } from '@chat2db/ui';
 import { Progress, Popover, Flex } from 'antd';
@@ -36,7 +36,7 @@ export default memo(() => {
   };
 
   const handleStopTask = (id) => {
-    importExportServices.stopTask({ id }).then((res) => {
+    importExportServices.stopTask({ id }).then(() => {
       getTaskList();
     });
   };
@@ -55,7 +55,7 @@ export default memo(() => {
           {taskList.length ? (
             <>
               {taskList.map((item) => {
-                // When the task is completed but there is an error log, the status changes to error (agreed with the backend)
+                // A finished task with an error log is treated as failed, per the backend contract.
                 if (item.taskStatus === ImportExportTaskStatus.FINISHED && item.errorLog) {
                   item.taskStatus = ImportExportTaskStatus.ERROR;
                 }

@@ -120,7 +120,7 @@ export const createUserAction: StateCreator<UserStore, [['zustand/devtools', nev
 
     // The currentOrganization returned by the backend may be missing/not in the orgList:
     // 1. Give priority to matching organizations
-    // 2. Otherwise, return to the first item of orgList to avoid clearing curOrg to undefined and causing the sidebar team button to be displayed incorrectly.
+    // 2. Otherwise, use the first item so curOrg remains defined and the sidebar stays consistent.
     // 3. When orgList is empty, the original curOrg remains unchanged.
     const matchedOrg = orgList?.find((item) => item.id === res?.currentOrganization?.id);
     const fallbackOrg = matchedOrg ?? orgList?.[0];

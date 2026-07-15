@@ -1,5 +1,3 @@
-import { IExecuteSqlParams } from '@/service/sql';
-
 export enum ExportTypeEnum {
   CSV = 'CSV',
   INSERT = 'INSERT',
@@ -7,7 +5,7 @@ export enum ExportTypeEnum {
   EXCEL = 'EXCEL',
   HTML = 'HTML',
   MARKDOWN = 'MARKDOWN',
-  PDF = 'PDF'
+  PDF = 'PDF',
 }
 export enum ExportSizeEnum {
   CURRENT_PAGE = 'CURRENT_PAGE',

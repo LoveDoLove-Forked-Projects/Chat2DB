@@ -77,7 +77,8 @@ export function sqlCompletionHintScopeFromRange(
 }
 
 function scopeFromEditorHint(editorHint: ISqlEditorHintVO, index: number): SqlCompletionHintScope {
-  const range = editorHint.rowRange || editorHint.valueRange || itemRangesEnvelope(editorHint) || editorHint.statementRange;
+  const range =
+    editorHint.rowRange || editorHint.valueRange || itemRangesEnvelope(editorHint) || editorHint.statementRange;
   return sqlCompletionHintScopeFromRange(editorHint.type || 'UNKNOWN', range) || {
     key: `${editorHint.type || 'UNKNOWN'}:unscoped:${index}`,
   };
@@ -116,7 +117,8 @@ function isPointInsideRange(pointRange: ISqlEditorHintRangeVO, range: ISqlEditor
     return isSamePosition(pointRange, range);
   }
   return (
-    comparePosition(range.startLineNumber, range.startColumn, pointRange.startLineNumber, pointRange.startColumn) <= 0 &&
+    comparePosition(range.startLineNumber, range.startColumn, pointRange.startLineNumber, pointRange.startColumn) <=
+      0 &&
     comparePosition(pointRange.startLineNumber, pointRange.startColumn, range.endLineNumber, range.endColumn) < 0
   );
 }

@@ -31,11 +31,11 @@ export interface IColumnItemNew {
   columnSize: number | null; // column length
   bufferLength: number | null; // buffer length
   decimalDigits: string | null; // Decimal places
-  numPrecRadix: number| null; // Numerical precision
-  sqlDataType: string| null; // sql data type
-  sqlDatetimeSub: string| null; // sql datetime subtype
-  charOctetLength:string|  null; // Maximum length of string
-  ordinalPosition: number| null; // location
+  numPrecRadix: number | null; // Numerical precision
+  sqlDataType: string | null; // sql data type
+  sqlDatetimeSub: string | null; // sql datetime subtype
+  charOctetLength: string | null; // Maximum length of string
+  ordinalPosition: number | null; // location
   nullable: NullableType | null; //Is it empty
   generatedColumn: string | null; // Whether to generate columns
 
@@ -44,7 +44,7 @@ export interface IColumnItemNew {
   value: string | null; // value
 }
 
-// 
+//
 export interface IIndexIncludeColumnItem {
   key?: string; // The unique identifier added by the front end
   ascOrDesc: string | null; // Ascending or descending order
@@ -64,7 +64,6 @@ export interface IIndexIncludeColumnItem {
   pages: number | null; // Number of pages
 }
 
-
 // Data structure of index when editing table
 export interface IIndexItem {
   key?: string;
@@ -74,7 +73,6 @@ export interface IIndexItem {
   method?: string | null;
   columnList: IIndexIncludeColumnItem[];
   editStatus: EditColumnOperationType | null; // Operation type
-
 }
 
 // The overall data structure when editing the table

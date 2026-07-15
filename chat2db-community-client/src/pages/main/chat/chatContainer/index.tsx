@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useStyles } from './style';
 import { AIChatHeaderInPanel } from '@/blocks/AI/components/AIChatHeader';
 import ChatList from '../chatList';
@@ -119,7 +119,7 @@ export default memo<IProps>((props) => {
         try {
           const res = JSON.parse(parsedData.content);
           dataSourceInfoRef.current = res;
-        } catch (error) {
+        } catch {
           console.log('json_parse_error');
         }
         return;

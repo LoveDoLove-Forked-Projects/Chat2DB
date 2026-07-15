@@ -1,7 +1,7 @@
 /**
  * This component is only responsible for getting the table name selected by the user.
  *  */
-import React, {
+import {
   useMemo,
   useState,
   useRef,

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Flex } from 'antd';
 import { Modal } from '@chat2db/ui';
 import { useGlobalStore } from '@/store/global';

@@ -1,4 +1,4 @@
-import React, { memo, useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import i18n from '@/i18n';
 import { Input } from 'antd';
 import { IconButton } from '@chat2db/ui';

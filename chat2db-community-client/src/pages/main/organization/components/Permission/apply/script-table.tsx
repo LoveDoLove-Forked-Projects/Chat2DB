@@ -1,4 +1,4 @@
-import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from 'react';
 import { Button, Input, Table, Tag } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { IAccessControlApplyRecordVO } from '@/typings/enterprise/permission';

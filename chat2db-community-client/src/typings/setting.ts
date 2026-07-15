@@ -7,6 +7,6 @@ export interface IAiConfig {
   httpProxyHost?: string;
   httpProxyPort?: string;
   stream?: boolean;
-  secretKey?:string;
+  secretKey?: string;
   model?: string;
 }

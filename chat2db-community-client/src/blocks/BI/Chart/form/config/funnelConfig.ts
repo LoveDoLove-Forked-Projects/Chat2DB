@@ -1,6 +1,5 @@
 import i18n from '@/i18n';
 import { ChartType } from '../../constants';
-import {orderByRuleConfig} from './baseConfig';
 
 export const funnelConfig = {
   properties: [

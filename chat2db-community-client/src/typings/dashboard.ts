@@ -45,7 +45,7 @@ export interface IChartItem {
   refreshCycle?: string;
 }
 
-// export interface IOldChartItem { 
+// export interface IOldChartItem {
 //   id?: number;
 //   /** Chart name */
 //   name?: string;

@@ -143,7 +143,8 @@ export interface ChatVO {
    */
   dataSourceId?: number;
   /**
-   * Conversation details, in reverse order according to question time, are only returned in the conversation details interface
+   * Conversation details in reverse question-time order.
+   * Only returned by the conversation details API.
    */
   chatDetails?: ChatDetailVO[];
   /**

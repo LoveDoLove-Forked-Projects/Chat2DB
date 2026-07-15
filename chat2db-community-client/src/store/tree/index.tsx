@@ -42,7 +42,7 @@ export interface TreeState {
   dataList: { key: React.Key; title: string }[];
   expandedKeys: React.Key[];
   searchBarValue: string;
-  // If special characters such as English brackets appear in tree search, it will cause an error. The searchBarValue has been formatted.
+  // This value is escaped before tree search so brackets and other special characters remain valid.
   regularSearchBarValue: string;
   searchResultKeys: string[];
   searchResult: TreeNodeData[] | null;
@@ -401,7 +401,7 @@ export const createTreeAction: StateCreator<TreeStore, [['zustand/devtools', nev
     const uniqueKeys = Array.from(new Set(expandedKeys));
     set({ expandedKeys: uniqueKeys });
   },
-  // Increase or decrease ExpandedKeys accepts a key. If the key exists, it will be deleted. If it does not exist, it will be added.
+  // Remove an existing expanded key, or add it when absent.
   toggleExpandedKeys: (key) => {
     const expandedKeys = get().expandedKeys;
     if (expandedKeys.includes(key)) {

@@ -23,7 +23,7 @@ const getApiKeyList = createRequest<void, ApiKeyDetail[]>(`/api/key/list`, {
   method: 'get',
 });
 
-const deleteApiKey = createRequest<{id: number}, void>(`/api/key/delete`, {
+const deleteApiKey = createRequest<{ id: number }, void>(`/api/key/delete`, {
   method: 'delete',
 });
 

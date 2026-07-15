@@ -70,7 +70,7 @@ const TitleRender = (props: IProps) => {
 
   const handleDoubleTreeNode = () => {
     const flag = treeDropdownRef.current?.handleDoubleClick(nodeData as any);
-    // flag indicates that treeDropdownRef has already handled the double-click event for us, and there is no need to execute the following logic.
+    // The dropdown returns true after handling the double-click, so no further action is needed.
     // nodeData.isLeaf represents leaf nodes and does not need to handle double-click events.
     if (flag || nodeData.isLeaf) {
       return;

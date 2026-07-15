@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { Button, Flex, Input, Select } from 'antd';
 import SQLEditor, { SQLEditorRef } from '@/components/SQLEditor/editor/SQLEditor';
 import { DatabaseTypeCode } from '@/constants';

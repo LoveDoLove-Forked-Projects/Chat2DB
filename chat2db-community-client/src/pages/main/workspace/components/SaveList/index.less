@@ -10,40 +10,47 @@
 .leftModuleTitle {
   flex-shrink: 0;
   margin-bottom: 4px;
-  padding: 0px 10px;
+  padding: 0 10px;
   height: 32px;
   display: flex;
   align-items: center;
   border-bottom: 1px solid var(--color-border);
+
   .leftModuleTitleText {
     width: 100%;
     display: flex;
     justify-content: space-between;
     align-items: center;
     height: 26px;
+
     .modelName {
       font-weight: bold;
       line-height: 100%;
     }
+
     .iconBox {
       display: flex;
       align-items: center;
       height: 100%;
     }
+
     .refreshIcon {
       margin-right: 10px;
     }
+
     .refreshIcon,
     .searchIcon {
       cursor: pointer;
       height: 100%;
       display: flex;
       align-items: center;
+
       &:hover {
         color: var(--color-primary);
       }
     }
   }
+
   .leftModuleTitleSearch {
     height: 26px;
   }
@@ -56,9 +63,10 @@
 
 .saveBoxList {
   flex: 1;
-  height: 0px;
-  padding: 0px 4px;
+  height: 0;
+  padding: 0 4px;
   overflow-y: hidden;
+
   &:hover {
     overflow-y: auto;
   }
@@ -66,29 +74,33 @@
 
 .leftModuleTitleShadow {
   // Add a subtle shadow at the bottom.
-  box-shadow: 0px 1px 2px 0px var(--color-border);
+  box-shadow: 0 1px 2px 0 var(--color-border);
 }
 
 .saveItem {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0px 6px;
+  padding: 0 6px;
   height: 26px;
   line-height: 26px;
   border-radius: 4px;
   user-select: none;
   cursor: pointer;
+
   .saveItemText {
-    width: 0px;
+    width: 0;
     flex: 1;
     .f-single-line();
+
     display: flex;
     align-items: center;
+
     .iconBox {
       width: 20px;
       flex-shrink: 0;
     }
+
     .itemName {
       flex: 1;
       .f-single-line();

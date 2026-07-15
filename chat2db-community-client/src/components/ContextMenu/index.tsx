@@ -95,7 +95,8 @@ const ContextMenu = (props: IProps, ref) => {
     closeDropdown,
   }));
 
-  // Returning null prevents a newly opened dialog from rendering stale dropdown content despite the reset and setTimeout.
+  // Returning null prevents a newly opened dialog from rendering stale dropdown content
+  // despite the reset and setTimeout.
   // Creating a fresh instance each time is also appropriate here.
   if (!dropdownParams) {
     return null;

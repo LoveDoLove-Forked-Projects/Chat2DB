@@ -54,7 +54,7 @@ function focusEditableElement(element: HTMLElement) {
       const end = element.selectionEnd ?? start;
       try {
         element.setSelectionRange(start, end);
-      } catch (error) {
+      } catch {
         // ignore
       }
     }

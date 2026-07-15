@@ -8,14 +8,13 @@ const handleExecuteSQLPermission = (props: {
   sqlScript: string;
 }) => {
   const { type, dataSourceId, databaseName, schemaName, sqlScript } = props;
-  const params = formatParams({
+  return formatParams({
     form: type,
     script: sqlScript,
     dataSourceId: dataSourceId,
     databaseName: databaseName,
     schemaName: schemaName,
   });
-  // return permission;
 };
 
 export default handleExecuteSQLPermission;

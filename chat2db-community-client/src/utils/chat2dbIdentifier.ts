@@ -1,6 +1,6 @@
 // Create a specific identifier for chat2db
-export const createChat2dbSpecificSymbolIdentifier = (value: any) => { 
-  if (value !== null && value !== undefined) { 
+export const createChat2dbSpecificSymbolIdentifier = (value: any) => {
+  if (value !== null && value !== undefined) {
     return value;
   }
 
@@ -11,7 +11,7 @@ export const createChat2dbSpecificSymbolIdentifier = (value: any) => {
 export const parseChat2dbSpecificSymbolIdentifier = (value: string) => {
   const reg = /chat2db-specific-symbol-identifier-<(.+)>/;
   const match = value.match(reg);
-  if (!match) { 
+  if (!match) {
     return {
       display: value,
       value: value,
@@ -21,15 +21,13 @@ export const parseChat2dbSpecificSymbolIdentifier = (value: string) => {
   if (matchStr === 'null') {
     return {
       display: 'null',
-      value: null
+      value: null,
     };
   }
-  if(matchStr === 'undefined') {
+  if (matchStr === 'undefined') {
     return {
       display: 'undefined',
-      value: undefined
+      value: undefined,
     };
   }
 };
-
-
