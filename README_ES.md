@@ -1,8 +1,3 @@
-> 📣 **¡Novedades del equipo de Chat2DB!**
-> Acabamos de publicar como código abierto **[Nubase](https://github.com/ottermind/nubase)**, nuestra nueva capa de despliegue para aplicaciones nativas de inteligencia artificial.
-> Si Chat2DB le ayuda a gestionar datos con facilidad, Nubase le ayudará a desplegar sus herramientas y agentes de programación con IA sin complicaciones.
->
-> Apoye nuestro trabajo de código abierto y **[dé una ⭐️ a Nubase en GitHub](https://github.com/ottermind/nubase)**.
 <div align="center">
   <h1>Chat2DB</h1>
   <p><strong>Un cliente de bases de datos y espacio de trabajo SQL con IA para desarrolladores, administradores de bases de datos, analistas y equipos de datos.</strong></p>
@@ -13,14 +8,14 @@
 
 <div align="center">
 
-[![Modelscope][Modelscope-image]][Modelscope-url]
+[![ModelScope][Modelscope-image]][Modelscope-url]
 [![Discord][discord-image]][discord-url]
 [![X][x-image]][x-url]
 
 [Modelscope-image]: https://img.shields.io/badge/modelscope-blue?style=flat-square\&logo=modelscope
 [Modelscope-url]: https://modelscope.cn/
 [discord-image]: https://img.shields.io/badge/-Join%20us%20on%20Discord-%237289DA.svg?style=flat&logo=discord&logoColor=white
-[discord-url]: https://discord.com/invite/uNjb3n5JVN
+[discord-url]: https://discord.gg/uNjb3n5JVN
 [x-image]: https://img.shields.io/badge/X-%40Chat2DB_AI-000000?style=flat&logo=x&logoColor=white
 [x-url]: https://x.com/Chat2DB_AI
 
@@ -35,17 +30,11 @@
 
 </div>
 
-**1. Generación inteligente de SQL**:
-Chat2DB Pro permite desarrollar SQL de forma inteligente mediante IA para escribir consultas con mayor rapidez.
-
-**2. Gestión de bases de datos**:
-Admite más de 10 bases de datos, entre ellas MySQL, PostgreSQL, H2, Oracle, SQLServer, SQLite, MariaDB, ClickHouse, DM, Presto, DB2, OceanBase, Hive, KingBase, MongoDB, Redis, Snowflake y muchas más.
-
-**3. Generación inteligente de informes**:
-Chat2DB Pro permite generar informes de datos de forma inteligente mediante IA para crear paneles con mayor rapidez.
-
-**4. Sincronización de estructuras de datos**:
-Chat2DB Pro permite sincronizar estructuras de tablas de bases de datos con mayor rapidez.
+> 📣 **¡Novedades del equipo de Chat2DB!**
+> Acabamos de publicar como código abierto **[Nubase](https://github.com/ottermind/nubase)**, nuestra nueva capa de despliegue para aplicaciones nativas de inteligencia artificial.
+> Si Chat2DB le ayuda a gestionar datos con facilidad, Nubase le ayudará a desplegar sus herramientas y agentes de programación con IA sin complicaciones.
+>
+> Apoye nuestro trabajo de código abierto y **[dé una ⭐️ a Nubase en GitHub](https://github.com/ottermind/nubase)**.
 
 ## Comparación de funciones
 
@@ -71,9 +60,12 @@ Community, Pro y Enterprise comparten las mismas funciones básicas del cliente 
 | Contexto de datos de la organización y base de conocimiento empresarial | ❌ | ❌ | ✅ |
 
 ## Descarga e instalación
-Chat2DB es una aplicación multiplataforma compatible con Windows, MacOS y Linux. Puede descargar Chat2DB desde los enlaces siguientes:
+
+Chat2DB es una aplicación multiplataforma compatible con Windows, macOS y Linux. Puede descargar Chat2DB desde los enlaces siguientes:
+
 - [Descargar la versión Pro](https://chat2db.ai/download)
-- [Descargar la versión de código abierto](https://github.com/OtterMind/Chat2DB/releases)
+- [Descargar la versión Local](https://chat2db.ai/download)
+- [Descargar Community (Source Available)](https://github.com/OtterMind/Chat2DB/releases)
 
 ## Límite de seguridad de Community Edition
 
@@ -96,8 +88,9 @@ Chat2DB es una aplicación multiplataforma compatible con Windows, MacOS y Linux
 ### Requisitos del sistema
 
 Antes de instalar Chat2DB, asegúrese de que el sistema cumpla los requisitos siguientes:
+
 - Docker 19.03.0 o posterior
-- Docker Compose 1.25.0 o posterior
+- Docker Compose 2.0.0 o posterior (Compose V2)
 - CPU >= 2 núcleos
 - RAM >= 4 GiB
 
@@ -126,8 +119,11 @@ Conserve `~/.config/chat2db-community/encryption.key` entre reconstrucciones del
 El repositorio también incluye una definición de Compose:
 
 ```bash
+./script/security/init-community-encryption-key.sh
 docker compose --file docker/docker-compose.yml up --detach
 ```
+
+`docker run` guarda los datos en `$HOME/.chat2db-community-docker`, mientras que Compose utiliza el volumen con nombre `chat2db-community-data`. Ambos métodos no comparten ni migran los datos automáticamente.
 
 ## Clave de cifrado de Community
 
@@ -169,38 +165,39 @@ El primer valor configurado es el que se utiliza. Un valor vacío, Base64 mal fo
 
 La creación automática del archivo de clave depende de `chat2db.mode`, no de `chat2db.gui`. El modo Community Desktop (`chat2db.runtime.mode=community` con `chat2db.mode=DESKTOP`) crea el archivo de clave seleccionado si no hay una clave en línea configurada y el archivo no existe. Cualquier modo que no sea Desktop, incluido el inicio web/headless habitual, nunca crea una clave que falte y genera un error hasta que se proporcione o inicialice una clave válida. La clave resuelta se almacena en caché durante la vida del proceso, por lo que los cambios en la configuración requieren reiniciar la aplicación. Si se sustituye o se pierde la clave, las contraseñas de fuentes de datos y las claves API de modelos de IA guardadas anteriormente dejan de ser legibles.
 
-## Depuración del código
+## Desarrollo
 
-## Entorno de ejecución
+### Entorno de ejecución
 
-- Entorno de ejecución de Java: <a href="https://adoptopenjdk.net/" target="_blank">Open JDK 17</a>
-- Entorno de ejecución de Node.js: Node.js 18 o posterior
+- Entorno de ejecución de Java: <a href="https://adoptium.net/temurin/releases/?version=17" target="_blank">Eclipse Temurin 17</a>
+- Entorno de ejecución de Node.js: Node.js 18.17.0 o posterior
 - Maven 3.8 o posterior
 
-**Clonar el repositorio localmente**
+### Clonar el repositorio localmente
 
 ```bash
-$ git clone git@github.com:OtterMind/Chat2DB.git
+git clone git@github.com:OtterMind/Chat2DB.git
 ```
 
-**Depuración del frontend**
+### Depuración del frontend
 
-```bash
 Use Yarn con el archivo de bloqueo incluido en el repositorio.
-$ cd Chat2DB/chat2db-community-client
-$ yarn install --frozen-lockfile
-$ yarn run start:community:hot
-```
-
-**Depuración del backend**
 
 ```bash
-$ cd Chat2DB
-$ mvn -B clean package -Dmaven.test.skip=true -Dchat2db.finalName=chat2db-community \
+cd Chat2DB/chat2db-community-client
+yarn install --frozen-lockfile
+yarn run start:community:hot
+```
+
+### Depuración del backend
+
+```bash
+cd Chat2DB
+mvn -B clean package -Dmaven.test.skip=true -Dchat2db.finalName=chat2db-community \
     -f chat2db-community-server/pom.xml \
     -pl chat2db-community-start -am
-$ ./script/security/init-community-encryption-key.sh
-$ java -Dloader.path=chat2db-community-server/chat2db-community-start/target/lib \
+./script/security/init-community-encryption-key.sh
+java -Dloader.path=chat2db-community-server/chat2db-community-start/target/lib \
     -Dchat2db.gui=false \
     -Dchat2db.runtime.mode=community \
     -Dchat2db.mode=WEB \
@@ -212,10 +209,10 @@ $ java -Dloader.path=chat2db-community-server/chat2db-community-start/target/lib
     -jar chat2db-community-server/chat2db-community-start/target/chat2db-community.jar
 ```
 
-**Compilar una imagen de Docker local**
+### Compilar una imagen de Docker local
 
 ```bash
-$ ./docker/docker-build.sh 5.3.0 chat2db/chat2db:5.3.0
+./docker/docker-build.sh 5.3.0 chat2db/chat2db:5.3.0
 ```
 
 ## Contribuciones
@@ -231,7 +228,7 @@ Antes de abrir una incidencia o enviar una pull request, lea nuestra [Guía de c
 ## Contacto
 
 - Correo electrónico: Chat2DB@ch2db.com
-- Discord: [Únase a nuestro servidor de Discord](https://discord.gg/JDkwB6JS8A)
+- Discord: [Únase a nuestro servidor de Discord](https://discord.gg/uNjb3n5JVN)
 - X: [@Chat2DB_AI](https://x.com/Chat2DB_AI)
 - YouTube: [Canal de Chat2DB](https://www.youtube.com/@chat2db.tutorial)
 - GitHub: [Chat2DB en GitHub](https://github.com/OtterMind/Chat2DB)
@@ -240,24 +237,15 @@ Antes de abrir una incidencia o enviar una pull request, lea nuestra [Guía de c
 ## Agradecimientos
 
 
-Gracias a todas las personas que han contribuido a Chat2DB~~
+Gracias a todas las personas que han contribuido a Chat2DB.
 
 
 <a href="https://github.com/OtterMind/Chat2DB/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=OtterMind/Chat2DB" />
-</a>
-
-## Historial de estrellas
-
-<a href="https://www.star-history.com/?repos=OtterMind%2FChat2DB&type=date&legend=top-left">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=OtterMind/Chat2DB&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=OtterMind/Chat2DB&type=date&legend=top-left" />
-   <img alt="Gráfico del historial de estrellas" src="https://api.star-history.com/chart?repos=OtterMind/Chat2DB&type=date&legend=top-left" />
- </picture>
+  <img src="https://contrib.rocks/image?repo=OtterMind/Chat2DB" alt="Colaboradores de Chat2DB" />
 </a>
 
 ## Licencia
+
 La versión 5.3.0 y posteriores de Chat2DB Community están disponibles bajo los
 [términos de licencia de este repositorio](./LICENSE). Se trata de una licencia de código disponible
 basada en Apache License 2.0 con condiciones adicionales. Las versiones de Chat2DB
