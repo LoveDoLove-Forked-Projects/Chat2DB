@@ -96,7 +96,7 @@ public class DbTableController {
     @GetMapping("/column_list")
     public ListResult<ColumnResponse> columnList(@Valid TableDetailQueryRequest request) {
         DbTableQueryRequest queryParam = dbWebConverter.tableRequest2param(request);
-        return ListResult.of(dbWebConverter.columnDto2response(tableService.queryColumnsWithDesensitize(queryParam)));
+        return ListResult.of(dbWebConverter.columnDto2response(tableService.queryColumns(queryParam)));
     }
 
     /**

@@ -36,7 +36,7 @@ public class ConnectionContextConverter {
         if (profile == null) {
             return null;
         }
-        ConnectInfo connectInfo = new ConnectInfo();
+        ConnectInfo connectInfo = createConnectInfo();
         connectInfo.setDataSourceId(profile.getDataSourceId());
         connectInfo.setConsoleId(profile.getConsoleId());
         connectInfo.setDatabase(profile.getDatabaseName());
@@ -65,7 +65,7 @@ public class ConnectionContextConverter {
     }
 
     public ConnectInfo mcpParam2connectInfo(McpConnectionContextRequest param, Long dataSourceId) {
-        ConnectInfo connectInfo = new ConnectInfo();
+        ConnectInfo connectInfo = createConnectInfo();
         connectInfo.setAlias("mcp:" + StringUtils.defaultIfBlank(param.getDatabaseName(),
                 StringUtils.defaultIfBlank(param.getSchemaName(), "connection")));
         connectInfo.setUser(param.getUser());
@@ -81,7 +81,7 @@ public class ConnectionContextConverter {
     }
 
     private ConnectInfo datasource2connectInfo(Long dataSourceId, WorkspaceDataSource dataSource, String url) {
-        ConnectInfo connectInfo = new ConnectInfo();
+        ConnectInfo connectInfo = createConnectInfo();
         connectInfo.setAlias(dataSource.getAlias());
         connectInfo.setUser(dataSource.getUser());
         connectInfo.setDataSourceId(dataSourceId);
@@ -104,8 +104,11 @@ public class ConnectionContextConverter {
         if (driverConfig != null && driverConfig.notEmpty()) {
             connectInfo.setDriverConfig(driverConfig);
         }
-        connectInfo.setDesensitizes(dataSource.getDesensitizes());
         return connectInfo;
+    }
+
+    protected ConnectInfo createConnectInfo() {
+        return new ConnectInfo();
     }
 
     public Long buildMcpDataSourceId(McpConnectionContextRequest param) {

@@ -3,6 +3,7 @@ package ai.chat2db.community.test.spi.sql;
 import ai.chat2db.community.domain.api.config.DBConfig;
 import ai.chat2db.community.domain.api.config.DriverConfig;
 import ai.chat2db.community.domain.api.model.result.ExecuteResponse;
+import ai.chat2db.community.domain.api.model.result.Header;
 import ai.chat2db.community.domain.api.model.result.ResultCell;
 import ai.chat2db.community.tools.util.I18nUtils;
 import ai.chat2db.spi.DefaultSQLExecutor;
@@ -129,6 +130,33 @@ class DefaultSQLExecutorLargeCellTest {
             assertEquals("small", cell.getValue());
             assertFalse(cell.isLargeValue());
             assertEquals(Types.VARCHAR, cell.getSqlType());
+        }
+    }
+
+    @Test
+    void resultHeadersIncludeJdbcNamespaceProvenance() throws Exception {
+        try (Connection connection = DriverManager.getConnection(
+                "jdbc:h2:mem:sql_executor_header_namespace;DB_CLOSE_DELAY=-1")) {
+            putContext(connection);
+            try (var statement = connection.createStatement()) {
+                statement.execute("CREATE SCHEMA tenant_b");
+                statement.execute("CREATE TABLE tenant_b.users (email VARCHAR(128))");
+                statement.execute("INSERT INTO tenant_b.users (email) VALUES ('alice@example.com')");
+            }
+
+            ExecuteResponse result = DefaultSQLExecutor.getInstance().execute(SqlStatementExecuteRequest.builder()
+                    .sql("SELECT email FROM tenant_b.users")
+                    .connection(connection)
+                    .limitRowSize(true)
+                    .offset(0)
+                    .count(1)
+                    .build());
+
+            Header header = result.getHeaderList().get(0);
+            assertEquals(connection.getCatalog(), header.getDatabaseName());
+            assertEquals("TENANT_B", header.getSchemaName());
+            assertEquals("USERS", header.getTableName());
+            assertEquals("EMAIL", header.getColumnName());
         }
     }
 

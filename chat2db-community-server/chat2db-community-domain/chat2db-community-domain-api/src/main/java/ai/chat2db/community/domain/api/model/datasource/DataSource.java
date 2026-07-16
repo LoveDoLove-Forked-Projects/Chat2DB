@@ -2,7 +2,6 @@ package ai.chat2db.community.domain.api.model.datasource;
 
 import ai.chat2db.community.domain.api.config.Environment;
 import ai.chat2db.community.domain.api.config.DriverConfig;
-import ai.chat2db.community.domain.api.model.datasource.Desensitize;
 import ai.chat2db.community.domain.api.model.datasource.KeyValue;
 import ai.chat2db.community.domain.api.model.datasource.SSHInfo;
 import ai.chat2db.community.domain.api.model.datasource.SSLInfo;
@@ -93,7 +92,4 @@ public class DataSource {
 
 
     private Long spaceId;
-
-
-    private List<Desensitize> desensitizes;
 }

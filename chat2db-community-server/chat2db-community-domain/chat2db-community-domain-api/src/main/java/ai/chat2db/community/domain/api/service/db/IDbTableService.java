@@ -7,7 +7,6 @@ import ai.chat2db.community.domain.api.model.request.db.*;
 import ai.chat2db.community.domain.api.model.sql.Sql;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * Exposes relational table metadata, DDL, and generated SQL contracts.
@@ -90,22 +89,6 @@ public interface IDbTableService {
      * @return list of table column.
      */
     List<TableColumn> queryColumns(DbTableQueryRequest dbTableQueryRequest);
-
-    /**
-     * Lists columns and applies datasource desensitize metadata.
-     *
-     * @param dbTableQueryRequest table query parameters.
-     * @return list of table column with desensitize metadata.
-     */
-    List<TableColumn> queryColumnsWithDesensitize(DbTableQueryRequest dbTableQueryRequest);
-
-    /**
-     * Returns desensitize type mapping keyed by column name for the current connection.
-     *
-     * @param dbTableQueryRequest table query parameters.
-     * @return map of column name to desensitize type.
-     */
-    Map<String, String> queryColumnDesensitizeTypes(DbTableQueryRequest dbTableQueryRequest);
 
     /**
      * Lists indexes for a table.

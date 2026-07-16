@@ -26,7 +26,6 @@ import ai.chat2db.community.domain.api.enums.plugin.ObjectTypeEnum;
 import ai.chat2db.community.domain.api.model.metadata.*;
 import ai.chat2db.community.domain.api.model.sql.Sql;
 import ai.chat2db.community.domain.api.config.TableBuilderConfig;
-import ai.chat2db.spi.model.datasource.ConnectInfo;
 import ai.chat2db.spi.model.request.*;
 import ai.chat2db.spi.model.response.TablesPageResponse;
 import ai.chat2db.spi.sql.Chat2DBContext;
@@ -187,39 +186,6 @@ public class DbTableServiceImpl implements IDbTableService {
                         metaSchema.columns(Chat2DBContext.getConnection(),
                                 new TableMetadataRequest(param.getDatabaseName(), param.getSchemaName(), param.getTableName())));
         return list;
-    }
-
-    @Override
-    public List<TableColumn> queryColumnsWithDesensitize(DbTableQueryRequest param) {
-        List<TableColumn> tableColumns = queryColumns(param);
-        Map<String, String> desensitizeTypes = queryColumnDesensitizeTypes(param);
-        if (CollectionUtils.isEmpty(tableColumns) || desensitizeTypes.isEmpty()) {
-            return tableColumns;
-        }
-        for (TableColumn tableColumn : tableColumns) {
-            tableColumn.setDesensitizeType(desensitizeTypes.get(tableColumn.getName()));
-        }
-        return tableColumns;
-    }
-
-    @Override
-    public Map<String, String> queryColumnDesensitizeTypes(DbTableQueryRequest param) {
-        ConnectInfo connectInfo = Chat2DBContext.getConnectInfo();
-        if (connectInfo == null || CollectionUtils.isEmpty(connectInfo.getDesensitizes())) {
-            return Collections.emptyMap();
-        }
-        List<TableColumn> tableColumns = queryColumns(param);
-        if (CollectionUtils.isEmpty(tableColumns)) {
-            return Collections.emptyMap();
-        }
-        Map<String, String> result = new HashMap<>();
-        for (TableColumn tableColumn : tableColumns) {
-            String type = connectInfo.getDesensitizeType(tableColumn.getTableName(), tableColumn.getName());
-            if (StringUtils.isNotBlank(type)) {
-                result.put(tableColumn.getName(), type);
-            }
-        }
-        return result;
     }
 
     @Override

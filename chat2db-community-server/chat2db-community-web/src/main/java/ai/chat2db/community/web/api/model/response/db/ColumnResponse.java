@@ -87,7 +87,4 @@ public class ColumnResponse {
 
     private String editStatus;
 
-
-    private String desensitizeType;
-
 }

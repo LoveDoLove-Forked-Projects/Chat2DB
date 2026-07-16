@@ -17,6 +17,7 @@ import java.util.Base64;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
@@ -90,6 +91,36 @@ class DbWorkspaceDataSourceServiceImplTest {
         assertSame(request, forwardedPreConnectRequest);
     }
 
+    @Test
+    void displayCopyPreservesWorkspaceDataSourceSubtype() {
+        ExtendedWorkspaceDataSource stored = new ExtendedWorkspaceDataSource();
+        stored.setId(45L);
+        stored.setAlias("extended datasource");
+        stored.setStorageType("LOCAL");
+        stored.setExtensionValue("enterprise-value");
+        queriedDataSource = stored;
+
+        WorkspaceDataSource result = service.queryDisplayDataSourceById(45L, false);
+
+        ExtendedWorkspaceDataSource extended = assertInstanceOf(ExtendedWorkspaceDataSource.class, result);
+        assertEquals("enterprise-value", extended.getExtensionValue());
+        assertNotSame(stored, extended);
+    }
+
+    @Test
+    void displayCopyFallsBackForSubtypeWithoutDefaultConstructor() {
+        ConstructorOnlyWorkspaceDataSource stored = new ConstructorOnlyWorkspaceDataSource("extension");
+        stored.setId(46L);
+        stored.setAlias("constructor-only datasource");
+        stored.setStorageType("LOCAL");
+        queriedDataSource = stored;
+
+        WorkspaceDataSource result = service.queryDisplayDataSourceById(46L, false);
+
+        assertEquals(WorkspaceDataSource.class, result.getClass());
+        assertEquals("constructor-only datasource", result.getAlias());
+    }
+
     private IWorkspaceStorageFacade storageFacade() {
         return (IWorkspaceStorageFacade) Proxy.newProxyInstance(
                 IWorkspaceStorageFacade.class.getClassLoader(),
@@ -158,5 +189,31 @@ class DbWorkspaceDataSourceServiceImplTest {
             return '\0';
         }
         return 0;
+    }
+
+    public static class ExtendedWorkspaceDataSource extends WorkspaceDataSource {
+
+        private String extensionValue;
+
+        public String getExtensionValue() {
+            return extensionValue;
+        }
+
+        public void setExtensionValue(String extensionValue) {
+            this.extensionValue = extensionValue;
+        }
+    }
+
+    public static class ConstructorOnlyWorkspaceDataSource extends WorkspaceDataSource {
+
+        private final String extensionValue;
+
+        public ConstructorOnlyWorkspaceDataSource(String extensionValue) {
+            this.extensionValue = extensionValue;
+        }
+
+        public String getExtensionValue() {
+            return extensionValue;
+        }
     }
 }

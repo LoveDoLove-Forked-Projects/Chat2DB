@@ -44,4 +44,8 @@ public class Header {
     private String columnName;
 
     private String tableName;
+
+    private String databaseName;
+
+    private String schemaName;
 }

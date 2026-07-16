@@ -167,8 +167,6 @@ public class TableColumn implements Serializable {
 
     private String editStatus;
 
-    private String desensitizeType;
-
     private String charSetName;
 
     private String collationName;

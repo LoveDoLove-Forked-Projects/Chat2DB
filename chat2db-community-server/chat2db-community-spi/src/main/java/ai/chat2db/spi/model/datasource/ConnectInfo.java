@@ -8,14 +8,12 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import ai.chat2db.community.domain.api.config.DriverConfig;
-import ai.chat2db.community.domain.api.model.datasource.Desensitize;
 import ai.chat2db.community.domain.api.model.datasource.KeyValue;
 import ai.chat2db.community.domain.api.model.datasource.SSHInfo;
 import ai.chat2db.community.domain.api.model.datasource.SSLInfo;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
 
@@ -86,38 +84,6 @@ public class ConnectInfo {
 
 
     private List<KeyValue> extendInfo;
-
-
-    public List<Desensitize> getDesensitizes() {
-        return desensitizes;
-    }
-
-    public void setDesensitizes(List<Desensitize> desensitizes) {
-        this.desensitizes = desensitizes;
-        if (CollectionUtils.isNotEmpty(desensitizes)) {
-            desensitizeMap = new HashMap<>();
-            for (Desensitize desensitize : desensitizes) {
-                if (Objects.equals(desensitize.getDatabaseName(), databaseName)
-                        && Objects.equals(desensitize.getSchemaName(), schemaName)
-                ) {
-                    String key = desensitize.getTableName() + "|" + desensitize.getColumnName();
-                    desensitizeMap.put(key, desensitize.getDesensitizeType());
-                }
-            }
-        }
-    }
-
-    public String getDesensitizeType(String tableName, String columnName) {
-        if (desensitizeMap == null || desensitizeMap.isEmpty() || tableName == null || columnName == null) {
-            return null;
-        }
-        return desensitizeMap.get(tableName + "|" + columnName);
-    }
-
-
-    private List<Desensitize> desensitizes;
-
-    private Map<String, String> desensitizeMap;
 
 
     public String getServiceName() {
@@ -450,7 +416,7 @@ public class ConnectInfo {
     }
 
     public ConnectInfo copy() {
-        ConnectInfo copy = new ConnectInfo();
+        ConnectInfo copy = createCopy();
         copy.setDbVersion(this.getDbVersion());
         copy.setDbType(this.getDbType());
         copy.setHost(this.getHost());
@@ -474,6 +440,10 @@ public class ConnectInfo {
         copy.setUrlWithOutDatabase(this.getUrlWithOutDatabase());
         copy.setLastAccessTime(new Date());
         return copy;
+    }
+
+    protected ConnectInfo createCopy() {
+        return new ConnectInfo();
     }
 
     public void close() {

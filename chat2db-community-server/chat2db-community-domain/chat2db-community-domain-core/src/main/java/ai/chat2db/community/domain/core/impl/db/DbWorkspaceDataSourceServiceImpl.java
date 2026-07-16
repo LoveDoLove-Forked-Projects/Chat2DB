@@ -16,6 +16,7 @@ import ai.chat2db.community.tools.util.ConfigUtils;
 import ai.chat2db.community.tools.util.ContextUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.BeanInstantiationException;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import ai.chat2db.spi.sql.Chat2DBContext;
@@ -181,7 +182,13 @@ public class DbWorkspaceDataSourceServiceImpl implements IDbWorkspaceDataSourceS
         if (dataSource == null) {
             return null;
         }
-        WorkspaceDataSource copy = new WorkspaceDataSource();
+        WorkspaceDataSource copy;
+        try {
+            copy = BeanUtils.instantiateClass(dataSource.getClass());
+        } catch (BeanInstantiationException exception) {
+            log.debug("Cannot preserve workspace datasource subtype {}.", dataSource.getClass().getName(), exception);
+            copy = new WorkspaceDataSource();
+        }
         BeanUtils.copyProperties(dataSource, copy);
         return copy;
     }

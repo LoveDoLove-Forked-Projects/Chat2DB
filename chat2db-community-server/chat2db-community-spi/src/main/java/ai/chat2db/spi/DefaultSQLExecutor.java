@@ -30,7 +30,6 @@ import ai.chat2db.community.domain.api.service.db.ISqlExecutionStatementListener
 import ai.chat2db.spi.sql.Chat2DBContext;
 import ai.chat2db.spi.util.JdbcUtils;
 import ai.chat2db.spi.util.ResultSetUtils;
-import ai.chat2db.spi.util.DesensitizedUtils;
 import ai.chat2db.spi.util.SqlUtils;
 import cn.hutool.core.date.TimeInterval;
 import com.alibaba.druid.DbType;
@@ -290,7 +289,7 @@ public class DefaultSQLExecutor implements ICommandExecutor {
 
             int chat2dbAutoRowIdIndex = getChat2dbAutoRowIdIndex(headerList);
             List<List<ResultCell>> dataList = generateDataList(rs, col, chat2dbAutoRowIdIndex, limitRowSize,
-                    offset, count, headerList);
+                    offset, count);
 
             executeResult.setHeaderList(headerList);
             executeResult.setDataList(dataList);
@@ -301,7 +300,7 @@ public class DefaultSQLExecutor implements ICommandExecutor {
     }
 
     private List<List<ResultCell>> generateDataList(ResultSet rs, int col, int chat2dbAutoRowIdIndex,
-                                          boolean limitRowSize, Integer offset, Integer count, List<Header> headerList) throws SQLException {
+                                          boolean limitRowSize, Integer offset, Integer count) throws SQLException {
         List<List<ResultCell>> dataList = Lists.newArrayList();
 
         if (offset == null || offset < 0) {
@@ -315,7 +314,6 @@ public class DefaultSQLExecutor implements ICommandExecutor {
         } else {
             valueProcessor = new DefaultValueProcessor();
         }
-        ConnectInfo connectInfo = Chat2DBContext.getConnectInfo();
         while (rs.next()) {
             if (rowNumber++ < offset) {
                 continue;
@@ -326,18 +324,10 @@ public class DefaultSQLExecutor implements ICommandExecutor {
                 if (chat2dbAutoRowIdIndex == i) {
                     continue;
                 }
-                Header header = headerList.get(i - 1);
                 JDBCDataValue jdbcDataValue = new JDBCDataValue(rs, rs.getMetaData(), i, limitRowSize);
                 String value = valueProcessor.getJdbcValue(jdbcDataValue);
                 ResultCell cell = jdbcDataValue.buildResultCell(value);
-                if (connectInfo == null) {
-                    row.add(cell);
-                } else {
-                    String desensitizeType = connectInfo.getDesensitizeType(header.getTableName(), header.getColumnName());
-                    value = DesensitizedUtils.desensitize(value, desensitizeType);
-                    cell.setValue(value);
-                    row.add(cell);
-                }
+                row.add(cell);
             }
             if (count != null && count > 0 && rowCount++ >= count) {
                 break;
@@ -382,6 +372,16 @@ public class DefaultSQLExecutor implements ICommandExecutor {
                 header.setTableName(ResultSetUtils.getTableName(resultSetMetaData, i));
             } catch (Exception e) {
                 log.error(" get table name error", e);
+            }
+            try {
+                header.setDatabaseName(resultSetMetaData.getCatalogName(i));
+            } catch (Exception e) {
+                log.error(" get catalog name error", e);
+            }
+            try {
+                header.setSchemaName(resultSetMetaData.getSchemaName(i));
+            } catch (Exception e) {
+                log.error(" get schema name error", e);
             }
             try {
                 header.setAutoIncrement(resultSetMetaData.isAutoIncrement(i) ? 1 : 0);
@@ -1003,7 +1003,7 @@ public class DefaultSQLExecutor implements ICommandExecutor {
             setPageInfo(executeResult, sqlType, pageNo, pageSize);
             consumer.resultStarted(executeResult);
             List<List<ResultCell>> dataList = streamDataList(rs, col, chat2dbAutoRowIdIndex, limitRowSize, offset,
-                    count, headerList, pageNo, pageSize, cancellation, consumer, executeResult);
+                    count, pageNo, pageSize, cancellation, consumer, executeResult);
             executeResult.setDataList(dataList);
             setPageInfo(executeResult, sqlType, pageNo, pageSize);
         } finally {
@@ -1023,7 +1023,7 @@ public class DefaultSQLExecutor implements ICommandExecutor {
 
     private List<List<ResultCell>> streamDataList(ResultSet rs, int col, int chat2dbAutoRowIdIndex,
                                                   boolean limitRowSize, Integer offset, Integer count,
-                                                  List<Header> headerList, int pageNo, int pageSize,
+                                                  int pageNo, int pageSize,
                                                   ISqlExecutionCancellation cancellation,
                                                   ISqlExecutionResultConsumer consumer,
                                                   ExecuteResponse executeResult) throws SQLException {
@@ -1040,7 +1040,6 @@ public class DefaultSQLExecutor implements ICommandExecutor {
         } else {
             valueProcessor = new DefaultValueProcessor();
         }
-        ConnectInfo connectInfo = Chat2DBContext.getConnectInfo();
         while (rs.next()) {
             checkCanceled(cancellation);
             if (rowNumber++ < offset) {
@@ -1051,15 +1050,9 @@ public class DefaultSQLExecutor implements ICommandExecutor {
                 if (chat2dbAutoRowIdIndex == i) {
                     continue;
                 }
-                Header header = headerList.get(i - 1);
                 JDBCDataValue jdbcDataValue = new JDBCDataValue(rs, rs.getMetaData(), i, limitRowSize);
                 String value = valueProcessor.getJdbcValue(jdbcDataValue);
                 ResultCell cell = jdbcDataValue.buildResultCell(value);
-                if (connectInfo != null) {
-                    String desensitizeType = connectInfo.getDesensitizeType(header.getTableName(), header.getColumnName());
-                    value = DesensitizedUtils.desensitize(value, desensitizeType);
-                    cell.setValue(value);
-                }
                 row.add(cell);
             }
             List<ResultCell> numberedRow = Lists.newArrayListWithExpectedSize(row.size() + 1);
