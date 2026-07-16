@@ -241,6 +241,16 @@ Chat2DB에 기여해 주신 모든 분께 감사드립니다.
   <img src="https://contrib.rocks/image?repo=OtterMind/Chat2DB" alt="Chat2DB 기여자 목록" />
 </a>
 
+## Star 기록
+
+<a href="https://www.star-history.com/?repos=OtterMind%2FChat2DB&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=OtterMind/Chat2DB&type=date&theme=dark&legend=top-left&sealed_token=HqUTPR9nqjAv9Iikq8Jw6_J5TVBqOi0TiLtkPzm23BAJclEPLy93G-5ts_ZiNPJjnOAYTJoedoV7GqiMMkvlxjN0hTCKVn1_Bbe3RABuGYqg3jRibN8db-xChpiLkLrfnEa_C_O4bVoHnwjB1lNnlYNEHEvxFw_6WRuoSKwAj4t5KXYS2dz315a9Yo3c" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=OtterMind/Chat2DB&type=date&legend=top-left&sealed_token=HqUTPR9nqjAv9Iikq8Jw6_J5TVBqOi0TiLtkPzm23BAJclEPLy93G-5ts_ZiNPJjnOAYTJoedoV7GqiMMkvlxjN0hTCKVn1_Bbe3RABuGYqg3jRibN8db-xChpiLkLrfnEa_C_O4bVoHnwjB1lNnlYNEHEvxFw_6WRuoSKwAj4t5KXYS2dz315a9Yo3c" />
+   <img alt="Star History 차트" src="https://api.star-history.com/chart?repos=OtterMind/Chat2DB&type=date&legend=top-left&sealed_token=HqUTPR9nqjAv9Iikq8Jw6_J5TVBqOi0TiLtkPzm23BAJclEPLy93G-5ts_ZiNPJjnOAYTJoedoV7GqiMMkvlxjN0hTCKVn1_Bbe3RABuGYqg3jRibN8db-xChpiLkLrfnEa_C_O4bVoHnwjB1lNnlYNEHEvxFw_6WRuoSKwAj4t5KXYS2dz315a9Yo3c" />
+ </picture>
+</a>
+
 ## 라이선스
 
 Chat2DB Community 버전 5.3.0 이상에는
