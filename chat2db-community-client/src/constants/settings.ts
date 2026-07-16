@@ -1,6 +1,7 @@
 import { AIType } from '@/typings/ai';
 import { GlobalAISettings, GlobalBaseSettings, GlobalAppConfig, DataTableSettings } from '@/typings/settings';
 import { getUserComputerLanguage } from '@/utils';
+import { DEFAULT_RESULT_PAGE_SIZE } from './pagination';
 
 export enum LangType {
   EN_US = 'en-US',
@@ -34,6 +35,7 @@ export const DEFAULT_BASE_SETTINGS: GlobalBaseSettings = {
   language: getUserComputerLanguage(),
   customFont: '',
   customFontSize: 13,
+  defaultPageSize: DEFAULT_RESULT_PAGE_SIZE,
   enableMcp: false,
 };
 

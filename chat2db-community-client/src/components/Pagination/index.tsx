@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { InputNumber, Tooltip, Dropdown } from 'antd';
 import { IResultConfig } from '@/typings';
 import i18n from '@/i18n';
@@ -6,7 +6,10 @@ import _ from 'lodash';
 import { IconButton, ToolbarBtn } from '@chat2db/ui';
 import LoadingGracile from '@/components/Loading/LoadingGracile';
 import { useStyles } from './style';
-import { DownOutlined } from '@ant-design/icons';
+import { CheckOutlined, DownOutlined } from '@ant-design/icons';
+import { RESULT_PAGE_SIZE_OPTIONS } from '@/constants/pagination';
+import { useGlobalStore } from '@/store/global';
+import { settingSelectors } from '@/store/global/selectors';
 
 interface IProps {
   onPageSizeChange?: (pageSize: number) => void;
@@ -23,6 +26,13 @@ export default function Pagination(props: IProps) {
   const { styles } = useStyles({ inputNumberWidth });
   const [inputValue, setInputValue] = useState<number | null>(1);
   const [totalLoading, setTotalLoading] = useState(false);
+  const [pageSizeMenuOpen, setPageSizeMenuOpen] = useState(false);
+  const [customPageSize, setCustomPageSize] = useState<number | null>(null);
+  const keepPageSizeMenuOpenRef = useRef(false);
+  const { defaultPageSize, setBaseSetting } = useGlobalStore((state) => ({
+    defaultPageSize: settingSelectors.currentBaseSetting(state).defaultPageSize,
+    setBaseSetting: state.setBaseSetting,
+  }));
 
   useEffect(() => {
     setInputValue(paginationConfig?.pageNo ?? 1);
@@ -115,71 +125,101 @@ export default function Pagination(props: IProps) {
     return true;
   };
 
-  const items: any = [
+  const isPresetDefaultPageSize = RESULT_PAGE_SIZE_OPTIONS.some((pageSize) => pageSize === defaultPageSize);
+
+  const items = [
+    ...RESULT_PAGE_SIZE_OPTIONS.map((pageSize) => ({
+      key: String(pageSize),
+      label: (
+        <div className={styles.pageSizeOption}>
+          <span>{pageSize}</span>
+          {pageSize === defaultPageSize && (
+            <span className={styles.defaultPageSize}>
+              <CheckOutlined />
+              {i18n('workspace.table.defaultPageSize')}
+            </span>
+          )}
+        </div>
+      ),
+    })),
+    { type: 'divider' as const },
     {
-      label: '10',
-      value: 10,
-      onClick: () => {
-        onPageSizeChange && onPageSizeChange(10);
-      },
+      key: 'custom',
+      label: (
+        <div
+          className={styles.customPageSize}
+          onClick={(event) => event.stopPropagation()}
+          onKeyDown={(event) => event.stopPropagation()}
+        >
+          <InputNumber
+            className={styles.customPageSizeInput}
+            size="small"
+            min={1}
+            max={100000}
+            precision={0}
+            controls={false}
+            autoFocus
+            value={customPageSize}
+            placeholder={i18n('workspace.table.customPageSize')}
+            onChange={setCustomPageSize}
+            onPressEnter={() => handleApplyCustomPageSize()}
+          />
+          {!isPresetDefaultPageSize && customPageSize === defaultPageSize && (
+            <span className={styles.defaultPageSize}>
+              <CheckOutlined />
+              {i18n('workspace.table.defaultPageSize')}
+            </span>
+          )}
+        </div>
+      ),
     },
+    { type: 'divider' as const },
     {
-      label: '100',
-      value: 100,
-      onClick: () => {
-        onPageSizeChange && onPageSizeChange(100);
-      },
-    },
-    {
-      label: '200',
-      value: 200,
-      onClick: () => {
-        onPageSizeChange && onPageSizeChange(200);
-      },
-    },
-    {
-      label: '500',
-      value: 500,
-      onClick: () => {
-        onPageSizeChange && onPageSizeChange(500);
-      },
-    },
-    {
-      label: '1000',
-      value: 1000,
-      onClick: () => {
-        onPageSizeChange && onPageSizeChange(1000);
-      },
-    },
-    {
-      label: '5000',
-      value: 5000,
-      onClick: () => {
-        onPageSizeChange && onPageSizeChange(5000);
-      },
-    },
-    {
-      label: '10000',
-      value: 10000,
-      onClick: () => {
-        onPageSizeChange && onPageSizeChange(10000);
-      },
-    },
-    {
-      label: '50000',
-      value: 50000,
-      onClick: () => {
-        onPageSizeChange && onPageSizeChange(50000);
-      },
-    },
-    {
-      label: '100000',
-      value: 100000,
-      onClick: () => {
-        onPageSizeChange && onPageSizeChange(100000);
-      },
+      key: 'set-default',
+      label: i18n('workspace.table.setDefaultPageSize'),
+      disabled: paginationConfig.pageSize === defaultPageSize,
     },
   ];
+
+  function handleApplyCustomPageSize() {
+    if (!customPageSize) {
+      return;
+    }
+    keepPageSizeMenuOpenRef.current = true;
+    setPageSizeMenuOpen(true);
+    setBaseSetting({ defaultPageSize: customPageSize });
+    onPageSizeChange?.(customPageSize);
+  }
+
+  const handlePageSizeMenuClick = ({ key }: { key: string }) => {
+    if (key === 'set-default') {
+      setBaseSetting({ defaultPageSize: paginationConfig.pageSize });
+      setPageSizeMenuOpen(false);
+      return;
+    }
+    keepPageSizeMenuOpenRef.current = true;
+    setPageSizeMenuOpen(true);
+    onPageSizeChange?.(Number(key));
+  };
+
+  const handlePageSizeMenuOpenChange = (open: boolean, info: { source: 'trigger' | 'menu' }) => {
+    if (open) {
+      const isPresetCurrentPageSize = RESULT_PAGE_SIZE_OPTIONS.some(
+        (pageSize) => pageSize === paginationConfig.pageSize,
+      );
+      setCustomPageSize(
+        !isPresetDefaultPageSize ? defaultPageSize : !isPresetCurrentPageSize ? paginationConfig.pageSize : null,
+      );
+    }
+    if (!open && info.source === 'menu' && keepPageSizeMenuOpenRef.current) {
+      keepPageSizeMenuOpenRef.current = false;
+      return;
+    }
+    if (!open) {
+      keepPageSizeMenuOpenRef.current = false;
+    }
+    setPageSizeMenuOpen(open);
+  };
 
   return (
     <div className={styles.paginationWrapper}>
@@ -218,7 +258,12 @@ export default function Pagination(props: IProps) {
         onClick={() => handleClickIcon('last')}
       />
 
-      <Dropdown destroyPopupOnHide menu={{ items }}>
+      <Dropdown
+        destroyPopupOnHide
+        open={pageSizeMenuOpen}
+        onOpenChange={handlePageSizeMenuOpenChange}
+        menu={{ items, selectedKeys: [String(paginationConfig.pageSize)], onClick: handlePageSizeMenuClick }}
+      >
         <div className={styles.selectSize}>
           {paginationConfig?.pageSize ?? 200}
           <DownOutlined />

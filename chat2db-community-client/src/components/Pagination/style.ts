@@ -71,6 +71,33 @@ export const useStyles = createStyles(({ css, token }, { inputNumberWidth }: { i
         color: ${token.colorPrimaryText};
       }
     `,
+    pageSizeOption: css`
+      min-width: 150px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    `,
+    defaultPageSize: css`
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      color: ${token.colorTextSecondary};
+      font-size: 12px;
+      flex-shrink: 0;
+      white-space: nowrap;
+    `,
+    customPageSize: css`
+      min-width: 150px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    `,
+    customPageSizeInput: css`
+      width: 90px;
+      flex: 1;
+      min-width: 0;
+    `,
     totalButton: css`
       flex-shrink: 0;
       font-size: 13px;

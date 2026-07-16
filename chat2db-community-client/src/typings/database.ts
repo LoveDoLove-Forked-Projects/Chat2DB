@@ -111,6 +111,8 @@ export interface IViewTableParams {
   databaseType?: DatabaseTypeCode;
   schemaName?: string;
   tableName?: string;
+  pageNo?: number;
+  pageSize?: number;
 }
 
 // Execute all parameters that SQL depends on

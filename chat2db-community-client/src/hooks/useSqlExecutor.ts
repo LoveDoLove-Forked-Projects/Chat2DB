@@ -10,6 +10,8 @@ import {
   startSqlExecution,
 } from '@/service/sqlExecutionStream';
 import { v4 as uuidv4 } from 'uuid';
+import { useGlobalStore } from '@/store/global';
+import { settingSelectors } from '@/store/global/selectors';
 
 interface IUseSqlExecutorProps {
   // Whether to return only one piece of data
@@ -19,6 +21,7 @@ interface IUseSqlExecutorProps {
 
 const useSqlExecutor = (props?: IUseSqlExecutorProps) => {
   const { onlyOne, onExecutionEvent } = props || {};
+  const defaultPageSize = useGlobalStore((state) => settingSelectors.currentBaseSetting(state).defaultPageSize);
   const [executing, setExecuting] = useState(false);
   const [executionId, setExecutionId] = useState<string>();
   // interrupt request
@@ -36,6 +39,11 @@ const useSqlExecutor = (props?: IUseSqlExecutorProps) => {
 
   // execute sql
   const executeSQL = useCallback((params: IExecuteSqlParams): Promise<IManageResultData[]> => {
+    const executeSqlParams = {
+      ...params,
+      pageNo: params.pageNo ?? 1,
+      pageSize: params.pageSize ?? defaultPageSize,
+    };
     if (isDesktop && onExecutionEvent) {
       const requestUuid = uuidv4();
       setExecuting(true);
@@ -60,7 +68,7 @@ const useSqlExecutor = (props?: IUseSqlExecutorProps) => {
             }
           }
         });
-        startSqlExecution(params, requestUuid)
+        startSqlExecution(executeSqlParams, requestUuid)
           .then((res) => {
             if (!res?.executionId) {
               subscription.unsubscribe?.();
@@ -79,8 +87,6 @@ const useSqlExecutor = (props?: IUseSqlExecutorProps) => {
     }
     return new Promise((resolve, reject) => {
       // Parameters for executing sql
-      const executeSqlParams = params;
-
       setExecuting(true);
 
       // execute sql
@@ -99,7 +105,7 @@ const useSqlExecutor = (props?: IUseSqlExecutorProps) => {
           setExecuting(false);
         });
     });
-  }, [onExecutionEvent]);
+  }, [defaultPageSize, onExecutionEvent]);
 
   // Stop executing sql
   const stopExecuteSQL = useCallback(() => {

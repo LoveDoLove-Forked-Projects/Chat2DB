@@ -10,6 +10,7 @@ export interface GlobalBaseSettings {
   language: LangType;
   customFont?: string;
   customFontSize?: number;
+  defaultPageSize: number;
   enableMcp?: boolean;
 }
 
