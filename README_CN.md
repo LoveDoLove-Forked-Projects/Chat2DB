@@ -228,27 +228,6 @@ $ ./docker/docker-build.sh 5.3.0 chat2db/chat2db:5.3.0
 - 使用问题、配置帮助和开放讨论请使用 [GitHub Discussions](https://github.com/OtterMind/Chat2DB/discussions)。
 - 如果 Pull Request 与某个 Issue 相关，请在 PR 描述中附上对应链接。
 
-## 常见问题
-
-### 1、无法获取数据源驱动：`getJDBCDriver error: null`
-
-问题原因：无法联网导致下载数据库驱动包失败。
-
-解决办法：本地启动时，将驱动放入 `~/.chat2db-community/jdbc-lib`；使用上面的 Docker 命令启动时，将驱动放入 `$HOME/.chat2db-community-docker/jdbc-lib`。
-
-下载地址可参考 [`application.yml`](https://github.com/OtterMind/Chat2DB/blob/main/chat2db-community-server/chat2db-community-start/src/main/resources/application.yml) 中的 `jdbc-jar-downLoad-urls` 配置。
-
-- https://cdn.chat2db-ai.com/lib/mysql-connector-java-8.0.30.jar
-- https://cdn.chat2db-ai.com/lib/mysql-connector-java-5.1.47.jar
-- https://cdn.chat2db-ai.com/lib/clickhouse-jdbc-0.3.2-patch8-http.jar
-- https://cdn.chat2db-ai.com/lib/mariadb-java-client-3.0.8.jar
-- https://cdn.chat2db-ai.com/lib/mssql-jdbc-11.2.1.jre17.jar
-- https://cdn.chat2db-ai.com/lib/oceanbase-client-2.4.2.jar
-- https://cdn.chat2db-ai.com/lib/postgresql-42.5.1.jar
-- https://cdn.chat2db-ai.com/lib/sqlite-jdbc-3.39.3.0.jar
-- https://cdn.chat2db-ai.com/lib/ojdbc11.jar
-
-
 ##  联系我们
 
 <a><img src="https://github.com/chat2db/Chat2DB/assets/22975773/81d13eff-c615-49f5-aee3-4107089593e0" width="25%"/></a>
