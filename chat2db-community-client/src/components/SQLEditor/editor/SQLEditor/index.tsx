@@ -51,6 +51,7 @@ import {
   isShortcutEventMatch,
   shortcutBindingToMonacoKeybinding,
 } from '@/constants/shortcut';
+import { useStyles } from './style';
 
 const INSERT_VALUE_HINT_ACTION_ID = 'chat2db-insert-value-hints';
 const EDITOR_ESCAPE_KEY_CODE = 'Escape';
@@ -137,6 +138,7 @@ const SQLEditor = forwardRef<SQLEditorRef, SQLEditorProps>(
     },
     ref,
   ) => {
+    const { styles } = useStyles();
     const [sqlTemp, setSqlTemp] = useState<string>(defaultValue ?? '');
     const [hoverHelperInfo, setHoverHelpInfo] = useState<HoverHelperInfo>(hoverHelpDefaultConfig);
 
@@ -157,6 +159,7 @@ const SQLEditor = forwardRef<SQLEditorRef, SQLEditorProps>(
     const backendEditorHintsListenerRef = useRef<EditorHintsListener | null>(null);
     const backendEditorHintsRequestRef = useRef(0);
     const backendEditorHintsEpochRef = useRef(0);
+    const cursorPositionRef = useRef<HTMLDivElement | null>(null);
 
     const sqlStatementListRef = useRef<SqlStatement[]>([]);
     const markMessageListRef = useRef<MarkMessage[]>([]);
@@ -411,6 +414,11 @@ const SQLEditor = forwardRef<SQLEditorRef, SQLEditorProps>(
 
     const handleCursorChange = useCallback((editor: monaco.editor.IStandaloneCodeEditor) => {
       if (!editor) return;
+
+      const position = editor.getPosition();
+      if (position && cursorPositionRef.current) {
+        cursorPositionRef.current.textContent = `Ln ${position.lineNumber}, Col ${position.column}`;
+      }
 
       if (!decorationCollectionRef.current) {
         decorationCollectionRef.current = editor.createDecorationsCollection();
@@ -864,26 +872,35 @@ const SQLEditor = forwardRef<SQLEditorRef, SQLEditorProps>(
     }, []);
 
     return (
-      <div style={{ position: 'relative', flex: 1, height: '100%', width: '100%' }}>
-        <MonacoEditor
-          {...rest}
-          options={{
-            ...(options || {}),
-            ...(readOnly === undefined ? {} : { readOnly }),
-          }}
-          id={id}
-          ref={editorRef}
-          className={className}
-          defaultValue={defaultValue}
-          onMount={handleEditorMount}
-          onChange={handleValueChange}
-          onCursorChange={handleCursorChange}
-          onMouseClick={handleMouseClick}
-          onContextMenu={handleContextMenu}
-          onHover={handleHover}
-          enableContentDiffHints={enableContentDiffHints}
-        />
-        <HoverHelp hoverHelperInfo={hoverHelperInfo} onClose={closeHoverHelp} canShow={() => !contextMenuInfo?.open} />
+      <div className={styles.editor}>
+        <div className={styles.editorBody}>
+          <MonacoEditor
+            {...rest}
+            options={{
+              ...(options || {}),
+              ...(readOnly === undefined ? {} : { readOnly }),
+            }}
+            id={id}
+            ref={editorRef}
+            className={className}
+            defaultValue={defaultValue}
+            onMount={handleEditorMount}
+            onChange={handleValueChange}
+            onCursorChange={handleCursorChange}
+            onMouseClick={handleMouseClick}
+            onContextMenu={handleContextMenu}
+            onHover={handleHover}
+            enableContentDiffHints={enableContentDiffHints}
+          />
+          <HoverHelp
+            hoverHelperInfo={hoverHelperInfo}
+            onClose={closeHoverHelp}
+            canShow={() => !contextMenuInfo?.open}
+          />
+        </div>
+        <div ref={cursorPositionRef} className={styles.cursorStatus}>
+          Ln 1, Col 1
+        </div>
       </div>
     );
   },
