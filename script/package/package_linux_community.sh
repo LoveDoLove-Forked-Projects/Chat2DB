@@ -145,7 +145,6 @@ build_base_args() {
         "--main-class" "${MAIN_CLASS}"
         "--dest" "${dest_dir}"
         "--runtime-image" "${PROJECT_ROOT}/jpackage/input/runtime/linux/Home"
-        "--license-file" "${LICENSE_FILE}"
         "--icon" "${ICON_FILE}"
     )
 
@@ -178,6 +177,7 @@ build_deb() {
     jpackage \
         --type deb \
         "${BASE_ARGS[@]}" \
+        --license-file "${LICENSE_FILE}" \
         --file-associations "${ASSOCIATIONS_FILE}" \
         --install-dir "${INSTALL_DIR}" \
         --resource-dir "${resource_dir}" \
@@ -200,6 +200,7 @@ build_rpm() {
     jpackage \
         --type rpm \
         "${BASE_ARGS[@]}" \
+        --license-file "${LICENSE_FILE}" \
         --file-associations "${ASSOCIATIONS_FILE}" \
         --install-dir "${INSTALL_DIR}" \
         --resource-dir "${resource_dir}" \
