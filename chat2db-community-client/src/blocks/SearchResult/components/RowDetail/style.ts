@@ -10,8 +10,13 @@ export const useStyles = createStyles(({ css, token }) => {
     `,
     item: css`
       display: grid;
-      grid-template-columns: minmax(160px, 30%) minmax(0, 1fr);
+      grid-template-columns: minmax(160px, 30%) minmax(0, 1fr) 44px;
       border-bottom: 1px solid ${token.colorBorderSecondary};
+
+      &:focus-within [data-row-detail-action='true'] {
+        opacity: 1;
+        pointer-events: auto;
+      }
 
       &:last-child {
         border-bottom: 0;
@@ -27,30 +32,49 @@ export const useStyles = createStyles(({ css, token }) => {
     `,
     valueWrapper: css`
       min-width: 0;
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 8px;
+      min-height: 38px;
     `,
-    value: css`
-      min-width: 0;
-      flex: 1;
+    valueInput: css`
+      width: 100%;
+      height: 100%;
+      min-height: 38px;
       padding: 8px 12px;
       color: ${token.colorText};
-      white-space: pre-wrap;
-      word-break: break-word;
       font-family: ${token.fontFamilyCode};
+      background: transparent;
+      border: 0;
+      border-radius: 0;
+      box-shadow: none;
+
+      &:focus {
+        box-shadow: inset 0 0 0 1px ${token.colorPrimary};
+      }
     `,
-    viewFullValue: css`
-      flex-shrink: 0;
-      margin: 4px 8px 0 0;
+    action: css`
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    `,
+    actionButton: css`
+      width: 32px;
+      height: 32px;
       padding: 0;
-      height: auto;
-      font-size: 12px;
+      color: ${token.colorTextSecondary};
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 120ms ease;
+
+      &:hover {
+        color: ${token.colorText} !important;
+      }
     `,
     nullValue: css`
       color: ${token.colorTextTertiary};
       font-family: ${token.fontFamily};
+
+      &::placeholder {
+        color: ${token.colorTextTertiary};
+      }
     `,
   };
 });

@@ -1,7 +1,8 @@
 import { ForwardedRef, forwardRef, memo, useImperativeHandle, useMemo, useState } from 'react';
-import { Button } from 'antd';
+import { Button, Input, Tooltip } from 'antd';
 import { Modal } from '@chat2db/ui';
 import i18n from '@/i18n';
+import Iconfont from '@/components/Iconfont';
 import { IManageResultData, IResultCell } from '@/typings';
 import { ITableInstance } from '@/blocks/CanvasTable/typings';
 import { useStyles } from './style';
@@ -12,11 +13,16 @@ interface IOpenRowDetailParams {
   row: number;
 }
 
-export interface IViewFullValueParams {
+export interface IViewDataParams {
   tableInstance: ITableInstance;
   col: number;
   row: number;
+  field: string;
   cellMeta?: IResultCell;
+}
+
+export interface IChangeDataParams extends IViewDataParams {
+  value: string | null;
 }
 
 interface IRowDetailItem {
@@ -36,8 +42,8 @@ interface IRowDetailState {
 
 interface IProps {
   resultData: IManageResultData;
-  // View the complete large field content and reuse the ViewData pop-up window
-  onViewFullValue?: (params: IViewFullValueParams) => void;
+  onViewData?: (params: IViewDataParams) => void;
+  onChangeData?: (params: IChangeDataParams) => void;
 }
 
 export interface RowDetailRef {
@@ -59,7 +65,7 @@ const formatValue = (value: any, cellMeta?: IResultCell) => {
 };
 
 const RowDetail = forwardRef((props: IProps, ref: ForwardedRef<RowDetailRef>) => {
-  const { resultData, onViewFullValue } = props;
+  const { resultData, onViewData, onChangeData } = props;
   const { styles, cx } = useStyles();
   const [rowDetail, setRowDetail] = useState<IRowDetailState | null>(null);
 
@@ -104,14 +110,41 @@ const RowDetail = forwardRef((props: IProps, ref: ForwardedRef<RowDetailRef>) =>
     [headerMap],
   );
 
-  const handleViewFullValue = (item: IRowDetailItem) => {
+  const handleViewData = (item: IRowDetailItem) => {
     if (!rowDetail) {
       return;
     }
-    onViewFullValue?.({
+    onViewData?.({
       tableInstance: rowDetail.tableInstance,
       col: item.col,
       row: rowDetail.row,
+      field: item.field,
+      cellMeta: item.cellMeta,
+    });
+  };
+
+  const handleValueChange = (col: number, value: string) => {
+    setRowDetail((current) => {
+      if (!current) {
+        return current;
+      }
+      return {
+        ...current,
+        items: current.items.map((item) => (item.col === col ? { ...item, value } : item)),
+      };
+    });
+  };
+
+  const handleValueBlur = (item: IRowDetailItem) => {
+    if (!rowDetail || !resultData.canEdit || item.largeValue || !onChangeData) {
+      return;
+    }
+    onChangeData({
+      tableInstance: rowDetail.tableInstance,
+      col: item.col,
+      row: rowDetail.row,
+      field: item.field,
+      value: item.value === null || item.value === undefined ? null : String(item.value),
       cellMeta: item.cellMeta,
     });
   };
@@ -137,13 +170,27 @@ const RowDetail = forwardRef((props: IProps, ref: ForwardedRef<RowDetailRef>) =>
             <div className={styles.item} key={`${item.field}-${index}`}>
               <div className={styles.field}>{item.field}</div>
               <div className={styles.valueWrapper}>
-                <div className={cx(styles.value, isNull && styles.nullValue)}>
-                  {isNull ? '<null>' : String(item.value)}
-                </div>
-                {item.largeValue && onViewFullValue && (
-                  <Button size="small" type="link" className={styles.viewFullValue} onClick={() => handleViewFullValue(item)}>
-                    {i18n('common.button.viewFullValue')}
-                  </Button>
+                <Input
+                  value={item.value === null || item.value === undefined ? '' : String(item.value)}
+                  placeholder={isNull ? '<null>' : undefined}
+                  readOnly={!resultData.canEdit || item.largeValue || !onChangeData}
+                  className={cx(styles.valueInput, isNull && styles.nullValue)}
+                  onChange={(event) => handleValueChange(item.col, event.target.value)}
+                  onBlur={() => handleValueBlur(item)}
+                />
+              </div>
+              <div className={styles.action}>
+                {onViewData && (
+                  <Tooltip title={i18n('common.button.viewData')}>
+                    <Button
+                      type="text"
+                      aria-label={i18n('common.button.viewData')}
+                      data-row-detail-action="true"
+                      icon={<Iconfont code="&#xe788;" />}
+                      className={styles.actionButton}
+                      onClick={() => handleViewData(item)}
+                    />
+                  </Tooltip>
                 )}
               </div>
             </div>

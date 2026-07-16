@@ -8,7 +8,7 @@ import useSqlExecutor from '@/hooks/useSqlExecutor';
 import executeSql from '@/service/executeSql';
 import SQLPreviewExecute, { SQLPreviewExecuteRef } from '../SQLPreviewExecute';
 import ViewData, { ViewDataRef } from '../ViewData';
-import RowDetail, { RowDetailRef } from '../RowDetail';
+import RowDetail, { IChangeDataParams, RowDetailRef } from '../RowDetail';
 import { IManageResultData } from '@/typings';
 import { Spin } from 'antd';
 import i18n from '@/i18n';
@@ -291,6 +291,25 @@ export default memo<IProps>(
       resultSetTableRef.current?.clearAllFilters?.();
     }, []);
 
+    const handleRowDetailChangeData = useCallback((params: IChangeDataParams) => {
+      const { tableInstance: targetTableInstance, col, row, field, value } = params;
+      const originData = targetTableInstance.getRecordByCell(col, row);
+      const currentValue = targetTableInstance.getCellOriginValue(col, row);
+      if (!originData || originData.__CHAT2DB_CELL_META__?.[col]?.largeValue || currentValue === value) {
+        return;
+      }
+
+      originData[col] = value;
+      targetTableInstance.changeCellValue(col, row, value);
+      resultSetTableRef.current?.operationRecordUtils?.handleCellValueChange({
+        field: String(targetTableInstance.getHeaderField(col, row) || field),
+        rowId: originData.CHAT2DB_ROW_NUMBER,
+        rawValue: currentValue,
+        currentValue,
+        changedValue: value,
+      });
+    }, []);
+
     return (
       <>
         <div tabIndex={0} className={cx(styles.container)} ref={resultSetRef} id={searchAreaId}>
@@ -355,7 +374,8 @@ export default memo<IProps>(
         <RowDetail
           ref={rowDetailRef}
           resultData={resultData}
-          onViewFullValue={(params) => {
+          onChangeData={handleRowDetailChangeData}
+          onViewData={(params) => {
             viewDataRef.current?.openModal({
               ...params,
               canEdit: !!resultData?.canEdit,
