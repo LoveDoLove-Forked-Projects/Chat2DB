@@ -135,6 +135,7 @@ export default {
   'workspace.searchConsole.placeholder': '콘솔 검색',
   'common.text.noSearchResult': '검색 결과가 없습니다',
   'workspace.menu.showColumnComment': '열 설명 표시',
+  'workspace.menu.sortDatabaseObjects': '데이터베이스 객체를 이름순으로 정렬',
   'workspace.menu.followActiveWorkspaceTab': '현재 탭 자동 추적',
   'workspace.menu.openView': '뷰 열기',
   'workspace.menu.annotationDatabaseTable': '데이터 주석(AI)',

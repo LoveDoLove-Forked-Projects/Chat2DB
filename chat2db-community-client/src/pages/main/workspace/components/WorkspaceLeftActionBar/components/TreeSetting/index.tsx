@@ -19,6 +19,7 @@ export default memo(() => {
 
   const dropdownMenu = useMemo(() => {
     const followActiveWorkspaceTab = userConfigTree.followActiveWorkspaceTab !== false;
+    const sortDatabaseObjects = userConfigTree.sortDatabaseObjects === true;
     return [
       {
         key: 'schema-sync',
@@ -31,6 +32,24 @@ export default memo(() => {
         icon: <IconfontSvg code="icon-setting" size="lg" />,
         label: i18n('workspace.menu.tree.setting'),
         children: [
+          {
+            label: (
+              <div
+                className={styles.labelTitleBox}
+                onClick={() => {
+                  changeUserConfigTree('sortDatabaseObjects', !sortDatabaseObjects);
+                }}
+              >
+                {sortDatabaseObjects ? (
+                  <IconfontSvg className={styles.labelSelect} code="icon-duigou" />
+                ) : (
+                  <div className={styles.iconPlaceholder} />
+                )}
+                <div className={styles.labelTitle}>{i18n('workspace.menu.sortDatabaseObjects')}</div>
+              </div>
+            ),
+            key: 'setting-sort-database-objects',
+          },
           {
             label: (
               <div
@@ -78,7 +97,13 @@ export default memo(() => {
         },
       },
     ];
-  }, [changeUserConfigTree, schemaSync, userConfigTree.followActiveWorkspaceTab, userConfigTree.showComment]);
+  }, [
+    changeUserConfigTree,
+    schemaSync,
+    userConfigTree.followActiveWorkspaceTab,
+    userConfigTree.showComment,
+    userConfigTree.sortDatabaseObjects,
+  ]);
 
   return (
     <Dropdown

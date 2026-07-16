@@ -2,6 +2,8 @@ export default {
   'redis.button.addKey': 'Add',
   'redis.button.deleteKey': 'Delete',
   'redis.button.loadMore': 'Load more',
+  'redis.viewMode.list': 'List view',
+  'redis.viewMode.tree': 'Hierarchy view',
   'redis.editData.emptyStatus': 'Select row to edit',
   'redis.newKey': 'New key',
   'redis.keyName': 'Key',

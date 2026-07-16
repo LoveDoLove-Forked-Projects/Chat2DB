@@ -134,6 +134,7 @@ export default {
   'workspace.menu.openAllData': 'すべてのデータを開く',
   'workspace.searchConsole.placeholder': 'コンソールを検索',
   'workspace.menu.showColumnComment': '列コメントを表示',
+  'workspace.menu.sortDatabaseObjects': 'データベースオブジェクトを名前順に並べる',
   'workspace.menu.followActiveWorkspaceTab': '現在のタブを自動追従',
   'workspace.menu.openView': 'ビューを開く',
   'workspace.menu.annotationDatabaseTable': 'データベース表(AI)',

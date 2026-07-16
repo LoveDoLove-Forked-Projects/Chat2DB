@@ -247,4 +247,6 @@ export interface IUserConfigTree {
   showComment: boolean;
   // Whether to follow the currently open workspace tab
   followActiveWorkspaceTab?: boolean;
+  // Whether to sort database object nodes by name without changing datasource order
+  sortDatabaseObjects?: boolean;
 }

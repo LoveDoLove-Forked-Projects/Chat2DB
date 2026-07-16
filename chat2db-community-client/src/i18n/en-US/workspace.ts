@@ -136,6 +136,7 @@ export default {
   'workspace.searchConsole.placeholder': 'Search console',
   'common.text.noSearchResult': 'No search results',
   'workspace.menu.showColumnComment': 'Show column comment',
+  'workspace.menu.sortDatabaseObjects': 'Sort database objects by name',
   'workspace.menu.followActiveWorkspaceTab': 'Auto-follow current tab',
   'workspace.menu.openView': 'Open view',
   'workspace.menu.annotationDatabaseTable': 'Data annotation(AI)',

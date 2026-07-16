@@ -3,6 +3,7 @@ import { runtimeEditionConfig } from '@/constants/runtimeEdition';
 import { useTreeStore } from '@/store/tree';
 import { TreeNodeData } from '@/typings';
 import { useMemo } from 'react';
+import { applyDatabaseObjectTreeSorting } from '../utils/sortTreeNodes';
 
 export default function useTrimTreeData(props?: {
   leafNodes?: string[];
@@ -10,10 +11,11 @@ export default function useTrimTreeData(props?: {
   excludeNodes?: string[];
 }): TreeNodeData[] | null {
   const { leafNodes, hiddenNoPermission, excludeNodes } = props || {};
-  const { treeData, searchResult, hiddenTreeNodeIds } = useTreeStore((state) => ({
+  const { treeData, searchResult, hiddenTreeNodeIds, userConfigTree } = useTreeStore((state) => ({
     treeData: state.treeData,
     searchResult: state.searchResult,
     hiddenTreeNodeIds: state.hiddenTreeNodeIds,
+    userConfigTree: state.userConfigTree,
   }));
 
   const filterDatabaseAndSchema = (data: TreeNodeData[], hiddenIds?: string[] | null) => {
@@ -82,8 +84,8 @@ export default function useTrimTreeData(props?: {
     // filters the displayed database and schema
     const filteredDatabaseAndSchema = filterDatabaseAndSchema(_treeData);
 
-    return filteredDatabaseAndSchema;
-  }, [searchResult, treeData, hiddenTreeNodeIds]);
+    return applyDatabaseObjectTreeSorting(filteredDatabaseAndSchema, userConfigTree.sortDatabaseObjects === true);
+  }, [searchResult, treeData, hiddenTreeNodeIds, userConfigTree.sortDatabaseObjects]);
 
   return filteredTreeData;
 }

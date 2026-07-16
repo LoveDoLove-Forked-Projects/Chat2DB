@@ -2,6 +2,8 @@ export default {
   'redis.button.addKey': 'キーを追加',
   'redis.button.deleteKey': 'キーを削除',
   'redis.button.loadMore': 'さらに読み込む',
+  'redis.viewMode.list': 'リスト表示',
+  'redis.viewMode.tree': '階層表示',
   'redis.editData.emptyStatus': '編集する行を選択',
   'redis.newKey': '新しいキー',
   'redis.keyName': 'キー',

@@ -1,4 +1,6 @@
-import { memo, useState, useRef, useMemo, useEffect } from 'react';
+import { memo, useState, useRef, useMemo, useEffect, type Key } from 'react';
+import { Empty, Segmented, Spin, Tooltip, Tree, type TreeProps } from 'antd';
+import { Folder, FolderOpen, KeyRound, List, ListTree } from 'lucide-react';
 import i18n from '@/i18n';
 import { useStyles } from './style';
 import { RedisDataItem } from '@/typings/redis';
@@ -9,6 +11,12 @@ import redisServer from '@/service/nonRelationalDatabase/redis';
 import SplitPane from 'react-split-pane';
 import { ToolbarBtn, SearchBar } from '@chat2db/ui';
 import openUnifiedDeletion from '@/utils/staticModal/unifiedDeletion';
+import {
+  buildRedisKeyTree,
+  collectRedisGroupKeys,
+  redisKeyNodeKey,
+  type RedisKeyTreeNode,
+} from './redisKeyTree';
 
 const REDIS_SCAN_COUNT = 1000;
 const INITIAL_SCAN_CURSOR = '0';
@@ -16,6 +24,7 @@ const EDIT_PANE_COLLAPSED_SIZE = 0;
 const EDIT_PANE_DEFAULT_SIZE = 320;
 const EDIT_PANE_COLLAPSE_THRESHOLD = 50;
 const SplitPaneAny = SplitPane as any;
+type RedisKeyViewMode = 'list' | 'tree';
 
 function formatTime(time: number) {
   if (time < 60) {
@@ -27,6 +36,16 @@ function formatTime(time: number) {
   } else {
     return `${Math.floor(time / 60 / 60 / 24)} ${i18n('common.text.day')}`;
   }
+}
+
+function formatRedisTtl(value?: number | null) {
+  if (value === undefined || value === null || value < -1) {
+    return '-';
+  }
+  if (value === -1) {
+    return i18n('redis.noExpirationTime');
+  }
+  return formatTime(value);
 }
 
 function isRedisDataItemLoaded(redisDataItem: RedisDataItem) {
@@ -82,10 +101,19 @@ const RedisAllData = (props) => {
   const [scanComplete, setScanComplete] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [detailLoadingKey, setDetailLoadingKey] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<RedisKeyViewMode>('list');
+  const [expandedTreeKeys, setExpandedTreeKeys] = useState<Key[]>([]);
+  const [appliedSearchKey, setAppliedSearchKey] = useState('');
   const baseTableRef = useRef<BaseTableRef>(null);
   const scanRequestIdRef = useRef(0);
   const detailRequestIdRef = useRef(0);
+  const treeExpansionInitializedRef = useRef(false);
+  const knownRedisGroupKeysRef = useRef<Set<string>>(new Set());
   const hasEditTarget = selectedRows.length === 1;
+  const redisKeyTreeData = useMemo(() => buildRedisKeyTree(tableData || []), [tableData]);
+  const redisGroupKeys = useMemo(() => collectRedisGroupKeys(redisKeyTreeData), [redisKeyTreeData]);
+  const selectedRedisKey = hasEditTarget ? tableData?.[selectedRows[0]]?.name : null;
+  const selectedTreeKeys = selectedRedisKey ? [redisKeyNodeKey(selectedRedisKey)] : [];
 
   useEffect(() => {
     getTableData();
@@ -119,6 +147,32 @@ const RedisAllData = (props) => {
     }
     setEditPaneSize(EDIT_PANE_COLLAPSED_SIZE);
   }, [selectedRows]);
+
+  useEffect(() => {
+    if (viewMode !== 'tree') {
+      treeExpansionInitializedRef.current = false;
+      return;
+    }
+
+    if (redisGroupKeys.length === 0) {
+      treeExpansionInitializedRef.current = false;
+      knownRedisGroupKeysRef.current = new Set();
+      setExpandedTreeKeys([]);
+      return;
+    }
+
+    if (!treeExpansionInitializedRef.current || appliedSearchKey.trim()) {
+      setExpandedTreeKeys(redisGroupKeys);
+      treeExpansionInitializedRef.current = true;
+    } else {
+      const addedGroupKeys = redisGroupKeys.filter((key) => !knownRedisGroupKeysRef.current.has(key));
+      if (addedGroupKeys.length > 0) {
+        setExpandedTreeKeys((currentKeys) => Array.from(new Set([...currentKeys, ...addedGroupKeys])));
+      }
+    }
+
+    knownRedisGroupKeysRef.current = new Set(redisGroupKeys);
+  }, [appliedSearchKey, redisGroupKeys, viewMode]);
 
   const getRedisDataItemDetail = (redisDataItem: RedisDataItem) => {
     if (!redisDataItem.name) {
@@ -174,6 +228,7 @@ const RedisAllData = (props) => {
     scanRequestIdRef.current = requestId;
     const cursor = reset ? INITIAL_SCAN_CURSOR : scanCursor;
     if (reset) {
+      setAppliedSearchKey(searchBarValue);
       detailRequestIdRef.current += 1;
       setTableData(null);
       setPresenceDraft(false);
@@ -248,18 +303,7 @@ const RedisAllData = (props) => {
       {
         title: 'TTL',
         name: 'ttl',
-        transitionValue: (value) => {
-          if (value === undefined || value === null) {
-            return '-';
-          }
-          if (value === -1) {
-            return i18n('redis.noExpirationTime');
-          }
-          if (value < 0) {
-            return '-';
-          }
-          return formatTime(value);
-        },
+        transitionValue: formatRedisTtl,
       },
     ];
   }, []);
@@ -277,7 +321,22 @@ const RedisAllData = (props) => {
     setTableData(newTableData);
     setSelectedRows([0]);
     setPresenceDraft(true);
+    setViewMode('list');
     baseTableRef.current?.scrollToTop();
+  };
+
+  const handleTreeSelect: TreeProps<RedisKeyTreeNode>['onSelect'] = (_selectedKeys, info) => {
+    if (info.node.kind === 'key' && info.node.rowIndex !== undefined) {
+      setSelectedRows([info.node.rowIndex]);
+    }
+  };
+
+  const handleViewModeChange = (value: string | number) => {
+    const nextViewMode = value as RedisKeyViewMode;
+    if (nextViewMode === 'tree') {
+      treeExpansionInitializedRef.current = false;
+    }
+    setViewMode(nextViewMode);
   };
 
   const handleDelete = () => {
@@ -380,6 +439,34 @@ const RedisAllData = (props) => {
             />
           </div>
           <div className={styles.right}>
+            <Segmented
+              className={styles.viewMode}
+              size="small"
+              value={viewMode}
+              onChange={handleViewModeChange}
+              options={[
+                {
+                  value: 'list',
+                  label: (
+                    <Tooltip title={i18n('redis.viewMode.list')}>
+                      <span className={styles.viewModeIcon} aria-label={i18n('redis.viewMode.list')}>
+                        <List size={14} />
+                      </span>
+                    </Tooltip>
+                  ),
+                },
+                {
+                  value: 'tree',
+                  label: (
+                    <Tooltip title={i18n('redis.viewMode.tree')}>
+                      <span className={styles.viewModeIcon} aria-label={i18n('redis.viewMode.tree')}>
+                        <ListTree size={14} />
+                      </span>
+                    </Tooltip>
+                  ),
+                },
+              ]}
+            />
             <SearchBar
               className={styles.searchBar}
               placeholder={i18n('common.text.search')}
@@ -395,16 +482,71 @@ const RedisAllData = (props) => {
             />
           </div>
         </div>
-        <BaseTable
-          ref={baseTableRef}
-          className={styles.tableBox}
-          loading={tableData === null}
-          tableData={tableData}
-          columns={columns}
-          sizes={[160, 60, 120]}
-          selectedRows={selectedRows}
-          onSelectedRowsChange={setSelectedRows}
-        />
+        {viewMode === 'list' ? (
+          <BaseTable
+            ref={baseTableRef}
+            className={styles.tableBox}
+            loading={tableData === null}
+            tableData={tableData}
+            columns={columns}
+            sizes={[160, 60, 120]}
+            selectedRows={selectedRows}
+            onSelectedRowsChange={setSelectedRows}
+          />
+        ) : (
+          <div className={styles.treeBox}>
+            <div className={styles.treeHeader} role="row">
+              <span className={styles.treeHeaderCell}>{i18n('redis.keyName')}</span>
+              <span className={styles.treeHeaderCell}>{i18n('redis.type')}</span>
+              <span className={styles.treeHeaderCell}>TTL</span>
+            </div>
+            <div className={styles.treeScroll}>
+              {tableData === null ? (
+                <Spin />
+              ) : redisKeyTreeData.length === 0 ? (
+                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={i18n('common.text.noData')} />
+              ) : (
+                <Tree<RedisKeyTreeNode>
+                  blockNode
+                  showIcon
+                  virtual={false}
+                  treeData={redisKeyTreeData}
+                  expandedKeys={expandedTreeKeys}
+                  selectedKeys={selectedTreeKeys}
+                  onExpand={(keys) => setExpandedTreeKeys(keys)}
+                  onSelect={handleTreeSelect}
+                  icon={(node) =>
+                    node.kind === 'group' ? (
+                      node.expanded ? (
+                        <FolderOpen size={14} />
+                      ) : (
+                        <Folder size={14} />
+                      )
+                    ) : (
+                      <KeyRound size={14} />
+                    )
+                  }
+                  titleRender={(node) => {
+                    const redisDataItem =
+                      node.rowIndex !== undefined && tableData ? tableData[node.rowIndex] : undefined;
+                    return (
+                      <span className={cx(styles.treeRow, { [styles.treeGroupRow]: node.kind === 'group' })}>
+                        <span className={styles.treeKeyCell} title={node.redisKey || node.title}>
+                          <span className={styles.treeTitleText}>{node.title}</span>
+                          {node.kind === 'group' && <span className={styles.treeCount}>({node.count})</span>}
+                        </span>
+                        <span className={styles.treeMetaCell}>{redisDataItem?.type || ''}</span>
+                        <span className={styles.treeMetaCell}>
+                          {redisDataItem ? formatRedisTtl(redisDataItem.ttl) : ''}
+                        </span>
+                      </span>
+                    );
+                  }}
+                />
+              )}
+            </div>
+          </div>
+        )}
       </div>
       <div className={styles.editDataSide}>
         {curRedisDataItem ? (

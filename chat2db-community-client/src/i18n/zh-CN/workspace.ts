@@ -130,6 +130,7 @@ export default {
   'workspace.menu.openAllData': '打开全部数据',
   'workspace.searchConsole.placeholder': '搜索控制台',
   'workspace.menu.showColumnComment': '展示列注释',
+  'workspace.menu.sortDatabaseObjects': '按名称排序数据库对象',
   'workspace.menu.followActiveWorkspaceTab': '自动跟随当前标签',
   'workspace.menu.openView': '打开视图',
   'workspace.menu.annotationDatabaseTable': '数据标注(AI)',

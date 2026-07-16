@@ -2,6 +2,8 @@ export default {
   'redis.button.addKey': '추가',
   'redis.button.deleteKey': '삭제',
   'redis.button.loadMore': '더 불러오기',
+  'redis.viewMode.list': '목록 보기',
+  'redis.viewMode.tree': '계층 보기',
   'redis.editData.emptyStatus': '편집할 행을 선택하세요',
   'redis.newKey': '새 키',
   'redis.keyName': '키',

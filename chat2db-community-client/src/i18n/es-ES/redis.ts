@@ -2,6 +2,8 @@ export default {
   'redis.button.addKey': 'Añadir',
   'redis.button.deleteKey': 'Eliminar',
   'redis.button.loadMore': 'Cargar más',
+  'redis.viewMode.list': 'Vista de lista',
+  'redis.viewMode.tree': 'Vista jerárquica',
   'redis.editData.emptyStatus': 'Seleccione una fila para editarla',
   'redis.newKey': 'Nueva clave',
   'redis.keyName': 'Clave',
