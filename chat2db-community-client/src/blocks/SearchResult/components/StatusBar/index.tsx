@@ -64,30 +64,32 @@ export default memo<IProps>((props) => {
         <span>{`【${i18n('common.text.timeConsuming')}】${duration}ms.`}</span>
         {!!dataLength && <span>{`【${i18n('common.text.searchRow')}】${dataLength} ${i18n('common.text.row')}.`}</span>}
       </div>
-      <div className={styles.selectionSummary}>
-        {selectionMetrics.map((metric, index) => {
-          const option = METRIC_OPTIONS.find((item) => item.id === metric) || METRIC_OPTIONS[0];
-          const value = formatSelectionMetric(metric, selectionSummary);
-          return (
-            <Dropdown
-              key={index}
-              trigger={['click']}
-              menu={{
-                items: menuItems,
-                selectedKeys: [metric],
-                selectable: true,
-                onClick: ({ key }) => updateMetric(index, key as SelectionMetricId),
-              }}
-            >
-              <button type="button" className={styles.metricButton}>
-                <span className={styles.metricLabel}>{i18n(option.label)}</span>
-                {value && <span className={styles.metricValue}>{value}</span>}
-                <ChevronDown size={12} strokeWidth={1.75} />
-              </button>
-            </Dropdown>
-          );
-        })}
-      </div>
+      {selectedValues.length > 0 && (
+        <div className={styles.selectionSummary}>
+          {selectionMetrics.map((metric, index) => {
+            const option = METRIC_OPTIONS.find((item) => item.id === metric) || METRIC_OPTIONS[0];
+            const value = formatSelectionMetric(metric, selectionSummary);
+            return (
+              <Dropdown
+                key={index}
+                trigger={['click']}
+                menu={{
+                  items: menuItems,
+                  selectedKeys: [metric],
+                  selectable: true,
+                  onClick: ({ key }) => updateMetric(index, key as SelectionMetricId),
+                }}
+              >
+                <button type="button" className={styles.metricButton}>
+                  <span className={styles.metricLabel}>{i18n(option.label)}</span>
+                  {value && <span className={styles.metricValue}>{value}</span>}
+                  <ChevronDown size={12} strokeWidth={1.75} />
+                </button>
+              </Dropdown>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 });
