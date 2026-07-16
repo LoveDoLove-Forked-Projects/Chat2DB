@@ -1,41 +1,28 @@
+> 📣 **Chat2DB 团队的新消息！**
+> 我们刚刚开源了面向 AI 原生应用的全新部署层 **[Nubase](https://github.com/ottermind/nubase)**！
+> 如果 Chat2DB 能帮助你更轻松地管理数据，Nubase 将帮助你更顺畅地部署 AI 编程工具和 Agent。
+>
+> 欢迎在 GitHub 上为 **[Nubase 点亮 ⭐️](https://github.com/ottermind/nubase)**，支持我们的开源工作！
+<div align="center">
+  <h1>Chat2DB</h1>
+  <p><strong>面向开发者、DBA、分析师和数据团队的 AI 驱动数据库客户端与 SQL 工作空间。</strong></p>
+</div>
 <div align="center">
     <a href="https://trendshift.io/repositories/11808" target="_blank"><img src="https://trendshift.io/api/badge/repositories/11808" alt="OtterMind%2FChat2DB | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 </div>
-<br/>
-
-<div align="center">
-  <h3>Chat2DB 团队新开源项目：<a href="https://github.com/CodePhiliaX/youClaw">youClaw</a></h3>
-  <p>如果 Chat2DB 对你有帮助，也欢迎顺手给 <strong>youClaw</strong> 点个 Star。对一个新开源项目来说，早期 Star 不只是鼓励，也能带来更多曝光、反馈和贡献者。</p>
-  <a href="https://github.com/CodePhiliaX/youClaw">
-    <img alt="Star youClaw on GitHub" src="https://img.shields.io/badge/Star-youClaw-181717?style=for-the-badge&logo=github" />
-  </a>
-</div>
-<br/>
 
 <div align="center">
 
-[![ReadmeX][readmex-image]][readmex-url]
+[![Modelscope][Modelscope-image]][Modelscope-url]
 [![Discord][discord-image]][discord-url]
-[![Twitter][twitter-image]][twitter-url]
-[![Telegram][telegram-image]][telegram-url]
-[![Whatsapp][whatsapp-image]][whatsapp-url]
-[![Reddit][reddit-image]][reddit-url]
-[![Gmail][gmail-image]][gmail-url]
+[![X][x-image]][x-url]
 
-[readmex-image]: https://raw.githubusercontent.com/CodePhiliaX/resource-trusteeship/main/readmex.svg
-[readmex-url]: https://readmex.com/CodePhiliaX/Chat2DB
+[Modelscope-image]: https://img.shields.io/badge/modelscope-blue?style=flat-square\&logo=modelscope
+[Modelscope-url]: https://modelscope.cn/
 [discord-image]: https://img.shields.io/badge/-Join%20us%20on%20Discord-%237289DA.svg?style=flat&logo=discord&logoColor=white
 [discord-url]: https://discord.com/invite/uNjb3n5JVN
-[twitter-image]: https://img.shields.io/twitter/follow/_Chat2DB?label=Chat2DB
-[twitter-url]: https://twitter.com/intent/tweet?text=Chat2DB-An%20intelligent%20and%20versatile%20general-purpose%20SQL%20client%20and%20reporting%20tool%20for%20databases%20which%20integrates%20ChatGPT%20capabilities.&url=https://github.com/OtterMind/Chat2DB&hashtags=ChatGPT,AGI,SQL%20Client,Reporting%20tool
-[telegram-image]: https://img.shields.io/twitter/url?label=Telegram&logo=Telegram&style=social&url=https://github.com/OtterMind/Chat2DB
-[telegram-url]: https://t.me/share/url?text=Chat2DB-An%20intelligent%20and%20versatile%20general-purpose%20SQL%20client%20and%20reporting%20tool%20for%20databases%20which%20integrates%20ChatGPT%20capabilities.&url=https://github.com/OtterMind/Chat2DB
-[whatsapp-image]: https://img.shields.io/twitter/url?label=whatsapp&logo=whatsapp&style=social&url=https://github.com/OtterMind/Chat2DB
-[whatsapp-url]: https://api.whatsapp.com/send?text=Chat2DB-An%20intelligent%20and%20versatile%20general-purpose%20SQL%20client%20and%20reporting%20tool%20for%20databases%20which%20integrates%20ChatGPT%20capabilities.%20https://github.com/OtterMind/Chat2DB
-[reddit-image]: https://img.shields.io/twitter/url?label=Reddit&logo=Reddit&style=social&url=https://github.com/OtterMind/Chat2DB
-[reddit-url]: https://www.reddit.com/submit?url=https://github.com/OtterMind/Chat2DB&title=Chat2DB-An%20intelligent%20and%20versatile%20general-purpose%20SQL%20client%20and%20reporting%20tool%20for%20databases%20which%20integrates%20ChatGPT%20capabilities.
-[gmail-image]: https://img.shields.io/twitter/url?label=Gmail&logo=Gmail&style=social&url=https://github.com/OtterMind/Chat2DB
-[gmail-url]: mailto:?subject=Check%20this%20GitHub%20repository%20out.&body=Chat2DB-An%20intelligent%20and%20versatile%20general-purpose%20SQL%20client%20and%20reporting%20tool%20for%20databases%20which%20integrates%20ChatGPT%20capabilities.%3A%0Ahttps://github.com/OtterMind/Chat2DB
+[x-image]: https://img.shields.io/badge/X-%40Chat2DB_AI-000000?style=flat&logo=x&logoColor=white
+[x-url]: https://x.com/Chat2DB_AI
 
 </div>
 
@@ -47,15 +34,6 @@
   <a href="./README_KO.md"><img alt="한국어 README" src="https://img.shields.io/badge/한국어-d9d9d9"></a>
 
 </div>
-
-
-
-
-https://github.com/user-attachments/assets/3c857883-8153-4bda-92b8-d25c6adb5b13
-
-
-
-Chat2DB 是一个智能的通用SQL客户端和数据报表工具，它集成了AI的能力。Chat2DB可以帮助您更快地编写SQL查询、管理数据库、生成报告、探索数据、并且可以与多种数据库进行交互。Chat2DB是一个开源项目，我们欢迎您的贡献。
 
 **1. 智能生成SQL**:
 Chat2DB Pro支持AI驱动的智能SQL开发，可以帮助您更快地编写SQL查询。
@@ -240,6 +218,16 @@ $ java -Dloader.path=chat2db-community-server/chat2db-community-start/target/lib
 $ ./docker/docker-build.sh 5.3.0 chat2db/chat2db:5.3.0
 ```
 
+## 参与贡献
+
+我们欢迎社区提交 Bug、功能建议、文档改进、测试反馈和 Pull Request。
+
+创建 Issue 或提交 Pull Request 前，请先阅读[贡献指南](./CONTRIBUTING.md)。其中说明了如何报告问题、提出建议，以及如何让维护者更高效地审查贡献。
+
+- Bug 和功能建议请使用 [GitHub Issues](https://github.com/OtterMind/Chat2DB/issues)。
+- 使用问题、配置帮助和开放讨论请使用 [GitHub Discussions](https://github.com/OtterMind/Chat2DB/discussions)。
+- 如果 Pull Request 与某个 Issue 相关，请在 PR 描述中附上对应链接。
+
 ## 常见问题
 
 ### 1、无法获取数据源驱动：`getJDBCDriver error: null`
@@ -267,7 +255,7 @@ $ ./docker/docker-build.sh 5.3.0 chat2db/chat2db:5.3.0
 
 - Email: Chat2DB@ch2db.com
 - Discord: [Join our Discord server](https://discord.gg/JDkwB6JS8A)
-- Twitter: [@Chat2DB](https://x.com/Chat2DB_AI)
+- X: [@Chat2DB_AI](https://x.com/Chat2DB_AI)
 - YouTube: [Chat2DB Channel](https://www.youtube.com/@chat2db.tutorial)
 - GitHub: [Chat2DB GitHub](https://github.com/OtterMind/Chat2DB)
 

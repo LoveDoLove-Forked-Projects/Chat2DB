@@ -1,21 +1,31 @@
-
-
-
+> 📣 **Chat2DB チームからのお知らせ！**
+> AI ネイティブアプリケーション向けの新しいデプロイレイヤー **[Nubase](https://github.com/ottermind/nubase)** をオープンソースで公開しました！
+> Chat2DB がデータ管理を簡単にするように、Nubase は AI コーディングツールやエージェントのデプロイをよりスムーズにします。
+>
+> オープンソースの取り組みを応援するため、GitHub で **[Nubase に ⭐️](https://github.com/ottermind/nubase)** をお願いします！
+<div align="center">
+  <h1>Chat2DB</h1>
+  <p><strong>開発者、DBA、アナリスト、データチーム向けの AI 搭載データベースクライアント兼 SQL ワークスペースです。</strong></p>
+</div>
 <div align="center">
     <a href="https://trendshift.io/repositories/11808" target="_blank"><img src="https://trendshift.io/api/badge/repositories/11808" alt="OtterMind%2FChat2DB | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 </div>
-<br/>
-<p align="center">
- <a href="https://discord.com/invite/uNjb3n5JVN" target="_blank">
-    <img src="https://img.shields.io/badge/-Join%20us%20on%20Discord-%237289DA.svg?style=flat&logo=discord&logoColor=white"
-            alt="chat on Discord"></a>
-<a href="https://twitter.com/intent/tweet?text=Chat2DB-An%20intelligent%20and%20versatile%20general-purpose%20SQL%20client%20and%20reporting%20tool%20for%20databases%20which%20integrates%20ChatGPT%20capabilities.&url=https://github.com/OtterMind/Chat2DB&hashtags=ChatGPT,AGI,SQL%20Client,Reporting%20tool" target="blank" > <img src="https://img.shields.io/twitter/follow/_Chat2DB?label=Twitter&style=social" alt=""/> </a>
-<a href="https://t.me/share/url?text=Chat2DB-An%20intelligent%20and%20versatile%20general-purpose%20SQL%20client%20and%20reporting%20tool%20for%20databases%20which%20integrates%20ChatGPT%20capabilities.&url=https://github.com/OtterMind/Chat2DB" target="_blank"><img src="https://img.shields.io/twitter/url?label=Telegram&logo=Telegram&style=social&url=https://github.com/OtterMind/Chat2DB" alt="Share on Telegram"/></a>
-<a href="https://api.whatsapp.com/send?text=Chat2DB-An%20intelligent%20and%20versatile%20general-purpose%20SQL%20client%20and%20reporting%20tool%20for%20databases%20which%20integrates%20ChatGPT%20capabilities.%20https://github.com/OtterMind/Chat2DB"><img src="https://img.shields.io/twitter/url?label=whatsapp&logo=whatsapp&style=social&url=https://github.com/OtterMind/Chat2DB" /></a>
-<a href="https://www.reddit.com/submit?url=https://github.com/OtterMind/Chat2DB&title=Chat2DB-An%20intelligent%20and%20versatile%20general-purpose%20SQL%20client%20and%20reporting%20tool%20for%20databases%20which%20integrates%20ChatGPT%20capabilities." target="blank"><img src="https://img.shields.io/twitter/url?label=Reddit&logo=Reddit&style=social&url=https://github.com/OtterMind/Chat2DB" alt="Share on Reddit"/></a>
-<a href="mailto:?subject=Check%20this%20GitHub%20repository%20out.&body=Chat2DB-An%20intelligent%20and%20versatile%20general-purpose%20SQL%20client%20and%20reporting%20tool%20for%20databases%20which%20integrates%20ChatGPT%20capabilities.%3A%0Ahttps://github.com/OtterMind/Chat2DB" target="_blank"><img src="https://img.shields.io/twitter/url?label=Gmail&logo=Gmail&style=social&url=https://github.com/OtterMind/Chat2DB"/></a>
 
-</p>
+<div align="center">
+
+[![Modelscope][Modelscope-image]][Modelscope-url]
+[![Discord][discord-image]][discord-url]
+[![X][x-image]][x-url]
+
+[Modelscope-image]: https://img.shields.io/badge/modelscope-blue?style=flat-square\&logo=modelscope
+[Modelscope-url]: https://modelscope.cn/
+[discord-image]: https://img.shields.io/badge/-Join%20us%20on%20Discord-%237289DA.svg?style=flat&logo=discord&logoColor=white
+[discord-url]: https://discord.com/invite/uNjb3n5JVN
+[x-image]: https://img.shields.io/badge/X-%40Chat2DB_AI-000000?style=flat&logo=x&logoColor=white
+[x-url]: https://x.com/Chat2DB_AI
+
+</div>
+
 <div align="center">
   <a href="./README.md"><img alt="README in English" src="https://img.shields.io/badge/English-d9d9d9"></a>
   <a href="./README_CN.md"><img alt="简体中文版自述文件" src="https://img.shields.io/badge/简体中文-d9d9d9"></a>
@@ -23,15 +33,6 @@
   <a href="./README_ES.md"><img alt="README en español" src="https://img.shields.io/badge/Español-d9d9d9"></a>
   <a href="./README_KO.md"><img alt="한국어 README" src="https://img.shields.io/badge/한국어-d9d9d9"></a>
 </div>
-
-
-
-https://github.com/user-attachments/assets/bd5d5f64-540f-4793-a801-17fa96c4766e
-
-
-
-
-Chat2DBはAI機能を統合したインテリジェントで汎用的なSQLクライアントおよびデータ報告ツールです。Chat2DBは、SQLクエリの作成を迅速化し、データベースの管理、レポートの生成、データの探索、および複数のデータベースとのインタラクションをサポートします。Chat2DBはオープンソースプロジェクトであり、皆様の貢献を歓迎します。
 
 **1. インテリジェントSQL生成**:
 Chat2DB Proは、AI駆動によるインテリジェントなSQL開発をサポートし、SQLクエリをより速く作成する手助けをします。
@@ -215,12 +216,22 @@ $ java -Dloader.path=chat2db-community-server/chat2db-community-start/target/lib
 $ ./docker/docker-build.sh 5.3.0 chat2db/chat2db:5.3.0
 ```
 
+## コントリビューション
+
+コミュニティからのバグ報告、機能リクエスト、ドキュメント改善、テストフィードバック、Pull Request を歓迎します。
+
+Issue の作成や Pull Request の送信前に、[コントリビューションガイド](./CONTRIBUTING.md)をお読みください。バグの報告、改善提案、メンテナーがレビューしやすい形で貢献する方法を説明しています。
+
+- バグや機能リクエストには [GitHub Issues](https://github.com/OtterMind/Chat2DB/issues) を使用してください。
+- 質問、セットアップ支援、自由な議論には [GitHub Discussions](https://github.com/OtterMind/Chat2DB/discussions) を使用してください。
+- Pull Request が Issue に関連する場合は、PR の説明に Issue へのリンクを含めてください。
+
 
 ## お問い合わせ
 
 - メール: Chat2DB@ch2db.com
 - Discord: [Discordサーバーに参加](https://discord.gg/JDkwB6JS8A)
-- Twitter: [@Chat2DB](https://x.com/Chat2DB_AI)
+- X: [@Chat2DB_AI](https://x.com/Chat2DB_AI)
 - YouTube: [Chat2DB チャンネル](https://www.youtube.com/@chat2db.tutorial)
 - GitHub: [Chat2DB GitHub](https://github.com/OtterMind/Chat2DB)
 
