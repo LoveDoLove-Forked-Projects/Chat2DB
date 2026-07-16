@@ -40,6 +40,7 @@ import {
   isBinaryDisplayMode,
   isLargeCellTokenExpiredError,
 } from './largeCellValue';
+import { isJsonObjectOrArray } from './jsonValue';
 
 interface IProps {
   className?: string;
@@ -64,7 +65,7 @@ export interface ViewDataRef {
 const ViewData = forwardRef((props: IProps, ref: ForwardedRef<ViewDataRef>) => {
   const [viewData, setViewData] = useState<IViewData | null>(null);
   const monacoEditorRef = useRef<any>(null);
-  const [isJson, setIsJson] = useState<boolean>(false);
+  const [isJsonContent, setIsJsonContent] = useState(false);
   const [largeValueChunks, setLargeValueChunks] = useState<ILargeCellChunk[]>([]);
   const [largeValueLoading, setLargeValueLoading] = useState(false);
   const [largeValueLoadingAction, setLargeValueLoadingAction] = useState<LargeValueLoadingAction>(null);
@@ -73,6 +74,7 @@ const ViewData = forwardRef((props: IProps, ref: ForwardedRef<ViewDataRef>) => {
   const [largeValueExpired, setLargeValueExpired] = useState(false);
   const [binaryFormat, setBinaryFormat] = useState<LargeCellBinaryFormat>(LARGE_CELL_BINARY_FORMAT.HEX);
   const editorInstanceRef = useRef<any>(null);
+  const editorContentChangeDisposerRef = useRef<{ dispose: () => void } | null>(null);
   const pendingEditorValueRef = useRef<string>('');
   const largeValueRequestVersionRef = useRef(0);
   const activeLargeValueIdRef = useRef<string>('');
@@ -129,7 +131,8 @@ const ViewData = forwardRef((props: IProps, ref: ForwardedRef<ViewDataRef>) => {
   }, [viewData]);
 
   const setEditorValue = (value?: string | null) => {
-    const nextValue = value || '';
+    const nextValue = value === null || value === undefined ? '' : String(value);
+    setIsJsonContent(isJsonObjectOrArray(nextValue));
     pendingEditorValueRef.current = nextValue;
     if (editorInstanceRef.current) {
       editorInstanceRef.current.setValue(nextValue);
@@ -139,9 +142,17 @@ const ViewData = forwardRef((props: IProps, ref: ForwardedRef<ViewDataRef>) => {
   };
 
   const handleEditorDidMount = (editor) => {
+    editorContentChangeDisposerRef.current?.dispose();
     editorInstanceRef.current = editor;
     editor.setValue(pendingEditorValueRef.current || '');
+    editorContentChangeDisposerRef.current = editor.onDidChangeModelContent(() => {
+      setIsJsonContent(isJsonObjectOrArray(editor.getValue()));
+    });
   };
+
+  useEffect(() => {
+    return () => editorContentChangeDisposerRef.current?.dispose();
+  }, []);
 
   const latestChunk = largeValueChunks[largeValueChunks.length - 1];
   const largeValueMeta = viewData?.cellMeta;
@@ -154,7 +165,8 @@ const ViewData = forwardRef((props: IProps, ref: ForwardedRef<ViewDataRef>) => {
     canUseLargeValueActions &&
     !latestChunk?.eof &&
     getNextLargeCellChunkLimit({ loadedSize, editorLimit, binaryFormat }) > 0;
-  const canShowJsonTools = !isLargeValue || isJsonDisplayMode(displayMode);
+  const canShowJsonTools = isJsonContent && (!isLargeValue || isJsonDisplayMode(displayMode));
+  const showToolbar = canShowJsonTools || canUseLargeValueActions;
   const largeValueText = useMemo(() => {
     return getLargeCellDisplayValue(largeValueChunks, largeValueMeta?.value);
   }, [largeValueChunks, largeValueMeta?.value]);
@@ -327,7 +339,6 @@ const ViewData = forwardRef((props: IProps, ref: ForwardedRef<ViewDataRef>) => {
     try {
       const parsed = JSON.parse(monacoEditorRef.current?.getAllContent() || '{}');
       const formatted = JSON.stringify(parsed, null, 2);
-      setIsJson(true);
       monacoEditorRef.current?.setValue(formatted, 'cover');
     } catch (err) {
       console.error('无效的 JSON 格式，请检查语法', err);
@@ -338,7 +349,6 @@ const ViewData = forwardRef((props: IProps, ref: ForwardedRef<ViewDataRef>) => {
     try {
       const parsed = JSON.parse(monacoEditorRef.current?.getAllContent() || '{}');
       const compressed = JSON.stringify(parsed);
-      setIsJson(false);
       monacoEditorRef.current?.setValue(compressed, 'cover');
     } catch (err) {
       console.error('无效的 JSON 格式，请检查语法', err);
@@ -348,62 +358,66 @@ const ViewData = forwardRef((props: IProps, ref: ForwardedRef<ViewDataRef>) => {
   const renderMonacoEditor = useMemo(() => {
     return (
       <div className={styles.monacoEditor}>
-        <div className={styles.toolbar}>
-          <Space size={8}>
-            {canShowJsonTools && (
-              <>
-                <ToolbarBtn text={i18n('workspace.format.json')} onClick={formatJson} />
-                <ToolbarBtn text={i18n('workspace.format.json.compress')} onClick={compressJson} />
-              </>
-            )}
-            {canUseLargeValueActions && isBinaryDisplayMode(displayMode) && (
-              <Segmented
-                size="small"
-                disabled={largeValueExpired || largeValueLoading}
-                value={binaryFormat}
-                options={[
-                  { label: 'Hex', value: LARGE_CELL_BINARY_FORMAT.HEX },
-                  { label: 'Base64', value: LARGE_CELL_BINARY_FORMAT.BASE64 },
-                ]}
-                onChange={(value) => changeBinaryFormat(value as LargeCellBinaryFormat)}
-              />
-            )}
-          </Space>
-          {canUseLargeValueActions && (
+        {showToolbar && (
+          <div className={styles.toolbar}>
             <Space size={8}>
-              <Button
-                size="small"
-                loading={
-                  largeValueLoadingAction === 'initial' ||
-                  largeValueLoadingAction === 'more' ||
-                  largeValueLoadingAction === 'format'
-                }
-                disabled={largeValueExpired || largeValueLoading || !!latestChunk?.eof || !largeValueMeta?.largeValueId}
-                onClick={loadMore}
-              >
-                {i18n('common.largeCellValue.button.loadMore')}
-              </Button>
-              <Button
-                size="small"
-                loading={largeValueLoadingAction === 'all'}
-                disabled={largeValueExpired || largeValueLoading || !canLoadAll || !largeValueMeta?.largeValueId}
-                onClick={loadAllUpToLimit}
-              >
-                {i18n('common.largeCellValue.button.loadAllUpToLimit')}
-              </Button>
-              <Button
-                size="small"
-                loading={largeValueDownloading}
-                disabled={
-                  largeValueExpired || largeValueLoading || largeValueDownloading || !largeValueMeta?.largeValueId
-                }
-                onClick={download}
-              >
-                {i18n('common.largeCellValue.button.download')}
-              </Button>
+              {canShowJsonTools && (
+                <>
+                  <ToolbarBtn text={i18n('workspace.format.json')} onClick={formatJson} />
+                  <ToolbarBtn text={i18n('workspace.format.json.compress')} onClick={compressJson} />
+                </>
+              )}
+              {canUseLargeValueActions && isBinaryDisplayMode(displayMode) && (
+                <Segmented
+                  size="small"
+                  disabled={largeValueExpired || largeValueLoading}
+                  value={binaryFormat}
+                  options={[
+                    { label: 'Hex', value: LARGE_CELL_BINARY_FORMAT.HEX },
+                    { label: 'Base64', value: LARGE_CELL_BINARY_FORMAT.BASE64 },
+                  ]}
+                  onChange={(value) => changeBinaryFormat(value as LargeCellBinaryFormat)}
+                />
+              )}
             </Space>
-          )}
-        </div>
+            {canUseLargeValueActions && (
+              <Space size={8}>
+                <Button
+                  size="small"
+                  loading={
+                    largeValueLoadingAction === 'initial' ||
+                    largeValueLoadingAction === 'more' ||
+                    largeValueLoadingAction === 'format'
+                  }
+                  disabled={
+                    largeValueExpired || largeValueLoading || !!latestChunk?.eof || !largeValueMeta?.largeValueId
+                  }
+                  onClick={loadMore}
+                >
+                  {i18n('common.largeCellValue.button.loadMore')}
+                </Button>
+                <Button
+                  size="small"
+                  loading={largeValueLoadingAction === 'all'}
+                  disabled={largeValueExpired || largeValueLoading || !canLoadAll || !largeValueMeta?.largeValueId}
+                  onClick={loadAllUpToLimit}
+                >
+                  {i18n('common.largeCellValue.button.loadAllUpToLimit')}
+                </Button>
+                <Button
+                  size="small"
+                  loading={largeValueDownloading}
+                  disabled={
+                    largeValueExpired || largeValueLoading || largeValueDownloading || !largeValueMeta?.largeValueId
+                  }
+                  onClick={download}
+                >
+                  {i18n('common.largeCellValue.button.download')}
+                </Button>
+              </Space>
+            )}
+          </div>
+        )}
         {largeValueError && <Alert className={styles.alert} type="warning" showIcon message={largeValueError} />}
         {canUseLargeValueActions && (
           <div className={styles.meta}>
@@ -438,7 +452,7 @@ const ViewData = forwardRef((props: IProps, ref: ForwardedRef<ViewDataRef>) => {
       </div>
     );
   }, [
-    isJson,
+    isJsonContent,
     isLargeValue,
     canUseLargeValueActions,
     canShowJsonTools,
@@ -457,6 +471,7 @@ const ViewData = forwardRef((props: IProps, ref: ForwardedRef<ViewDataRef>) => {
     imagePreviewSrc,
     canSubmitEdit,
     hasReachedEditorLimit,
+    showToolbar,
   ]);
 
   const monacoEditorEditData = () => {
@@ -527,9 +542,6 @@ const ViewData = forwardRef((props: IProps, ref: ForwardedRef<ViewDataRef>) => {
 
   return (
     <div className={styles.container}>
-      <div className={styles.fieldTitle} title={String(viewData.field || '')}>
-        {viewData.field}
-      </div>
       {renderMonacoEditor}
       {viewData.canEdit && (
         <div className={styles.footer}>

@@ -8,17 +8,6 @@ export const useStyles = createStyles(({ css, token }) => {
       flex-direction: column;
       min-height: 0;
     `,
-    fieldTitle: css`
-      flex-shrink: 0;
-      min-height: 32px;
-      padding: 7px 10px;
-      overflow: hidden;
-      color: ${token.colorTextSecondary};
-      font-size: 12px;
-      line-height: 18px;
-      white-space: nowrap;
-      text-overflow: ellipsis;
-    `,
     monacoEditor: css`
       flex: 1;
       min-height: 0;

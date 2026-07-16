@@ -33,7 +33,6 @@ interface IRowDetailItem {
 }
 
 interface IRowDetailState {
-  rowNumber?: string | number | null;
   tableInstance: ITableInstance;
   row: number;
   items: IRowDetailItem[];
@@ -94,7 +93,6 @@ const RowDetail = forwardRef((props: IProps, ref: ForwardedRef<RowDetailRef>) =>
     });
 
     setRowDetail({
-      rowNumber: record.CHAT2DB_ROW_NUMBER,
       tableInstance,
       row,
       items,
@@ -150,42 +148,37 @@ const RowDetail = forwardRef((props: IProps, ref: ForwardedRef<RowDetailRef>) =>
 
   return (
     <div className={styles.container}>
-      <div className={styles.recordHeader}>
-        {`${i18n('common.resultInspector.record')}${
-          rowDetail?.rowNumber !== null && rowDetail?.rowNumber !== undefined && rowDetail?.rowNumber !== ''
-            ? ` #${rowDetail.rowNumber}`
-            : ''
-        }`}
-      </div>
       <div className={styles.fields}>
         {rowDetail?.items.map((item, index) => {
           const isNull = item.value === null || item.value === undefined;
           return (
             <div className={styles.item} key={`${item.field}-${index}`}>
               <div className={styles.field}>{item.field}</div>
-              <div className={styles.valueWrapper}>
-                <Input
-                  value={item.value === null || item.value === undefined ? '' : String(item.value)}
-                  placeholder={isNull ? '<null>' : undefined}
-                  readOnly={!resultData.canEdit || item.largeValue || !onChangeData}
-                  className={cx(styles.valueInput, isNull && styles.nullValue)}
-                  onChange={(event) => handleValueChange(item.col, event.target.value)}
-                  onBlur={() => handleValueBlur(item)}
-                />
-              </div>
-              <div className={styles.action}>
-                {onViewData && (
-                  <Tooltip title={i18n('common.button.viewData')}>
-                    <Button
-                      type="text"
-                      aria-label={i18n('common.button.viewData')}
-                      data-row-detail-action="true"
-                      icon={<Iconfont code="&#xe788;" />}
-                      className={styles.actionButton}
-                      onClick={() => handleViewData(item)}
-                    />
-                  </Tooltip>
-                )}
+              <div className={styles.valueRow}>
+                <div className={styles.valueWrapper}>
+                  <Input
+                    value={item.value === null || item.value === undefined ? '' : String(item.value)}
+                    placeholder={isNull ? '<null>' : undefined}
+                    readOnly={!resultData.canEdit || item.largeValue || !onChangeData}
+                    className={cx(styles.valueInput, isNull && styles.nullValue)}
+                    onChange={(event) => handleValueChange(item.col, event.target.value)}
+                    onBlur={() => handleValueBlur(item)}
+                  />
+                </div>
+                <div className={styles.action}>
+                  {onViewData && (
+                    <Tooltip title={i18n('common.button.viewData')}>
+                      <Button
+                        type="text"
+                        aria-label={i18n('common.button.viewData')}
+                        data-row-detail-action="true"
+                        icon={<Iconfont code="&#xe788;" />}
+                        className={styles.actionButton}
+                        onClick={() => handleViewData(item)}
+                      />
+                    </Tooltip>
+                  )}
+                </div>
               </div>
             </div>
           );

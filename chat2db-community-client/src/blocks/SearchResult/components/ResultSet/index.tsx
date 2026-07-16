@@ -251,12 +251,17 @@ export default memo<IProps>(
         if (!params) {
           return;
         }
+        const record = params.tableInstance.getRecordByCell(params.col, params.row);
+        const nextParams = {
+          ...params,
+          cellMeta: params.cellMeta ?? record?.__CHAT2DB_CELL_META__?.[params.col],
+        };
         setLastActiveCell({ tableInstance: params.tableInstance, col: params.col, row: params.row });
         setInspectorOpen(true);
         setInspectorTab('value');
         setTimeout(() => {
           viewDataRef.current?.openPanel({
-            ...params,
+            ...nextParams,
             canEdit: !!resultData?.canEdit,
             operationRecordUtils: resultSetTableRef.current?.operationRecordUtils,
           });
@@ -349,11 +354,15 @@ export default memo<IProps>(
           return;
         }
         setLastActiveCell(selection.activeCell);
-        if (inspectorOpen && inspectorTab === 'row') {
-          rowDetailRef.current?.openPanel(selection.activeCell);
+        if (inspectorOpen) {
+          if (inspectorTab === 'row') {
+            rowDetailRef.current?.openPanel(selection.activeCell);
+          } else {
+            openValueInspector(selection.activeCell);
+          }
         }
       },
-      [inspectorOpen, inspectorTab],
+      [inspectorOpen, inspectorTab, openValueInspector],
     );
 
     const handleInspectorTabChange = useCallback(

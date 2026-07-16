@@ -8,10 +8,22 @@ export const useStyles = createStyles(({ css, token }) => {
       flex-direction: column;
       min-height: 0;
     `,
-    recordHeader: css`
-      flex-shrink: 0;
-      min-height: 32px;
+    fields: css`
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+    `,
+    item: css`
       padding: 7px 10px;
+
+      &:focus-within [data-row-detail-action='true'] {
+        opacity: 1;
+        pointer-events: auto;
+      }
+    `,
+    field: css`
+      min-width: 0;
+      margin-bottom: 5px;
       overflow: hidden;
       color: ${token.colorTextSecondary};
       font-size: 12px;
@@ -19,54 +31,33 @@ export const useStyles = createStyles(({ css, token }) => {
       white-space: nowrap;
       text-overflow: ellipsis;
     `,
-    fields: css`
-      flex: 1;
-      min-height: 0;
-      overflow: auto;
-    `,
-    item: css`
-      display: grid;
-      grid-template-columns: minmax(112px, 34%) minmax(0, 1fr) 40px;
-      border-bottom: 1px solid ${token.colorBorderSecondary};
-
-      &:focus-within [data-row-detail-action='true'] {
-        opacity: 1;
-        pointer-events: auto;
-      }
-
-      &:last-child {
-        border-bottom: 0;
-      }
-    `,
-    field: css`
+    valueRow: css`
+      position: relative;
       min-width: 0;
-      padding: 8px 12px;
-      color: ${token.colorTextSecondary};
-      background-color: ${token.colorFillQuaternary};
-      border-right: 1px solid ${token.colorBorderSecondary};
-      word-break: break-word;
     `,
     valueWrapper: css`
       min-width: 0;
-      min-height: 38px;
     `,
     valueInput: css`
       width: 100%;
-      height: 100%;
-      min-height: 38px;
-      padding: 8px 12px;
+      height: 34px;
+      padding: 6px 38px 6px 9px;
       color: ${token.colorText};
       font-family: ${token.fontFamilyCode};
-      background: transparent;
-      border: 0;
-      border-radius: 0;
+      background: ${token.colorBgContainer};
+      border: 1px solid ${token.colorBorder};
+      border-radius: 4px;
       box-shadow: none;
 
       &:focus {
-        box-shadow: inset 0 0 0 1px ${token.colorPrimary};
+        border-color: ${token.colorPrimary};
+        box-shadow: 0 0 0 1px ${token.colorPrimary};
       }
     `,
     action: css`
+      position: absolute;
+      top: 1px;
+      right: 2px;
       display: flex;
       align-items: center;
       justify-content: center;
