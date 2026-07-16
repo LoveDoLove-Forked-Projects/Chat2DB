@@ -3,14 +3,30 @@ import { createStyles } from 'antd-style';
 export const useStyles = createStyles(({ css, token }) => {
   return {
     container: css`
-      max-height: 68vh;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    `,
+    recordHeader: css`
+      flex-shrink: 0;
+      min-height: 32px;
+      padding: 7px 10px;
+      overflow: hidden;
+      color: ${token.colorTextSecondary};
+      font-size: 12px;
+      line-height: 18px;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    `,
+    fields: css`
+      flex: 1;
+      min-height: 0;
       overflow: auto;
-      border: 1px solid ${token.colorBorderSecondary};
-      border-radius: 4px;
     `,
     item: css`
       display: grid;
-      grid-template-columns: minmax(160px, 30%) minmax(0, 1fr) 44px;
+      grid-template-columns: minmax(112px, 34%) minmax(0, 1fr) 40px;
       border-bottom: 1px solid ${token.colorBorderSecondary};
 
       &:focus-within [data-row-detail-action='true'] {

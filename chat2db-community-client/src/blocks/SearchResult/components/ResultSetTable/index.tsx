@@ -25,6 +25,16 @@ interface IProps {
   setTableInstance: (tableInstance: ITableInstance) => void;
   setOrderByText?: (orderByText: string) => void;
   onFilterCountChange?: (count: number) => void;
+  onSelectionChange?: (selection: IResultSetSelection) => void;
+}
+
+export interface IResultSetSelection {
+  values: unknown[];
+  activeCell?: {
+    tableInstance: ITableInstance;
+    col: number;
+    row: number;
+  };
 }
 
 export interface ResultSetTableRef {
@@ -88,6 +98,67 @@ const ResultSetTable = forwardRef((props: IProps, ref: ForwardedRef<ResultSetTab
       tableInstance?.off(onChangeCellValueId);
     };
   }, [tableInstance, operationRecordUtils]);
+
+  useEffect(() => {
+    if (!tableInstance || !props.onSelectionChange) {
+      return;
+    }
+
+    let frameId: number | null = null;
+    let latestActiveCell: { col: number; row: number } | undefined;
+    const emitSelection = () => {
+      frameId = null;
+      const cells = (tableInstance.getSelectedCellInfos() || [])
+        .flat()
+        .filter((cell) => cell.col > 0 && !tableInstance.isHeader(cell.col, cell.row));
+      const fallbackCell = cells[cells.length - 1];
+      const activeCell =
+        latestActiveCell || (fallbackCell ? { col: fallbackCell.col, row: fallbackCell.row } : undefined);
+      props.onSelectionChange?.({
+        values: cells.map((cell) => (cell.dataValue !== undefined ? cell.dataValue : cell.value)),
+        activeCell: activeCell
+          ? {
+              tableInstance,
+              col: activeCell.col,
+              row: activeCell.row,
+            }
+          : undefined,
+      });
+    };
+    const scheduleSelection = (event?: { col?: number; row?: number }) => {
+      if (
+        event?.col !== undefined &&
+        event?.row !== undefined &&
+        event.col > 0 &&
+        !tableInstance.isHeader(event.col, event.row)
+      ) {
+        latestActiveCell = { col: event.col, row: event.row };
+      }
+      if (frameId !== null) {
+        cancelAnimationFrame(frameId);
+      }
+      frameId = requestAnimationFrame(emitSelection);
+    };
+    const clearSelection = () => {
+      latestActiveCell = undefined;
+      scheduleSelection();
+    };
+
+    const eventIds = [
+      tableInstance.on('selected_cell', scheduleSelection),
+      tableInstance.on('drag_select_end', scheduleSelection),
+      tableInstance.on('selected_clear', clearSelection),
+      tableInstance.on('change_cell_value', scheduleSelection),
+    ];
+    scheduleSelection();
+
+    return () => {
+      if (frameId !== null) {
+        cancelAnimationFrame(frameId);
+      }
+      eventIds.forEach((eventId) => tableInstance.off(eventId));
+    };
+  }, [tableInstance, props.onSelectionChange]);
 
   // callback after initialization is completed
   const onInit = useCallback((_tableInstance) => {

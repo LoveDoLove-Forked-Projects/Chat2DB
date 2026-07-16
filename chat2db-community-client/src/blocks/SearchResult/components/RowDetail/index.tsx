@@ -1,6 +1,5 @@
 import { ForwardedRef, forwardRef, memo, useImperativeHandle, useMemo, useState } from 'react';
 import { Button, Input, Tooltip } from 'antd';
-import { Modal } from '@chat2db/ui';
 import i18n from '@/i18n';
 import Iconfont from '@/components/Iconfont';
 import { IManageResultData, IResultCell } from '@/typings';
@@ -47,7 +46,7 @@ interface IProps {
 }
 
 export interface RowDetailRef {
-  openModal: (params: IOpenRowDetailParams) => void;
+  openPanel: (params: IOpenRowDetailParams) => void;
 }
 
 const formatValue = (value: any, cellMeta?: IResultCell) => {
@@ -73,7 +72,7 @@ const RowDetail = forwardRef((props: IProps, ref: ForwardedRef<RowDetailRef>) =>
     return resultData.headerList || [];
   }, [resultData.headerList]);
 
-  const openModal = ({ tableInstance, col, row }: IOpenRowDetailParams) => {
+  const openPanel = ({ tableInstance, col, row }: IOpenRowDetailParams) => {
     const recordCol = col > 0 ? col : 1;
     const record = tableInstance.getRecordByCell(recordCol, row);
     if (!record) {
@@ -105,7 +104,7 @@ const RowDetail = forwardRef((props: IProps, ref: ForwardedRef<RowDetailRef>) =>
   useImperativeHandle(
     ref,
     () => ({
-      openModal,
+      openPanel,
     }),
     [headerMap],
   );
@@ -150,20 +149,15 @@ const RowDetail = forwardRef((props: IProps, ref: ForwardedRef<RowDetailRef>) =>
   };
 
   return (
-    <Modal
-      title={`${i18n('common.button.viewRowDetail')}${
-        rowDetail?.rowNumber !== null && rowDetail?.rowNumber !== undefined && rowDetail?.rowNumber !== ''
-          ? ` #${rowDetail.rowNumber}`
-          : ''
-      }`}
-      open={!!rowDetail}
-      onCancel={() => setRowDetail(null)}
-      width="60vw"
-      maskClosable={false}
-      destroyOnClose={true}
-      footer={null}
-    >
-      <div className={styles.container}>
+    <div className={styles.container}>
+      <div className={styles.recordHeader}>
+        {`${i18n('common.resultInspector.record')}${
+          rowDetail?.rowNumber !== null && rowDetail?.rowNumber !== undefined && rowDetail?.rowNumber !== ''
+            ? ` #${rowDetail.rowNumber}`
+            : ''
+        }`}
+      </div>
+      <div className={styles.fields}>
         {rowDetail?.items.map((item, index) => {
           const isNull = item.value === null || item.value === undefined;
           return (
@@ -197,7 +191,7 @@ const RowDetail = forwardRef((props: IProps, ref: ForwardedRef<RowDetailRef>) =>
           );
         })}
       </div>
-    </Modal>
+    </div>
   );
 });
 

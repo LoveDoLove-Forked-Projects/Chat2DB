@@ -89,4 +89,21 @@ export interface IUpdateDetail {
 
 export interface DataTableSettings {
   showComment: boolean;
+  selectionMetrics?: [SelectionMetricId, SelectionMetricId, SelectionMetricId];
 }
+
+export type SelectionMetricId =
+  | 'none'
+  | 'count'
+  | 'sum'
+  | 'average'
+  | 'minimum'
+  | 'maximum'
+  | 'nullCount'
+  | 'nonNullCount'
+  | 'uniqueCount'
+  | 'nullPercentage'
+  | 'nonNullPercentage'
+  | 'uniquePercentage'
+  | 'earliest'
+  | 'latest';

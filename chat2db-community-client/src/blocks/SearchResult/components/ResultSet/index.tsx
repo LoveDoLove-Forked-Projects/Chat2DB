@@ -3,14 +3,14 @@ import { useStyles } from './style';
 import ResultSetToolbar, { ResultSetToolbarRef, ToolbarOperationType } from '../ResultSetToolbar';
 import ScreeningResult, { IScreeningResultRef } from '../ScreeningResult';
 import FESearch, { FESearchRef } from '../FESearch';
-import ResultSetTable, { ResultSetTableRef } from '../ResultSetTable';
+import ResultSetTable, { IResultSetSelection, ResultSetTableRef } from '../ResultSetTable';
 import useSqlExecutor from '@/hooks/useSqlExecutor';
 import executeSql from '@/service/executeSql';
 import SQLPreviewExecute, { SQLPreviewExecuteRef } from '../SQLPreviewExecute';
 import ViewData, { ViewDataRef } from '../ViewData';
 import RowDetail, { IChangeDataParams, RowDetailRef } from '../RowDetail';
 import { IManageResultData } from '@/typings';
-import { Spin } from 'antd';
+import { Button, Spin, Tabs, Tooltip } from 'antd';
 import i18n from '@/i18n';
 import { copyToClipboard } from '@/utils';
 import StatusBar from '../StatusBar';
@@ -26,11 +26,14 @@ import {
 } from '@/constants/shortcut';
 import { useGlobalStore } from '@/store/global';
 import { staticMessage } from '@chat2db/ui';
+import { X } from 'lucide-react';
 
 interface IProps {
   resultData: IManageResultData;
   viewTable?: boolean;
 }
+
+type InspectorTab = 'row' | 'value';
 
 export default memo<IProps>(
   (props) => {
@@ -54,6 +57,10 @@ export default memo<IProps>(
     const feSearchRef = useRef<FESearchRef>(null);
     const [orderByText, setOrderByText] = useState<string>('');
     const [submitLoading, setSubmitLoading] = useState(false);
+    const [inspectorOpen, setInspectorOpen] = useState(false);
+    const [inspectorTab, setInspectorTab] = useState<InspectorTab>('row');
+    const [selectedValues, setSelectedValues] = useState<unknown[]>([]);
+    const [lastActiveCell, setLastActiveCell] = useState<IResultSetSelection['activeCell']>();
     const shortcutOverrides = useGlobalStore((s) => s.shortcutOverrides);
     const shortcutConfig = useMemo(
       () => getEffectiveShortcutConfigMap(shortcutOverrides as ShortcutOverrides),
@@ -239,6 +246,35 @@ export default memo<IProps>(
       }
     };
 
+    const openValueInspector = useCallback(
+      (params) => {
+        if (!params) {
+          return;
+        }
+        setLastActiveCell({ tableInstance: params.tableInstance, col: params.col, row: params.row });
+        setInspectorOpen(true);
+        setInspectorTab('value');
+        setTimeout(() => {
+          viewDataRef.current?.openPanel({
+            ...params,
+            canEdit: !!resultData?.canEdit,
+            operationRecordUtils: resultSetTableRef.current?.operationRecordUtils,
+          });
+        }, 0);
+      },
+      [resultData?.canEdit],
+    );
+
+    const openRowInspector = useCallback((params) => {
+      if (!params) {
+        return;
+      }
+      setLastActiveCell({ tableInstance: params.tableInstance, col: params.col, row: params.row });
+      setInspectorOpen(true);
+      setInspectorTab('row');
+      setTimeout(() => rowDetailRef.current?.openPanel(params), 0);
+    }, []);
+
     const onTableOperationUtils = useMemo(() => {
       return {
         // Copy as insert or update or where statement
@@ -271,17 +307,13 @@ export default memo<IProps>(
             });
         },
         handleViewUpdateData: (params) => {
-          viewDataRef.current?.openModal({
-            ...params,
-            canEdit: !!resultData?.canEdit,
-            operationRecordUtils: resultSetTableRef.current?.operationRecordUtils,
-          });
+          openValueInspector(params);
         },
         handleViewRowDetail: (params) => {
-          rowDetailRef.current?.openModal(params);
+          openRowInspector(params);
         },
       };
-    }, [resultData]);
+    }, [openRowInspector, openValueInspector, resultData]);
 
     const handleCloseFESearch = useCallback(() => {
       setShowFESearch(false);
@@ -309,6 +341,48 @@ export default memo<IProps>(
         changedValue: value,
       });
     }, []);
+
+    const handleSelectionChange = useCallback(
+      (selection: IResultSetSelection) => {
+        setSelectedValues(selection.values);
+        if (!selection.activeCell) {
+          return;
+        }
+        setLastActiveCell(selection.activeCell);
+        if (inspectorOpen && inspectorTab === 'row') {
+          rowDetailRef.current?.openPanel(selection.activeCell);
+        }
+      },
+      [inspectorOpen, inspectorTab],
+    );
+
+    const handleInspectorTabChange = useCallback(
+      (key: string) => {
+        const nextTab = key as InspectorTab;
+        setInspectorTab(nextTab);
+        if (!lastActiveCell) {
+          return;
+        }
+        setTimeout(() => {
+          if (nextTab === 'row') {
+            rowDetailRef.current?.openPanel(lastActiveCell);
+            return;
+          }
+          const record = lastActiveCell.tableInstance.getRecordByCell(lastActiveCell.col, lastActiveCell.row);
+          viewDataRef.current?.openPanel({
+            ...lastActiveCell,
+            cellMeta: record?.__CHAT2DB_CELL_META__?.[lastActiveCell.col],
+            canEdit: !!resultData?.canEdit,
+            operationRecordUtils: resultSetTableRef.current?.operationRecordUtils,
+          });
+        }, 0);
+      },
+      [lastActiveCell, resultData?.canEdit],
+    );
+
+    useEffect(() => {
+      setTimeout(() => tableInstance?.resize?.(), 0);
+    }, [inspectorOpen, tableInstance]);
 
     return (
       <>
@@ -349,19 +423,63 @@ export default memo<IProps>(
                 tableInstance={tableInstance}
               />
             )}
-            <div className={styles.resultSetTableContainer}>
-              <ResultSetTable
-                tableInstance={tableInstance}
-                setTableInstance={setTableInstance}
-                ref={resultSetTableRef}
-                resultData={resultData}
-                setOrderByText={setOrderByText}
-                onOperationChange={handleOperationChange}
-                onTableOperationUtils={onTableOperationUtils}
-                onFilterCountChange={setActiveFilterCount}
-              />
+            <div className={styles.resultSetContent}>
+              <div className={styles.resultSetTableContainer}>
+                <ResultSetTable
+                  tableInstance={tableInstance}
+                  setTableInstance={setTableInstance}
+                  ref={resultSetTableRef}
+                  resultData={resultData}
+                  setOrderByText={setOrderByText}
+                  onOperationChange={handleOperationChange}
+                  onTableOperationUtils={onTableOperationUtils}
+                  onFilterCountChange={setActiveFilterCount}
+                  onSelectionChange={handleSelectionChange}
+                />
+              </div>
+              {inspectorOpen && (
+                <aside className={styles.inspector}>
+                  <Tabs
+                    className={styles.inspectorTabs}
+                    size="small"
+                    activeKey={inspectorTab}
+                    onChange={handleInspectorTabChange}
+                    tabBarExtraContent={
+                      <Tooltip title={i18n('common.button.close')}>
+                        <Button
+                          type="text"
+                          size="small"
+                          className={styles.inspectorClose}
+                          aria-label={i18n('common.button.close')}
+                          icon={<X size={15} strokeWidth={1.75} />}
+                          onClick={() => setInspectorOpen(false)}
+                        />
+                      </Tooltip>
+                    }
+                    items={[
+                      {
+                        key: 'row',
+                        label: i18n('common.resultInspector.record'),
+                        children: (
+                          <RowDetail
+                            ref={rowDetailRef}
+                            resultData={resultData}
+                            onChangeData={handleRowDetailChangeData}
+                            onViewData={openValueInspector}
+                          />
+                        ),
+                      },
+                      {
+                        key: 'value',
+                        label: i18n('common.resultInspector.value'),
+                        children: <ViewData ref={viewDataRef} onClose={() => setInspectorOpen(false)} />,
+                      },
+                    ]}
+                  />
+                </aside>
+              )}
             </div>
-            <StatusBar resultData={resultData} />
+            <StatusBar resultData={resultData} selectedValues={selectedValues} />
           </>
           <MonacoEditorErrorTips errorMessage={executeErrorMessage} handleClose={handleCloseExecuteErrorMessage} />
         </div>
@@ -369,19 +487,6 @@ export default memo<IProps>(
           onExecuteError={handleExecuteError}
           onExecuteSuccess={handleExecuteSuccess}
           ref={sqlPreviewExecuteRef}
-        />
-        <ViewData ref={viewDataRef} />
-        <RowDetail
-          ref={rowDetailRef}
-          resultData={resultData}
-          onChangeData={handleRowDetailChangeData}
-          onViewData={(params) => {
-            viewDataRef.current?.openModal({
-              ...params,
-              canEdit: !!resultData?.canEdit,
-              operationRecordUtils: resultSetTableRef.current?.operationRecordUtils,
-            });
-          }}
         />
       </>
     );

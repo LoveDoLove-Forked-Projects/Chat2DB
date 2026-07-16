@@ -15,10 +15,55 @@ export const useStyles = createStyles(({ css, token }) => {
         outline: none;
       }
     `,
+    resultSetContent: css`
+      flex: 1;
+      height: 0;
+      display: flex;
+      min-width: 0;
+      min-height: 0;
+      position: relative;
+    `,
     resultSetTableContainer: css`
       flex: 1;
-      height: 0px !important;
+      min-width: 0;
+      min-height: 0;
       position: relative;
+    `,
+    inspector: css`
+      width: clamp(340px, 36%, 460px);
+      max-width: 50%;
+      min-width: 0;
+      flex-shrink: 0;
+      overflow: hidden;
+      background: ${token.colorBgContainer};
+      border-left: 1px solid ${token.colorBorderSecondary};
+    `,
+    inspectorTabs: css`
+      height: 100%;
+
+      .ant-tabs-nav {
+        flex-shrink: 0;
+        margin: 0;
+        padding-left: 10px;
+      }
+
+      .ant-tabs-content-holder,
+      .ant-tabs-content,
+      .ant-tabs-tabpane {
+        height: 100%;
+        min-height: 0;
+      }
+
+      .ant-tabs-content-holder {
+        overflow: hidden;
+      }
+    `,
+    inspectorClose: css`
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      margin-right: 4px;
+      color: ${token.colorTextSecondary};
     `,
     tableLoading: css`
       position: absolute;

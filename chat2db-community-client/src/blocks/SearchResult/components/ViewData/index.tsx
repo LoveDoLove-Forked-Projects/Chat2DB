@@ -10,7 +10,7 @@ import {
 } from 'react';
 import { useStyles } from './style';
 import { Alert, Button, Segmented, Space } from 'antd';
-import { Modal, ToolbarBtn } from '@chat2db/ui';
+import { ToolbarBtn } from '@chat2db/ui';
 import i18n from '@/i18n';
 import MonacoEditor from '@/components/MonacoEditor';
 import { v4 as uuidv4 } from 'uuid';
@@ -44,6 +44,7 @@ import {
 interface IProps {
   className?: string;
   onExecuteSuccess?: () => void;
+  onClose?: () => void;
 }
 
 interface IViewData extends IHandleViewUpdateDataParams {
@@ -57,7 +58,7 @@ type LargeValueLoadingAction = 'initial' | 'more' | 'all' | 'format' | null;
 const cloneCellMeta = (cellMeta?: IResultCell) => (cellMeta ? { ...cellMeta } : undefined);
 
 export interface ViewDataRef {
-  openModal: (params: IViewData) => any;
+  openPanel: (params: IViewData) => any;
 }
 
 const ViewData = forwardRef((props: IProps, ref: ForwardedRef<ViewDataRef>) => {
@@ -502,9 +503,10 @@ const ViewData = forwardRef((props: IProps, ref: ForwardedRef<ViewDataRef>) => {
       });
     }
     setViewData(null);
+    props.onClose?.();
   };
 
-  const openModal = (params) => {
+  const openPanel = (params) => {
     if (!params) return;
     const { col, tableInstance } = params;
     const field = tableInstance?.columns?.[col - 1]?.title || col;
@@ -514,29 +516,29 @@ const ViewData = forwardRef((props: IProps, ref: ForwardedRef<ViewDataRef>) => {
   useImperativeHandle(
     ref,
     () => ({
-      openModal,
+      openPanel,
     }),
     [],
   );
 
+  if (!viewData) {
+    return null;
+  }
+
   return (
-    <Modal
-      title={viewData?.field}
-      open={!!viewData}
-      onCancel={() => setViewData(null)}
-      width="60vw"
-      maskClosable={false}
-      destroyOnClose={true}
-      footer={
-        viewData?.canEdit && [
-          <Button key="1" type="primary" disabled={!canSubmitEdit} onClick={monacoEditorEditData}>
-            {i18n('common.button.modify')}
-          </Button>,
-        ]
-      }
-    >
+    <div className={styles.container}>
+      <div className={styles.fieldTitle} title={String(viewData.field || '')}>
+        {viewData.field}
+      </div>
       {renderMonacoEditor}
-    </Modal>
+      {viewData.canEdit && (
+        <div className={styles.footer}>
+          <Button type="primary" disabled={!canSubmitEdit} onClick={monacoEditorEditData}>
+            {i18n('common.button.modify')}
+          </Button>
+        </div>
+      )}
+    </div>
   );
 });
 

@@ -58,5 +58,6 @@ export const DEFAULT_APP_CONFIG: GlobalAppConfig = {
 };
 
 export const DATA_TABLE_SETTINGS: DataTableSettings = {
-  showComment: false
+  showComment: false,
+  selectionMetrics: ['average', 'count', 'sum'],
 };
