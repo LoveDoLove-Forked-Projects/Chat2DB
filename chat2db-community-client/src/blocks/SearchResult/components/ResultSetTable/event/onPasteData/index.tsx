@@ -1,5 +1,6 @@
 import * as VTable from '@visactor/vtable';
 import { readClipboard } from '@/utils/clipboard';
+import { getInternalResultGridClipboard } from '@/utils/internalClipboard';
 import { applyPasteData } from './pasteData';
 import type { OperationRecordUtils } from '../../hooks/useOperationRecord';
 
@@ -13,6 +14,7 @@ const onPasteData = (tableInstance: VTable.ListTable, operationRecordUtils?: Pic
     if (!text) return;
     applyPasteData(tableInstance, selectedCells, text, {
       isCreateRow: operationRecordUtils?.isCreateRow,
+      internalClipboardGrid: getInternalResultGridClipboard(text) ?? undefined,
     });
   });
 };

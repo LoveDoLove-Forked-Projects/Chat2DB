@@ -52,6 +52,15 @@ assertEqual(
 );
 
 assertEqual(
+  parsePasteData(multiLineSqlWithTabIndent, 1, [[multiLineSqlWithTabIndent]]),
+  {
+    type: 'cell',
+    value: multiLineSqlWithTabIndent,
+  },
+  'internal single-cell copy keeps tab-indented multiline text as one cell value',
+);
+
+assertEqual(
   parsePasteData(' \n ', 1),
   {
     type: 'cell',
@@ -72,6 +81,24 @@ assertEqual(
   'multi-cell selection parses CRLF TSV as grid data',
 );
 
+assertEqual(
+  parsePasteData('1\t2\t5', 1),
+  {
+    type: 'cell',
+    value: '1\t2\t5',
+  },
+  'external TSV remains one value when only one destination cell is selected',
+);
+
+assertEqual(
+  parsePasteData('1\t2\t5', 1, [['1', '2', '5']]),
+  {
+    type: 'grid',
+    rows: [['1', '2', '5']],
+  },
+  'internal result-grid metadata identifies a multi-cell clipboard from one destination cell',
+);
+
 {
   const { table, calls } = createTable();
   const selection: PasteSelection = [[{ row: 2, col: 3 }]];
@@ -82,6 +109,48 @@ assertEqual(
     calls,
     [{ row: 2, col: 3, value: multiLineSql }],
     'single selected body cell writes the complete multiline value once',
+  );
+}
+
+{
+  const { table, calls } = createTable();
+  const selection: PasteSelection = [[{ row: 7, col: 2 }]];
+
+  applyPasteData(table, selection, '1\t2\t5', {
+    internalClipboardGrid: [['1', '2', '5']],
+  });
+
+  assertEqual(
+    calls,
+    [
+      { row: 7, col: 2, value: '1' },
+      { row: 7, col: 3, value: '2' },
+      { row: 7, col: 4, value: '5' },
+    ],
+    'internal one-row grid paste expands right from one destination cell',
+  );
+}
+
+{
+  const { table, calls } = createTable(10, 4);
+  const selection: PasteSelection = [[{ row: 9, col: 3 }]];
+
+  applyPasteData(table, selection, '1\t2\t5\n2\t1\t5', {
+    internalClipboardGrid: [
+      ['1', '2', '5'],
+      ['2', '1', '5'],
+    ],
+  });
+
+  assertEqual(
+    calls,
+    [
+      { row: 9, col: 3, value: '1' },
+      { row: 9, col: 4, value: '2' },
+      { row: 10, col: 3, value: '2' },
+      { row: 10, col: 4, value: '1' },
+    ],
+    'internal anchor paste expands right and down while clipping table overflow',
   );
 }
 

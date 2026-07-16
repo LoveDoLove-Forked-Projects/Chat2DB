@@ -1,11 +1,12 @@
 import * as VTable from '@visactor/vtable';
 import { copyToClipboard } from '@/utils';
+import { setInternalResultGridClipboard } from '@/utils/internalClipboard';
 
-const onCopyData = (tableInstance: VTable.ListTable) => {
+export const copyResultGridSelection = (tableInstance: VTable.ListTable) => {
   // listens to the event of _tableInstance
   const selectedCells = tableInstance.getSelectedCellInfos();
 
-  if (!selectedCells) return;
+  if (!selectedCells?.length) return null;
 
   // Find the row and column range of the selected area
   let maxRow = -1;
@@ -40,7 +41,15 @@ const onCopyData = (tableInstance: VTable.ListTable) => {
   });
 
   // Copy to clipboard
-  copyToClipboard(resultArray);
+  if (copyToClipboard(resultArray)) {
+    setInternalResultGridClipboard(resultArray);
+    return resultArray.map((row) => row.join('\t')).join('\n');
+  }
+  return null;
+};
+
+const onCopyData = (tableInstance: VTable.ListTable) => {
+  copyResultGridSelection(tableInstance);
 };
 
 export default onCopyData;

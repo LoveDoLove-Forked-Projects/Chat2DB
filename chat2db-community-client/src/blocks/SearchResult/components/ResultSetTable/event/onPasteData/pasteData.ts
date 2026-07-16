@@ -23,6 +23,7 @@ export interface PasteTable {
 
 export interface PasteOptions {
   isCreateRow?: (rowId?: string | number | null) => boolean;
+  internalClipboardGrid?: string[][];
 }
 
 export type ParsedPasteData =
@@ -49,7 +50,20 @@ export function getPasteSelectionSize(selection: PasteSelection) {
   return selection.reduce((count, row) => count + row.length, 0);
 }
 
-export function parsePasteData(text: string, selectionSize: number): ParsedPasteData {
+export function parsePasteData(
+  text: string,
+  selectionSize: number,
+  internalClipboardGrid?: string[][],
+): ParsedPasteData {
+  const internalClipboardSize =
+    internalClipboardGrid?.reduce((count, row) => count + row.length, 0) ?? 0;
+  if (internalClipboardGrid && internalClipboardSize > 1) {
+    return {
+      type: 'grid',
+      rows: internalClipboardGrid.map((row) => row.map(normalizePastedCellValue)),
+    };
+  }
+
   if (selectionSize <= 1) {
     return {
       type: 'cell',
@@ -91,7 +105,8 @@ export function applyPasteData(table: PasteTable, selection: PasteSelection, tex
     return;
   }
 
-  const parsed = parsePasteData(text, getPasteSelectionSize(selection));
+  const selectionSize = getPasteSelectionSize(selection);
+  const parsed = parsePasteData(text, selectionSize, options?.internalClipboardGrid);
   if (parsed.type === 'cell') {
     const firstCell = selection[0]?.[0];
     if (!firstCell) {
@@ -102,6 +117,25 @@ export function applyPasteData(table: PasteTable, selection: PasteSelection, tex
       return;
     }
     table.changeCellValue(col, row, normalizeCreateRowPasteCell(table, options, row, col, parsed.value));
+    return;
+  }
+
+  if (selectionSize === 1) {
+    const firstCell = selection[0]?.[0];
+    if (!firstCell) {
+      return;
+    }
+    const anchor = normalizePasteTargetCell(firstCell);
+    parsed.rows.forEach((sourceRow, rowOffset) => {
+      sourceRow.forEach((value, colOffset) => {
+        const row = anchor.row + rowOffset;
+        const col = anchor.col + colOffset;
+        if (!isInsideTable(table, row, col)) {
+          return;
+        }
+        table.changeCellValue(col, row, normalizeCreateRowPasteCell(table, options, row, col, value));
+      });
+    });
     return;
   }
 

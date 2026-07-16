@@ -7,6 +7,7 @@ import queryString from 'query-string';
 import React from 'react';
 import { v4 as uuid } from 'uuid';
 import { isDesktop } from './env';
+import { clearInternalClipboard } from './internalClipboard';
 
 export function deepClone(target: any) {
   const map = new WeakMap();
@@ -288,6 +289,7 @@ export function copyToClipboard(
   data: string | number | Array<string | number | null> | Array<Array<string | null>>,
   direction: 'horizontal' | 'vertical' = 'horizontal',
 ) {
+  clearInternalClipboard();
   try {
     let text = '';
     if (typeof data === 'string' || typeof data === 'number') {
