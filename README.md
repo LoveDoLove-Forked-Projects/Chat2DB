@@ -77,14 +77,13 @@ Community, Pro, and Enterprise share the same core database-client capabilities.
 | Dashboards and charts | ✅ | ✅ | ✅ |
 | CLI and MCP | ✅ | ✅ | ✅ |
 | Custom AI models | ✅ | ✅ | ✅ |
-| Official Chat2DB AI and preset models | ❌ | ✅ | ✅ |
 | Official AI credits and cloud chat history | ❌ | ✅ | ✅ |
-| Chat2DB account | ❌ | ✅ | ✅ |
+| Account and identity system | ❌ | ✅ | ✅ |
 | Cloud storage and multi-device | ❌ | ✅ | ✅ |
 | Team datasources and shared assets | ❌ | ❌ | ✅ |
 | Members and roles | ❌ | ❌ | ✅ |
 | Permissions, approvals, and audit | ❌ | ❌ | ✅ |
-| Organization data context and RAG | ❌ | ❌ | ✅ |
+| Organization data context and enterprise knowledge base | ❌ | ❌ | ✅ |
 
 ## Download and Installation
 Chat2DB is a cross-platform application that supports Windows, MacOS, and Linux. You can download Chat2DB from the following links:
