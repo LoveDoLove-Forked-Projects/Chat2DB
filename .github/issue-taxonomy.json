@@ -1,5 +1,115 @@
 {
   "schemaVersion": 1,
+  "project": {
+    "owner": "OtterMind",
+    "repository": "OtterMind/Chat2DB",
+    "title": "Chat2DB Community",
+    "description": "Public contribution workflow for Chat2DB Community",
+    "readme": "Tracks triage, contributor-ready tasks, active work, pull request review, releases, and completed Community work. Issues and pull requests remain the source of truth.",
+    "visibility": "PUBLIC",
+    "statuses": [
+      {
+        "name": "Inbox",
+        "color": "GRAY",
+        "description": "New item awaiting maintainer triage"
+      },
+      {
+        "name": "Backlog",
+        "color": "BLUE",
+        "description": "Confirmed work that is not ready to start"
+      },
+      {
+        "name": "Ready",
+        "color": "GREEN",
+        "description": "Scoped and published; unassigned or claimed before a pull request is linked"
+      },
+      {
+        "name": "In Progress",
+        "color": "YELLOW",
+        "description": "A linked draft or regular pull request is under active implementation"
+      },
+      {
+        "name": "In Review",
+        "color": "PURPLE",
+        "description": "The linked pull request is ready for maintainer review"
+      },
+      {
+        "name": "Done",
+        "color": "GREEN",
+        "description": "The issue is closed or the pull request is merged"
+      }
+    ],
+    "uiOnlyViewFields": ["Type"],
+    "views": [
+      {
+        "name": "Triage",
+        "layout": "table",
+        "filter": "status:Inbox",
+        "visibleFields": ["Title", "Status", "Priority", "Labels", "Assignees"]
+      },
+      {
+        "name": "Backlog",
+        "layout": "table",
+        "filter": "status:Backlog",
+        "visibleFields": ["Title", "Status", "Priority", "Labels", "Milestone", "Assignees"]
+      },
+      {
+        "name": "Available Tasks",
+        "layout": "table",
+        "filter": "status:Ready no:assignee label:\"contribution/help-wanted\",\"contribution/good-first-issue\"",
+        "visibleFields": ["Title", "Priority", "Labels", "Milestone"]
+      },
+      {
+        "name": "Good First Issues",
+        "layout": "table",
+        "filter": "status:Ready no:assignee label:\"contribution/good-first-issue\"",
+        "visibleFields": ["Title", "Priority", "Labels", "Milestone"]
+      },
+      {
+        "name": "Claimed",
+        "layout": "table",
+        "filter": "status:Ready has:assignee",
+        "visibleFields": ["Title", "Priority", "Labels", "Assignees", "Linked pull requests"]
+      },
+      {
+        "name": "In Progress",
+        "layout": "table",
+        "filter": "status:\"In Progress\"",
+        "visibleFields": ["Title", "Priority", "Labels", "Assignees", "Linked pull requests"]
+      },
+      {
+        "name": "In Review",
+        "layout": "table",
+        "filter": "status:\"In Review\"",
+        "visibleFields": ["Title", "Priority", "Labels", "Assignees", "Linked pull requests", "Reviewers"]
+      },
+      {
+        "name": "Release",
+        "layout": "table",
+        "filter": "-status:Done has:milestone",
+        "visibleFields": ["Title", "Status", "Priority", "Milestone", "Assignees", "Linked pull requests"]
+      },
+      {
+        "name": "Done",
+        "layout": "table",
+        "filter": "status:Done",
+        "visibleFields": ["Title", "Status", "Milestone", "Linked pull requests"]
+      }
+    ],
+    "workflows": {
+      "autoAddSubIssues": true,
+      "autoCloseIssue": false,
+      "itemAddedStatus": "Inbox",
+      "pullRequestLinkedStatus": "In Progress",
+      "itemClosedStatus": "Done",
+      "pullRequestMergedStatus": "Done",
+      "autoAddFilter": "is:issue",
+      "autoArchiveFilter": "is:closed updated:<@today-1m"
+    },
+    "manualTransitions": {
+      "pullRequestReadyForReviewStatus": "In Review"
+    }
+  },
   "issueTypes": [
     {
       "name": "Bug",

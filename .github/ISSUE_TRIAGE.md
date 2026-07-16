@@ -91,6 +91,50 @@ New issues start without a Priority. A triage maintainer assigns it after
 checking impact, affected scope, reproducibility, and workarounds. P0 is limited
 to Bugs and release-blocking Tasks. Sensitive security details remain private.
 
+## Project Status
+
+Project Status is a single-select lifecycle field:
+
+| Status | Meaning |
+| --- | --- |
+| Inbox | New public Issue awaiting maintainer triage |
+| Backlog | Confirmed work that is not ready to start |
+| Ready | Scoped and published; unassigned or claimed before a pull request is linked |
+| In Progress | A linked draft or regular pull request is under active implementation |
+| In Review | The linked pull request is ready for maintainer review |
+| Done | The Issue is closed or the pull request is merged |
+
+Evidence gaps remain `needs/*` labels; they are not duplicate workflow statuses.
+Assignment represents an active claim and is not a separate Status value.
+
+## Publishing Contribution Tasks
+
+An Issue becomes publicly claimable only when a maintainer:
+
+1. completes the taxonomy and Priority fields;
+2. confirms the scope, acceptance criteria, verification, and non-goals;
+3. confirms that a maintainer can review the resulting pull request;
+4. sets Project Status to `Ready`; and
+5. applies `contribution/help-wanted` or `contribution/good-first-issue`.
+
+Large Features and Bugs should remain the parent context. Create a bounded Task
+sub-issue for the contribution when the complete Issue is too broad for one pull
+request. Never publish private vulnerability details or Enterprise work as a
+Community contribution task.
+
+External contributors claim published tasks with `/claim`. Claims are exclusive,
+limited to one active task per contributor, and expire after seven days without
+a linked draft or regular pull request. `/renew` extends a pre-PR claim once;
+`/unclaim` releases it. Maintainer review time does not consume the contributor's
+claim lease.
+
+The `contribution/*` label is the claim bot's machine-readable publication
+switch. Apply it only after setting Status to `Ready`, and remove it whenever a
+task moves back to `Inbox` or `Backlog`; label removal automatically releases an
+active claim. The linked-pull-request workflow moves work to `In Progress`.
+When the pull request is ready for maintainer review, set `In Review` manually;
+GitHub does not provide a built-in ready-for-review Project workflow.
+
 ## Triage Procedure
 
 1. Confirm the issue is for Chat2DB Community or apply the correct `edition/*`
@@ -100,7 +144,7 @@ to Bugs and release-blocking Tasks. Sensitive security details remain private.
    labels.
 4. Add `needs/info`, `needs/reproduction`, or `needs/decision` when evidence or
    a product decision is missing.
-5. Assign Priority, owner, target release, and Project Status.
+5. Assign Priority, owner, Milestone (target release), and Project Status.
 6. Close duplicates or completed work with a concrete link and GitHub state
    reason.
 
@@ -132,8 +176,17 @@ issues.
 2. Run `script/github/sync-issue-labels.sh` without `--apply`.
 3. Run the script with `--apply` to create the referenced labels.
 4. Verify the labels, then merge and push the issue forms.
-5. Create or validate the Project Priority field with
-   `script/github/configure-issue-priority.sh`.
+5. Run `script/github/configure-community-project.sh --project <number>` to
+   review the target configuration, then add `--apply`. The script creates or
+   validates Project metadata, Status, Priority, repository linkage, and saved
+   views. It also creates a missing Project when `--project` is omitted.
+6. In the Project UI, add the `Type` column where useful, rename or remove the
+   default `View 1`, and configure the built-in workflows printed by the script.
+   GitHub does not expose update APIs for these settings.
+
+Do not bulk-import the historical backlog. The Project auto-add workflow adds new
+matching Issues and later re-activated historical Issues without backfilling all
+existing open Issues. Migrate other legacy Issues only in reviewed cohorts.
 
 Issue forms silently skip labels that do not exist, so label creation must
 happen before the forms become active. Until the Project exists, do not replace

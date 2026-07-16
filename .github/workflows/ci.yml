@@ -89,3 +89,6 @@ jobs:
             YAML.safe_load(File.read(path), aliases: false)
             puts "validated #{path}"
           end
+
+      - name: Test issue claim automation
+        run: node --test script/github/issue-claim.test.js

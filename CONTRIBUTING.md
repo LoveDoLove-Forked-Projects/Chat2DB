@@ -16,6 +16,33 @@ Before starting a larger change, please open an issue or leave a comment on an e
 
 If your pull request is related to an issue, please link it in the PR description.
 
+## Finding And Claiming Work
+
+The public [Chat2DB Community Project](https://github.com/orgs/OtterMind/projects/3)
+shows triage, contributor-ready tasks, active work, review, and releases. Issues
+remain the source of truth; the Project is the shared workflow view.
+
+Tasks that are ready for an external contribution have one of these labels:
+
+- `contribution/good-first-issue`: bounded work suitable for a first contribution.
+- `contribution/help-wanted`: scoped work where maintainers welcome a contribution.
+
+To claim an available task, comment `/claim` on its Issue. A successful claim
+assigns the Issue to you and gives you seven days to open a linked draft or
+regular pull request. Each contributor may hold one active claim at a time.
+
+The claim bot also supports:
+
+- `/claim status`: show the claimant, deadline, and linked pull request.
+- `/renew`: extend an active pre-PR claim once.
+- `/unclaim`: release your claim immediately.
+
+Once a pull request is linked, the pre-PR deadline no longer expires while the
+maintainers owe review. Use `Closes #123` in the pull request description so the
+Issue, pull request, and Project stay connected. Claims without a linked pull
+request are released automatically after the deadline so another contributor
+can continue the task.
+
 ## Bug Reports
 
 Please search existing issues before opening a new bug report. Someone may already have reported the same problem.
@@ -84,7 +111,7 @@ We welcome focused pull requests.
 Before opening a pull request:
 
 1. Fork the repository.
-2. Create or comment on a related issue.
+2. Create or comment on a related issue. If it is a published contribution task, claim it before starting.
 3. Create a new branch for your work.
 4. Keep your pull request focused on one topic.
 5. Update documentation if your change affects user behavior or setup.
