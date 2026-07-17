@@ -6,7 +6,6 @@ import React, {
   useState,
   useEffect,
   CSSProperties,
-  useMemo,
 } from 'react';
 import { useStyles } from './style';
 import { OperationLine, MonacoEditorErrorTips } from '../../components';
@@ -53,10 +52,9 @@ import {
 } from '../../helper/databaseObjectTreeNode';
 import { treeConfig } from '@/blocks/NewTree/treeConfig';
 import {
-  ContentDiffSurface,
+  ContentDiffDenyReason,
   getContentDiffEligibility,
-  guardContentDiffTexts,
-  isContentDiffSurfaceEnabled,
+  getContentDiffOpenBlockReason,
 } from '../../helper/contentDiffGuard';
 
 interface ISQLEditorWithOperationProps {
@@ -150,8 +148,6 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
   const [contextTableIdentifier, setContextTableIdentifier] = useState<EditorTableIdentifier | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [hasEditorContent, setHasEditorContent] = useState<boolean>(!!defaultSQL?.trim());
-  const [editorReady, setEditorReady] = useState(false);
-  const [hasContentDiffChanges, setHasContentDiffChanges] = useState(false);
   const [routineExecutionModal, setRoutineExecutionModal] = useState({
     open: false,
     title: '',
@@ -172,43 +168,6 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
   });
   const sqlEditorRef = useRef<SQLEditorRef>(null);
   const routineExecutionEditorRef = useRef<SQLEditorRef>(null);
-  const contentDiffEligibility = useMemo(
-    () => getContentDiffEligibility({ editorType: type, dbInfo, readOnly: isReadOnly }),
-    [
-      dbInfo.consoleId,
-      dbInfo.dataSourceId,
-      dbInfo.databaseName,
-      dbInfo.filePath,
-      dbInfo.schemaName,
-      dbInfo.status,
-      dbInfo.tableName,
-      dbInfo.viewName,
-      (dbInfo as Record<string, unknown>).functionName,
-      (dbInfo as Record<string, unknown>).procedureName,
-      (dbInfo as Record<string, unknown>).triggerName,
-      isReadOnly,
-      type,
-    ],
-  );
-  const enableContentDiffHints = contentDiffEligibility.enabled;
-  const refreshContentDiffChanges = useCallback((value?: string) => {
-    if (!enableContentDiffHints) {
-      setHasContentDiffChanges(false);
-      return;
-    }
-    if (!editorReady || !sqlEditorRef.current) {
-      setHasContentDiffChanges(false);
-      return;
-    }
-
-    const baseline = sqlEditorRef.current?.getContentDiffBaseline() ?? defaultSQL ?? '';
-    const currentValue = value ?? sqlEditorRef.current?.getValue() ?? '';
-    setHasContentDiffChanges(guardContentDiffTexts(baseline, currentValue).enabled);
-  }, [defaultSQL, editorReady, enableContentDiffHints]);
-
-  useEffect(() => {
-    refreshContentDiffChanges();
-  }, [refreshContentDiffChanges]);
   const { consoleAiInputParams } = useWorkspaceStore((state) => {
     return {
       consoleAiInputParams: state.consoleAiInputParams,
@@ -323,7 +282,7 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
     }
   }, [active, consoleAiInputParams]);
 
-  const { saveConsole } = useSaveEditorData({
+  const { saveConsole, hasSavedSqlRecord } = useSaveEditorData({
     editorRef: sqlEditorRef,
     isActive: active,
     boundInfo: dbInfo,
@@ -331,6 +290,12 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
     // defaultValue:  getValue(),
     defaultValue: defaultSQL,
     type,
+  });
+
+  const { enabled: enableContentDiffHints, sourceId: contentDiffSourceId } = getContentDiffEligibility({
+    editorType: type,
+    dbInfo,
+    savedSqlRecord: hasSavedSqlRecord,
   });
 
   const handleAction = (actionType: SQLOptType, params?: any) => {
@@ -564,7 +529,6 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
       const sql = await reloadSQL();
       setValue(sql || '', 'reset');
       sqlEditorRef.current?.resetContentDiffBaseline(sql || '');
-      setHasContentDiffChanges(false);
       if (!options?.silent) {
         staticMessage.success(i18n('workspace.routine.tips.refreshSuccess'));
       }
@@ -577,7 +541,6 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
     const baseline = sqlEditorRef.current?.getContentDiffBaseline() ?? '';
     setValue(baseline, 'reset');
     sqlEditorRef.current?.resetContentDiffBaseline(baseline);
-    setHasContentDiffChanges(false);
     staticMessage.success(i18n('workspace.routine.tips.revertSuccess'));
   };
 
@@ -920,7 +883,6 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
     });
     try {
       sqlEditorRef.current?.resetContentDiffBaseline(fileContent);
-      setHasContentDiffChanges(false);
     } catch {
       // Content diff is only a hint and must not affect file saving.
     }
@@ -938,20 +900,19 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
 
   const handleOpenContentDiff = useCallback(() => {
     try {
-      const eligibility = getContentDiffEligibility({ editorType: type, dbInfo, readOnly: isReadOnly });
-      if (!eligibility.enabled || !isContentDiffSurfaceEnabled(ContentDiffSurface.DiffTab)) {
+      if (!enableContentDiffHints) {
         return;
       }
 
       const originalText = sqlEditorRef.current?.getContentDiffBaseline() ?? '';
       const modifiedText = sqlEditorRef.current?.getValue() ?? '';
-      const guard = guardContentDiffTexts(originalText, modifiedText);
-      if (!guard.enabled) {
+      if (getContentDiffOpenBlockReason(originalText, modifiedText) === ContentDiffDenyReason.TextTooLarge) {
+        staticMessage.warning(i18n('monaco.text.diffContentTooLarge'));
         return;
       }
 
       const sourceId =
-        eligibility.sourceId || String(id || dbInfo.consoleId || workspaceTabsTitle || sqlFileName || 'editor');
+        contentDiffSourceId || String(id || dbInfo.consoleId || workspaceTabsTitle || sqlFileName || 'editor');
       const tabId = `${WorkspaceTabType.ContentDiff}:${sourceId}`;
       const title = `${getContentDiffSourceTitle({ workspaceTabsTitle, sqlFileName, dbInfo })}@`;
       const tab = {
@@ -978,7 +939,7 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
     } catch {
       // Content diff is only a hint and must not affect editor workflows.
     }
-  }, [dbInfo, id, sqlFileName, workspaceTabsTitle]);
+  }, [contentDiffSourceId, dbInfo, enableContentDiffHints, id, sqlFileName, workspaceTabsTitle]);
 
   const handleFormat = async () => {
     const sql = sqlEditorRef.current?.getValue() || '';
@@ -1026,11 +987,7 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
             hasEditorContent={hasEditorContent}
             isConsole={isConsole}
             setDBInfo={setDBInfo}
-            contentDiffEnabled={
-              enableContentDiffHints &&
-              hasContentDiffChanges &&
-              isContentDiffSurfaceEnabled(ContentDiffSurface.Toolbar)
-            }
+            contentDiffEnabled={enableContentDiffHints}
             action={handleAction}
           />
         )}
@@ -1045,13 +1002,8 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
           readOnly={isReadOnly}
           action={handleAction}
           enableContentDiffHints={enableContentDiffHints}
-          onReady={() => {
-            setEditorReady(true);
-            refreshContentDiffChanges();
-          }}
           onChange={(value) => {
             setHasEditorContent(!!value?.trim());
-            refreshContentDiffChanges(value);
           }}
           contextMenuInfo={contextMenuInfo}
           onTableIdentifierContextChange={setContextTableIdentifier}
@@ -1066,11 +1018,7 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
             config={contextMenuInfo}
             canEditTable={!!contextTableIdentifier}
             sqlActionEnabled={sqlActionEnabled}
-            contentDiffEnabled={
-              enableContentDiffHints &&
-              hasContentDiffChanges &&
-              isContentDiffSurfaceEnabled(ContentDiffSurface.ContextMenu)
-            }
+            contentDiffEnabled={enableContentDiffHints}
             onClick={handleAction}
             onCloseContextMenu={() => setContextMenuInfo(contextMenuDefaultConfig)}
           />

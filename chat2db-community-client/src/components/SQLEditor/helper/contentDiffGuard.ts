@@ -4,7 +4,6 @@ import {
   EditorType,
   isContentDiffEditableDDLType,
   isContentDiffLocalSQLFileType,
-  isContentDiffSavedSQLStatus,
   isContentDiffSavedSQLType,
 } from '../type';
 
@@ -44,11 +43,9 @@ export enum ContentDiffSurface {
 export enum ContentDiffDenyReason {
   Disabled = 'disabled',
   Unchanged = 'unchanged',
-  ReadOnly = 'readOnly',
   UnsupportedType = 'unsupportedType',
   MissingSource = 'missingSource',
   UnsavedSQL = 'unsavedSQL',
-  UnsupportedStatus = 'unsupportedStatus',
   TextTooLarge = 'textTooLarge',
   TooManyHunks = 'tooManyHunks',
   TooManyDecorations = 'tooManyDecorations',
@@ -81,19 +78,15 @@ const CONTENT_DIFF_DDL_SOURCE_KEYS = [
 export const shouldEnableContentDiff = (params: {
   editorType: EditorType;
   dbInfo: ContentDiffBoundInfo;
-  readOnly: boolean;
+  savedSqlRecord?: boolean;
 }) => getContentDiffEligibility(params).enabled;
 
 export const getContentDiffEligibility = (params: {
   editorType: EditorType;
   dbInfo: ContentDiffBoundInfo;
-  readOnly: boolean;
+  savedSqlRecord?: boolean;
 }): ContentDiffEligibility => {
-  const { editorType, dbInfo, readOnly } = params;
-
-  if (readOnly) {
-    return deny(ContentDiffDenyReason.ReadOnly);
-  }
+  const { editorType, dbInfo, savedSqlRecord = false } = params;
 
   if (isContentDiffEditableDDLType(editorType)) {
     const sourceId = buildContentDiffDDLSourceId(editorType, dbInfo);
@@ -101,12 +94,8 @@ export const getContentDiffEligibility = (params: {
   }
 
   if (isContentDiffSavedSQLType(editorType)) {
-    if (dbInfo.consoleId === undefined || isTemporaryContentDiffId(dbInfo.consoleId)) {
+    if (!savedSqlRecord || dbInfo.consoleId === undefined || isTemporaryContentDiffId(dbInfo.consoleId)) {
       return deny(ContentDiffDenyReason.UnsavedSQL);
-    }
-
-    if (!isContentDiffSavedSQLStatus(dbInfo.status)) {
-      return deny(ContentDiffDenyReason.UnsupportedStatus);
     }
 
     return allow(ContentDiffSourceKind.SavedSQL, `console:${dbInfo.consoleId}`);
@@ -151,6 +140,12 @@ export const guardContentDiffTexts = (baselineText: string, currentText: string)
     baselineHash,
     currentHash,
   };
+};
+
+export const getContentDiffOpenBlockReason = (baselineText: string, currentText: string) => {
+  return baselineText.length > CONTENT_DIFF_MAX_TEXT_LENGTH || currentText.length > CONTENT_DIFF_MAX_TEXT_LENGTH
+    ? ContentDiffDenyReason.TextTooLarge
+    : undefined;
 };
 
 export const isContentDiffHunkBudgetExceeded = (params: { hunkCount: number; decorationCount: number }) => {

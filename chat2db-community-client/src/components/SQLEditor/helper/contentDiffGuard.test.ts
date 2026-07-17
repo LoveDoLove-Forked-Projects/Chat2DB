@@ -1,10 +1,10 @@
-import { ConsoleStatus } from '@/constants/common';
 import { WorkspaceTabType } from '@/constants/workspace';
 import {
   ContentDiffDenyReason,
   ContentDiffSourceKind,
   getContentDiffDecorationCount,
   getContentDiffEligibility,
+  getContentDiffOpenBlockReason,
   guardContentDiffTexts,
   isContentDiffHunkBudgetExceeded,
 } from './contentDiffGuard';
@@ -26,7 +26,6 @@ function assert(condition: boolean, message: string) {
 assertEqual(
   getContentDiffEligibility({
     editorType: WorkspaceTabType.VIEW,
-    readOnly: false,
     dbInfo: {
       dataSourceId: 1,
       databaseName: 'app',
@@ -41,10 +40,9 @@ assertEqual(
 assertEqual(
   getContentDiffEligibility({
     editorType: WorkspaceTabType.CONSOLE,
-    readOnly: false,
+    savedSqlRecord: true,
     dbInfo: {
       consoleId: 12,
-      status: ConsoleStatus.RELEASE,
     },
   }),
   {
@@ -58,7 +56,6 @@ assertEqual(
 assertEqual(
   getContentDiffEligibility({
     editorType: WorkspaceTabType.LocalSQLFile,
-    readOnly: false,
     dbInfo: {
       filePath: '/tmp/a.sql',
     },
@@ -74,22 +71,21 @@ assertEqual(
 assertEqual(
   getContentDiffEligibility({
     editorType: WorkspaceTabType.CONSOLE,
-    readOnly: false,
+    savedSqlRecord: false,
     dbInfo: {
-      status: ConsoleStatus.DRAFT,
+      status: 'DRAFT',
     },
   }).reason,
   ContentDiffDenyReason.UnsavedSQL,
-  'deny unsaved sql record before status check',
+  'deny console without a stable id',
 );
 
 assertEqual(
   getContentDiffEligibility({
     editorType: WorkspaceTabType.CONSOLE,
-    readOnly: false,
+    savedSqlRecord: true,
     dbInfo: {
       consoleId: 'chat2db_temporary_1',
-      status: ConsoleStatus.RELEASE,
     },
   }).reason,
   ContentDiffDenyReason.UnsavedSQL,
@@ -99,20 +95,36 @@ assertEqual(
 assertEqual(
   getContentDiffEligibility({
     editorType: WorkspaceTabType.CONSOLE,
-    readOnly: false,
+    savedSqlRecord: true,
     dbInfo: {
       consoleId: 12,
-      status: ConsoleStatus.DRAFT,
+      status: 'DRAFT',
+    },
+  }),
+  {
+    enabled: true,
+    sourceKind: ContentDiffSourceKind.SavedSQL,
+    sourceId: 'console:12',
+  },
+  'allow draft saved sql record',
+);
+
+assertEqual(
+  getContentDiffEligibility({
+    editorType: WorkspaceTabType.CONSOLE,
+    savedSqlRecord: false,
+    dbInfo: {
+      consoleId: 12,
+      status: 'DRAFT',
     },
   }).reason,
-  ContentDiffDenyReason.UnsupportedStatus,
-  'deny draft saved sql record',
+  ContentDiffDenyReason.UnsavedSQL,
+  'deny ordinary console even when it has a persisted id',
 );
 
 assertEqual(
   getContentDiffEligibility({
     editorType: WorkspaceTabType.FUNCTION,
-    readOnly: false,
     dbInfo: {
       dataSourceId: 1,
       databaseName: 'app',
@@ -120,18 +132,6 @@ assertEqual(
   }).reason,
   ContentDiffDenyReason.MissingSource,
   'deny ddl without object name',
-);
-
-assertEqual(
-  getContentDiffEligibility({
-    editorType: WorkspaceTabType.VIEW,
-    readOnly: true,
-    dbInfo: {
-      viewName: 'v_user',
-    },
-  }).reason,
-  ContentDiffDenyReason.ReadOnly,
-  'deny read only editor',
 );
 
 assertEqual(
@@ -146,6 +146,18 @@ assertEqual(
   guardContentDiffTexts('a'.repeat(200001), 'b').reason,
   ContentDiffDenyReason.TextTooLarge,
   'deny large baseline',
+);
+
+assertEqual(
+  getContentDiffOpenBlockReason('select 1', 'select 1'),
+  undefined,
+  'allow opening unchanged content',
+);
+
+assertEqual(
+  getContentDiffOpenBlockReason('a'.repeat(200001), 'b'),
+  ContentDiffDenyReason.TextTooLarge,
+  'block opening oversized content',
 );
 
 assertEqual(

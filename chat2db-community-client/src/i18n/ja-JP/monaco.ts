@@ -30,6 +30,7 @@ export default {
   'monaco.text.saveFile': '保存',
   'monaco.text.saveFileToDesktop': 'ファイルを保存',
   'monaco.text.showDiff': 'Diffを表示',
+  'monaco.text.diffContentTooLarge': '内容が大きすぎるため、Diffを使用できません。',
   'monaco.text.executeSingleSQL': '単一のSQLを実行',
   'monaco.text.executeSQL': 'SQLを実行',
   'monaco.text.openSettings': '設定',

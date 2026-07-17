@@ -1,4 +1,3 @@
-import { ConsoleStatus } from '@/constants/common';
 import { WorkspaceTabType } from '@/constants/workspace';
 import { editorFontFamily, editorThemes } from './config';
 import * as monaco from 'monaco-editor';
@@ -103,15 +102,11 @@ const CONTENT_DIFF_SAVED_SQL_TAB_TYPES = [WorkspaceTabType.CONSOLE] as const;
 
 const CONTENT_DIFF_LOCAL_SQL_FILE_TAB_TYPES = [WorkspaceTabType.LocalSQLFile] as const;
 
-const CONTENT_DIFF_SAVED_SQL_STATUSES = [ConsoleStatus.RELEASE] as const;
-
 export const isContentDiffEditableDDLType = (type: unknown) => contains(CONTENT_DIFF_EDITABLE_DDL_TAB_TYPES, type);
 
 export const isContentDiffSavedSQLType = (type: unknown) => contains(CONTENT_DIFF_SAVED_SQL_TAB_TYPES, type);
 
 export const isContentDiffLocalSQLFileType = (type: unknown) => contains(CONTENT_DIFF_LOCAL_SQL_FILE_TAB_TYPES, type);
-
-export const isContentDiffSavedSQLStatus = (status: unknown) => contains(CONTENT_DIFF_SAVED_SQL_STATUSES, status);
 
 export enum TIP_TYPE {
   SNIPPET = 'SNIPPET',

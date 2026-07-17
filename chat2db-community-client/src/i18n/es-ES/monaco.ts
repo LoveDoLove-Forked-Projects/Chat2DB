@@ -30,6 +30,7 @@ export default {
   'monaco.text.saveFile': 'Guardar',
   'monaco.text.saveFileToDesktop': 'Guardar como archivo',
   'monaco.text.showDiff': 'Mostrar diferencias',
+  'monaco.text.diffContentTooLarge': 'El contenido es demasiado grande para comparar.',
   'monaco.text.executeSingleSQL': 'Ejecutar una sentencia SQL',
   'monaco.text.executeSQL': 'Ejecutar SQL',
   'monaco.text.openSettings': 'Configuración',

@@ -32,11 +32,20 @@ export const useSaveEditorData = (props: IProps) => {
   const lastSyncConsole = useRef<any>(defaultValue);
   const storageId = boundInfo?.workspaceTabId ?? boundInfo?.consoleId;
   const isTemporaryConsole = isTemporaryId(storageId);
-  const isSavedConsole =
+  const isPersistedConsole =
     type === WorkspaceTabType.CONSOLE && typeof boundInfo?.consoleId === 'number' && !isTemporaryConsole;
   const isReadOnly = !!boundInfo?.readOnly;
   const [saveStatus, setSaveStatus] = useState<ConsoleStatus>(boundInfo?.status || ConsoleStatus.DRAFT);
-  const getSavedConsoleList = useWorkspaceStore((s) => s.getSavedConsoleList);
+  const { getSavedConsoleList, savedConsoleList } = useWorkspaceStore((s) => ({
+    getSavedConsoleList: s.getSavedConsoleList,
+    savedConsoleList: s.savedConsoleList,
+  }));
+  const hasSavedSqlRecord = Boolean(
+    type === WorkspaceTabType.CONSOLE &&
+      (boundInfo?.status === ConsoleStatus.RELEASE ||
+        saveStatus === ConsoleStatus.RELEASE ||
+        savedConsoleList?.some((item) => item.id === boundInfo?.consoleId)),
+  );
   
   const indexDB = useIndexDBStore((s) => ({
     getValue: s.getValue,
@@ -66,7 +75,7 @@ export const useSaveEditorData = (props: IProps) => {
       return;
     }
 
-    if (!isSavedConsole) {
+    if (!isPersistedConsole) {
       indexDB
         .setValue(storageId, {
           ddl: value,
@@ -178,5 +187,5 @@ export const useSaveEditorData = (props: IProps) => {
     }
   }, []);
 
-  return { saveConsole, saveStatus };
+  return { saveConsole, saveStatus, hasSavedSqlRecord };
 };

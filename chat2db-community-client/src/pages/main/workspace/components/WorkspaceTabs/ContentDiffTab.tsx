@@ -2,7 +2,7 @@ import { memo, useEffect, useRef } from 'react';
 import * as monaco from 'monaco-editor';
 import { useGlobalStore } from '@/store/global';
 import { setupMonacoEnvironment } from '@/utils/monaco';
-import { guardContentDiffTexts } from '@/components/SQLEditor/helper/contentDiffGuard';
+import { getContentDiffOpenBlockReason } from '@/components/SQLEditor/helper/contentDiffGuard';
 
 interface ContentDiffTabProps {
   originalText?: string;
@@ -27,7 +27,7 @@ const ContentDiffTab = memo(({ originalText = '', modifiedText = '', language = 
     if (!containerRef.current) {
       return;
     }
-    if (!guardContentDiffTexts(originalTextRef.current, modifiedTextRef.current).enabled) {
+    if (getContentDiffOpenBlockReason(originalTextRef.current, modifiedTextRef.current)) {
       return;
     }
 
@@ -40,6 +40,7 @@ const ContentDiffTab = memo(({ originalText = '', modifiedText = '', language = 
       readOnly: true,
       originalEditable: false,
       renderSideBySide: true,
+      renderMarginRevertIcon: false,
       minimap: { enabled: true },
       contextmenu: false,
       scrollBeyondLastLine: false,
@@ -69,7 +70,7 @@ const ContentDiffTab = memo(({ originalText = '', modifiedText = '', language = 
   useEffect(() => {
     originalTextRef.current = originalText;
     modifiedTextRef.current = modifiedText;
-    if (!guardContentDiffTexts(originalText, modifiedText).enabled) {
+    if (getContentDiffOpenBlockReason(originalText, modifiedText)) {
       originalModelRef.current?.setValue('');
       modifiedModelRef.current?.setValue('');
       return;

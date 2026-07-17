@@ -295,6 +295,7 @@ const OperationLine = ({
             className={styles.operatingButtonIcon}
             code="icon-switch-horizontal"
             size="sm"
+            title={i18n('monaco.text.showDiff')}
             onClick={() => {
               action(SQLOptType.OPEN_CONTENT_DIFF);
             }}
