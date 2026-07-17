@@ -173,6 +173,7 @@ function webExecution() {
     message: { level: 'WARN' as const, message: 'slow' },
   };
   state = reduceDesktopSqlExecutionEvent(state, messageEvent, context);
+  state = reduceDesktopSqlExecutionEvent(state, messageEvent, context);
   state = reduceDesktopSqlExecutionEvent(state, { ...messageEvent, eventSequence: 5 }, context);
   state = reduceDesktopSqlExecutionEvent(
     state,
@@ -209,7 +210,11 @@ function webExecution() {
     context,
   );
   assert.equal(state.records[0].status, 'success');
-  assert.equal(state.records[0].outputs.filter((output) => output.kind === 'message').length, 2);
+  assert.equal(state.records[0].outputs.filter((output) => output.kind === 'message').length, 4);
+  assert.equal(
+    state.records[0].outputs.filter((output) => output.kind === 'message' && output.message === 'slow').length,
+    3,
+  );
   assert.ok(state.records[0].outputs.some((output) => output.kind === 'message' && output.message === 'finished notice'));
   const output = state.records[0].outputs.find((item) => item.kind === 'result');
   assert.equal(output?.kind === 'result' ? output.rowCount : undefined, 3);

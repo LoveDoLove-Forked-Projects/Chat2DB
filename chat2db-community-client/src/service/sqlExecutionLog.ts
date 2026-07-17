@@ -318,25 +318,15 @@ function addMessage(
   const messageText = text(message?.message);
   if (!messageText) return record;
   const level = levelOf(message?.level);
-  if (
-    record.outputs.some(
-      (output) =>
-        output.kind === 'message' &&
-        output.level === level &&
-        output.message === messageText &&
-        output.errorCode === message?.errorCode &&
-        output.sqlState === message?.sqlState,
-    )
-  ) {
-    return record;
-  }
+  const outputId = `${record.id}:message:${sequence}`;
+  if (record.outputs.some((output) => output.id === outputId)) return record;
   return {
     ...record,
     outputs: [
       ...record.outputs,
       {
         kind: 'message',
-        id: `${record.id}:message:${sequence}`,
+        id: outputId,
         occurredAtEpochMs,
         level,
         message: messageText,
