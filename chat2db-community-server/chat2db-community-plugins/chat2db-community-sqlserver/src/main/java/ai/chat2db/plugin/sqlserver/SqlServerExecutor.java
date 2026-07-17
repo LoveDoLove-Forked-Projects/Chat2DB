@@ -1,11 +1,15 @@
 package ai.chat2db.plugin.sqlserver;
 
 import ai.chat2db.community.domain.api.model.sql.SqlExecuteRequest;
+import ai.chat2db.community.domain.api.model.result.ExecutionContext;
 import ai.chat2db.community.domain.api.model.result.ExecuteResponse;
 import ai.chat2db.community.domain.api.model.sql.SimpleSqlStatement;
+import ai.chat2db.spi.model.ExecutionTiming;
+import ai.chat2db.spi.model.JdbcExecutionContext;
 import ai.chat2db.spi.model.request.SqlStatementExecuteRequest;
 import ai.chat2db.spi.DefaultSQLExecutor;
 import cn.hutool.core.date.TimeInterval;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import java.sql.Connection;
@@ -121,19 +125,20 @@ public class SqlServerExecutor extends DefaultSQLExecutor {
         int resultCount = 0;
         for (String sql : sqlList) {
             try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+                ExecutionContext executionContext = JdbcExecutionContext.capture(connection);
                 long startedAtEpochMs = System.currentTimeMillis();
                 long executeStartedNanos = System.nanoTime();
                 boolean query = stmt.execute();
-                long executeDurationMs = elapsedMillis(executeStartedNanos);
-                do {
+                long executeDurationNanos = ExecutionTiming.elapsedNanos(executeStartedNanos);
+                while (true) {
                     executeResult = ExecuteResponse.builder().sql(originalSql).success(Boolean.TRUE).build();
-                    long fetchDurationMs = 0L;
+                    long fetchDurationNanos = 0L;
                     if (query) {
                         resultCount++;
                         if (resultSetId == null || resultCount == resultSetId) {
                             long fetchStartedNanos = System.nanoTime();
                             executeResult = generateQueryExecuteResponse(stmt, limitRowSize, offset, count);
-                            fetchDurationMs = elapsedMillis(fetchStartedNanos);
+                            fetchDurationNanos = ExecutionTiming.elapsedNanos(fetchStartedNanos);
                             executeResult.setResultSetId(resultCount);
                         }
                     } else {
@@ -146,10 +151,21 @@ public class SqlServerExecutor extends DefaultSQLExecutor {
                     executeResult.setSql(originalSql);
                     executeResult.setDuration(timeInterval.interval());
                     executeResult.setStatementSequence(1);
-                    setExecutionMetrics(executeResult, startedAtEpochMs, executeDurationMs, fetchDurationMs);
+                    executeResult.setExecutionContext(executionContext);
+                    executeResult.setExecutionMetrics(ExecutionTiming.complete(
+                            ExecutionTiming.started(startedAtEpochMs), executeDurationNanos, fetchDurationNanos,
+                            CollectionUtils.size(executeResult.getDataList())));
                     executeResults.add(executeResult);
+                    long nextStartedAtEpochMs = System.currentTimeMillis();
+                    long nextExecuteStartedNanos = System.nanoTime();
                     query = stmt.getMoreResults();
-                } while (query || stmt.getUpdateCount() != -1);
+                    long nextExecuteDurationNanos = ExecutionTiming.elapsedNanos(nextExecuteStartedNanos);
+                    if (!query && stmt.getUpdateCount() == -1) {
+                        break;
+                    }
+                    startedAtEpochMs = nextStartedAtEpochMs;
+                    executeDurationNanos = nextExecuteDurationNanos;
+                }
             }
         }
         return executeResults;

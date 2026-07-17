@@ -22,8 +22,16 @@ import SQLPreview from '@/components/SQLPreview';
 import ExecutionConsole from './components/ExecutionConsole';
 import ExecutionMessages, { IExecutionMessageItem } from './components/ExecutionMessages';
 import type { SqlExecutionLogRecord } from '@/service/sqlExecutionLog';
-
-const CONSOLE_TAB_ID = 'execution-console';
+import {
+  ABSTRACT_TAB_ID,
+  CONSOLE_TAB_ID,
+  MESSAGES_TAB_ID,
+  getPreferredActiveTabId,
+  getResultIdentity,
+  hasLegacyResultTab,
+  hasTabularResult,
+  resolveAvailableActiveTabId,
+} from './tabSelection';
 
 interface IProps {
   className?: string;
@@ -43,18 +51,6 @@ export interface ISearchResultRef {
   handleDemo: () => void;
 }
 
-function getResultIdentity(item: IManageResultData) {
-  return item.uuid || item.extra?.resultKey || item.extra?.historyKey;
-}
-
-function hasTabularResult(item: IManageResultData) {
-  return (item.headerList?.length || 0) > 1;
-}
-
-function hasLegacyResultTab(item: IManageResultData) {
-  return hasTabularResult(item) || !item.success;
-}
-
 function getResultVersion(item: IManageResultData, consoleMode: boolean) {
   if (!consoleMode) {
     return [
@@ -69,11 +65,7 @@ function getResultVersion(item: IManageResultData, consoleMode: boolean) {
       item.extra?.messages?.length,
     ].join('|');
   }
-  return [
-    getResultIdentity(item),
-    hasTabularResult(item),
-    item.success,
-  ].join('|');
+  return [getResultIdentity(item), hasTabularResult(item), item.success].join('|');
 }
 
 function getLatestTerminalLogVersion(records?: SqlExecutionLogRecord[]) {
@@ -87,10 +79,6 @@ function getLatestTerminalLogVersion(records?: SqlExecutionLogRecord[]) {
   return undefined;
 }
 
-function shouldOpenLegacyMessagesTab(item: IManageResultData) {
-  return item.extra?.messageOnly || (!!item.extra?.messages?.length && !hasLegacyResultTab(item));
-}
-
 const SearchResult = forwardRef((props: IProps, ref: ForwardedRef<ISearchResultRef>) => {
   const { className, viewTable = false } = props;
   const consoleMode = props.executionLogRecords !== undefined;
@@ -100,7 +88,9 @@ const SearchResult = forwardRef((props: IProps, ref: ForwardedRef<ISearchResultR
     props.historyResultDataList || [],
   );
   const [showHistory, setShowHistory] = useState(false);
-  const [activeTabId, setActiveTabId] = useState<string>('');
+  const [activeTabId, setActiveTabId] = useState<string>(() =>
+    getPreferredActiveTabId(props.resultDataList[props.resultDataList.length - 1], consoleMode),
+  );
   const knownResultVersionMapRef = useRef<Map<string, string>>(new Map());
   const latestTerminalLogVersion = getLatestTerminalLogVersion(props.executionLogRecords);
   const visibleHistoryResultDataList = useMemo(
@@ -127,7 +117,6 @@ const SearchResult = forwardRef((props: IProps, ref: ForwardedRef<ISearchResultR
       return previousResultVersions.get(resultKey) !== getResultVersion(item, consoleMode);
     });
     const latestChangedResult = changedResults[changedResults.length - 1];
-    const hasChangedResult = !!latestChangedResult;
 
     knownResultVersionMapRef.current = new Map(
       nextResultDataList
@@ -136,18 +125,8 @@ const SearchResult = forwardRef((props: IProps, ref: ForwardedRef<ISearchResultR
     );
     setResultDataList(nextResultDataList);
 
-    if (!consoleMode && latestChangedResult && shouldOpenLegacyMessagesTab(latestChangedResult)) {
-      setActiveTabId('messages');
-    } else if (consoleMode && latestChangedResult?.success === false && hasChangedResult) {
-      setActiveTabId(CONSOLE_TAB_ID);
-    } else if (
-      latestChangedResult &&
-      hasChangedResult &&
-      (consoleMode ? hasTabularResult(latestChangedResult) : hasLegacyResultTab(latestChangedResult))
-    ) {
-      setActiveTabId(latestChangedResult.uuid || '');
-    } else if (latestChangedResult && hasChangedResult) {
-      setActiveTabId(consoleMode ? CONSOLE_TAB_ID : 'abstract');
+    if (latestChangedResult) {
+      setActiveTabId(getPreferredActiveTabId(latestChangedResult, consoleMode));
     }
   }, [props.resultDataList, consoleMode]);
 
@@ -243,7 +222,7 @@ const SearchResult = forwardRef((props: IProps, ref: ForwardedRef<ISearchResultR
       prefixIcon: <IconfontSvg className={styles.abstractIcon} size="sm" code="icon-terminal" />,
       popover: i18n('common.text.overview'),
       label: i18n('common.text.overview'),
-      key: 'abstract',
+      key: ABSTRACT_TAB_ID,
       children: <Abstract data={resultDataList} />,
       canClosed: false,
     };
@@ -257,7 +236,7 @@ const SearchResult = forwardRef((props: IProps, ref: ForwardedRef<ISearchResultR
       prefixIcon: <IconfontSvg className={styles.abstractIcon} size="sm" code="icon-terminal" />,
       popover: i18n('common.title.message'),
       label: `${i18n('common.title.message')} (${executionMessages.length})`,
-      key: 'messages',
+      key: MESSAGES_TAB_ID,
       children: <ExecutionMessages data={executionMessages} />,
       canClosed: false,
     };
@@ -311,8 +290,8 @@ const SearchResult = forwardRef((props: IProps, ref: ForwardedRef<ISearchResultR
     }
     return {
       prefixIcon: <IconfontSvg className={styles.abstractIcon} size="sm" code="icon-terminal" />,
-      popover: i18n('common.text.executionConsole'),
-      label: i18n('common.text.executionConsole'),
+      popover: i18n('common.text.output'),
+      label: i18n('common.text.output'),
       key: CONSOLE_TAB_ID,
       children: (
         <ExecutionConsole
@@ -368,23 +347,14 @@ const SearchResult = forwardRef((props: IProps, ref: ForwardedRef<ISearchResultR
   );
 
   const tabsItems = useMemo(() => {
-    const staticTabs = consoleMode
-      ? [consoleTab]
-      : [abstract, messageTab, historyMessageTab];
+    const staticTabs = consoleMode ? [consoleTab] : [abstract, messageTab, historyMessageTab];
     return [...staticTabs.filter(Boolean), ...tabsList] as ITabItem[];
   }, [tabsList, consoleMode, consoleTab, abstract, messageTab, historyMessageTab]);
 
   useEffect(() => {
-    if (!tabsItems.length) {
-      if (activeTabId) {
-        setActiveTabId('');
-      }
-      return;
-    }
-    if (!activeTabId || !tabsItems.some((item) => item.key === activeTabId)) {
-      setActiveTabId(String(tabsItems[0].key));
-    }
-  }, [tabsItems, activeTabId]);
+    const availableTabIds = tabsItems.map((item) => String(item.key));
+    setActiveTabId((currentActiveTabId) => resolveAvailableActiveTabId(currentActiveTabId, availableTabIds));
+  }, [tabsItems]);
 
   return (
     <div className={classnames(className, styles.searchResult)}>
@@ -395,13 +365,13 @@ const SearchResult = forwardRef((props: IProps, ref: ForwardedRef<ISearchResultR
             onClick={() => {
               setShowHistory((value) => !value);
               if (showHistory && visibleHistoryResultDataList.some((item) => item.uuid === activeTabId)) {
-                setActiveTabId(consoleMode ? CONSOLE_TAB_ID : 'abstract');
+                setActiveTabId(consoleMode ? CONSOLE_TAB_ID : ABSTRACT_TAB_ID);
               }
             }}
           >
             {showHistory
               ? i18n('common.button.hideHistoryResult')
-                : `${i18n('common.button.viewHistoryResult')} (${visibleHistoryResultDataList.length})`}
+              : `${i18n('common.button.viewHistoryResult')} (${visibleHistoryResultDataList.length})`}
           </button>
         </div>
       )}

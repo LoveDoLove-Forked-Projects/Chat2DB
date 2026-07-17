@@ -1,9 +1,11 @@
 import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Button, Tooltip } from 'antd';
+import { Button, Dropdown, type MenuProps } from 'antd';
 import { ArrowDownToLine, Copy, Sparkles, Trash2 } from 'lucide-react';
-import { staticMessage } from '@chat2db/ui';
+import { IconfontSvg, staticMessage } from '@chat2db/ui';
 import i18n from '@/i18n';
 import { copyToClipboard } from '@/utils/copy';
+import SQLPreview from '@/components/SQLPreview';
+import { getDatabaseInfo } from '@/constants';
 import { useAIStore } from '@/store/ai';
 import { useGlobalStore } from '@/store/global';
 import { useWorkspaceStore } from '@/store/workspace';
@@ -24,7 +26,10 @@ interface IProps {
 }
 
 export default memo<IProps>(({ records, onClear, onOpenResult, isResultAvailable }) => {
-  const { styles, cx } = useStyles();
+  const {
+    styles,
+    theme: { appearance },
+  } = useStyles();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [followTail, setFollowTail] = useState(true);
   const setCurrentWorkspaceExtend = useWorkspaceStore((state) => state.setCurrentWorkspaceExtend);
@@ -58,6 +63,16 @@ export default memo<IProps>(({ records, onClear, onOpenResult, isResultAvailable
     if (container) container.scrollTop = container.scrollHeight;
   };
 
+  const handleContextMenuClick: MenuProps['onClick'] = ({ key }) => {
+    if (key === 'copy') {
+      void handleCopy();
+    } else if (key === 'clear') {
+      onClear();
+    } else if (key === 'follow') {
+      handleFollowTail();
+    }
+  };
+
   const handleAIDiagnose = (record: SqlExecutionLogRecord, errorMessage: string) => {
     const page = useGlobalStore.getState().mainPageActiveTab as 'workspace' | 'dashboard' | 'chat' | 'stream';
     setCurrentWorkspaceExtend(null);
@@ -77,92 +92,99 @@ export default memo<IProps>(({ records, onClear, onOpenResult, isResultAvailable
 
   return (
     <div className={styles.console}>
-      <div className={styles.toolbar}>
-        <div className={styles.toolbarSpacer} />
-        <Tooltip title={i18n('common.button.copyConsole')}>
-          <Button type="text" className={styles.iconButton} icon={<Copy size={15} />} onClick={handleCopy} />
-        </Tooltip>
-        <Tooltip title={i18n('common.button.clearConsole')}>
-          <Button type="text" className={styles.iconButton} icon={<Trash2 size={15} />} onClick={onClear} />
-        </Tooltip>
-        <Tooltip title={i18n('common.button.followConsole')}>
-          <Button
-            type="text"
-            className={cx(styles.iconButton, followTail && styles.activeIconButton)}
-            icon={<ArrowDownToLine size={15} />}
-            onClick={handleFollowTail}
-          />
-        </Tooltip>
-      </div>
-      <div className={styles.scrollArea} ref={scrollRef} onScroll={handleScroll}>
-        {records.map((record, recordIndex) => {
-          const showContext =
-            recordIndex === 0 || contextKey(records[recordIndex - 1].context) !== contextKey(record.context);
-          return (
-            <div className={styles.record} key={record.id}>
-              {showContext && (
-                <ConsoleLine
-                  className={styles.contextLine}
-                  timestamp={record.startedAtEpochMs}
-                  content={formatContext(record.context)}
-                />
-              )}
-              <div className={styles.line}>
-                <TimeCell value={record.startedAtEpochMs} />
-                <div className={styles.sqlContent}>
-                  <span className={styles.prompt}>{record.context.schemaName || record.context.databaseName || 'SQL'}&gt;</span>
-                  <pre className={styles.sql}>{record.sql}</pre>
-                </div>
-              </div>
-              {record.outputs.map((output) =>
-                output.kind === 'message' ? (
-                  <MessageLine
-                    key={output.id}
-                    output={output}
-                    record={record}
-                    onAIDiagnose={handleAIDiagnose}
-                  />
-                ) : (
-                  <ResultLine
-                    key={output.id}
-                    output={output}
-                    record={record}
-                    isResultAvailable={isResultAvailable}
-                    onOpenResult={onOpenResult}
-                    onAIDiagnose={handleAIDiagnose}
-                  />
-                ),
-              )}
-              {record.status === 'running' && (
-                <ConsoleLine
-                  className={styles.runningLine}
-                  timestamp={record.startedAtEpochMs}
-                  content={
-                    <span className={styles.runningContent}>
-                      <span className={styles.runningDot} />
-                      {i18n('common.text.currentExecution')}
+      <Dropdown
+        menu={{
+          items: [
+            { key: 'copy', icon: <Copy size={14} />, label: i18n('common.button.copyConsole') },
+            { key: 'clear', icon: <Trash2 size={14} />, label: i18n('common.button.clearConsole'), danger: true },
+            { key: 'follow', icon: <ArrowDownToLine size={14} />, label: i18n('common.button.followConsole') },
+          ],
+          onClick: handleContextMenuClick,
+        }}
+        trigger={['contextMenu']}
+      >
+        <div className={styles.scrollArea} ref={scrollRef} onScroll={handleScroll}>
+          {records.map((record, recordIndex) => {
+            const showContext =
+              recordIndex === 0 || contextKey(records[recordIndex - 1].context) !== contextKey(record.context);
+            const databaseInfo = getDatabaseInfo(record.context.databaseType);
+            return (
+              <div className={styles.record} key={record.id}>
+                {showContext && (
+                  <div className={styles.contextLine}>
+                    <span className={styles.contextRule} />
+                    <span className={styles.contextContent}>
+                      <IconfontSvg
+                        className={styles.databaseIcon}
+                        size={14}
+                        existDark={databaseInfo?.iconExistDark}
+                        appearance={appearance}
+                        code={databaseInfo?.icon || 'icon-chat-database'}
+                      />
+                      <span className={styles.contextText}>{formatContext(record.context)}</span>
                     </span>
-                  }
-                />
-              )}
-              {record.status === 'cancelled' && (
-                <ConsoleLine
-                  className={styles.cancelledLine}
-                  timestamp={record.finishedAtEpochMs || record.startedAtEpochMs}
-                  content={i18n('common.text.executionCancelled')}
-                />
-              )}
-              {record.status === 'success' && record.outputs.length === 0 && (
-                <ConsoleLine
-                  className={styles.successLine}
-                  timestamp={record.finishedAtEpochMs || record.startedAtEpochMs}
-                  content={`${i18n('common.text.executionCompleted')} · ${formatMilliseconds(record.durationMs)}`}
-                />
-              )}
-            </div>
-          );
-        })}
-      </div>
+                    <span className={styles.contextRule} />
+                  </div>
+                )}
+                <div className={styles.line}>
+                  <TimeCell value={record.startedAtEpochMs} prominent />
+                  <div className={styles.sqlContent}>
+                    <span className={styles.prompt}>
+                      {record.context.schemaName || record.context.databaseName || 'SQL'}&gt;
+                    </span>
+                    <SQLPreview className={styles.sql} sql={record.sql} source="execution-console" />
+                  </div>
+                </div>
+                {record.outputs.map((output) =>
+                  output.kind === 'message' ? (
+                    <MessageLine
+                      key={output.id}
+                      output={output}
+                      record={record}
+                      onAIDiagnose={handleAIDiagnose}
+                    />
+                  ) : (
+                    <ResultLine
+                      key={output.id}
+                      output={output}
+                      record={record}
+                      isResultAvailable={isResultAvailable}
+                      onOpenResult={onOpenResult}
+                      onAIDiagnose={handleAIDiagnose}
+                    />
+                  ),
+                )}
+                {record.status === 'running' && (
+                  <ConsoleLine
+                    className={styles.runningLine}
+                    timestamp={record.startedAtEpochMs}
+                    content={
+                      <span className={styles.runningContent}>
+                        <span className={styles.runningDot} />
+                        {i18n('common.text.currentExecution')}
+                      </span>
+                    }
+                  />
+                )}
+                {record.status === 'cancelled' && (
+                  <ConsoleLine
+                    className={styles.cancelledLine}
+                    timestamp={record.finishedAtEpochMs || record.startedAtEpochMs}
+                    content={i18n('common.text.executionCancelled')}
+                  />
+                )}
+                {record.status === 'success' && record.outputs.length === 0 && (
+                  <ConsoleLine
+                    className={styles.successLine}
+                    timestamp={record.finishedAtEpochMs || record.startedAtEpochMs}
+                    content={`${i18n('common.text.executionCompleted')} · ${formatMilliseconds(record.durationMs)}`}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </Dropdown>
     </div>
   );
 });
@@ -179,10 +201,12 @@ function MessageLine({
   const { styles, cx } = useStyles();
   return (
     <div className={styles.line}>
-      <TimeCell value={output.occurredAtEpochMs} />
+      <TimeCell value={output.occurredAtEpochMs} prominent />
       <div className={cx(styles.message, styles[`message${output.level}`])}>
-        <span className={styles.level}>{output.level}</span>
-        <span className={styles.messageText}>{output.message}</span>
+        <span className={cx(styles.level, output.level === 'INFO' && styles.infoLevel)}>{output.level}</span>
+        <span className={cx(styles.messageText, output.level === 'INFO' && styles.messageINFOText)}>
+          {output.message}
+        </span>
         {output.level === 'ERROR' && (
           <Button
             type="link"
@@ -217,7 +241,7 @@ function ResultLine({
   const summary = resultSummary(output);
   return (
     <div className={styles.line}>
-      <TimeCell value={output.occurredAtEpochMs} />
+      <TimeCell value={output.occurredAtEpochMs} prominent={!output.success} />
       <div className={cx(styles.resultLine, !output.success && styles.resultError)}>
         {available ? (
           <button className={styles.resultLink} onClick={() => onOpenResult(output.resultKey!)}>
@@ -262,9 +286,11 @@ function ConsoleLine({
   );
 }
 
-function TimeCell({ value }: { value: number }) {
-  const { styles } = useStyles();
-  return <time className={styles.timestamp}>[{formatTimestamp(value)}]</time>;
+function TimeCell({ value, prominent = false }: { value: number; prominent?: boolean }) {
+  const { styles, cx } = useStyles();
+  return (
+    <time className={cx(styles.timestamp, prominent && styles.prominentTimestamp)}>[{formatTimestamp(value)}]</time>
+  );
 }
 
 function resultSummary(output: SqlExecutionLogResultOutput) {
@@ -283,7 +309,7 @@ function formatMetrics(output: SqlExecutionLogResultOutput) {
   if (typeof metrics?.fetchDurationMs === 'number') {
     details.push(i18n('common.text.fetchDuration', metrics.fetchDurationMs));
   }
-  const total = formatMilliseconds(output.durationMs);
+  const total = formatMilliseconds(metrics?.totalDurationMs ?? output.durationMs);
   return details.length ? ` · ${total} (${details.join(' · ')})` : ` · ${total}`;
 }
 
@@ -305,7 +331,13 @@ function formatContext(context: SqlExecutionLogContext) {
 }
 
 function contextKey(context: SqlExecutionLogContext) {
-  return [context.dataSourceId, context.dataSourceName, context.databaseName, context.schemaName].join('|');
+  return [
+    context.dataSourceId,
+    context.dataSourceName,
+    context.databaseType,
+    context.databaseName,
+    context.schemaName,
+  ].join('|');
 }
 
 function buildPlainText(records: SqlExecutionLogRecord[]) {
@@ -313,7 +345,7 @@ function buildPlainText(records: SqlExecutionLogRecord[]) {
     .flatMap((record, index) => {
       const lines: string[] = [];
       if (index === 0 || contextKey(records[index - 1].context) !== contextKey(record.context)) {
-        lines.push(`[${formatTimestamp(record.startedAtEpochMs)}] ${formatContext(record.context)}`);
+        lines.push(`--- ${formatContext(record.context)} ---`);
       }
       lines.push(`[${formatTimestamp(record.startedAtEpochMs)}] ${record.context.schemaName || record.context.databaseName || 'SQL'}> ${record.sql}`);
       record.outputs.forEach((output) => {

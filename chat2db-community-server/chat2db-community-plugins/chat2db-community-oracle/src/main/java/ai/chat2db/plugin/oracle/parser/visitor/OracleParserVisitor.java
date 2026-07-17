@@ -587,16 +587,20 @@ public class OracleParserVisitor extends PlSqlParserBaseVisitor<Void> {
         if (Objects.isNull(currentStatement)) {
             return null;
         }
+        PlSqlParser.Alter_session_set_clauseContext alterSessionSetClauseContext = ctx.alter_session_set_clause();
+        if (Objects.isNull(alterSessionSetClauseContext)
+                || alterSessionSetClauseContext.parameter_name().isEmpty()
+                || !"CURRENT_SCHEMA".equalsIgnoreCase(
+                        alterSessionSetClauseContext.parameter_name(0).getText())) {
+            return super.visitAlter_session(ctx);
+        }
         currentStatement.setType(SqlTypeEnum.SET_SCHEMA.name());
         Try.run(() -> {
-            PlSqlParser.Alter_session_set_clauseContext alterSessionSetClauseContext = ctx.alter_session_set_clause();
-            if (Objects.nonNull(alterSessionSetClauseContext)) {
-                PlSqlParser.Parameter_valueContext parameterValueContext = alterSessionSetClauseContext.parameter_value(0);
-                if (Objects.nonNull(parameterValueContext)) {
-                    String schemaText = SqlStringUtil.removeQuote(parameterValueContext.getText());
-                    currentStatement.addIdentifier(schemaText,
-                            IdentifierTypeEnum.SCHEMA.name(), parameterValueContext.getStart());
-                }
+            PlSqlParser.Parameter_valueContext parameterValueContext = alterSessionSetClauseContext.parameter_value(0);
+            if (Objects.nonNull(parameterValueContext)) {
+                String schemaText = SqlStringUtil.removeQuote(parameterValueContext.getText());
+                currentStatement.addIdentifier(schemaText,
+                        IdentifierTypeEnum.SCHEMA.name(), parameterValueContext.getStart());
             }
         }).onFailure(e -> {
             log.error("alter session error", e);

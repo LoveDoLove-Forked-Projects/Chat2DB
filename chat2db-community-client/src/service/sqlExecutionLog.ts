@@ -1,4 +1,4 @@
-import type { IExecutionMetrics, IManageResultData } from '@/typings';
+import type { IExecutionContext, IExecutionMetrics, IManageResultData } from '@/typings';
 import type { SqlExecutionEvent, SqlExecutionMessage } from './sqlExecutionStream';
 
 export type SqlExecutionLogStatus = 'running' | 'success' | 'failed' | 'cancelled';
@@ -6,6 +6,7 @@ export type SqlExecutionLogStatus = 'running' | 'success' | 'failed' | 'cancelle
 export interface SqlExecutionLogContext {
   dataSourceId?: number;
   dataSourceName?: string;
+  databaseType?: string;
   databaseName?: string;
   schemaName?: string;
 }
@@ -129,7 +130,7 @@ export function completeWebSqlExecution(
       statementSequence,
       sql: first.originalSql || params.sql,
       comment: first.comment,
-      context: params.context,
+      context: mergeExecutionContext(params.context, first.executionContext),
       startedAtEpochMs,
     });
     results.forEach((result, resultIndex) => {
@@ -235,6 +236,11 @@ export function reduceDesktopSqlExecutionEvent(
 
   return updateRecord(state, target.id, (record) => {
     switch (event.eventType) {
+      case 'resultStarted':
+        return {
+          ...record,
+          context: mergeExecutionContext(record.context, event.message?.executionContext),
+        };
       case 'rows': {
         const sequence = eventResultSequence(event);
         const key = String(sequence);
@@ -250,12 +256,16 @@ export function reduceDesktopSqlExecutionEvent(
         return addMessage(record, event.message, occurredAt, event.eventSequence);
       case 'resultFinished':
       case 'updateCount': {
+        const contextualRecord = {
+          ...record,
+          context: mergeExecutionContext(record.context, event.message?.executionContext),
+        };
         const messageSequenceBase =
-          typeof event.eventSequence === 'number' ? event.eventSequence * 1000 : record.outputs.length;
+          typeof event.eventSequence === 'number' ? event.eventSequence * 1000 : contextualRecord.outputs.length;
         const withMessages = (event.message?.extra?.messages || []).reduce(
           (current, message, index) =>
             addMessage(current, message, occurredAt, messageSequenceBase + index),
-          record,
+          contextualRecord,
         );
         const next = addResult(withMessages, event.message, occurredAt, event);
         return event.message?.success === false ? { ...next, status: 'failed' as const } : next;
@@ -283,6 +293,18 @@ export function reduceDesktopSqlExecutionEvent(
         return record;
     }
   });
+}
+
+function mergeExecutionContext(
+  context: SqlExecutionLogContext,
+  executionContext?: IExecutionContext,
+): SqlExecutionLogContext {
+  if (!executionContext) return context;
+  return {
+    ...context,
+    databaseName: executionContext.databaseName ?? context.databaseName,
+    schemaName: executionContext.schemaName ?? context.schemaName,
+  };
 }
 
 function createRecord(params: {

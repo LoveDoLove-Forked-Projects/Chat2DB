@@ -79,9 +79,14 @@ function webExecution() {
         executionMetrics: {
           startedAtEpochMs: 100,
           finishedAtEpochMs: 140,
+          totalDurationMs: 20,
           executeDurationMs: 12,
           fetchDurationMs: 8,
           fetchedRowCount: 2,
+        },
+        executionContext: {
+          databaseName: 'catalog_after_use',
+          schemaName: 'schema_after_use',
         },
       }),
     ],
@@ -96,6 +101,33 @@ function webExecution() {
   assert.equal(output.kind === 'result' ? output.rowCount : undefined, 2);
   assert.equal(output.kind === 'result' ? output.resultKey : undefined, 'web-1:1:1');
   assert.equal('dataList' in output, false);
+  assert.equal(state.records[0].context.databaseName, 'catalog_after_use');
+  assert.equal(state.records[0].context.schemaName, 'schema_after_use');
+}
+
+{
+  const state = completeWebSqlExecution(webExecution(), {
+    executionId: 'web-1',
+    sql: 'SET SCHEMA target_schema; SELECT 1',
+    context,
+    occurredAtEpochMs: 150,
+    results: [
+      result({
+        statementSequence: 1,
+        originalSql: 'SET SCHEMA target_schema',
+        executionContext: { schemaName: 'PUBLIC' },
+      }),
+      result({
+        statementSequence: 2,
+        originalSql: 'SELECT 1',
+        executionContext: { schemaName: 'TARGET_SCHEMA' },
+      }),
+    ],
+  });
+  assert.deepEqual(
+    state.records.map((record) => record.context.schemaName),
+    ['PUBLIC', 'TARGET_SCHEMA'],
+  );
 }
 
 {
@@ -187,6 +219,7 @@ function webExecution() {
       resultKey: 'desktop-1:1:1',
       message: result({
         dataList: [],
+        executionContext: { databaseName: 'desktop_catalog', schemaName: 'desktop_schema' },
         extra: {
           messages: [
             { level: 'WARN', message: 'slow' },
@@ -218,6 +251,56 @@ function webExecution() {
   assert.ok(state.records[0].outputs.some((output) => output.kind === 'message' && output.message === 'finished notice'));
   const output = state.records[0].outputs.find((item) => item.kind === 'result');
   assert.equal(output?.kind === 'result' ? output.rowCount : undefined, 3);
+  assert.equal(state.records[0].context.databaseName, 'desktop_catalog');
+  assert.equal(state.records[0].context.schemaName, 'desktop_schema');
+}
+
+{
+  let state = createSqlExecutionLogState();
+  state = reduceDesktopSqlExecutionEvent(
+    state,
+    {
+      executionId: 'desktop-context',
+      eventType: 'statementStarted',
+      statementSequence: 1,
+      message: { originalSql: 'SET SCHEMA target_schema' },
+    },
+    context,
+  );
+  state = reduceDesktopSqlExecutionEvent(
+    state,
+    {
+      executionId: 'desktop-context',
+      eventType: 'resultStarted',
+      statementSequence: 1,
+      message: result({ executionContext: { schemaName: 'PUBLIC' } }),
+    },
+    context,
+  );
+  state = reduceDesktopSqlExecutionEvent(
+    state,
+    {
+      executionId: 'desktop-context',
+      eventType: 'statementStarted',
+      statementSequence: 2,
+      message: { originalSql: 'SELECT 1' },
+    },
+    context,
+  );
+  state = reduceDesktopSqlExecutionEvent(
+    state,
+    {
+      executionId: 'desktop-context',
+      eventType: 'resultStarted',
+      statementSequence: 2,
+      message: result({ executionContext: { schemaName: 'TARGET_SCHEMA' } }),
+    },
+    context,
+  );
+  assert.deepEqual(
+    state.records.map((record) => record.context.schemaName),
+    ['PUBLIC', 'TARGET_SCHEMA'],
+  );
 }
 
 {

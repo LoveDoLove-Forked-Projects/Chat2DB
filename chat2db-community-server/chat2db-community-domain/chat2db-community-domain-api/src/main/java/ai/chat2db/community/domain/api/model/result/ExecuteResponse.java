@@ -116,4 +116,5 @@ public class ExecuteResponse {
     private Integer resultSetId;
     private Integer statementSequence;
     private ExecutionMetrics executionMetrics;
+    private ExecutionContext executionContext;
 }

@@ -8,31 +8,6 @@ export const useStyles = createStyles(({ css, token }) => ({
     background: ${token.colorBgContainer};
     color: ${token.colorText};
   `,
-  toolbar: css`
-    height: 30px;
-    flex: 0 0 30px;
-    display: flex;
-    align-items: center;
-    padding: 0 6px;
-    border-bottom: 1px solid ${token.colorBorderSecondary};
-  `,
-  toolbarSpacer: css`
-    flex: 1;
-  `,
-  iconButton: css`
-    width: 26px;
-    min-width: 26px;
-    height: 26px;
-    padding: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    color: ${token.colorTextSecondary};
-  `,
-  activeIconButton: css`
-    color: ${token.colorPrimary};
-    background: ${token.colorFillSecondary};
-  `,
   scrollArea: css`
     flex: 1;
     min-height: 0;
@@ -53,15 +28,44 @@ export const useStyles = createStyles(({ css, token }) => ({
     min-height: 20px;
   `,
   timestamp: css`
-    color: ${token.colorTextQuaternary};
+    color: ${token.colorTextSecondary};
     white-space: nowrap;
-    user-select: none;
+  `,
+  prominentTimestamp: css`
+    color: ${token.colorText};
   `,
   contextLine: css`
-    margin: 6px 0 4px;
-    padding-top: 6px;
-    border-top: 1px solid ${token.colorBorderSecondary};
-    color: ${token.colorTextSecondary};
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    min-width: 0;
+    margin: 16px 0 12px;
+    color: ${token.colorText};
+    font-weight: 500;
+  `,
+  contextRule: css`
+    flex: 1;
+    min-width: 24px;
+    height: 1px;
+    background: ${token.colorBorderSecondary};
+  `,
+  contextContent: css`
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+  `,
+  contextText: css`
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  `,
+  databaseIcon: css`
+    flex: none;
+    width: 14px;
+    height: 14px;
   `,
   sqlContent: css`
     display: flex;
@@ -75,13 +79,42 @@ export const useStyles = createStyles(({ css, token }) => ({
     font-weight: 600;
   `,
   sql: css`
+    flex: 1;
     min-width: 0;
-    margin: 0;
-    color: ${token.colorText};
+    overflow: visible;
     font: inherit;
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
     letter-spacing: 0;
+
+    > div {
+      box-sizing: border-box;
+      background-color: ${token.colorFillQuaternary} !important;
+      border: 1px solid ${token.colorBorderSecondary};
+      border-radius: 4px !important;
+    }
+
+    > div > div:first-child {
+      top: 2px;
+      right: 2px;
+      z-index: 1;
+    }
+
+    pre {
+      margin: 0;
+      padding: 2px 30px 2px 4px !important;
+      font: inherit;
+      line-height: inherit;
+      background: transparent !important;
+    }
+
+    code {
+      width: auto !important;
+      overflow: visible !important;
+      font: inherit;
+      line-height: inherit;
+      white-space: pre-wrap !important;
+      overflow-wrap: anywhere;
+      letter-spacing: 0;
+    }
   `,
   message: css`
     display: flex;
@@ -95,6 +128,9 @@ export const useStyles = createStyles(({ css, token }) => ({
     font-size: 11px;
     font-weight: 600;
   `,
+  infoLevel: css`
+    color: ${token.colorSuccessText};
+  `,
   messageText: css`
     min-width: 0;
     white-space: pre-wrap;
@@ -102,6 +138,9 @@ export const useStyles = createStyles(({ css, token }) => ({
   `,
   messageINFO: css`
     color: ${token.colorTextSecondary};
+  `,
+  messageINFOText: css`
+    color: ${token.colorText};
   `,
   messageWARN: css`
     color: ${token.colorWarningText};

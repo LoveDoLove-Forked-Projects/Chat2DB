@@ -15,6 +15,8 @@ public class ExecutionMetrics {
 
     private Long finishedAtEpochMs;
 
+    private Long totalDurationMs;
+
     private Long executeDurationMs;
 
     private Long fetchDurationMs;

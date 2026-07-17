@@ -165,6 +165,7 @@ function getExecutionLogContext(boundInfo: IBoundInfo): SqlExecutionLogContext {
   return {
     dataSourceId: boundInfo.dataSourceId,
     dataSourceName: boundInfo.dataSourceName,
+    databaseType: boundInfo.databaseType,
     databaseName: boundInfo.databaseName,
     schemaName: boundInfo.schemaName,
   };

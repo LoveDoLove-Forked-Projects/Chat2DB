@@ -22,6 +22,8 @@ import ai.chat2db.community.domain.api.model.result.*;
 import ai.chat2db.spi.model.request.FetchAllTableRecordsRequest;
 import ai.chat2db.spi.model.request.PageLimitRequest;
 import ai.chat2db.spi.model.request.SqlStatementExecuteRequest;
+import ai.chat2db.spi.model.ExecutionTiming;
+import ai.chat2db.spi.model.JdbcExecutionContext;
 import ai.chat2db.community.domain.api.model.sql.*;
 import ai.chat2db.spi.model.value.*;
 import ai.chat2db.community.domain.api.service.db.ISqlExecutionCancellation;
@@ -246,21 +248,25 @@ public class DefaultSQLExecutor implements ICommandExecutor {
             }
             long startedAtEpochMs = System.currentTimeMillis();
             TimeInterval timeInterval = new TimeInterval();
+            ExecutionContext executionContext = JdbcExecutionContext.capture(connection);
             long executeStartedNanos = System.nanoTime();
             boolean query = stmt.execute();
-            long executeDurationMs = elapsedMillis(executeStartedNanos);
-            long fetchDurationMs = 0L;
+            long executeDurationNanos = ExecutionTiming.elapsedNanos(executeStartedNanos);
+            long fetchDurationNanos = 0L;
             executeResult.setDescription(I18nUtils.getMessage("sqlResult.success"));
             if (query) {
                 long fetchStartedNanos = System.nanoTime();
                 executeResult = generateQueryExecuteResponse(stmt, limitRowSize, offset, count);
-                fetchDurationMs = elapsedMillis(fetchStartedNanos);
+                fetchDurationNanos = ExecutionTiming.elapsedNanos(fetchStartedNanos);
             } else {
                 executeResult.setUpdateCount(stmt.getUpdateCount());
             }
             executeResult.setDuration(timeInterval.interval());
             executeResult.setStatementSequence(1);
-            setExecutionMetrics(executeResult, startedAtEpochMs, executeDurationMs, fetchDurationMs);
+            executeResult.setExecutionContext(executionContext);
+            executeResult.setExecutionMetrics(ExecutionTiming.complete(
+                    ExecutionTiming.started(startedAtEpochMs), executeDurationNanos, fetchDurationNanos,
+                    CollectionUtils.size(executeResult.getDataList())));
         }
         return executeResult;
     }
@@ -566,6 +572,7 @@ public class DefaultSQLExecutor implements ICommandExecutor {
             statementSequence++;
             String sqlType = simpleSqlStatement.getSqlType();
             List<ExecuteResponse> executeResults = executeSQL(simpleSqlStatement, dbType, command);
+            synchronizeExecutionContext(simpleSqlStatement, connection, executeResults);
             boolean errorOccurred = false;
             for (ExecuteResponse executeResult : executeResults) {
                 executeResult.setStatementSequence(statementSequence);
@@ -647,6 +654,7 @@ public class DefaultSQLExecutor implements ICommandExecutor {
             String sqlType = simpleSqlStatement.getSqlType();
             List<ExecuteResponse> executeResults = executeSQLStreaming(simpleSqlStatement, dbType, command, consumer,
                     statementListener, cancellation, streamResultSequence, statementSequence);
+            synchronizeExecutionContext(simpleSqlStatement, connection, executeResults);
             boolean errorOccurred = false;
             for (ExecuteResponse executeResult : executeResults) {
                 executeResult.setStatementSequence(statementSequence);
@@ -690,6 +698,37 @@ public class DefaultSQLExecutor implements ICommandExecutor {
                 if (Objects.nonNull(errorContinue) && !errorContinue && errorOccurred) {
                     return;
                 }
+            }
+        }
+    }
+
+    protected void synchronizeExecutionContext(SimpleSqlStatement statement, Connection connection,
+                                               List<ExecuteResponse> executeResults) {
+        if (CollectionUtils.isEmpty(executeResults)
+                || executeResults.stream().anyMatch(result -> !Boolean.TRUE.equals(result.getSuccess()))) {
+            return;
+        }
+        List<RefreshTarget> targets = Optional.ofNullable(statement.getRefreshTargets())
+                .orElseGet(Collections::emptyList)
+                .stream()
+                .toList();
+        if (ai.chat2db.community.domain.api.enums.parser.SqlTypeEnum.USE_DATABASE.name()
+                .equals(statement.getSqlType())) {
+            String databaseName = targets.stream()
+                .map(RefreshTarget::getDatabaseName)
+                .filter(StringUtils::isNotBlank)
+                .findFirst()
+                .orElse(null);
+            JdbcExecutionContext.synchronizeCatalog(connection, databaseName);
+        } else if (ai.chat2db.community.domain.api.enums.parser.SqlTypeEnum.SET_SCHEMA.name()
+                .equals(statement.getSqlType())) {
+            List<String> schemaNames = targets.stream()
+                    .map(RefreshTarget::getSchemaName)
+                    .filter(StringUtils::isNotBlank)
+                    .distinct()
+                    .toList();
+            if (schemaNames.size() == 1) {
+                JdbcExecutionContext.synchronizeSchema(connection, schemaNames.get(0));
             }
         }
     }
@@ -898,32 +937,44 @@ public class DefaultSQLExecutor implements ICommandExecutor {
                     }
                 }
             }
-            long startedAtEpochMs = System.currentTimeMillis();
             TimeInterval timeInterval = new TimeInterval();
+            ExecutionContext executionContext = JdbcExecutionContext.capture(connection);
+            long startedAtEpochMs = System.currentTimeMillis();
             long executeStartedNanos = System.nanoTime();
             boolean query = stmt.execute();
-            long executeDurationMs = elapsedMillis(executeStartedNanos);
+            long executeDurationNanos = ExecutionTiming.elapsedNanos(executeStartedNanos);
             int resultCount = 0;
-            do {
+            while (true) {
                 ExecuteResponse executeResult = ExecuteResponse.builder().sql(sql).success(Boolean.TRUE).build();
                 executeResult.setDescription(I18nUtils.getMessage("sqlResult.success"));
-                long fetchDurationMs = 0L;
+                long fetchDurationNanos = 0L;
                 if (query) {
                     resultCount++;
                     if (Objects.isNull(resultSetId) || resultCount == resultSetId) {
                         long fetchStartedNanos = System.nanoTime();
                         executeResult = generateQueryExecuteResponse(stmt, limitRowSize, offset, count);
-                        fetchDurationMs = elapsedMillis(fetchStartedNanos);
+                        fetchDurationNanos = ExecutionTiming.elapsedNanos(fetchStartedNanos);
                         executeResult.setResultSetId(resultCount);
                     }
                 } else {
                     executeResult.setUpdateCount(stmt.getUpdateCount());
                 }
                 executeResult.setDuration(timeInterval.interval());
-                setExecutionMetrics(executeResult, startedAtEpochMs, executeDurationMs, fetchDurationMs);
-                query = stmt.getMoreResults();
+                executeResult.setExecutionContext(executionContext);
+                executeResult.setExecutionMetrics(ExecutionTiming.complete(
+                        ExecutionTiming.started(startedAtEpochMs), executeDurationNanos, fetchDurationNanos,
+                        CollectionUtils.size(executeResult.getDataList())));
                 executeResults.add(executeResult);
-            } while (query || stmt.getUpdateCount() != -1);
+                long nextStartedAtEpochMs = System.currentTimeMillis();
+                long nextExecuteStartedNanos = System.nanoTime();
+                query = stmt.getMoreResults();
+                long nextExecuteDurationNanos = ExecutionTiming.elapsedNanos(nextExecuteStartedNanos);
+                if (!query && stmt.getUpdateCount() == -1) {
+                    break;
+                }
+                startedAtEpochMs = nextStartedAtEpochMs;
+                executeDurationNanos = nextExecuteDurationNanos;
+            }
             attachMessages(executeResults, collectMessages(stmt, connection));
             clearWarnings(stmt, connection);
         }
@@ -954,14 +1005,15 @@ public class DefaultSQLExecutor implements ICommandExecutor {
                     }
                 }
             }
-            long startedAtEpochMs = System.currentTimeMillis();
             TimeInterval timeInterval = new TimeInterval();
             checkCanceled(cancellation);
+            ExecutionContext executionContext = JdbcExecutionContext.capture(connection);
+            long startedAtEpochMs = System.currentTimeMillis();
             long executeStartedNanos = System.nanoTime();
             boolean query = stmt.execute();
-            long executeDurationMs = elapsedMillis(executeStartedNanos);
+            long executeDurationNanos = ExecutionTiming.elapsedNanos(executeStartedNanos);
             int resultCount = 0;
-            do {
+            while (true) {
                 checkCanceled(cancellation);
                 ExecuteResponse executeResult = ExecuteResponse.builder()
                         .sql(sql)
@@ -970,6 +1022,7 @@ public class DefaultSQLExecutor implements ICommandExecutor {
                         .build();
                 executeResult.setOriginalSql(originalSql);
                 executeResult.setSqlType(sqlType.getCode());
+                executeResult.setExecutionContext(executionContext);
                 executeResult.setDescription(I18nUtils.getMessage("sqlResult.success"));
                 if (query) {
                     resultCount++;
@@ -977,7 +1030,7 @@ public class DefaultSQLExecutor implements ICommandExecutor {
                         executeResult = streamQueryExecuteResponse(stmt, limitRowSize, offset, count, consumer,
                                 cancellation, sqlType, sql, originalSql, pageNo, pageSize, resultCount,
                                 streamResultSequence.incrementAndGet(), statementSequence, startedAtEpochMs,
-                                executeDurationMs);
+                                executionContext, executeDurationNanos);
                         executeResult.setSql(sql);
                         executeResult.setOriginalSql(originalSql);
                     }
@@ -988,18 +1041,30 @@ public class DefaultSQLExecutor implements ICommandExecutor {
                     executeResult.setHasNextPage(Boolean.FALSE);
                     executeResult.setFuzzyTotal("0");
                     executeResult.setDuration(timeInterval.interval());
-                    setExecutionMetrics(executeResult, startedAtEpochMs, executeDurationMs, 0L);
+                    executeResult.setExecutionMetrics(ExecutionTiming.complete(
+                            ExecutionTiming.started(startedAtEpochMs), executeDurationNanos, 0L,
+                            CollectionUtils.size(executeResult.getDataList())));
                     setStreamResultId(executeResult, streamResultSequence.incrementAndGet());
                     consumer.updateCount(executeResult);
                 }
                 executeResult.setStatementSequence(statementSequence);
                 if (executeResult.getExecutionMetrics() == null) {
-                    setExecutionMetrics(executeResult, startedAtEpochMs, executeDurationMs, 0L);
+                    executeResult.setExecutionMetrics(ExecutionTiming.complete(
+                            ExecutionTiming.started(startedAtEpochMs), executeDurationNanos, 0L,
+                            CollectionUtils.size(executeResult.getDataList())));
                 }
                 executeResult.setDuration(timeInterval.interval());
                 executeResults.add(executeResult);
+                long nextStartedAtEpochMs = System.currentTimeMillis();
+                long nextExecuteStartedNanos = System.nanoTime();
                 query = stmt.getMoreResults();
-            } while (query || stmt.getUpdateCount() != -1);
+                long nextExecuteDurationNanos = ExecutionTiming.elapsedNanos(nextExecuteStartedNanos);
+                if (!query && stmt.getUpdateCount() == -1) {
+                    break;
+                }
+                startedAtEpochMs = nextStartedAtEpochMs;
+                executeDurationNanos = nextExecuteDurationNanos;
+            }
             attachMessages(executeResults, collectMessages(stmt, connection));
             clearWarnings(stmt, connection);
         } finally {
@@ -1013,15 +1078,14 @@ public class DefaultSQLExecutor implements ICommandExecutor {
                                                    ISqlExecutionCancellation cancellation, SqlTypeEnum sqlType,
                                                    String sql, String originalSql, int pageNo, int pageSize,
                                                    int resultSetId, int streamResultId, int statementSequence,
-                                                   long startedAtEpochMs, long executeDurationMs) throws SQLException {
-        ExecutionMetrics executionMetrics = ExecutionMetrics.builder()
-                .startedAtEpochMs(startedAtEpochMs)
-                .executeDurationMs(executeDurationMs)
-                .build();
+                                                   long startedAtEpochMs, ExecutionContext executionContext,
+                                                   long executeDurationNanos) throws SQLException {
+        ExecutionMetrics executionMetrics = ExecutionTiming.started(startedAtEpochMs);
         ExecuteResponse executeResult = ExecuteResponse.builder()
                 .success(Boolean.TRUE)
                 .statementSequence(statementSequence)
                 .executionMetrics(executionMetrics)
+                .executionContext(executionContext)
                 .build();
         executeResult.setDescription(I18nUtils.getMessage("sqlResult.success"));
         executeResult.setSql(sql);
@@ -1038,7 +1102,8 @@ public class DefaultSQLExecutor implements ICommandExecutor {
             int col = resultSetMetaData.getColumnCount();
             List<Header> headerList = generateHeaderList(resultSetMetaData);
             int chat2dbAutoRowIdIndex = getChat2dbAutoRowIdIndex(headerList);
-            fetchDurationNanos += System.nanoTime() - metadataStartedNanos;
+            fetchDurationNanos = ExecutionTiming.addNanos(
+                    fetchDurationNanos, ExecutionTiming.elapsedNanos(metadataStartedNanos));
             executeResult.setHeaderList(headerList);
             executeResult.setDataList(new ArrayList<>());
             SqlUtils.buildCanEditResult(originalSql, JdbcUtils.parse2DruidDbType(Chat2DBContext.getConnectInfo().getDbType()), executeResult);
@@ -1047,15 +1112,16 @@ public class DefaultSQLExecutor implements ICommandExecutor {
             consumer.resultStarted(executeResult);
             StreamingDataResult streamingDataResult = streamDataList(rs, col, chat2dbAutoRowIdIndex, limitRowSize, offset,
                     count, pageNo, pageSize, cancellation, consumer, executeResult);
-            fetchDurationNanos += streamingDataResult.fetchDurationNanos();
+            fetchDurationNanos = ExecutionTiming.addNanos(
+                    fetchDurationNanos, streamingDataResult.fetchDurationNanos());
             executeResult.setDataList(streamingDataResult.dataList());
             setPageInfo(executeResult, sqlType, pageNo, pageSize);
         } finally {
             JdbcUtils.closeResultSet(rs);
-            executionMetrics.setFetchDurationMs(nanosToMillis(fetchDurationNanos));
-            executionMetrics.setFetchedRowCount(CollectionUtils.size(executeResult.getDataList()));
-            executionMetrics.setFinishedAtEpochMs(System.currentTimeMillis());
         }
+        executeResult.setExecutionMetrics(ExecutionTiming.complete(
+                executionMetrics, executeDurationNanos, fetchDurationNanos,
+                CollectionUtils.size(executeResult.getDataList())));
         return executeResult;
     }
 
@@ -1115,7 +1181,8 @@ public class DefaultSQLExecutor implements ICommandExecutor {
                 try {
                     consumer.rows(executeResult, new ArrayList<>(batch));
                 } finally {
-                    callbackDurationNanos += System.nanoTime() - callbackStartedNanos;
+                    callbackDurationNanos = ExecutionTiming.addNanos(
+                            callbackDurationNanos, ExecutionTiming.elapsedNanos(callbackStartedNanos));
                 }
                 batch.clear();
             }
@@ -1128,11 +1195,12 @@ public class DefaultSQLExecutor implements ICommandExecutor {
             try {
                 consumer.rows(executeResult, new ArrayList<>(batch));
             } finally {
-                callbackDurationNanos += System.nanoTime() - callbackStartedNanos;
+                callbackDurationNanos = ExecutionTiming.addNanos(
+                        callbackDurationNanos, ExecutionTiming.elapsedNanos(callbackStartedNanos));
             }
         }
-        long fetchDurationNanos = Math.max(0L,
-                System.nanoTime() - startedAtNanos - callbackDurationNanos);
+        long fetchDurationNanos = ExecutionTiming.subtractNanos(
+                ExecutionTiming.elapsedNanos(startedAtNanos), callbackDurationNanos);
         return new StreamingDataResult(dataList, fetchDurationNanos);
     }
 
@@ -1153,37 +1221,15 @@ public class DefaultSQLExecutor implements ICommandExecutor {
         }
     }
 
-    protected static void setExecutionMetrics(ExecuteResponse executeResult, long startedAtEpochMs,
-                                              long executeDurationMs, long fetchDurationMs) {
-        executeResult.setExecutionMetrics(ExecutionMetrics.builder()
-                .startedAtEpochMs(startedAtEpochMs)
-                .finishedAtEpochMs(System.currentTimeMillis())
-                .executeDurationMs(executeDurationMs)
-                .fetchDurationMs(fetchDurationMs)
-                .fetchedRowCount(CollectionUtils.size(executeResult.getDataList()))
-                .build());
-    }
-
     private ExecuteResponse failedExecuteResponse(String sql, Exception exception, long startedAtEpochMs) {
-        long finishedAtEpochMs = System.currentTimeMillis();
+        ExecutionMetrics executionMetrics = ExecutionTiming.finished(ExecutionTiming.started(startedAtEpochMs));
         return ExecuteResponse.builder()
                 .sql(sql)
                 .success(Boolean.FALSE)
                 .message(exception.getMessage())
-                .duration(Math.max(0L, finishedAtEpochMs - startedAtEpochMs))
-                .executionMetrics(ExecutionMetrics.builder()
-                        .startedAtEpochMs(startedAtEpochMs)
-                        .finishedAtEpochMs(finishedAtEpochMs)
-                        .build())
+                .duration(ExecutionTiming.elapsedEpochMillis(executionMetrics))
+                .executionMetrics(executionMetrics)
                 .build();
-    }
-
-    protected static long elapsedMillis(long startedAtNanos) {
-        return nanosToMillis(System.nanoTime() - startedAtNanos);
-    }
-
-    protected static long nanosToMillis(long durationNanos) {
-        return Math.max(0L, durationNanos / 1_000_000L);
     }
 
     protected static long maximumStatementDuration(List<ExecuteResponse> executeResults) {

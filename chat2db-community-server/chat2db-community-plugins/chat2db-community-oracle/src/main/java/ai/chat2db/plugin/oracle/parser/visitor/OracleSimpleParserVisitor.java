@@ -321,17 +321,21 @@ public class OracleSimpleParserVisitor extends PlSqlParserBaseVisitor<Void> {
         if (Objects.isNull(currentStatement)) {
             return null;
         }
-        currentStatement.setType(SqlTypeEnum.SET_SCHEMA.name());
         PlSqlParser.Alter_session_set_clauseContext alterSessionSetClauseContext = ctx.alter_session_set_clause();
-        if (Objects.nonNull(alterSessionSetClauseContext)) {
-            PlSqlParser.Parameter_valueContext parameterValueContext = alterSessionSetClauseContext.parameter_value(0);
-            if (Objects.nonNull(parameterValueContext)) {
-                Identifier identifier = new Identifier();
-                String schemaText = SqlStringUtil.removeQuote(parameterValueContext.getText());
-                identifier.setIdentifierSchema(schemaText);
-                identifier.setIdentifierType(IdentifierTypeEnum.SCHEMA.name());
-                currentStatement.addIdentifier(identifier);
-            }
+        if (Objects.isNull(alterSessionSetClauseContext)
+                || alterSessionSetClauseContext.parameter_name().isEmpty()
+                || !"CURRENT_SCHEMA".equalsIgnoreCase(
+                        alterSessionSetClauseContext.parameter_name(0).getText())) {
+            return super.visitAlter_session(ctx);
+        }
+        currentStatement.setType(SqlTypeEnum.SET_SCHEMA.name());
+        PlSqlParser.Parameter_valueContext parameterValueContext = alterSessionSetClauseContext.parameter_value(0);
+        if (Objects.nonNull(parameterValueContext)) {
+            Identifier identifier = new Identifier();
+            String schemaText = SqlStringUtil.removeQuote(parameterValueContext.getText());
+            identifier.setIdentifierSchema(schemaText);
+            identifier.setIdentifierType(IdentifierTypeEnum.SCHEMA.name());
+            currentStatement.addIdentifier(identifier);
         }
         return null;
     }

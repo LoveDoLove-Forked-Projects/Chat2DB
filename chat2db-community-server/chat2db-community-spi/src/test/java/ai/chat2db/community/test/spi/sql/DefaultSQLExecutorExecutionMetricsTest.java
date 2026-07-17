@@ -5,6 +5,7 @@ import ai.chat2db.community.domain.api.config.DriverConfig;
 import ai.chat2db.community.domain.api.model.result.ExecuteResponse;
 import ai.chat2db.community.domain.api.model.result.ExecutionMetrics;
 import ai.chat2db.community.domain.api.model.result.ResultCell;
+import ai.chat2db.community.domain.api.model.sql.RefreshTarget;
 import ai.chat2db.community.domain.api.model.sql.SimpleSqlStatement;
 import ai.chat2db.community.domain.api.model.sql.SqlExecuteRequest;
 import ai.chat2db.community.domain.api.service.db.ISqlExecutionResultConsumer;
@@ -26,8 +27,10 @@ import org.springframework.context.MessageSource;
 import org.springframework.context.MessageSourceResolvable;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Proxy;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -138,6 +141,99 @@ class DefaultSQLExecutorExecutionMetricsTest {
     }
 
     @Test
+    void nonStreamingScriptExposesIndependentMetricsForEveryResult() throws Exception {
+        try (Connection connection = openDatabase("multi_metrics")) {
+            putContext(connection);
+
+            List<ExecuteResponse> results = EXECUTOR.execute(request(
+                    "SELECT 1; SELECT 2"));
+
+            assertEquals(2, results.size());
+            assertEquals(1, results.get(0).getStatementSequence());
+            assertEquals(2, results.get(1).getStatementSequence());
+            assertMetrics(results.get(0), 1);
+            assertMetrics(results.get(1), 1);
+        }
+    }
+
+    @Test
+    void resultCarriesJdbcContextInEffectWhenStatementStarts() throws Exception {
+        try (Connection connection = openDatabase("execution_context")) {
+            putContext(connection);
+            try (Statement statement = connection.createStatement()) {
+                statement.execute("CREATE SCHEMA target_schema");
+            }
+
+            ExecuteResponse switchResult = EXECUTOR.execute(SqlStatementExecuteRequest.builder()
+                    .sql("SET SCHEMA target_schema")
+                    .connection(connection)
+                    .limitRowSize(true)
+                    .build());
+            ExecuteResponse queryResult = EXECUTOR.execute(SqlStatementExecuteRequest.builder()
+                    .sql("SELECT 1")
+                    .connection(connection)
+                    .limitRowSize(true)
+                    .build());
+
+            assertEquals("PUBLIC", switchResult.getExecutionContext().getSchemaName());
+            assertEquals("TARGET_SCHEMA", queryResult.getExecutionContext().getSchemaName());
+        }
+    }
+
+    @Test
+    void successfulUseDatabaseSynchronizesJdbcCatalog() throws Exception {
+        String[] catalog = {"source_database"};
+        String[] schema = {"source_schema"};
+        Connection connection = contextConnection(catalog, schema);
+        SimpleSqlStatement statement = useDatabaseStatement("target_database");
+
+        ((TestSQLExecutor) EXECUTOR).synchronizeContext(statement, connection,
+                List.of(ExecuteResponse.builder().success(Boolean.TRUE).build()));
+
+        assertEquals("target_database", connection.getCatalog());
+
+        catalog[0] = "source_database";
+        ((TestSQLExecutor) EXECUTOR).synchronizeContext(statement, connection,
+                List.of(ExecuteResponse.builder().success(Boolean.FALSE).build()));
+        assertEquals("source_database", connection.getCatalog());
+    }
+
+    @Test
+    void successfulSetSchemaSynchronizesOnlySingleSchemaTargets() throws Exception {
+        String[] catalog = {"source_database"};
+        String[] schema = {"source_schema"};
+        Connection connection = contextConnection(catalog, schema);
+
+        ((TestSQLExecutor) EXECUTOR).synchronizeContext(setSchemaStatement("target_schema"), connection,
+                List.of(ExecuteResponse.builder().success(Boolean.TRUE).build()));
+        assertEquals("target_schema", connection.getSchema());
+
+        schema[0] = "source_schema";
+        SimpleSqlStatement searchPath = setSchemaStatement("target_schema");
+        RefreshTarget fallbackTarget = new RefreshTarget();
+        fallbackTarget.setSchemaName("public");
+        searchPath.setRefreshTargets(List.of(searchPath.getRefreshTargets().get(0), fallbackTarget));
+        ((TestSQLExecutor) EXECUTOR).synchronizeContext(searchPath, connection,
+                List.of(ExecuteResponse.builder().success(Boolean.TRUE).build()));
+        assertEquals("source_schema", connection.getSchema());
+    }
+
+    @Test
+    void jdbcMultiResultMeasuresEachResultTransitionIndependently() throws Exception {
+        try (Connection connection = multiUpdateConnection(1, 2)) {
+            List<ExecuteResponse> results = ((TestSQLExecutor) EXECUTOR).executeMultiResults(connection);
+
+            assertEquals(2, results.size());
+            assertEquals(1, results.get(0).getUpdateCount());
+            assertEquals(2, results.get(1).getUpdateCount());
+            assertMetrics(results.get(0), 0);
+            assertMetrics(results.get(1), 0);
+            assertTrue(results.get(1).getExecutionMetrics().getStartedAtEpochMs()
+                    >= results.get(0).getExecutionMetrics().getStartedAtEpochMs());
+        }
+    }
+
+    @Test
     void failedStatementRetainsAvailableTimingInformation() throws Exception {
         try (Connection connection = openDatabase("failed_metrics")) {
             putContext(connection);
@@ -170,6 +266,96 @@ class DefaultSQLExecutorExecutionMetricsTest {
         return connection;
     }
 
+    private static Connection multiUpdateConnection(int... updateCounts) {
+        int[] index = {-1};
+        PreparedStatement statement = (PreparedStatement) Proxy.newProxyInstance(
+                PreparedStatement.class.getClassLoader(), new Class<?>[]{PreparedStatement.class},
+                (proxy, method, args) -> switch (method.getName()) {
+                    case "execute" -> {
+                        index[0] = 0;
+                        yield false;
+                    }
+                    case "getUpdateCount" -> index[0] >= 0 && index[0] < updateCounts.length
+                            ? updateCounts[index[0]]
+                            : -1;
+                    case "getMoreResults" -> {
+                        index[0]++;
+                        yield false;
+                    }
+                    default -> defaultValue(method.getReturnType());
+                });
+        return (Connection) Proxy.newProxyInstance(Connection.class.getClassLoader(), new Class<?>[]{Connection.class},
+                (proxy, method, args) -> "prepareStatement".equals(method.getName())
+                        ? statement
+                        : defaultValue(method.getReturnType()));
+    }
+
+    private static Connection contextConnection(String[] catalog, String[] schema) {
+        return (Connection) Proxy.newProxyInstance(Connection.class.getClassLoader(), new Class<?>[]{Connection.class},
+                (proxy, method, args) -> switch (method.getName()) {
+                    case "getCatalog" -> catalog[0];
+                    case "setCatalog" -> {
+                        catalog[0] = (String) args[0];
+                        yield null;
+                    }
+                    case "getSchema" -> schema[0];
+                    case "setSchema" -> {
+                        schema[0] = (String) args[0];
+                        yield null;
+                    }
+                    default -> defaultValue(method.getReturnType());
+                });
+    }
+
+    private static SimpleSqlStatement useDatabaseStatement(String databaseName) {
+        RefreshTarget refreshTarget = new RefreshTarget();
+        refreshTarget.setDatabaseName(databaseName);
+        SimpleSqlStatement statement = new SimpleSqlStatement("USE " + databaseName);
+        statement.setSqlType(ai.chat2db.community.domain.api.enums.parser.SqlTypeEnum.USE_DATABASE.name());
+        statement.setRefreshTargets(List.of(refreshTarget));
+        return statement;
+    }
+
+    private static SimpleSqlStatement setSchemaStatement(String schemaName) {
+        RefreshTarget refreshTarget = new RefreshTarget();
+        refreshTarget.setSchemaName(schemaName);
+        SimpleSqlStatement statement = new SimpleSqlStatement("SET SCHEMA " + schemaName);
+        statement.setSqlType(ai.chat2db.community.domain.api.enums.parser.SqlTypeEnum.SET_SCHEMA.name());
+        statement.setRefreshTargets(List.of(refreshTarget));
+        return statement;
+    }
+
+    private static Object defaultValue(Class<?> returnType) {
+        if (!returnType.isPrimitive()) {
+            return null;
+        }
+        if (returnType == boolean.class) {
+            return false;
+        }
+        if (returnType == int.class) {
+            return 0;
+        }
+        if (returnType == long.class) {
+            return 0L;
+        }
+        if (returnType == double.class) {
+            return 0D;
+        }
+        if (returnType == float.class) {
+            return 0F;
+        }
+        if (returnType == short.class) {
+            return (short) 0;
+        }
+        if (returnType == byte.class) {
+            return (byte) 0;
+        }
+        if (returnType == char.class) {
+            return '\0';
+        }
+        return null;
+    }
+
     private static SqlExecuteRequest request(String script) {
         SqlExecuteRequest request = new SqlExecuteRequest();
         request.setScript(script);
@@ -191,11 +377,17 @@ class DefaultSQLExecutorExecutionMetricsTest {
         assertTrue(metrics.getFinishedAtEpochMs() >= metrics.getStartedAtEpochMs());
         if (Boolean.TRUE.equals(result.getSuccess())) {
             assertEquals(expectedRowCount, metrics.getFetchedRowCount());
+            assertNotNull(metrics.getTotalDurationMs());
             assertNotNull(metrics.getExecuteDurationMs());
             assertNotNull(metrics.getFetchDurationMs());
+            assertEquals(metrics.getTotalDurationMs(),
+                    metrics.getExecuteDurationMs() + metrics.getFetchDurationMs());
             assertTrue(metrics.getExecuteDurationMs() >= 0L);
             assertTrue(metrics.getFetchDurationMs() >= 0L);
         } else {
+            assertNull(metrics.getTotalDurationMs());
+            assertNull(metrics.getExecuteDurationMs());
+            assertNull(metrics.getFetchDurationMs());
             assertNull(metrics.getFetchedRowCount());
         }
     }
@@ -258,6 +450,16 @@ class DefaultSQLExecutorExecutionMetricsTest {
 
         private static long statementDuration(List<ExecuteResponse> results) {
             return maximumStatementDuration(results);
+        }
+
+        private List<ExecuteResponse> executeMultiResults(Connection connection) throws Exception {
+            return executeMulti(new SimpleSqlStatement("multi update"), connection, true,
+                    null, null, null);
+        }
+
+        private void synchronizeContext(SimpleSqlStatement statement, Connection connection,
+                                        List<ExecuteResponse> executeResults) {
+            synchronizeExecutionContext(statement, connection, executeResults);
         }
 
         @Override

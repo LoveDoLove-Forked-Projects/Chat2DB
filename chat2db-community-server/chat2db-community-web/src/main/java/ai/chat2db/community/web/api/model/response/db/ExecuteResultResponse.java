@@ -5,6 +5,7 @@ import java.util.Map;
 
 
 import ai.chat2db.community.domain.api.model.result.Header;
+import ai.chat2db.community.domain.api.model.result.ExecutionContext;
 import ai.chat2db.community.domain.api.model.result.ExecutionMetrics;
 import ai.chat2db.community.domain.api.model.sql.RefreshTarget;
 import ai.chat2db.community.domain.api.model.result.ResultCell;
@@ -71,6 +72,7 @@ public class ExecuteResultResponse {
     private Integer resultSetId;
     private Integer statementSequence;
     private ExecutionMetrics executionMetrics;
+    private ExecutionContext executionContext;
 
 
 }
