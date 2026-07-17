@@ -68,8 +68,6 @@ public class SqlExecutionConsumer implements ISqlExecutionResultConsumer {
                 .dataList(rows)
                 .sqlType(result.getSqlType())
                 .resultSetId(result.getResultSetId())
-                .statementSequence(result.getStatementSequence())
-                .executionMetrics(result.getExecutionMetrics())
                 .extra(result.getExtra())
                 .canEdit(result.isCanEdit())
                 .tableName(result.getTableName())
