@@ -24,6 +24,7 @@ public class ConsoleSqlExecutionSink implements ISqlExecutionSink {
         SqlExecutionEvent event = SqlExecutionEvent.builder()
                 .executionId(executionId)
                 .eventSequence(eventSequence.incrementAndGet())
+                .occurredAtEpochMs(System.currentTimeMillis())
                 .eventType(eventType)
                 .statementSequence(statementSequence)
                 .resultSequence(resultSequence)

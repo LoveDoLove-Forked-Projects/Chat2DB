@@ -27,9 +27,7 @@ class SqlExecutionEventContext {
     }
 
     synchronized SqlExecutionEventIdentity statementFinished() {
-        SqlExecutionEventIdentity identity = snapshot();
-        currentResultSequence = null;
-        return identity;
+        return snapshot();
     }
 
     synchronized SqlExecutionEventIdentity currentIdentity() {
@@ -47,6 +45,9 @@ class SqlExecutionEventContext {
         }
         if (result != null && result.getResultSetId() != null) {
             return result.getResultSetId();
+        }
+        if (currentResultSequence != null) {
+            return currentResultSequence;
         }
         return fallbackResultSequence.incrementAndGet();
     }

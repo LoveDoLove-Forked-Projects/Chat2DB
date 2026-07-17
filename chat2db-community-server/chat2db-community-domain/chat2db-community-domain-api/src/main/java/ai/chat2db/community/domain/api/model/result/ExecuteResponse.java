@@ -114,4 +114,6 @@ public class ExecuteResponse {
     private List<RefreshTarget> refreshTargets;
     private String comment;
     private Integer resultSetId;
+    private Integer statementSequence;
+    private ExecutionMetrics executionMetrics;
 }

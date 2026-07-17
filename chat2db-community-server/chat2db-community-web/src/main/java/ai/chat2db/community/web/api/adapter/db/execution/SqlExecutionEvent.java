@@ -11,6 +11,8 @@ public class SqlExecutionEvent {
 
     private Long eventSequence;
 
+    private Long occurredAtEpochMs;
+
     private String eventType;
 
     private Integer statementSequence;

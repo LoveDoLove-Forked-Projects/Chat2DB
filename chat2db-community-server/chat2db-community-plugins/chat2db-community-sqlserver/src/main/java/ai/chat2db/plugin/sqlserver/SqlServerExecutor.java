@@ -121,13 +121,19 @@ public class SqlServerExecutor extends DefaultSQLExecutor {
         int resultCount = 0;
         for (String sql : sqlList) {
             try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+                long startedAtEpochMs = System.currentTimeMillis();
+                long executeStartedNanos = System.nanoTime();
                 boolean query = stmt.execute();
+                long executeDurationMs = elapsedMillis(executeStartedNanos);
                 do {
                     executeResult = ExecuteResponse.builder().sql(originalSql).success(Boolean.TRUE).build();
+                    long fetchDurationMs = 0L;
                     if (query) {
                         resultCount++;
                         if (resultSetId == null || resultCount == resultSetId) {
+                            long fetchStartedNanos = System.nanoTime();
                             executeResult = generateQueryExecuteResponse(stmt, limitRowSize, offset, count);
+                            fetchDurationMs = elapsedMillis(fetchStartedNanos);
                             executeResult.setResultSetId(resultCount);
                         }
                     } else {
@@ -139,6 +145,8 @@ public class SqlServerExecutor extends DefaultSQLExecutor {
                     }
                     executeResult.setSql(originalSql);
                     executeResult.setDuration(timeInterval.interval());
+                    executeResult.setStatementSequence(1);
+                    setExecutionMetrics(executeResult, startedAtEpochMs, executeDurationMs, fetchDurationMs);
                     executeResults.add(executeResult);
                     query = stmt.getMoreResults();
                 } while (query || stmt.getUpdateCount() != -1);
