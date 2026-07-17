@@ -1,5 +1,5 @@
 import { openSchemaSyncModal } from '@/blocks/NewTree/functions/schemaSync';
-import { ILoadDataOptions, treeConfig } from '@/blocks/NewTree/treeConfig';
+import { ILoadDataOptions, normalizeTreeNodeLoadResult, treeConfig } from '@/blocks/NewTree/treeConfig';
 import { TreeNodeType, initUserConfigTree } from '@/constants';
 import { runtimeEditionConfig } from '@/constants/runtimeEdition';
 import { dataSourceTreeService } from '@/database';
@@ -8,6 +8,7 @@ import connectionService from '@/service/connection';
 import { IConnectionDetails, IUserConfigTree, TreeNodeData } from '@/typings';
 import { GetTreeNodeKeyParams, UpdatePositionInTree } from '@/typings/tree';
 import { findNode, getParentNode, removeSubkeys, searchTreeNodes } from '@/utils';
+import { filterTreeNodesForDisplay } from '@/utils/filterTreeNodes';
 import React from 'react';
 import { PersistOptions, devtools, persist } from 'zustand/middleware';
 import { shallow } from 'zustand/shallow';
@@ -44,7 +45,7 @@ export interface TreeState {
   searchBarValue: string;
   // This value is escaped before tree search so brackets and other special characters remain valid.
   regularSearchBarValue: string;
-  searchResultKeys: string[];
+  searchResultKeys: string[] | null;
   searchResult: TreeNodeData[] | null;
   userConfigTree: IUserConfigTree;
   // Hidden node id
@@ -69,7 +70,7 @@ export const initTreeState = {
   expandedKeys: [],
   searchBarValue: '',
   regularSearchBarValue: '',
-  searchResultKeys: [],
+  searchResultKeys: null,
   // Search results
   searchResult: null,
   currentLoadingTreeNode: null,
@@ -103,7 +104,7 @@ export interface TreeAction {
   toggleExpandedKeys: (key: React.Key) => void;
   deleteDataSource: (dataSource: any) => Promise<void>;
   setSearchBarValue: (searchBarValue: string) => void;
-  setSearchResultKeys: (searchResultKeys: string[]) => void;
+  setSearchResultKeys: (searchResultKeys: TreeState['searchResultKeys']) => void;
   setSearchResult: (searchResult: any) => void;
   setCurrentLoadingTreeNode: (currentLoadingTreeNode: TreeNodeData | null) => void;
   getDataSourceList: (props?: { refresh?: boolean }) => void;
@@ -133,7 +134,13 @@ export interface TreeAction {
   ) => void;
 }
 
-const updateTreeData = (list: TreeNodeData[], key: React.Key, children: TreeNodeData[]): TreeNodeData[] => {
+const updateTreeData = (
+  list: TreeNodeData[],
+  key: React.Key,
+  children: TreeNodeData[],
+  childCount?: number,
+  clearChildCount = false,
+): TreeNodeData[] => {
   return (
     list.map((node) => {
       if (node.key === key) {
@@ -141,13 +148,14 @@ const updateTreeData = (list: TreeNodeData[], key: React.Key, children: TreeNode
           isLeaf: false,
           ...node,
           children: children || [],
+          ...(clearChildCount ? { childCount: undefined } : childCount === undefined ? {} : { childCount }),
         };
       }
       if (node.children) {
         return {
           isLeaf: false,
           ...node,
-          children: updateTreeData(node.children, key, children),
+          children: updateTreeData(node.children, key, children, childCount, clearChildCount),
         };
       }
       return node;
@@ -219,19 +227,20 @@ export const createTreeAction: StateCreator<TreeStore, [['zustand/devtools', nev
       treeConfig[treeNodeType]
         .getChildren?.({ ...extraParams, refresh })
         .then((res) => {
+          const loadResult = normalizeTreeNodeLoadResult(res);
           get().setCurrentLoadingTreeNode(null);
           // If it has already been expanded, it will not be expanded again.
           if (!get().expandedKeys.includes(key) && closeExpandTreeNode !== true) {
             get().setExpandedKeys([...get().expandedKeys, key]);
           }
           get().setTreeData((origin) => {
-            return updateTreeData(origin, key, res);
+            return updateTreeData(origin, key, loadResult.children, loadResult.total);
           });
-          resolve(res);
+          resolve(loadResult.children);
         })
         .catch(() => {
           get().setTreeData((origin) => {
-            return updateTreeData(origin, key, []);
+            return updateTreeData(origin, key, [], undefined, true);
           });
           get().toggleExpandedKeys(key);
           get().setCurrentLoadingTreeNode(null);
@@ -292,15 +301,31 @@ export const createTreeAction: StateCreator<TreeStore, [['zustand/devtools', nev
       const _treeData = treeData(get().treeData);
       set({ treeData: _treeData });
       if (get().searchBarValue && _treeData) {
-        const { matchedNodes, parentIdsWithMatches } = searchTreeNodes(_treeData!, get().searchBarValue);
+        const visibleTreeData = filterTreeNodesForDisplay(_treeData, {
+          hiddenTreeNodeIds: get().hiddenTreeNodeIds,
+          aiDataCollectionEnabled: runtimeEditionConfig.aiDataCollection,
+        });
+        const { matchedNodes, matchedKeys, parentIdsWithMatches } = searchTreeNodes(
+          visibleTreeData,
+          get().regularSearchBarValue,
+        );
         get().setSearchResult(matchedNodes);
+        get().setSearchResultKeys(matchedKeys);
         get().setExpandedKeys([...get().expandedKeys, ...parentIdsWithMatches]);
       }
     } else {
       set({ treeData });
       if (get().searchBarValue && treeData) {
-        const { matchedNodes, parentIdsWithMatches } = searchTreeNodes(treeData, get().searchBarValue);
+        const visibleTreeData = filterTreeNodesForDisplay(treeData, {
+          hiddenTreeNodeIds: get().hiddenTreeNodeIds,
+          aiDataCollectionEnabled: runtimeEditionConfig.aiDataCollection,
+        });
+        const { matchedNodes, matchedKeys, parentIdsWithMatches } = searchTreeNodes(
+          visibleTreeData,
+          get().regularSearchBarValue,
+        );
         get().setSearchResult(matchedNodes);
+        get().setSearchResultKeys(matchedKeys);
         get().setExpandedKeys(parentIdsWithMatches);
       }
     }
@@ -417,6 +442,8 @@ export const createTreeAction: StateCreator<TreeStore, [['zustand/devtools', nev
     set({
       searchBarValue,
       regularSearchBarValue: escapeRegExp(searchBarValue),
+      searchResultKeys: null,
+      searchResult: null,
     });
   },
   setSearchResultKeys: (searchResultKeys) => {

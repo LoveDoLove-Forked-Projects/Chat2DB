@@ -122,6 +122,11 @@ export interface IColumn {
   comment: string;
 }
 
+interface ICountedListResponse<T> {
+  data: T[];
+  total?: number | null;
+}
+
 export interface ISchemaParams {
   dataSourceId: number;
   databaseName: string;
@@ -200,15 +205,21 @@ const updateTableExample = createRequest<{ dbType: DatabaseTypeCode }, string>('
 const exportCreateTableSql = createRequest<ITableParams, string>('/api/rdb/ddl/export', { method: 'get' });
 const executeTable = createRequest<IExecuteTableParams, string>('/api/rdb/ddl/execute', { method: 'post' });
 
-const getColumnList = createRequest<ITableParams, IColumn[]>('/api/rdb/ddl/column_list', {
+const getColumnList = createRequest<ITableParams, ICountedListResponse<IColumn>>('/api/rdb/ddl/column_list', {
   method: 'get',
   delayTime: 200,
+  fullResponse: true,
 });
-const getIndexList = createRequest<ITableParams, IColumn[]>('/api/rdb/ddl/index_list', {
+const getIndexList = createRequest<ITableParams, ICountedListResponse<IColumn>>('/api/rdb/ddl/index_list', {
   method: 'get',
   delayTime: 200,
+  fullResponse: true,
 });
-const getKeyList = createRequest<ITableParams, IColumn[]>('/api/rdb/ddl/key_list', { method: 'get', delayTime: 200 });
+const getKeyList = createRequest<ITableParams, ICountedListResponse<IColumn>>('/api/rdb/ddl/key_list', {
+  method: 'get',
+  delayTime: 200,
+  fullResponse: true,
+});
 const getSchemaList = createRequest<ISchemaParams, ISchemaResponse[]>('/api/rdb/ddl/schema_list', {
   method: 'get',
   delayTime: 200,
@@ -257,9 +268,13 @@ const getProcedureList = createRequest<IGetTableListParams, IPageResponse<IRouti
 });
 
 /** Get the view column list */
-const getViewColumnList = createRequest<IGetTableListParams, IPageResponse<IRoutines>>('/api/rdb/view/column_list', {
-  method: 'get',
-});
+const getViewColumnList = createRequest<IGetTableListParams, ICountedListResponse<IRoutines>>(
+  '/api/rdb/view/column_list',
+  {
+    method: 'get',
+    fullResponse: true,
+  },
+);
 
 /** Get view details */
 const getViewDetail = createRequest<

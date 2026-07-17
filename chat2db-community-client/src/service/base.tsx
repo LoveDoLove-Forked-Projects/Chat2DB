@@ -21,6 +21,7 @@ export interface IOptions {
   isFullPath?: boolean;
   dynamicUrl?: boolean;
   contentType?: string; // Content-Type used to set request headers
+  fullResponse?: boolean;
 }
 
 const errorHandler = (error: ResponseError, errorLevel: IErrorLevel) => {
@@ -72,7 +73,7 @@ request.interceptors.response.use(async (response, _options) => {
 });
 
 export default function createRequest<P = void, R = void>(url: string, options?: IOptions) {
-  const { method = 'get', isFullPath, dynamicUrl, contentType } = options || {};
+  const { method = 'get', isFullPath, dynamicUrl, contentType, fullResponse = false } = options || {};
   const { errorLevel: initialErrorLevel = 'notification', timeout = true, permissionError = 'apply' } = options || {};
   let errorLevel = initialErrorLevel;
   return function (
@@ -108,7 +109,7 @@ export default function createRequest<P = void, R = void>(url: string, options?:
           method,
           message: params,
         },
-        { errorLevel, permissionError, timeout, restParams: restParams as DesktopRequestOptions },
+        { errorLevel, permissionError, timeout, fullResponse, restParams: restParams as DesktopRequestOptions },
       );
     } else {
       return new Promise<R>((resolve, reject) => {
@@ -179,7 +180,7 @@ export default function createRequest<P = void, R = void>(url: string, options?:
             const { success, errorCode, errorMessage, errorDetail, solutionLink, data } = res;
             // If the request is successful
             if (success) {
-              resolve(data);
+              resolve(fullResponse ? res : data);
               return;
             }
             // If the request fails

@@ -189,6 +189,14 @@ const TitleRender = (props: IProps) => {
     return <span className={styles.treeNodeDescribe}>{nodeData.describe}</span>;
   };
 
+  const renderChildCount = () => {
+    if (searchBarValue || nodeData.childCount === undefined) {
+      return null;
+    }
+
+    return <span className={styles.treeNodeCount}>{nodeData.childCount}</span>;
+  };
+
   const renderContent = () => {
     const regular: any = () => (
       <span
@@ -234,6 +242,7 @@ const TitleRender = (props: IProps) => {
         </div>
         <div className={styles.customIconBox}>{renderIcon()}</div>
         {renderContent()}
+        {renderChildCount()}
         {renderDescribe()}
         <Filtration styles={styles} nodeData={nodeData} nodeFilteringRef={nodeFilteringRef} />
       </div>

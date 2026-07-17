@@ -43,6 +43,7 @@ export interface TreeNodeData extends AntdTreeDataNode {
   extraParams: IExtraParams;
   decorativeParams?: DecorativeParams;
   columnType?: string;
+  childCount?: number;
 
   children?: TreeNodeData[];
 }

@@ -8,6 +8,7 @@ import ai.chat2db.community.domain.api.service.db.IDbViewService;
 import ai.chat2db.community.tools.wrapper.result.ActionResult;
 import ai.chat2db.community.tools.wrapper.result.DataResult;
 import ai.chat2db.community.tools.wrapper.result.ListResult;
+import ai.chat2db.community.tools.wrapper.result.ListResultWithTotal;
 import ai.chat2db.community.tools.wrapper.result.web.WebPageResult;
 import ai.chat2db.community.web.api.aspect.connection.ConnectionInfoAspect;
 import ai.chat2db.community.web.api.converter.db.DbWebConverter;
@@ -62,14 +63,14 @@ public class DbViewController {
      * Endpoint: {@code GET /api/rdb/view/column_list}.
      *
      * @param request request payload or query parameters for the operation.
-     * @return list result containing column response.
+     * @return list result containing column responses and their total count.
      */
     @GetMapping("/column_list")
-    public ListResult<ColumnResponse> columnList(@Valid TableDetailQueryRequest request) {
+    public ListResultWithTotal<ColumnResponse> columnList(@Valid TableDetailQueryRequest request) {
         DbTableQueryRequest queryParam = dbWebConverter.tableRequest2param(request);
         List<TableColumn> tableColumns = tableService.queryColumns(queryParam);
         List<ColumnResponse> tableResponses = dbWebConverter.columnDto2response(tableColumns);
-        return ListResult.of(tableResponses);
+        return ListResultWithTotal.from(tableResponses);
     }
 
 

@@ -9,6 +9,8 @@ import { useOrgStore } from '@/store/organization';
 import { useGlobalStore } from '@/store/global';
 import i18n from '@/i18n';
 import { searchTreeNodes } from '@/utils';
+import { filterTreeNodesForDisplay } from '@/utils/filterTreeNodes';
+import { runtimeEditionConfig } from '@/constants/runtimeEdition';
 import { useUpdateEffect } from 'ahooks';
 import { debounce } from 'lodash';
 import {
@@ -40,19 +42,15 @@ const WorkspaceLeftActionBar = memo<WorkspaceLeftActionBarProps>(
     const {
       refreshTreeData,
       searchBarValue,
-      regularSearchBarValue,
       setSearchBarValue,
-      setSearchResult,
-      setExpandedKeys,
-      treeData,
+      searchResultKeys,
+      hiddenTreeNodeIds,
     } = useTreeStore((s) => ({
       refreshTreeData: s.refreshTreeData,
       searchBarValue: s.searchBarValue,
-      regularSearchBarValue: s.regularSearchBarValue,
       setSearchBarValue: s.setSearchBarValue,
-      setSearchResult: s.setSearchResult,
-      setExpandedKeys: s.setExpandedKeys,
-      treeData: s.treeData,
+      searchResultKeys: s.searchResultKeys,
+      hiddenTreeNodeIds: s.hiddenTreeNodeIds,
     }));
 
     const { isEmbedIframe, shortcutOverrides } = useGlobalStore((s) => ({
@@ -88,22 +86,30 @@ const WorkspaceLeftActionBar = memo<WorkspaceLeftActionBarProps>(
     };
 
     const debouncedSearch = useCallback(
-      debounce((_treeData, value, _setSearchResult) => {
+      debounce(() => {
+        const treeStore = useTreeStore.getState();
+        const value = treeStore.regularSearchBarValue;
         if (!value) {
-          _setSearchResult(null);
+          treeStore.setSearchResult(null);
+          treeStore.setSearchResultKeys(null);
           return;
         }
-        const { matchedNodes, parentIdsWithMatches } = searchTreeNodes(_treeData || [], value);
-        _setSearchResult(matchedNodes);
-        const _expandedKeys = useTreeStore.getState().expandedKeys;
-        setExpandedKeys([...parentIdsWithMatches, ..._expandedKeys]);
+        const visibleTreeData = filterTreeNodesForDisplay(treeStore.treeData || [], {
+          hiddenTreeNodeIds: treeStore.hiddenTreeNodeIds,
+          aiDataCollectionEnabled: runtimeEditionConfig.aiDataCollection,
+        });
+        const { matchedNodes, matchedKeys, parentIdsWithMatches } = searchTreeNodes(visibleTreeData, value);
+        treeStore.setSearchResult(matchedNodes);
+        treeStore.setSearchResultKeys(matchedKeys);
+        treeStore.setExpandedKeys([...parentIdsWithMatches, ...treeStore.expandedKeys]);
       }, 300),
       [],
     );
 
     useUpdateEffect(() => {
-      debouncedSearch(treeData, regularSearchBarValue, setSearchResult);
-    }, [searchBarValue]);
+      debouncedSearch();
+      return () => debouncedSearch.cancel();
+    }, [searchBarValue, hiddenTreeNodeIds, debouncedSearch]);
 
     useEffect(() => {
       if (!active) {
@@ -142,6 +148,11 @@ const WorkspaceLeftActionBar = memo<WorkspaceLeftActionBarProps>(
             placeholder={i18n('common.text.search')}
             value={searchBarValue}
             onChange={searchBarOnChange}
+            suffix={
+              <span className={styles.searchMatchCount}>
+                {searchBarValue && searchResultKeys ? searchResultKeys.length : null}
+              </span>
+            }
           />
         </div>
         <div className={styles.workspaceLeftActionBar}>

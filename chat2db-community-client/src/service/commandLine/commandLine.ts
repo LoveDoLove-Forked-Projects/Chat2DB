@@ -30,6 +30,7 @@ export interface IOptions {
   permissionError: PermissionError;
   // Whether a timeout is required, the default is true, currently only needs to be set to false when executing sql
   timeout?: boolean;
+  fullResponse?: boolean;
   // The second parameter of the request
   restParams?: DesktopRequestOptions;
 }
@@ -148,7 +149,7 @@ export const pushMessageFlow = (_data) => {
     responseInterceptor(messageData, requestData, options);
     // Process request results
     if (success) {
-      resolve?.(messageData?.data);
+      resolve?.(options.fullResponse ? messageData : messageData?.data);
     } else {
       reject({
         errorCode: errorCode,

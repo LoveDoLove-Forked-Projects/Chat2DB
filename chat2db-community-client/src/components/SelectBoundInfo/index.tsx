@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, memo, Fragment } from 'react';
 import { Dropdown, Input } from 'antd';
 import { useStyles } from './style';
 import { TreeNodeType, databaseMap, DatabaseTypeCode } from '@/constants';
-import { treeConfig, switchIcon } from '@/blocks/NewTree/treeConfig';
+import { normalizeTreeNodeLoadResult, treeConfig, switchIcon } from '@/blocks/NewTree/treeConfig';
 import isEqual from 'lodash/isEqual';
 import { IconfontSvg, ToolbarBtn } from '@chat2db/ui';
 import { useTreeStore } from '@/store/tree';
@@ -88,7 +88,9 @@ const SelectBoundInfo = memo(
     const [schemaOptions, setSchemaOptions] = useState<any>([]);
 
     const getOptions = (treeNodeType: TreeNodeType, _boundInfo?) => {
-      return treeConfig[treeNodeType]?.getChildren?.({ ...(_boundInfo || boundInfo), needAiDataCollections: false });
+      return treeConfig[treeNodeType]?.getChildren
+        ?.({ ...(_boundInfo || boundInfo), needAiDataCollections: false })
+        .then((result) => normalizeTreeNodeLoadResult(result).children);
     };
 
   // Check whether the current data source is accessible.

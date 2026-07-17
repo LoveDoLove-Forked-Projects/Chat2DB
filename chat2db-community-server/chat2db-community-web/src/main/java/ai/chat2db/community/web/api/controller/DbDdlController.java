@@ -11,6 +11,7 @@ import ai.chat2db.community.domain.api.service.db.IDbTableService;
 import ai.chat2db.community.tools.wrapper.result.ActionResult;
 import ai.chat2db.community.tools.wrapper.result.DataResult;
 import ai.chat2db.community.tools.wrapper.result.ListResult;
+import ai.chat2db.community.tools.wrapper.result.ListResultWithTotal;
 import ai.chat2db.community.tools.wrapper.result.web.WebPageResult;
 import ai.chat2db.community.web.api.aspect.connection.ConnectionInfoAspect;
 import ai.chat2db.community.web.api.model.request.data.source.DataSourceBaseRequest;
@@ -103,14 +104,14 @@ public class DbDdlController {
      * Endpoint: {@code GET /api/rdb/ddl/column_list}.
      *
      * @param request request payload or query parameters for the operation.
-     * @return list result containing column response.
+     * @return list result containing column responses and their total count.
      */
     @GetMapping("/column_list")
-    public ListResult<ColumnResponse> columnList(@Valid TableDetailQueryRequest request) {
+    public ListResultWithTotal<ColumnResponse> columnList(@Valid TableDetailQueryRequest request) {
         DbTableQueryRequest queryParam = dbWebConverter.tableRequest2param(request);
         List<TableColumn> tableColumns = tableService.queryColumns(queryParam);
         List<ColumnResponse> tableResponses = dbWebConverter.columnDto2response(tableColumns);
-        return ListResult.of(tableResponses);
+        return ListResultWithTotal.from(tableResponses);
     }
 
     /**
@@ -119,14 +120,14 @@ public class DbDdlController {
      * Endpoint: {@code GET /api/rdb/ddl/index_list}.
      *
      * @param request request payload or query parameters for the operation.
-     * @return list result containing index response.
+     * @return list result containing index responses and their total count.
      */
     @GetMapping("/index_list")
-    public ListResult<IndexResponse> indexList(@Valid TableDetailQueryRequest request) {
+    public ListResultWithTotal<IndexResponse> indexList(@Valid TableDetailQueryRequest request) {
         DbTableQueryRequest queryParam = dbWebConverter.tableRequest2param(request);
         List<TableIndex> tableIndices = tableService.queryIndexes(queryParam);
         List<IndexResponse> indexResponses = dbWebConverter.indexDto2response(tableIndices);
-        return ListResult.of(indexResponses);
+        return ListResultWithTotal.from(indexResponses);
     }
 
     /**
@@ -135,12 +136,12 @@ public class DbDdlController {
      * Endpoint: {@code GET /api/rdb/ddl/key_list}.
      *
      * @param request request payload or query parameters for the operation.
-     * @return list result containing index response.
+     * @return list result containing key responses and their total count.
      */
     @GetMapping("/key_list")
-    public ListResult<IndexResponse> keyList(@Valid TableDetailQueryRequest request) {
+    public ListResultWithTotal<IndexResponse> keyList(@Valid TableDetailQueryRequest request) {
         DbTableQueryRequest queryParam = dbWebConverter.tableRequest2param(request);
-        return ListResult.of(dbWebConverter.indexDto2response(tableService.queryKeys(queryParam)));
+        return ListResultWithTotal.from(dbWebConverter.indexDto2response(tableService.queryKeys(queryParam)));
     }
 
     /**

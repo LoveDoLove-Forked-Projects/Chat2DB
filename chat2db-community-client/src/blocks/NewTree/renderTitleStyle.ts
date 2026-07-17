@@ -47,6 +47,14 @@ export const useStyles = createStyles(({ css, token }) => {
       flex-shrink: 0;
       user-select: none;
     `,
+    treeNodeCount: css`
+      margin-left: 6px;
+      font-size: 12px;
+      color: ${token.colorTextQuaternary};
+      white-space: nowrap;
+      flex-shrink: 0;
+      user-select: none;
+    `,
     filtration: css`
       flex-shrink: 0;
       white-space: nowrap;

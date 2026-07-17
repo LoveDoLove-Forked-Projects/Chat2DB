@@ -478,63 +478,7 @@ export const findNodeAndOperate = (
 //   return result;
 // }
 
-export function searchTreeNodes(
-  treeNodes: TreeNodeData[],
-  searchValue: string,
-): { matchedNodes: TreeNodeData[]; parentIdsWithMatches: string[] } {
-  const result: TreeNodeData[] = [];
-  const parentIdsWithMatches: string[] = [];
-
-  function traverse(node: TreeNodeData, _searchValue: string): TreeNodeData | null {
-    let hasMatchingChild = false;
-
-    if (isMatched(_searchValue, [node.originalTitle, node.describe || ''])) {
-      return { ...node };
-    } else if (node.children) {
-      const matchingChildren = node.children
-        .map((child) => {
-          const match = traverse(child, _searchValue);
-          if (match) hasMatchingChild = true;
-          return match;
-        })
-        .filter(Boolean);
-
-      if (matchingChildren.length > 0) {
-        if (hasMatchingChild) {
-          parentIdsWithMatches.push(node.key as string);
-        }
-        return { ...node, children: matchingChildren };
-      }
-    }
-    return null;
-  }
-
-  (treeNodes || []).forEach((node) => {
-    const matchingNode = traverse(node, searchValue);
-    if (matchingNode) {
-      result.push(matchingNode);
-    }
-  });
-
-  return { matchedNodes: result, parentIdsWithMatches };
-}
-
-// Use regular expressions to determine whether to match
-export function isMatched(searchValue: string, originalTitle: string | string[]) {
-  const modifiedSearchValue = searchValue.replace(/_/g, '');
-  if (Array.isArray(originalTitle)) {
-    return originalTitle.some((title) => new RegExp(modifiedSearchValue, 'gi').test(title.replace(/_/g, '')));
-  }
-  return new RegExp(modifiedSearchValue, 'gi').test(originalTitle.replace(/_/g, ''));
-}
-
-// Use regular expressions to determine whether to match and replace
-export function isMatchedAndReplace(searchValue: string, originalTitle: string) {
-  return originalTitle?.replace(
-    new RegExp(searchValue, 'gi'),
-    (matched) => `<span style='color:red;'>${matched}</span>`,
-  );
-}
+export { isMatched, isMatchedAndReplace, searchTreeNodes } from './searchTreeNodes';
 
 // Compare each pair passed to React.memo's equality callback.
 // Return true only when every pair contains equal values.

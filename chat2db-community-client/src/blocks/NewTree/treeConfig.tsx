@@ -159,10 +159,19 @@ export interface OperationColumnObject {
 }
 
 export interface ITreeConfigItem {
-  getChildren?: (extraParams: any, options?: ILoadDataOptions) => Promise<TreeNodeData[]>;
+  getChildren?: (extraParams: any, options?: ILoadDataOptions) => Promise<TreeNodeData[] | TreeNodeLoadResult>;
   createTreeNodeKey?: (data: any) => string;
   renameCallback?: any;
 }
+
+export interface TreeNodeLoadResult {
+  children: TreeNodeData[];
+  total?: number;
+}
+
+export const normalizeTreeNodeLoadResult = (
+  result: TreeNodeData[] | TreeNodeLoadResult,
+): TreeNodeLoadResult => (Array.isArray(result) ? { children: result } : result);
 
 // receives an object. When the value in the object contains '' or null, it is converted to undefined.
 export const formatObject = (obj: Record<string, any>): Record<string, string | any> => {
@@ -879,7 +888,7 @@ export const treeConfig: { [key in TreeNodeType]: ITreeConfigItem } = {
                 pinnedList.push(t.name);
               }
             });
-            r(tableList);
+            r({ children: tableList, total: res.total });
           })
           .catch((error) => {
             j(error);
@@ -954,7 +963,7 @@ export const treeConfig: { [key in TreeNodeType]: ITreeConfigItem } = {
 
   [TreeNodeType.VIEWS]: {
     getChildren: (extraParams) => {
-      return new Promise((r: (value: TreeNodeData[]) => void, j) => {
+      return new Promise((r: (value: TreeNodeLoadResult) => void, j) => {
         const { dataSourceId, databaseName, schemaName } = extraParams;
         mysqlServer
           .getViewList(extraParams)
@@ -979,7 +988,7 @@ export const treeConfig: { [key in TreeNodeType]: ITreeConfigItem } = {
                 },
               };
             });
-            r(viewList);
+            r({ children: viewList || [], total: res.total });
           })
           .catch((error) => {
             j(error);
@@ -999,7 +1008,7 @@ export const treeConfig: { [key in TreeNodeType]: ITreeConfigItem } = {
 
   [TreeNodeType.FUNCTIONS]: {
     getChildren: (extraParams) => {
-      return new Promise((r: (value: TreeNodeData[]) => void, j) => {
+      return new Promise((r: (value: TreeNodeLoadResult) => void, j) => {
         const { dataSourceId, databaseName, schemaName } = extraParams;
         mysqlServer
           .getFunctionList(extraParams)
@@ -1024,7 +1033,7 @@ export const treeConfig: { [key in TreeNodeType]: ITreeConfigItem } = {
                 },
               };
             });
-            r(list);
+            r({ children: list || [], total: res.total });
           })
           .catch((error) => {
             j(error);
@@ -1045,7 +1054,7 @@ export const treeConfig: { [key in TreeNodeType]: ITreeConfigItem } = {
   [TreeNodeType.PROCEDURES]: {
     getChildren: (extraParams) => {
       const { dataSourceId, databaseName, schemaName } = extraParams;
-      return new Promise((r: (value: TreeNodeData[]) => void, j) => {
+      return new Promise((r: (value: TreeNodeLoadResult) => void, j) => {
         mysqlServer
           .getProcedureList(extraParams)
           .then((res) => {
@@ -1068,7 +1077,7 @@ export const treeConfig: { [key in TreeNodeType]: ITreeConfigItem } = {
                 },
               };
             });
-            r(list);
+            r({ children: list || [], total: res.total });
           })
           .catch((error) => {
             j(error);
@@ -1089,7 +1098,7 @@ export const treeConfig: { [key in TreeNodeType]: ITreeConfigItem } = {
   [TreeNodeType.TRIGGERS]: {
     getChildren: (extraParams) => {
       const { dataSourceId, databaseName, schemaName } = extraParams;
-      return new Promise((r: (value: TreeNodeData[]) => void, j) => {
+      return new Promise((r: (value: TreeNodeLoadResult) => void, j) => {
         mysqlServer
           .getTriggerList(extraParams)
           .then((res) => {
@@ -1112,7 +1121,7 @@ export const treeConfig: { [key in TreeNodeType]: ITreeConfigItem } = {
                 },
               };
             });
-            r(list);
+            r({ children: list || [], total: res.total });
           })
           .catch((error) => {
             j(error);
@@ -1132,7 +1141,7 @@ export const treeConfig: { [key in TreeNodeType]: ITreeConfigItem } = {
 
   [TreeNodeType.VIEWCOLUMNS]: {
     getChildren: (extraParams) => {
-      return new Promise((r: (value: TreeNodeData[]) => void, j) => {
+      return new Promise((r: (value: TreeNodeLoadResult) => void, j) => {
         const { dataSourceId, databaseName, schemaName } = extraParams;
         mysqlServer
           .getViewColumnList(extraParams)
@@ -1154,7 +1163,7 @@ export const treeConfig: { [key in TreeNodeType]: ITreeConfigItem } = {
                 extraParams,
               };
             });
-            r(list);
+            r({ children: list || [], total: res.total ?? list?.length ?? 0 });
           })
           .catch((error) => {
             j(error);
@@ -1262,12 +1271,12 @@ export const treeConfig: { [key in TreeNodeType]: ITreeConfigItem } = {
 
   [TreeNodeType.COLUMNS]: {
     getChildren: (extraParams) => {
-      return new Promise((r: (value: TreeNodeData[]) => void, j) => {
+      return new Promise((r: (value: TreeNodeLoadResult) => void, j) => {
         const { dataSourceId, databaseName, schemaName, tableName } = extraParams;
         mysqlServer
           .getColumnList(extraParams)
           .then((res) => {
-            const tableList: TreeNodeData[] = res?.map((item) => {
+            const tableList: TreeNodeData[] = res.data?.map((item) => {
               const key = treeConfig[TreeNodeType.COLUMN].createTreeNodeKey!({
                 dataSourceId,
                 databaseName,
@@ -1287,7 +1296,7 @@ export const treeConfig: { [key in TreeNodeType]: ITreeConfigItem } = {
                 extraParams,
               };
             });
-            r(tableList);
+            r({ children: tableList || [], total: res.total ?? tableList?.length ?? 0 });
           })
           .catch(() => {
             j();
@@ -1322,12 +1331,12 @@ export const treeConfig: { [key in TreeNodeType]: ITreeConfigItem } = {
 
   [TreeNodeType.KEYS]: {
     getChildren: (extraParams) => {
-      return new Promise((r: (value: TreeNodeData[]) => void, j) => {
+      return new Promise((r: (value: TreeNodeLoadResult) => void, j) => {
         const { dataSourceId, databaseName, schemaName, tableName } = extraParams;
         mysqlServer
           .getKeyList(extraParams)
           .then((res) => {
-            const tableList: TreeNodeData[] = res?.map((item) => {
+            const tableList: TreeNodeData[] = res.data?.map((item) => {
               const key = treeConfig[TreeNodeType.KEY].createTreeNodeKey!({
                 dataSourceId,
                 databaseName,
@@ -1344,7 +1353,7 @@ export const treeConfig: { [key in TreeNodeType]: ITreeConfigItem } = {
                 extraParams,
               };
             });
-            r(tableList);
+            r({ children: tableList || [], total: res.total ?? tableList?.length ?? 0 });
           })
           .catch(() => {
             j();
@@ -1379,12 +1388,12 @@ export const treeConfig: { [key in TreeNodeType]: ITreeConfigItem } = {
 
   [TreeNodeType.INDEXES]: {
     getChildren: (extraParams) => {
-      return new Promise((r: (value: TreeNodeData[]) => void, j) => {
+      return new Promise((r: (value: TreeNodeLoadResult) => void, j) => {
         const { dataSourceId, databaseName, schemaName, tableName } = extraParams;
         mysqlServer
           .getIndexList(extraParams)
           .then((res) => {
-            const tableList: TreeNodeData[] = res?.map((item) => {
+            const tableList: TreeNodeData[] = res.data?.map((item) => {
               const key = treeConfig[TreeNodeType.INDEX].createTreeNodeKey!({
                 dataSourceId,
                 databaseName,
@@ -1401,7 +1410,7 @@ export const treeConfig: { [key in TreeNodeType]: ITreeConfigItem } = {
                 extraParams,
               };
             });
-            r(tableList);
+            r({ children: tableList || [], total: res.total ?? tableList?.length ?? 0 });
           })
           .catch(() => {
             j();
@@ -1436,7 +1445,7 @@ export const treeConfig: { [key in TreeNodeType]: ITreeConfigItem } = {
 
   [TreeNodeType.SAVE_CONSOLES]: {
     getChildren: (extraParams) => {
-      return new Promise((r: (value: TreeNodeData[]) => void, j) => {
+      return new Promise((r: (value: TreeNodeLoadResult) => void, j) => {
         const { dataSourceId, databaseName, schemaName } = extraParams;
         historyService
           .getConsoleList({
@@ -1470,7 +1479,7 @@ export const treeConfig: { [key in TreeNodeType]: ITreeConfigItem } = {
                 },
               };
             });
-            r(tableList);
+            r({ children: tableList || [], total: res.total });
           })
           .catch(() => {
             j();

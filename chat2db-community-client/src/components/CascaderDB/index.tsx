@@ -346,7 +346,7 @@ function CascaderDB(props: IProps) {
     )
       return;
 
-    const columnList = await sqlService.getColumnList({
+    const columnResult = await sqlService.getColumnList({
       dataSourceId: curDataSourceId!,
       databaseName: curDatabaseName,
       schemaName: curSchemeName,
@@ -363,7 +363,7 @@ function CascaderDB(props: IProps) {
           </div>
         ),
       },
-      ...(columnList || []).map((item) => ({
+      ...(columnResult.data || []).map((item) => ({
         ...item,
         key: `column-${item.name}`,
         value: item.name,

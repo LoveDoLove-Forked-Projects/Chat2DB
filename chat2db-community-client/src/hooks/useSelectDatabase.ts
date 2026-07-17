@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { treeConfig } from '@/blocks/NewTree/treeConfig';
+import { normalizeTreeNodeLoadResult, treeConfig } from '@/blocks/NewTree/treeConfig';
 import { DatabaseTypeCode } from '@/constants';
 import { databaseMap } from '@/constants/database';
 import { getDatabaseSupport } from '@/utils/database';
@@ -92,7 +92,7 @@ const useSelectDatabase = (props: IUseSelectDatabaseProps) => {
         refresh: true,
       })
       .then((res) => {
-        const _dataSourceList = res.map((item) => {
+        const _dataSourceList = normalizeTreeNodeLoadResult(res).children.map((item) => {
           return {
             value: item.extraParams.dataSourceId!,
             label: item.originalTitle,
@@ -116,7 +116,7 @@ const useSelectDatabase = (props: IUseSelectDatabaseProps) => {
         refresh: true,
       })
       .then((res) => {
-        const _databaseList = res.map((item) => {
+        const _databaseList = normalizeTreeNodeLoadResult(res).children.map((item) => {
           return {
             value: item.extraParams.databaseName!,
             label: item.originalTitle,
@@ -138,7 +138,7 @@ const useSelectDatabase = (props: IUseSelectDatabaseProps) => {
         refresh: true,
       })
       .then((res) => {
-        const _schemaList = res.map((item) => {
+        const _schemaList = normalizeTreeNodeLoadResult(res).children.map((item) => {
           return {
             value: item.extraParams.schemaName!,
             label: item.originalTitle,

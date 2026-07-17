@@ -32,5 +32,12 @@ export const useStyles = createStyles(({ css, token }) => {
       background-color: ${token.colorFillTertiary};
       height: 25px;
     `,
+    searchMatchCount: css`
+      color: ${token.colorTextQuaternary};
+      font-size: 12px;
+      line-height: 1;
+      white-space: nowrap;
+      user-select: none;
+    `,
   };
 });
