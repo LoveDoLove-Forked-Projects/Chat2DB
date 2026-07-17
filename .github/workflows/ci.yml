@@ -42,8 +42,20 @@ jobs:
       - name: Run Stylelint
         run: yarn lint:style
 
-      - name: Run frontend test
+      - name: Run SQL clipboard test
         run: yarn run test:sql-in-clipboard
+
+      - name: Run BaseTable tree interaction contract
+        run: yarn run test:base-table-interaction
+
+      - name: Run database object sorting contract
+        run: yarn run test:database-object-sorting
+
+      - name: Run Redis explorer contract
+        run: yarn run test:redis-explorer
+
+      - name: Run SQL execution log contract
+        run: yarn run test:sql-execution-log
 
       - name: Build Community web client
         run: yarn run build:web:community --app_version=5.3.0
