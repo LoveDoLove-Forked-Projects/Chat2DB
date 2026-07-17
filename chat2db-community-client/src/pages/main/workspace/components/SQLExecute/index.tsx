@@ -26,20 +26,26 @@ import i18n from '@/i18n';
 import { staticMessage } from '@chat2db/ui';
 import {
   SqlExecutionEvent,
-  SqlExecutionMessage,
   SqlExecutionStatement,
   appendResultStarted,
   appendResultFinished,
-  appendMessageToResult,
   attachExecutionIdentity,
-  createMessageOnlyResult,
-  mergeExecutionMessages,
   mergeRows,
-  removeMessageOnlyPlaceholder,
   sortExecutionResults,
   upsertResultFinished,
   upsertResultStarted,
 } from '@/service/sqlExecutionStream';
+import {
+  beginWebSqlExecution,
+  clearSqlExecutionLog,
+  completeWebSqlExecution,
+  createSqlExecutionLogState,
+  failWebSqlExecution,
+  reduceDesktopSqlExecutionEvent,
+  SqlExecutionLogContext,
+} from '@/service/sqlExecutionLog';
+import { isDesktop } from '@/utils/env';
+import { v4 as uuidv4 } from 'uuid';
 
 const SplitPaneAny = SplitPane as any;
 const HISTORY_RESULT_LIMIT = 30;
@@ -155,6 +161,15 @@ function getEventResultSequence(event: SqlExecutionEvent, result?: IManageResult
   return fallback;
 }
 
+function getExecutionLogContext(boundInfo: IBoundInfo): SqlExecutionLogContext {
+  return {
+    dataSourceId: boundInfo.dataSourceId,
+    dataSourceName: boundInfo.dataSourceName,
+    databaseName: boundInfo.databaseName,
+    schemaName: boundInfo.schemaName,
+  };
+}
+
 const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) => {
   const {
     boundInfo: _boundInfo,
@@ -178,7 +193,6 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
   const statementSqlCountsRef = useRef<Record<string, number>>({});
   const statementBySequenceRef = useRef<Record<number, SqlExecutionStatement>>({});
   const currentStatementRef = useRef<SqlExecutionStatement>();
-  const pendingExecutionMessagesRef = useRef<SqlExecutionMessage[]>([]);
   const [resultBatchKey, setResultBatchKey] = useState(0);
   const { activeConsoleId, setEditorToList, deleteEditor, updateWorkspaceTabBoundInfo } = useWorkspaceStore(
     (state) => ({
@@ -192,6 +206,8 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
   const resultDataListRef = useRef<IManageResultData[]>([]);
   const [historyResultDataList, setHistoryResultDataList] = useState<IManageResultData[]>([]);
   const historyResultDataListRef = useRef<IManageResultData[]>([]);
+  const [sqlExecutionLogState, setSqlExecutionLogState] = useState(createSqlExecutionLogState);
+  const handleClearExecutionLog = useCallback(() => setSqlExecutionLogState(clearSqlExecutionLog), []);
   const archivedForExecutionRef = useRef(false);
   const executionSnapshotRef = useRef<{
     resultDataList: IManageResultData[];
@@ -241,7 +257,6 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
     statementSqlCountsRef.current = {};
     statementBySequenceRef.current = {};
     currentStatementRef.current = undefined;
-    pendingExecutionMessagesRef.current = [];
   }, []);
   const beginExecutionResultBatch = useCallback(() => {
     executionSnapshotRef.current = {
@@ -254,6 +269,9 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
   }, [archiveCurrentResultDataList, resetCurrentExecutionState]);
   const handleSqlExecutionEvent = useCallback(
     (event: SqlExecutionEvent) => {
+      setSqlExecutionLogState((state) =>
+        reduceDesktopSqlExecutionEvent(state, event, getExecutionLogContext(boundInfoRef.current)),
+      );
       // Execution always replaces the previous result; use View History to inspect older results.
       const shouldOverwriteResultTabs = true;
       if (event.eventType === 'started') {
@@ -274,7 +292,6 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
         };
         currentStatementRef.current = nextStatement;
         statementBySequenceRef.current[statementSequence] = nextStatement;
-        pendingExecutionMessagesRef.current = [];
         return;
       }
       if (event.eventType === 'resultStarted') {
@@ -288,8 +305,6 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
           schemaName: boundInfoRef.current.schemaName,
           sql: event.message?.originalSql,
         })[0];
-        const pendingMessages = pendingExecutionMessagesRef.current;
-        pendingExecutionMessagesRef.current = [];
         const resultWithIdentity = attachExecutionIdentity(result, event.executionId, statementSequence);
         const resultSequence =
           getEventResultSequence(event, resultWithIdentity, getResultSequence(resultWithIdentity)) || 1;
@@ -310,7 +325,6 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
               resultKey,
               resultSequence,
               historyKey,
-              messages: mergeExecutionMessages(pendingMessages, resultWithIdentity.extra?.messages),
             },
             displayName: getResultDisplayName({
               executionSequence,
@@ -319,10 +333,9 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
               showPrefix: !shouldOverwriteResultTabs,
             }),
           };
-          const resultDataListWithoutPlaceholder = removeMessageOnlyPlaceholder(prev, nextResult);
           const nextResultDataList = shouldOverwriteResultTabs
-            ? appendResultStarted(resultDataListWithoutPlaceholder, nextResult)
-            : upsertResultStarted(resultDataListWithoutPlaceholder, nextResult);
+            ? appendResultStarted(prev, nextResult)
+            : upsertResultStarted(prev, nextResult);
           const sortedResultDataList = sortExecutionResults(nextResultDataList);
           resultDataListRef.current = sortedResultDataList;
           return sortedResultDataList;
@@ -362,8 +375,6 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
           schemaName: boundInfoRef.current.schemaName,
           sql: event.message?.originalSql,
         })[0];
-        const pendingMessages = pendingExecutionMessagesRef.current;
-        pendingExecutionMessagesRef.current = [];
         const resultWithIdentity = attachExecutionIdentity(result, event.executionId, statementSequence);
         const resultSequence =
           getEventResultSequence(event, resultWithIdentity, getResultSequence(resultWithIdentity)) || 1;
@@ -390,13 +401,11 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
               resultKey,
               resultSequence,
               historyKey,
-              messages: mergeExecutionMessages(pendingMessages, resultWithIdentity.extra?.messages),
             },
           };
-          const resultDataListWithoutPlaceholder = removeMessageOnlyPlaceholder(prev, nextResult);
           const nextResultDataList = shouldOverwriteResultTabs
-            ? appendResultFinished(resultDataListWithoutPlaceholder, nextResult)
-            : upsertResultFinished(resultDataListWithoutPlaceholder, nextResult);
+            ? appendResultFinished(prev, nextResult)
+            : upsertResultFinished(prev, nextResult);
           const sortedResultDataList = sortExecutionResults(nextResultDataList);
           resultDataListRef.current = sortedResultDataList;
           return sortedResultDataList;
@@ -407,63 +416,7 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
         return;
       }
       if (event.eventType === 'message') {
-        const statementSequence = getEventStatementSequence(event, currentStatementRef.current);
-        const statementSnapshot =
-          (statementSequence && statementBySequenceRef.current[statementSequence]) || currentStatementRef.current;
-        const resultSequence = event.resultSequence;
-        const hasResultAtEventTime = typeof resultSequence === 'number';
-        if (!hasResultAtEventTime) {
-          pendingExecutionMessagesRef.current =
-            mergeExecutionMessages(pendingExecutionMessagesRef.current, [event.message]) || [];
-        }
-        setResultDataList((prev) => {
-          if (!hasResultAtEventTime || !prev.length) {
-            const executionSequence = getExecutionSequence(event.executionId);
-            const nextResult = createMessageOnlyResult({
-              executionId: event.executionId,
-              statement: statementSnapshot,
-              message: event.message,
-              displayName: getResultDisplayName({
-                executionSequence,
-                resultSequence: resultSequence || 1,
-                sql: statementSnapshot?.originalSql || statementSnapshot?.sql,
-                showPrefix: !shouldOverwriteResultTabs,
-              }),
-            });
-            const resultKey = event.resultKey || buildResultKey(event.executionId, statementSequence, resultSequence);
-            const historyKey = buildHistoryKey(
-              boundInfoRef.current,
-              nextResult.originalSql,
-              statementSnapshot?.historySequence,
-              resultSequence || 1,
-            );
-            const nextResultWithKeys = {
-              ...nextResult,
-              extra: {
-                ...(nextResult.extra || {}),
-                executionSequence,
-                resultKey,
-                statementSequence,
-                resultSequence,
-                historyKey,
-              },
-            };
-            const nextResultDataList = shouldOverwriteResultTabs
-              ? appendResultStarted(prev, nextResultWithKeys)
-              : upsertResultStarted(prev, nextResultWithKeys);
-            const sortedResultDataList = sortExecutionResults(nextResultDataList);
-            resultDataListRef.current = sortedResultDataList;
-            return sortedResultDataList;
-          }
-          const nextResultDataList = appendMessageToResult(prev, event.message, {
-            executionId: event.executionId,
-            statementSequence,
-            resultSequence,
-            resultKey: event.resultKey,
-          });
-          resultDataListRef.current = nextResultDataList;
-          return nextResultDataList;
-        });
+        return;
       }
     },
     [archiveCurrentResultDataList, getExecutionSequence, handleRefreshTreeByExecuteSQL, resetCurrentExecutionState],
@@ -472,12 +425,16 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
 
   // Whether to show the split panel.
   const isSplitPane = useMemo(() => {
-    const _isSplitPane = resultDataList.length > 0 || historyResultDataList.length > 0 || executing === true;
+    const _isSplitPane =
+      resultDataList.length > 0 ||
+      historyResultDataList.length > 0 ||
+      sqlExecutionLogState.records.length > 0 ||
+      executing === true;
     if (!_isSplitPane) {
       setBoxRightConsoleHeight(0);
     }
     return _isSplitPane;
-  }, [resultDataList, historyResultDataList, executing]);
+  }, [resultDataList, historyResultDataList, sqlExecutionLogState.records.length, executing]);
 
   const isActive = useMemo(() => {
     return activeConsoleId === editorId || !!props.isActive;
@@ -562,8 +519,30 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
       schemaName: boundInfo.schemaName,
     };
 
+    const webExecutionId = isDesktop ? undefined : uuidv4();
+    const executionLogContext = getExecutionLogContext(boundInfo);
+    if (webExecutionId) {
+      setSqlExecutionLogState((state) =>
+        beginWebSqlExecution(state, {
+          executionId: webExecutionId,
+          sql: params.sql,
+          context: executionLogContext,
+        }),
+      );
+    }
+
     return executeSQL(executeSqlParams).then((res) => {
       if (!res?.length) {
+        if (webExecutionId) {
+          setSqlExecutionLogState((state) =>
+            completeWebSqlExecution(state, {
+              executionId: webExecutionId,
+              sql: params.sql,
+              context: executionLogContext,
+              results: [],
+            }),
+          );
+        }
         executionSnapshotRef.current = null;
         return;
       }
@@ -583,7 +562,7 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
           extra: {
             ...(item.extra || {}),
             executionSequence,
-            resultKey: buildResultKey(`legacy-${executionSequence}`, index + 1, resultSequence),
+            resultKey: buildResultKey(webExecutionId || `legacy-${executionSequence}`, index + 1, resultSequence),
             resultSequence,
             historyKey: buildHistoryKey(boundInfo, sql, historySequence, resultSequence),
           },
@@ -612,6 +591,17 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
         return sortedResultDataList;
       });
 
+      if (webExecutionId) {
+        setSqlExecutionLogState((state) =>
+          completeWebSqlExecution(state, {
+            executionId: webExecutionId,
+            sql: params.sql,
+            context: executionLogContext,
+            results: _resultDataList,
+          }),
+        );
+      }
+
       executionSnapshotRef.current = null;
 
       const data = res.filter((item) => item.dataList !== null);
@@ -625,6 +615,16 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
       });
     })
       .catch((error) => {
+        if (webExecutionId) {
+          setSqlExecutionLogState((state) =>
+            failWebSqlExecution(state, {
+              executionId: webExecutionId,
+              sql: params.sql,
+              context: executionLogContext,
+              error,
+            }),
+          );
+        }
         restoreExecutionSnapshotIfEmpty();
         return Promise.reject(error);
       });
@@ -682,17 +682,25 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
       <SplitPaneUnpack onUnfold={handleUnfold} onPackUp={handlePackUp} className={styles.boxRightResult}>
         {isSplitPane && (
           <>
-            {!!(resultDataList.length || historyResultDataList.length) && (
+            {!!(resultDataList.length || historyResultDataList.length || sqlExecutionLogState.records.length) && (
               <SearchResult
                 resultDataList={resultDataList}
                 historyResultDataList={historyResultDataList}
+                executionLogRecords={sqlExecutionLogState.records}
                 resultBatchKey={resultBatchKey}
+                onClearExecutionLog={handleClearExecutionLog}
                 onResultDataListChange={handleResultDataListChange}
               />
             )}
             {executing && (
-              <div className={resultDataList.length ? styles.executingBar : styles.tableLoading}>
-                <Spin size={resultDataList.length ? 'small' : 'default'} />
+              <div
+                className={
+                  resultDataList.length || sqlExecutionLogState.records.length
+                    ? styles.executingBar
+                    : styles.tableLoading
+                }
+              >
+                <Spin size={resultDataList.length || sqlExecutionLogState.records.length ? 'small' : 'default'} />
                 <div className={styles.executingText}>{i18n('common.text.currentExecution')}</div>
                 <div className={styles.stopExecuteSql} onClick={stopExecuteSql}>
                   {i18n('common.button.cancelRequest')}

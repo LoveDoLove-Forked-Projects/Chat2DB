@@ -20,6 +20,7 @@ export type SqlExecutionEventType =
 export interface SqlExecutionEvent<T = any> {
   executionId: string;
   eventSequence?: number;
+  occurredAtEpochMs?: number;
   eventType: SqlExecutionEventType;
   statementSequence?: number;
   resultSequence?: number;
@@ -45,13 +46,6 @@ export interface SqlExecutionStatement {
   comment?: string;
   sequence?: number;
   historySequence?: number;
-}
-
-interface SqlExecutionResultIdentity {
-  executionId?: string;
-  statementSequence?: number;
-  resultSequence?: number;
-  resultKey?: string;
 }
 
 export function startSqlExecution(params: IExecuteSqlParams, requestUuid: string) {
@@ -122,18 +116,6 @@ export function mergeRows(current: IManageResultData[], chunk: IManageResultData
   });
 }
 
-export function removeMessageOnlyPlaceholder(current: IManageResultData[], result: IManageResultData) {
-  return current.filter((item) => {
-    if (!item.extra?.messageOnly) {
-      return true;
-    }
-    if ((item.headerList?.length || 0) > 1 || (item.dataList?.length || 0) > 0) {
-      return true;
-    }
-    return !isSameStatement(item, result);
-  });
-}
-
 export function mergeResultFinished(current: IManageResultData[], result: IManageResultData) {
   return mergeResultFinishedWithMode(current, result, 'prepend');
 }
@@ -173,36 +155,6 @@ function mergeResultFinishedWithMode(
   }
   const normalizedResult = ensureResultData(result);
   return mode === 'append' ? [...current, normalizedResult] : [normalizedResult, ...current];
-}
-
-export function appendMessage(current: IManageResultData[], message: SqlExecutionMessage) {
-  if (!current.length) {
-    return current;
-  }
-  const lastIndex = current.length - 1;
-  return current.map((item, index) => (index === lastIndex ? appendMessageToItem(item, message) : item));
-}
-
-export function appendMessageToResult(
-  current: IManageResultData[],
-  message: SqlExecutionMessage,
-  identity: SqlExecutionResultIdentity,
-) {
-  let matched = false;
-  const next = current.map((item) => {
-    if (!isSameMessageTarget(item, identity)) {
-      return item;
-    }
-    matched = true;
-    return appendMessageToItem(item, message);
-  });
-  if (matched) {
-    return next;
-  }
-  if (identity.resultKey || (identity.executionId !== undefined && identity.statementSequence !== undefined)) {
-    return current;
-  }
-  return appendMessage(current, message);
 }
 
 export function sortExecutionResults(current: IManageResultData[]) {
@@ -246,16 +198,6 @@ function upsertResult(current: IManageResultData[], result: IManageResultData, s
     const messages = mergeCurrentResult
       ? mergeExecutionMessages(item.extra?.messages, normalizedResult.extra?.messages)
       : normalizedResult.extra?.messages;
-    if (stage === 'started' && normalizedResult.extra?.messageOnly && !item.extra?.messageOnly && mergeCurrentResult) {
-      return {
-        ...item,
-        displayName: normalizedResult.displayName || item.displayName,
-        extra: {
-          ...(item.extra || {}),
-          messages,
-        },
-      };
-    }
     if (stage === 'finished') {
       return {
         ...normalizedResult,
@@ -328,16 +270,6 @@ function isSameExecutionResult(left: IManageResultData, right: IManageResultData
   );
 }
 
-function appendMessageToItem(item: IManageResultData, message: SqlExecutionMessage) {
-  return {
-    ...item,
-    extra: {
-      ...(item.extra || {}),
-      messages: mergeExecutionMessages(item.extra?.messages, [message]),
-    },
-  };
-}
-
 export function mergeExecutionMessages(
   ...messageGroups: Array<SqlExecutionMessage[] | undefined>
 ): SqlExecutionMessage[] | undefined {
@@ -346,41 +278,6 @@ export function mergeExecutionMessages(
     return undefined;
   }
   return messages.filter(Boolean);
-}
-
-export function createMessageOnlyResult(params: {
-  executionId: string;
-  statement?: SqlExecutionStatement;
-  message: SqlExecutionMessage;
-  displayName: string;
-}): IManageResultData {
-  const { executionId, statement, message, displayName } = params;
-  const sql = statement?.sql || statement?.originalSql || '';
-  const originalSql = statement?.originalSql || statement?.sql || '';
-  return {
-    uuid: `sql-message-${executionId}-${statement?.sequence || 0}`,
-    displayName,
-    description: '',
-    sql,
-    originalSql,
-    success: true,
-    duration: 0,
-    headerList: [],
-    dataList: [],
-    sqlType: SqlTypeEnum.OTHER,
-    refreshTargets: [],
-    pageNo: 1,
-    pageSize: 0,
-    fuzzyTotal: '0',
-    hasNextPage: false,
-    comment: statement?.comment,
-    extra: {
-      messageOnly: true,
-      executionId,
-      statementSequence: statement?.sequence,
-      messages: [message],
-    },
-  };
 }
 
 export function attachExecutionIdentity(
@@ -419,18 +316,6 @@ function ensureResultData(result: IManageResultData) {
 }
 
 function isSameResult(left: IManageResultData, right: IManageResultData) {
-  if (left.extra?.messageOnly || right.extra?.messageOnly) {
-    if (isSameStatement(left, right)) {
-      return true;
-    }
-    const leftHistoryKey = left.extra?.historyKey;
-    const rightHistoryKey = right.extra?.historyKey;
-    if (leftHistoryKey !== undefined && rightHistoryKey !== undefined) {
-      return leftHistoryKey === rightHistoryKey;
-    }
-    return false;
-  }
-
   const leftResultKey = left.extra?.resultKey;
   const rightResultKey = right.extra?.resultKey;
   const leftExecutionId = left.extra?.executionId;
@@ -495,45 +380,4 @@ function isSameResult(left: IManageResultData, right: IManageResultData) {
     return left.resultSetId === right.resultSetId && left.originalSql === right.originalSql;
   }
   return left.originalSql === right.originalSql && left.sql === right.sql;
-}
-
-function isSameMessageTarget(item: IManageResultData, identity: SqlExecutionResultIdentity) {
-  if (identity.resultKey && item.extra?.resultKey === identity.resultKey) {
-    return true;
-  }
-  if (
-    identity.executionId !== undefined &&
-    item.extra?.executionId === identity.executionId &&
-    identity.statementSequence !== undefined &&
-    item.extra?.statementSequence === identity.statementSequence &&
-    identity.resultSequence !== undefined &&
-    item.extra?.resultSequence === identity.resultSequence
-  ) {
-    return true;
-  }
-  if (
-    identity.executionId !== undefined &&
-    item.extra?.executionId === identity.executionId &&
-    identity.statementSequence !== undefined &&
-    item.extra?.statementSequence === identity.statementSequence
-  ) {
-    return true;
-  }
-  return false;
-}
-
-function isSameStatement(left: IManageResultData, right: IManageResultData) {
-  const leftExecutionId = left.extra?.executionId;
-  const rightExecutionId = right.extra?.executionId;
-  const leftStatementSequence = left.extra?.statementSequence;
-  const rightStatementSequence = right.extra?.statementSequence;
-
-  return (
-    leftExecutionId !== undefined &&
-    rightExecutionId !== undefined &&
-    leftExecutionId === rightExecutionId &&
-    leftStatementSequence !== undefined &&
-    rightStatementSequence !== undefined &&
-    leftStatementSequence === rightStatementSequence
-  );
 }
