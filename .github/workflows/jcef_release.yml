@@ -520,20 +520,84 @@ jobs:
         run: |
           set -euo pipefail
 
-          aliyun cdn RefreshObjectCaches \
-            --ObjectPath "${CDN_BASE_URL}/community/${VERSION}/" \
-            --ObjectType Directory \
-            --Force true
-          aliyun cdn RefreshObjectCaches \
-            --ObjectPath "${CDN_BASE_URL}/community/updates/${VERSION}/" \
-            --ObjectType Directory \
-            --Force true
+          refresh_task_ids=()
+
+          submit_refresh() {
+            local object_path="$1"
+            local object_type="$2"
+            local force="${3:-}"
+            local -a command=(
+              aliyun cdn RefreshObjectCaches
+              --ObjectPath "${object_path}"
+              --ObjectType "${object_type}"
+            )
+            if [ -n "${force}" ]; then
+              command+=(--Force "${force}")
+            fi
+
+            local output task_id
+            output="$("${command[@]}")"
+            echo "${output}"
+            task_id="$(jq -r '.RefreshTaskId // empty' <<<"${output}")"
+            if [ -z "${task_id}" ]; then
+              echo "CDN refresh response did not include RefreshTaskId for ${object_path}" >&2
+              exit 1
+            fi
+            refresh_task_ids+=("${task_id}")
+          }
+
+          wait_for_refresh() {
+            local task_id="$1"
+            local deadline=$((SECONDS + 300))
+
+            while [ "${SECONDS}" -lt "${deadline}" ]; do
+              local output status
+              output="$(aliyun cdn DescribeRefreshTasks --TaskId "${task_id}")"
+              status="$(jq -r '
+                (.Tasks.CDNTask // []) as $tasks
+                | if ($tasks | length) == 0 then "Pending"
+                  elif any($tasks[]; .Status == "Failed") then "Failed"
+                  elif all($tasks[]; .Status == "Complete") then "Complete"
+                  else "Refreshing"
+                  end
+              ' <<<"${output}")"
+
+              if [ "${status}" = "Complete" ]; then
+                echo "CDN refresh task ${task_id} completed"
+                return 0
+              fi
+              if [ "${status}" = "Failed" ]; then
+                echo "CDN refresh task ${task_id} failed: ${output}" >&2
+                return 1
+              fi
+              sleep 5
+            done
+
+            echo "Timed out waiting for CDN refresh task ${task_id}" >&2
+            return 1
+          }
+
+          submit_refresh \
+            "${CDN_BASE_URL}/community/${VERSION}/" \
+            Directory \
+            true
+          submit_refresh \
+            "${CDN_BASE_URL}/community/updates/${VERSION}/" \
+            Directory \
+            true
 
           if [ "${UPDATE_LATEST_VERSION_JSON}" = "true" ]; then
-            aliyun cdn RefreshObjectCaches \
-              --ObjectPath "${CDN_BASE_URL}/community/updates/latest_version.json" \
-              --ObjectType File
+            submit_refresh \
+              "${CDN_BASE_URL}/community/updates/latest_version.json" \
+              File
           fi
+
+          mapfile -t refresh_task_ids < <(
+            printf '%s\n' "${refresh_task_ids[@]}" | sort -u
+          )
+          for task_id in "${refresh_task_ids[@]}"; do
+            wait_for_refresh "${task_id}"
+          done
 
       - name: Upload CDN distribution receipt
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
