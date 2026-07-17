@@ -1,5 +1,5 @@
 name: Build Community Desktop Release
-run-name: Community Desktop ${{ inputs.version || github.ref_name }}
+run-name: Community Desktop ${{ github.event_name == 'push' && 'release' || 'gray' }} ${{ inputs.version || github.ref_name }}
 
 on:
   push:
@@ -11,16 +11,6 @@ on:
         description: 'Gray build version, without the v prefix'
         required: true
         type: string
-      upload_cdn:
-        description: 'Upload validated Community packages to the versioned CDN path'
-        required: false
-        default: false
-        type: boolean
-      update_latest_version_json:
-        description: 'Update community/updates/latest_version.json after a CDN upload'
-        required: false
-        default: false
-        type: boolean
 
 concurrency:
   group: community-desktop-${{ github.ref }}-${{ inputs.version || github.ref_name }}
@@ -36,6 +26,9 @@ jobs:
     outputs:
       version: ${{ steps.metadata.outputs.version }}
       tag_name: ${{ steps.metadata.outputs.tag_name }}
+      channel: ${{ steps.metadata.outputs.channel }}
+      publish_cdn: ${{ steps.metadata.outputs.publish_cdn }}
+      update_latest: ${{ steps.metadata.outputs.update_latest }}
       publish: ${{ steps.metadata.outputs.publish }}
     steps:
       - name: Validate version
@@ -54,9 +47,15 @@ jobs:
               exit 1
             fi
             version="${REF_NAME#v}"
+            channel=release
+            publish_cdn=true
+            update_latest=true
             publish=true
           else
             version="${INPUT_VERSION}"
+            channel=gray
+            publish_cdn=true
+            update_latest=false
             publish=false
           fi
 
@@ -80,21 +79,24 @@ jobs:
           {
             echo "version=${version}"
             echo "tag_name=v${version}"
+            echo "channel=${channel}"
+            echo "publish_cdn=${publish_cdn}"
+            echo "update_latest=${update_latest}"
             echo "publish=${publish}"
           } >> "${GITHUB_OUTPUT}"
 
   notify_start:
     name: Notify Feishu Community gray build start
     needs: resolve
-    if: ${{ github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.resolve.outputs.channel == 'gray' }}
     runs-on: ubuntu-latest
     steps:
       - name: Send Feishu start notification
         env:
           FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_RELEASE_NOTIFY_WEBHOOK }}
           VERSION: ${{ needs.resolve.outputs.version }}
-          UPLOAD_CDN: ${{ inputs.upload_cdn }}
-          UPDATE_LATEST_VERSION_JSON: ${{ inputs.update_latest_version_json }}
+          UPLOAD_CDN: ${{ needs.resolve.outputs.publish_cdn }}
+          UPDATE_LATEST_VERSION_JSON: ${{ needs.resolve.outputs.update_latest }}
           RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
         shell: python
         run: |
@@ -288,7 +290,7 @@ jobs:
     needs:
       - resolve
       - build
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.upload_cdn }}
+    if: ${{ needs.resolve.outputs.publish_cdn == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -304,6 +306,7 @@ jobs:
         shell: bash
         env:
           VERSION: ${{ needs.resolve.outputs.version }}
+          CHANNEL: ${{ needs.resolve.outputs.channel }}
           CDN_BASE_URL: https://cdn.chat2db-ai.com
           RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
@@ -363,7 +366,7 @@ jobs:
             sha256sum "${expected[@]}" > SHA256SUMS
           )
 
-          VERSION="${VERSION}" CDN_BASE_URL="${CDN_BASE_URL}" RUN_URL="${RUN_URL}" python3 - <<'PY'
+          VERSION="${VERSION}" CHANNEL="${CHANNEL}" CDN_BASE_URL="${CDN_BASE_URL}" RUN_URL="${RUN_URL}" python3 - <<'PY'
           import hashlib
           import json
           import os
@@ -386,7 +389,7 @@ jobs:
           manifest = {
               "edition": "Chat2DB Community",
               "version": os.environ["VERSION"],
-              "channel": "gray",
+              "channel": os.environ["CHANNEL"],
               "run_url": os.environ["RUN_URL"],
               "files": files,
           }
@@ -404,21 +407,27 @@ jobs:
           access-key-secret: ${{ secrets.OSS_ACCESS_KEY_SECRET }}
           ossutil-version: '1.7.16'
 
+      - name: Set up Aliyun CLI
+        uses: aliyun/setup-aliyun-cli-action@09a5f86915bb556e27bf050e9a5e339aeb073df5
+        with:
+          version: '3.4.8'
+
       - name: Upload validated Community packages to CDN
         shell: bash
         env:
           VERSION: ${{ needs.resolve.outputs.version }}
+          CHANNEL: ${{ needs.resolve.outputs.channel }}
           OSS_BUCKET_NAME: chat2db-cdn
           CDN_BASE_URL: https://cdn.chat2db-ai.com
           FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_RELEASE_NOTIFY_WEBHOOK }}
-          UPDATE_LATEST_VERSION_JSON: ${{ inputs.update_latest_version_json }}
+          UPDATE_LATEST_VERSION_JSON: ${{ needs.resolve.outputs.update_latest }}
         run: |
           set -euo pipefail
 
           send_package_notification() {
             local package_name="$1"
             local package_url="$2"
-            PACKAGE_NAME="${package_name}" PACKAGE_URL="${package_url}" python3 - <<'PY'
+            PACKAGE_NAME="${package_name}" PACKAGE_URL="${package_url}" CHANNEL="${CHANNEL}" python3 - <<'PY'
           import json
           import os
           import urllib.error
@@ -431,8 +440,9 @@ jobs:
 
           text = "\n".join(
               [
-                  "Chat2DB Community 灰度包已上传 CDN",
+                  "Chat2DB Community 安装包已上传 CDN",
                   f"版本：{os.environ['VERSION']}",
+                  f"渠道：{os.environ['CHANNEL']}",
                   f"包名：{os.environ['PACKAGE_NAME']}",
                   f"下载链接：{os.environ['PACKAGE_URL']}",
               ]
@@ -498,6 +508,33 @@ jobs:
           ossutil cp -f --meta "Cache-Control:no-cache" cdn-assets/release-manifest.json "${manifest_destination}"
           ossutil stat "${manifest_destination}"
 
+      - name: Refresh Community CDN cache
+        shell: bash
+        env:
+          ALIBABA_CLOUD_ACCESS_KEY_ID: ${{ secrets.OSS_ACCESS_KEY_ID }}
+          ALIBABA_CLOUD_ACCESS_KEY_SECRET: ${{ secrets.OSS_ACCESS_KEY_SECRET }}
+          ALIBABA_CLOUD_REGION_ID: cn-hangzhou
+          VERSION: ${{ needs.resolve.outputs.version }}
+          CDN_BASE_URL: https://cdn.chat2db-ai.com
+          UPDATE_LATEST_VERSION_JSON: ${{ needs.resolve.outputs.update_latest }}
+        run: |
+          set -euo pipefail
+
+          aliyun cdn RefreshObjectCaches \
+            --ObjectPath "${CDN_BASE_URL}/community/${VERSION}/" \
+            --ObjectType Directory \
+            --Force true
+          aliyun cdn RefreshObjectCaches \
+            --ObjectPath "${CDN_BASE_URL}/community/updates/${VERSION}/" \
+            --ObjectType Directory \
+            --Force true
+
+          if [ "${UPDATE_LATEST_VERSION_JSON}" = "true" ]; then
+            aliyun cdn RefreshObjectCaches \
+              --ObjectPath "${CDN_BASE_URL}/community/updates/latest_version.json" \
+              --ObjectType File
+          fi
+
       - name: Upload CDN distribution receipt
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
@@ -507,6 +544,7 @@ jobs:
           path: |
             cdn-assets/release/SHA256SUMS
             cdn-assets/release-manifest.json
+            cdn-assets/latest_version.json
 
   notify_summary:
     name: Notify Feishu Community gray build summary
@@ -514,7 +552,7 @@ jobs:
       - resolve
       - build
       - cdn_release
-    if: ${{ always() && github.event_name == 'workflow_dispatch' }}
+    if: ${{ always() && needs.resolve.outputs.channel == 'gray' }}
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -525,7 +563,7 @@ jobs:
           VERSION: ${{ needs.resolve.outputs.version || inputs.version }}
           BUILD_RESULT: ${{ needs.build.result }}
           CDN_RESULT: ${{ needs.cdn_release.result }}
-          UPLOAD_CDN: ${{ inputs.upload_cdn }}
+          UPLOAD_CDN: ${{ needs.resolve.outputs.publish_cdn }}
           RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GITHUB_TOKEN: ${{ github.token }}
         shell: python
@@ -717,6 +755,7 @@ jobs:
     needs:
       - resolve
       - stage_release
+      - cdn_release
     if: ${{ needs.resolve.outputs.publish == 'true' }}
     uses: ./.github/workflows/pushdocker.yml
     with:
@@ -731,6 +770,7 @@ jobs:
     needs:
       - resolve
       - stage_release
+      - cdn_release
       - docker
     if: ${{ needs.resolve.outputs.publish == 'true' }}
     runs-on: ubuntu-latest
