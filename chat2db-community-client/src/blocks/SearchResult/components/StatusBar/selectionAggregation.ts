@@ -1,14 +1,16 @@
 import type { SelectionMetricId } from '@/typings/settings';
+import Big from 'big.js';
 
 export interface SelectionAggregation {
+  rowCount: number;
   count: number;
   nullCount: number;
   nonNullCount: number;
   uniqueCount: number;
   numericCount: number;
-  sum: number;
-  minimum: number | string | null;
-  maximum: number | string | null;
+  sum: string;
+  minimum: string | null;
+  maximum: string | null;
   earliest: number | null;
   latest: number | null;
 }
@@ -18,19 +20,27 @@ const DATE_LIKE = /^\d{4}[-/]\d{1,2}[-/]\d{1,2}(?:[T\s].*)?$/;
 
 const isNullValue = (value: unknown) => value === null || value === undefined;
 
-const toNumber = (value: unknown): number | null => {
+const toDecimal = (value: unknown): Big | null => {
+  let normalized: string;
   if (typeof value === 'number') {
-    return Number.isFinite(value) ? value : null;
+    if (!Number.isFinite(value) || (Number.isInteger(value) && !Number.isSafeInteger(value))) {
+      return null;
+    }
+    normalized = String(value);
+  } else {
+    if (typeof value !== 'string') {
+      return null;
+    }
+    normalized = value.trim();
+    if (!normalized || !STRICT_NUMBER.test(normalized)) {
+      return null;
+    }
   }
-  if (typeof value !== 'string') {
+  try {
+    return new Big(normalized);
+  } catch {
     return null;
   }
-  const normalized = value.trim();
-  if (!normalized || !STRICT_NUMBER.test(normalized)) {
-    return null;
-  }
-  const result = Number(normalized);
-  return Number.isFinite(result) ? result : null;
 };
 
 const toTimestamp = (value: unknown): number | null => {
@@ -56,12 +66,12 @@ const uniqueKey = (value: unknown): string => {
   return `${typeof value}:${String(value)}`;
 };
 
-export const summarizeSelection = (values: unknown[]): SelectionAggregation => {
+export const summarizeSelection = (values: unknown[], rowCount: number): SelectionAggregation => {
   let nullCount = 0;
   let numericCount = 0;
-  let sum = 0;
-  let numericMinimum: number | null = null;
-  let numericMaximum: number | null = null;
+  let sum = new Big(0);
+  let numericMinimum: Big | null = null;
+  let numericMaximum: Big | null = null;
   let stringMinimum: string | null = null;
   let stringMaximum: string | null = null;
   let earliest: number | null = null;
@@ -81,12 +91,12 @@ export const summarizeSelection = (values: unknown[]): SelectionAggregation => {
     stringMaximum =
       stringMaximum === null || stringValue.localeCompare(stringMaximum) > 0 ? stringValue : stringMaximum;
 
-    const numericValue = toNumber(value);
+    const numericValue = toDecimal(value);
     if (numericValue !== null) {
       numericCount += 1;
-      sum += numericValue;
-      numericMinimum = numericMinimum === null ? numericValue : Math.min(numericMinimum, numericValue);
-      numericMaximum = numericMaximum === null ? numericValue : Math.max(numericMaximum, numericValue);
+      sum = sum.plus(numericValue);
+      numericMinimum = numericMinimum === null || numericValue.lt(numericMinimum) ? numericValue : numericMinimum;
+      numericMaximum = numericMaximum === null || numericValue.gt(numericMaximum) ? numericValue : numericMaximum;
     }
 
     const timestamp = toTimestamp(value);
@@ -97,31 +107,31 @@ export const summarizeSelection = (values: unknown[]): SelectionAggregation => {
   });
 
   return {
+    rowCount,
     count: values.length,
     nullCount,
     nonNullCount: values.length - nullCount,
     uniqueCount: uniqueValues.size,
     numericCount,
-    sum,
-    minimum: numericCount ? numericMinimum : stringMinimum,
-    maximum: numericCount ? numericMaximum : stringMaximum,
+    sum: sum.toFixed(),
+    minimum: numericCount ? numericMinimum?.toFixed() || null : stringMinimum,
+    maximum: numericCount ? numericMaximum?.toFixed() || null : stringMaximum,
     earliest,
     latest,
   };
 };
 
-const formatNumber = (value: number) => {
-  if (Number.isInteger(value)) {
-    return String(value);
-  }
-  return String(Number(value.toFixed(6)));
+const formatRoundedNumber = (value: Big | string | number) => {
+  return new Big(value).round(6)
+    .toFixed();
 };
 
 const formatPercentage = (value: number, total: number) => {
   if (!total) {
     return '-';
   }
-  return `${formatNumber((value / total) * 100)}%`;
+  return `${formatRoundedNumber(new Big(value).div(total)
+    .times(100))}%`;
 };
 
 const formatDate = (timestamp: number | null) => {
@@ -139,24 +149,18 @@ export const formatSelectionMetric = (metric: SelectionMetricId, summary: Select
   switch (metric) {
     case 'none':
       return '';
+    case 'rowCount':
+      return String(summary.rowCount);
     case 'count':
       return String(summary.count);
     case 'sum':
-      return summary.numericCount ? formatNumber(summary.sum) : '-';
+      return summary.numericCount ? summary.sum : '-';
     case 'average':
-      return summary.numericCount ? formatNumber(summary.sum / summary.numericCount) : '-';
+      return summary.numericCount ? formatRoundedNumber(new Big(summary.sum).div(summary.numericCount)) : '-';
     case 'minimum':
-      return summary.minimum === null
-        ? '-'
-        : typeof summary.minimum === 'number'
-        ? formatNumber(summary.minimum)
-        : summary.minimum;
+      return summary.minimum ?? '-';
     case 'maximum':
-      return summary.maximum === null
-        ? '-'
-        : typeof summary.maximum === 'number'
-        ? formatNumber(summary.maximum)
-        : summary.maximum;
+      return summary.maximum ?? '-';
     case 'nullCount':
       return String(summary.nullCount);
     case 'nonNullCount':

@@ -13,10 +13,10 @@ import { downloadLargeCellValue } from '@/utils/file';
 import { isDesktop } from '@/utils/env';
 import feedback from '@/utils/feedback';
 import {
-  getLargeCellErrorMessage,
   getLargeCellDownloadFormat,
   LARGE_CELL_ERROR_MESSAGE,
 } from '@/blocks/SearchResult/components/ViewData/largeCellValue';
+import { getLargeCellErrorMessage } from '@/blocks/SearchResult/components/ViewData/largeCellValueMessage';
 
 import { staticMessage } from '@chat2db/ui';
 
@@ -246,7 +246,7 @@ const onContextmenuCell = (props: IOnContextmenuEvent) => {
         ...(cellMeta?.largeValue
           ? [
               contextmenuMap[ContextmenuType.viewRowDetail],
-              contextmenuMap[ContextmenuType.viewFullValue],
+              ...(isDesktop ? [contextmenuMap[ContextmenuType.viewFullValue]] : []),
               contextmenuMap[ContextmenuType.copyPreview],
               ...(isDesktop && cellMeta.largeValueId ? [contextmenuMap[ContextmenuType.saveToFile]] : []),
             ]

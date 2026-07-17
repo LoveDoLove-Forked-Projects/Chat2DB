@@ -94,6 +94,7 @@ export interface DataTableSettings {
 
 export type SelectionMetricId =
   | 'none'
+  | 'rowCount'
   | 'count'
   | 'sum'
   | 'average'

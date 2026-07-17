@@ -8,7 +8,8 @@ function assertEqual(actual: any, expected: any, message: string) {
   }
 }
 
-const numericSummary = summarizeSelection([1, '2', 3.5, null, undefined, 'not-a-number']);
+const numericSummary = summarizeSelection([1, '2', 3.5, null, undefined, 'not-a-number'], 2);
+assertEqual(formatSelectionMetric('rowCount', numericSummary), '2', 'row count uses distinct selected rows');
 assertEqual(numericSummary.count, 6, 'count includes every selected body cell');
 assertEqual(numericSummary.numericCount, 3, 'numeric strings participate in numeric aggregates');
 assertEqual(formatSelectionMetric('sum', numericSummary), '6.5', 'sum uses numeric values only');
@@ -19,11 +20,11 @@ assertEqual(formatSelectionMetric('nullCount', numericSummary), '2', 'null and u
 assertEqual(formatSelectionMetric('nonNullCount', numericSummary), '4', 'non-null count excludes null values');
 assertEqual(formatSelectionMetric('nullPercentage', numericSummary), '33.333333%', 'null percentage uses all cells');
 
-const uniqueSummary = summarizeSelection(['a', 'a', 'b', null]);
+const uniqueSummary = summarizeSelection(['a', 'a', 'b', null], 1);
 assertEqual(formatSelectionMetric('uniqueCount', uniqueSummary), '2', 'unique count ignores null values');
 assertEqual(formatSelectionMetric('uniquePercentage', uniqueSummary), '50%', 'unique percentage uses all cells');
 
-const dateSummary = summarizeSelection(['2025-03-01', '2024-01-02 10:20:30', 1735689600000, '12345']);
+const dateSummary = summarizeSelection(['2025-03-01', '2024-01-02 10:20:30', 1735689600000, '12345'], 4);
 assertEqual(
   formatSelectionMetric('earliest', dateSummary).startsWith('2024-01-02'),
   true,
@@ -35,7 +36,16 @@ assertEqual(
   'numeric identifiers are not interpreted as dates',
 );
 
-assertEqual(formatSelectionMetric('sum', summarizeSelection(['a', 'b'])), '-', 'missing numeric data uses a dash');
+assertEqual(formatSelectionMetric('sum', summarizeSelection(['a', 'b'], 1)), '-', 'missing numeric data uses a dash');
+
+const exactSummary = summarizeSelection(['9007199254740992', '1', '0.1', '0.2'], 4);
+assertEqual(formatSelectionMetric('sum', exactSummary), '9007199254740993.3', 'sum preserves decimal precision');
+assertEqual(formatSelectionMetric('maximum', exactSummary), '9007199254740992', 'maximum preserves large integers');
+
+const wideIntegerSummary = summarizeSelection(['9999999999999999999999', '1'], 2);
+assertEqual(formatSelectionMetric('sum', wideIntegerSummary), '10000000000000000000000', 'sum stays in decimal notation');
+
+const unsafeNumberSummary = summarizeSelection([Number.MAX_SAFE_INTEGER + 1], 1);
+assertEqual(unsafeNumberSummary.numericCount, 0, 'unsafe JavaScript integers are not treated as exact database values');
 
 console.log('selection aggregation helper tests passed');
-

@@ -9,11 +9,12 @@ import executeSql from '@/service/executeSql';
 import SQLPreviewExecute, { SQLPreviewExecuteRef } from '../SQLPreviewExecute';
 import ViewData, { ViewDataRef } from '../ViewData';
 import RowDetail, { IChangeDataParams, RowDetailRef } from '../RowDetail';
+import SelectionAggregates from '../SelectionAggregates';
 import { IManageResultData } from '@/typings';
 import { Button, Spin, Tabs, Tooltip } from 'antd';
 import i18n from '@/i18n';
 import { copyToClipboard } from '@/utils';
-import StatusBar from '../StatusBar';
+import StatusBar, { StatusBarRef } from '../StatusBar';
 import { getBlankCreateCellValue, transformOperations } from '@/blocks/SearchResult/utils';
 import MonacoEditorErrorTips from '@/components/SQLEditor/components/MonacoEditorErrorTips';
 import { v4 as uuidv4 } from 'uuid';
@@ -33,7 +34,7 @@ interface IProps {
   viewTable?: boolean;
 }
 
-type InspectorTab = 'row' | 'value';
+type InspectorTab = 'row' | 'value' | 'aggregates';
 
 export default memo<IProps>(
   (props) => {
@@ -48,6 +49,7 @@ export default memo<IProps>(
     const sqlPreviewExecuteRef = useRef<SQLPreviewExecuteRef>(null);
     const viewDataRef = useRef<ViewDataRef>(null);
     const rowDetailRef = useRef<RowDetailRef>(null);
+    const statusBarRef = useRef<StatusBarRef>(null);
     const [executeErrorMessage, setExecuteErrorMessage] = useState<string | null>(null);
     const [tableInstance, setTableInstance] = useState<ITableInstance | null>(null);
     const [showFESearch, setShowFESearch] = useState(true);
@@ -60,6 +62,7 @@ export default memo<IProps>(
     const [inspectorOpen, setInspectorOpen] = useState(false);
     const [inspectorTab, setInspectorTab] = useState<InspectorTab>('row');
     const [selectedValues, setSelectedValues] = useState<unknown[]>([]);
+    const [selectedRowCount, setSelectedRowCount] = useState(0);
     const [lastActiveCell, setLastActiveCell] = useState<IResultSetSelection['activeCell']>();
     const shortcutOverrides = useGlobalStore((s) => s.shortcutOverrides);
     const shortcutConfig = useMemo(
@@ -70,6 +73,13 @@ export default memo<IProps>(
     useEffect(() => {
       setResultData(props.resultData);
     }, [props.resultData]);
+
+    useEffect(() => {
+      setSelectedValues([]);
+      setSelectedRowCount(0);
+      setLastActiveCell(undefined);
+      setInspectorOpen(false);
+    }, [resultData]);
 
     // Only resultData changes here. Database metadata is stable, and the toolbar controls pagination.
     const handleExecuteSQL = useCallback(
@@ -134,6 +144,13 @@ export default memo<IProps>(
 
     useEffect(() => {
       const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.code === 'KeyC' && e.shiftKey && (e.metaKey || e.ctrlKey)) {
+          if (statusBarRef.current?.copyActiveMetric()) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+          return;
+        }
         if (e.key === 'Escape') {
           feSearchRef.current?.close();
           return;
@@ -254,9 +271,15 @@ export default memo<IProps>(
         const record = params.tableInstance.getRecordByCell(params.col, params.row);
         const nextParams = {
           ...params,
+          rowId: params.rowId ?? record?.CHAT2DB_ROW_NUMBER,
           cellMeta: params.cellMeta ?? record?.__CHAT2DB_CELL_META__?.[params.col],
         };
-        setLastActiveCell({ tableInstance: params.tableInstance, col: params.col, row: params.row });
+        setLastActiveCell({
+          tableInstance: params.tableInstance,
+          col: params.col,
+          row: params.row,
+          rowId: nextParams.rowId,
+        });
         setInspectorOpen(true);
         setInspectorTab('value');
         setTimeout(() => {
@@ -274,7 +297,13 @@ export default memo<IProps>(
       if (!params) {
         return;
       }
-      setLastActiveCell({ tableInstance: params.tableInstance, col: params.col, row: params.row });
+      const record = params.tableInstance.getRecordByCell(params.col, params.row);
+      setLastActiveCell({
+        tableInstance: params.tableInstance,
+        col: params.col,
+        row: params.row,
+        rowId: params.rowId ?? record?.CHAT2DB_ROW_NUMBER,
+      });
       setInspectorOpen(true);
       setInspectorTab('row');
       setTimeout(() => rowDetailRef.current?.openPanel(params), 0);
@@ -331,6 +360,12 @@ export default memo<IProps>(
     const handleRowDetailChangeData = useCallback((params: IChangeDataParams) => {
       const { tableInstance: targetTableInstance, col, row, field, value } = params;
       const originData = targetTableInstance.getRecordByCell(col, row);
+      if (
+        params.rowId !== undefined &&
+        String(originData?.CHAT2DB_ROW_NUMBER) !== String(params.rowId)
+      ) {
+        return;
+      }
       const currentValue = targetTableInstance.getCellOriginValue(col, row);
       if (!originData || originData.__CHAT2DB_CELL_META__?.[col]?.largeValue || currentValue === value) {
         return;
@@ -350,14 +385,17 @@ export default memo<IProps>(
     const handleSelectionChange = useCallback(
       (selection: IResultSetSelection) => {
         setSelectedValues(selection.values);
+        setSelectedRowCount(selection.rowCount);
         if (!selection.activeCell) {
+          setLastActiveCell(undefined);
+          setInspectorOpen(false);
           return;
         }
         setLastActiveCell(selection.activeCell);
         if (inspectorOpen) {
           if (inspectorTab === 'row') {
             rowDetailRef.current?.openPanel(selection.activeCell);
-          } else {
+          } else if (inspectorTab === 'value') {
             openValueInspector(selection.activeCell);
           }
         }
@@ -369,15 +407,23 @@ export default memo<IProps>(
       (key: string) => {
         const nextTab = key as InspectorTab;
         setInspectorTab(nextTab);
-        if (!lastActiveCell) {
+        if (nextTab === 'aggregates' || !lastActiveCell) {
           return;
         }
         setTimeout(() => {
+          const record = lastActiveCell.tableInstance.getRecordByCell(lastActiveCell.col, lastActiveCell.row);
+          if (
+            lastActiveCell.rowId !== undefined &&
+            String(record?.CHAT2DB_ROW_NUMBER) !== String(lastActiveCell.rowId)
+          ) {
+            setLastActiveCell(undefined);
+            setInspectorOpen(false);
+            return;
+          }
           if (nextTab === 'row') {
             rowDetailRef.current?.openPanel(lastActiveCell);
             return;
           }
-          const record = lastActiveCell.tableInstance.getRecordByCell(lastActiveCell.col, lastActiveCell.row);
           viewDataRef.current?.openPanel({
             ...lastActiveCell,
             cellMeta: record?.__CHAT2DB_CELL_META__?.[lastActiveCell.col],
@@ -388,6 +434,11 @@ export default memo<IProps>(
       },
       [lastActiveCell, resultData?.canEdit],
     );
+
+    const showAllAggregates = useCallback(() => {
+      setInspectorOpen(true);
+      setInspectorTab('aggregates');
+    }, []);
 
     useEffect(() => {
       setTimeout(() => tableInstance?.resize?.(), 0);
@@ -481,14 +532,30 @@ export default memo<IProps>(
                       {
                         key: 'value',
                         label: i18n('common.resultInspector.value'),
-                        children: <ViewData ref={viewDataRef} onClose={() => setInspectorOpen(false)} />,
+                        children: <ViewData ref={viewDataRef} />,
+                      },
+                      {
+                        key: 'aggregates',
+                        label: i18n('common.resultInspector.aggregates'),
+                        children: (
+                          <SelectionAggregates
+                            selectedValues={selectedValues}
+                            selectedRowCount={selectedRowCount}
+                          />
+                        ),
                       },
                     ]}
                   />
                 </aside>
               )}
             </div>
-            <StatusBar resultData={resultData} selectedValues={selectedValues} />
+            <StatusBar
+              ref={statusBarRef}
+              resultData={resultData}
+              selectedValues={selectedValues}
+              selectedRowCount={selectedRowCount}
+              onShowAllAggregates={showAllAggregates}
+            />
           </>
           <MonacoEditorErrorTips errorMessage={executeErrorMessage} handleClose={handleCloseExecuteErrorMessage} />
         </div>

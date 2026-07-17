@@ -39,30 +39,25 @@ export const useStyles = createStyles(({ css, token }) => {
       font-size: 12px;
     `,
     imagePreview: css`
-      flex-shrink: 0;
-      max-height: 180px;
+      flex: 1;
+      min-height: 0;
       padding: 8px;
       overflow: auto;
-      border-bottom: 1px solid ${token.colorBorderSecondary};
       background: ${token.colorFillQuaternary};
+      display: flex;
+      align-items: center;
+      justify-content: center;
 
       img {
         display: block;
         max-width: 100%;
-        max-height: 160px;
+        max-height: 100%;
         object-fit: contain;
       }
     `,
     editorContainer: css`
       flex: 1;
       height: 0px;
-    `,
-    footer: css`
-      flex-shrink: 0;
-      display: flex;
-      justify-content: flex-end;
-      padding: 8px 10px;
-      border-top: 1px solid ${token.colorBorderSecondary};
     `,
   };
 });

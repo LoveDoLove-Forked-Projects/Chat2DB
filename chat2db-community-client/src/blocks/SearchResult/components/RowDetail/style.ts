@@ -16,7 +16,8 @@ export const useStyles = createStyles(({ css, token }) => {
     item: css`
       padding: 7px 10px;
 
-      &:focus-within [data-row-detail-action='true'] {
+      &:focus-within [data-row-detail-action='true'],
+      &[data-active='true'] [data-row-detail-action='true'] {
         opacity: 1;
         pointer-events: auto;
       }
@@ -53,6 +54,10 @@ export const useStyles = createStyles(({ css, token }) => {
         border-color: ${token.colorPrimary};
         box-shadow: 0 0 0 1px ${token.colorPrimary};
       }
+    `,
+    activeValueInput: css`
+      border-color: ${token.colorPrimary};
+      box-shadow: 0 0 0 1px ${token.colorPrimary};
     `,
     action: css`
       position: absolute;

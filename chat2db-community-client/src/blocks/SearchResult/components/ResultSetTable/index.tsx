@@ -30,10 +30,12 @@ interface IProps {
 
 export interface IResultSetSelection {
   values: unknown[];
+  rowCount: number;
   activeCell?: {
     tableInstance: ITableInstance;
     col: number;
     row: number;
+    rowId?: string | number;
   };
 }
 
@@ -114,13 +116,16 @@ const ResultSetTable = forwardRef((props: IProps, ref: ForwardedRef<ResultSetTab
       const fallbackCell = cells[cells.length - 1];
       const activeCell =
         latestActiveCell || (fallbackCell ? { col: fallbackCell.col, row: fallbackCell.row } : undefined);
+      const activeRecord = activeCell ? tableInstance.getRecordByCell(activeCell.col, activeCell.row) : undefined;
       props.onSelectionChange?.({
         values: cells.map((cell) => (cell.dataValue !== undefined ? cell.dataValue : cell.value)),
+        rowCount: new Set(cells.map((cell) => cell.row)).size,
         activeCell: activeCell
           ? {
               tableInstance,
               col: activeCell.col,
               row: activeCell.row,
+              rowId: activeRecord?.CHAT2DB_ROW_NUMBER,
             }
           : undefined,
       });

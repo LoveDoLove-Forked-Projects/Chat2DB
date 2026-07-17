@@ -1,4 +1,4 @@
-import { ForwardedRef, forwardRef, memo, useImperativeHandle, useMemo, useState } from 'react';
+import { ForwardedRef, forwardRef, memo, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { Button, Input, Tooltip } from 'antd';
 import i18n from '@/i18n';
 import Iconfont from '@/components/Iconfont';
@@ -10,6 +10,7 @@ interface IOpenRowDetailParams {
   tableInstance: ITableInstance;
   col: number;
   row: number;
+  rowId?: string | number;
 }
 
 export interface IViewDataParams {
@@ -18,6 +19,7 @@ export interface IViewDataParams {
   row: number;
   field: string;
   cellMeta?: IResultCell;
+  rowId?: string | number;
 }
 
 export interface IChangeDataParams extends IViewDataParams {
@@ -35,6 +37,8 @@ interface IRowDetailItem {
 interface IRowDetailState {
   tableInstance: ITableInstance;
   row: number;
+  rowId?: string | number;
+  activeCol: number;
   items: IRowDetailItem[];
 }
 
@@ -66,6 +70,7 @@ const RowDetail = forwardRef((props: IProps, ref: ForwardedRef<RowDetailRef>) =>
   const { resultData, onViewData, onChangeData } = props;
   const { styles, cx } = useStyles();
   const [rowDetail, setRowDetail] = useState<IRowDetailState | null>(null);
+  const activeItemRef = useRef<HTMLDivElement>(null);
 
   const headerMap = useMemo(() => {
     return resultData.headerList || [];
@@ -95,9 +100,15 @@ const RowDetail = forwardRef((props: IProps, ref: ForwardedRef<RowDetailRef>) =>
     setRowDetail({
       tableInstance,
       row,
+      rowId: record.CHAT2DB_ROW_NUMBER,
+      activeCol: recordCol,
       items,
     });
   };
+
+  useEffect(() => {
+    activeItemRef.current?.scrollIntoView({ block: 'nearest' });
+  }, [rowDetail?.row, rowDetail?.activeCol]);
 
   useImperativeHandle(
     ref,
@@ -115,6 +126,7 @@ const RowDetail = forwardRef((props: IProps, ref: ForwardedRef<RowDetailRef>) =>
       tableInstance: rowDetail.tableInstance,
       col: item.col,
       row: rowDetail.row,
+      rowId: rowDetail.rowId,
       field: item.field,
       cellMeta: item.cellMeta,
     });
@@ -140,6 +152,7 @@ const RowDetail = forwardRef((props: IProps, ref: ForwardedRef<RowDetailRef>) =>
       tableInstance: rowDetail.tableInstance,
       col: item.col,
       row: rowDetail.row,
+      rowId: rowDetail.rowId,
       field: item.field,
       value: item.value === null || item.value === undefined ? null : String(item.value),
       cellMeta: item.cellMeta,
@@ -151,8 +164,14 @@ const RowDetail = forwardRef((props: IProps, ref: ForwardedRef<RowDetailRef>) =>
       <div className={styles.fields}>
         {rowDetail?.items.map((item, index) => {
           const isNull = item.value === null || item.value === undefined;
+          const isActive = item.col === rowDetail.activeCol;
           return (
-            <div className={styles.item} key={`${item.field}-${index}`}>
+            <div
+              ref={isActive ? activeItemRef : undefined}
+              className={styles.item}
+              data-active={isActive}
+              key={`${item.field}-${index}`}
+            >
               <div className={styles.field}>{item.field}</div>
               <div className={styles.valueRow}>
                 <div className={styles.valueWrapper}>
@@ -160,7 +179,7 @@ const RowDetail = forwardRef((props: IProps, ref: ForwardedRef<RowDetailRef>) =>
                     value={item.value === null || item.value === undefined ? '' : String(item.value)}
                     placeholder={isNull ? '<null>' : undefined}
                     readOnly={!resultData.canEdit || item.largeValue || !onChangeData}
-                    className={cx(styles.valueInput, isNull && styles.nullValue)}
+                    className={cx(styles.valueInput, isActive && styles.activeValueInput, isNull && styles.nullValue)}
                     onChange={(event) => handleValueChange(item.col, event.target.value)}
                     onBlur={() => handleValueBlur(item)}
                   />
