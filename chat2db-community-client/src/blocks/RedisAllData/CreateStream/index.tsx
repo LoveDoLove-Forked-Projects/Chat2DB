@@ -224,6 +224,7 @@ const CreateStream = forwardRef((props: IProps, ref: ForwardedRef<CreateStreamRe
         className={styles.baseTable}
         tableData={tableData}
         columns={columns}
+        showEmptyState={false}
         onChangeCell={handleCellChange}
         selectedRows={selectedRows}
         onSelectedRowsChange={setSelectedRows}

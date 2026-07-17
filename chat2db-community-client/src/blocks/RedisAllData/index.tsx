@@ -1,6 +1,6 @@
-import { memo, useState, useRef, useMemo, useEffect, type Key } from 'react';
-import { Empty, Segmented, Spin, Tooltip, Tree, type TreeProps } from 'antd';
-import { Folder, FolderOpen, KeyRound, List, ListTree } from 'lucide-react';
+import { memo, useState, useRef, useMemo, useEffect, useReducer, useCallback } from 'react';
+import { Button, Segmented, Tooltip } from 'antd';
+import { List, ListTree, X } from 'lucide-react';
 import i18n from '@/i18n';
 import { useStyles } from './style';
 import { RedisDataItem } from '@/typings/redis';
@@ -13,18 +13,35 @@ import { ToolbarBtn, SearchBar } from '@chat2db/ui';
 import openUnifiedDeletion from '@/utils/staticModal/unifiedDeletion';
 import {
   buildRedisKeyTree,
+  collectRedisBranchGroupKeys,
   collectRedisGroupKeys,
-  redisKeyNodeKey,
+  getRedisTreeRowIndex,
   type RedisKeyTreeNode,
 } from './redisKeyTree';
+import {
+  createRedisKeyViewModeStorageKey,
+  getRedisViewModeStorage,
+  persistRedisKeyViewMode,
+  readRedisKeyViewMode,
+  type RedisKeyViewMode,
+} from './redisViewMode';
+import { INITIAL_REDIS_EXPANSION_STATE, redisExpansionReducer } from './redisExpansion';
+import {
+  getRedisDataItemIdentity,
+  REDIS_DRAFT_ROW_IDENTITY,
+  resolveRedisDataItem,
+  type RedisRowIdentity,
+} from './redisRowIdentity';
+import { RedisEditSessionRegistry, type RedisEditSessionToken } from './redisEditSession';
 
 const REDIS_SCAN_COUNT = 1000;
+const REDIS_KEY_VIEW_MODE_STORAGE_KEY = createRedisKeyViewModeStorageKey('community', __RUNTIME_ENV__);
 const INITIAL_SCAN_CURSOR = '0';
 const EDIT_PANE_COLLAPSED_SIZE = 0;
 const EDIT_PANE_DEFAULT_SIZE = 320;
 const EDIT_PANE_COLLAPSE_THRESHOLD = 50;
+const REDIS_TABLE_COLUMN_SIZES = [420, 80, 100];
 const SplitPaneAny = SplitPane as any;
-type RedisKeyViewMode = 'list' | 'tree';
 
 function formatTime(time: number) {
   if (time < 60) {
@@ -92,7 +109,7 @@ const RedisAllData = (props) => {
   const { className, uniqueData } = props;
   const { styles, cx } = useStyles();
   const [tableData, setTableData] = useState<RedisDataItem[] | null>(null);
-  const [selectedRows, setSelectedRows] = useState<number[]>([]);
+  const [selectedRowIdentity, setSelectedRowIdentity] = useState<RedisRowIdentity | null>(null);
   const [curRedisDataItem, setRedisDataItem] = useState<RedisDataItem | null>(null);
   const [editPaneSize, setEditPaneSize] = useState(EDIT_PANE_COLLAPSED_SIZE);
   const [searchBarValue, setSearchBarValue] = useState('');
@@ -101,81 +118,130 @@ const RedisAllData = (props) => {
   const [scanComplete, setScanComplete] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [detailLoadingKey, setDetailLoadingKey] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<RedisKeyViewMode>('list');
-  const [expandedTreeKeys, setExpandedTreeKeys] = useState<Key[]>([]);
+  const [viewMode, setViewMode] = useState<RedisKeyViewMode>(() =>
+    readRedisKeyViewMode(
+      getRedisViewModeStorage(),
+      REDIS_KEY_VIEW_MODE_STORAGE_KEY,
+    ),
+  );
+  const [expansionState, dispatchExpansion] = useReducer(
+    redisExpansionReducer,
+    INITIAL_REDIS_EXPANSION_STATE,
+  );
   const [appliedSearchKey, setAppliedSearchKey] = useState('');
   const baseTableRef = useRef<BaseTableRef>(null);
   const scanRequestIdRef = useRef(0);
   const detailRequestIdRef = useRef(0);
-  const treeExpansionInitializedRef = useRef(false);
-  const knownRedisGroupKeysRef = useRef<Set<string>>(new Set());
-  const hasEditTarget = selectedRows.length === 1;
+  const selectedRowIdentityRef = useRef<RedisRowIdentity | null>(null);
+  const deletedIdentityScanRequestRef = useRef<Map<RedisRowIdentity, number>>(new Map());
+  const [editSessionRegistry] = useState(() => new RedisEditSessionRegistry());
+  const activeEditSessionRef = useRef<RedisEditSessionToken | null>(null);
+  const updateSelectedRowIdentity = useCallback((nextIdentity: RedisRowIdentity | null) => {
+    if (selectedRowIdentityRef.current === nextIdentity) {
+      return;
+    }
+    selectedRowIdentityRef.current = nextIdentity;
+    detailRequestIdRef.current += 1;
+    activeEditSessionRef.current = nextIdentity ? editSessionRegistry.begin(nextIdentity) : null;
+    setSelectedRowIdentity(nextIdentity);
+    setRedisDataItem(null);
+    setDetailLoadingKey(null);
+  }, [editSessionRegistry]);
+  const selectedRedisRow = useMemo(
+    () => resolveRedisDataItem(tableData, selectedRowIdentity),
+    [tableData, selectedRowIdentity],
+  );
+  const selectedRedisDataItem = selectedRedisRow?.item;
+  const selectedRows = useMemo(
+    () => (selectedRedisRow ? [selectedRedisRow.index] : []),
+    [selectedRedisRow],
+  );
+  const hasEditTarget = Boolean(selectedRedisDataItem);
   const redisKeyTreeData = useMemo(() => buildRedisKeyTree(tableData || []), [tableData]);
   const redisGroupKeys = useMemo(() => collectRedisGroupKeys(redisKeyTreeData), [redisKeyTreeData]);
-  const selectedRedisKey = hasEditTarget ? tableData?.[selectedRows[0]]?.name : null;
-  const selectedTreeKeys = selectedRedisKey ? [redisKeyNodeKey(selectedRedisKey)] : [];
+  const redisBranchGroupKeys = useMemo(
+    () => collectRedisBranchGroupKeys(redisKeyTreeData),
+    [redisKeyTreeData],
+  );
+  const automaticallyExpandedGroupKeys = appliedSearchKey.trim() ? redisGroupKeys : redisBranchGroupKeys;
+  const redisTreeMode = useMemo(
+    () => ({
+      openKeys: expansionState.expandedKeys,
+      onChangeOpenKeys: (nextKeys: string[]) =>
+        dispatchExpansion({ type: 'userChange', expandedKeys: nextKeys }),
+      isLeafNode: (node: RedisKeyTreeNode) => node.kind === 'key',
+      clickArea: 'cell' as const,
+      iconIndent: 0,
+      iconGap: 2,
+      indentSize: 18,
+      stopClickEventPropagation: true,
+    }),
+    [expansionState.expandedKeys],
+  );
+  const handleSelectedRowsChange = useCallback(
+    (nextSelectedRows: number[]) => {
+      const selectedItem = tableData?.[nextSelectedRows[0]];
+      updateSelectedRowIdentity(selectedItem ? getRedisDataItemIdentity(selectedItem) || null : null);
+    },
+    [tableData, updateSelectedRowIdentity],
+  );
+  const handleActivateRedisRow = useCallback(
+    (rowIndex: number) => handleSelectedRowsChange([rowIndex]),
+    [handleSelectedRowsChange],
+  );
 
   useEffect(() => {
     getTableData();
   }, []);
 
   useEffect(() => {
-    if (selectedRows.length === 1 && tableData) {
-      const selectedItem = tableData[selectedRows[0]];
-      if (!selectedItem) {
-        setRedisDataItem(null);
+    if (selectedRedisDataItem) {
+      const selectedIdentity = getRedisDataItemIdentity(selectedRedisDataItem);
+      if (!selectedIdentity || selectedRowIdentityRef.current !== selectedIdentity) {
         return;
       }
-      if (isRedisDataItemLoaded(selectedItem)) {
-        setRedisDataItem(selectedItem);
+      if (isRedisDataItemLoaded(selectedRedisDataItem)) {
+        setDetailLoadingKey(null);
+        setRedisDataItem(selectedRedisDataItem);
         return;
       }
-      getRedisDataItemDetail(selectedItem);
+      getRedisDataItemDetail(selectedRedisDataItem);
     } else {
+      if (selectedRowIdentityRef.current !== selectedRowIdentity) {
+        return;
+      }
       detailRequestIdRef.current += 1;
       setDetailLoadingKey(null);
       setRedisDataItem(null);
     }
-  }, [selectedRows, tableData]);
+  }, [selectedRedisDataItem, selectedRowIdentity]);
 
   useEffect(() => {
-    if (selectedRows.length === 1) {
+    if (hasEditTarget) {
       setEditPaneSize((currentSize) =>
         currentSize === EDIT_PANE_COLLAPSED_SIZE ? EDIT_PANE_DEFAULT_SIZE : currentSize,
       );
       return;
     }
     setEditPaneSize(EDIT_PANE_COLLAPSED_SIZE);
-  }, [selectedRows]);
+  }, [hasEditTarget]);
 
   useEffect(() => {
-    if (viewMode !== 'tree') {
-      treeExpansionInitializedRef.current = false;
-      return;
-    }
-
-    if (redisGroupKeys.length === 0) {
-      treeExpansionInitializedRef.current = false;
-      knownRedisGroupKeysRef.current = new Set();
-      setExpandedTreeKeys([]);
-      return;
-    }
-
-    if (!treeExpansionInitializedRef.current || appliedSearchKey.trim()) {
-      setExpandedTreeKeys(redisGroupKeys);
-      treeExpansionInitializedRef.current = true;
-    } else {
-      const addedGroupKeys = redisGroupKeys.filter((key) => !knownRedisGroupKeysRef.current.has(key));
-      if (addedGroupKeys.length > 0) {
-        setExpandedTreeKeys((currentKeys) => Array.from(new Set([...currentKeys, ...addedGroupKeys])));
-      }
-    }
-
-    knownRedisGroupKeysRef.current = new Set(redisGroupKeys);
-  }, [appliedSearchKey, redisGroupKeys, viewMode]);
+    dispatchExpansion({
+      type: 'reconcile',
+      active: viewMode === 'tree',
+      validGroupKeys: redisGroupKeys,
+      automaticExpandedKeys: automaticallyExpandedGroupKeys,
+      searchKey: appliedSearchKey.trim(),
+    });
+  }, [appliedSearchKey, automaticallyExpandedGroupKeys, redisGroupKeys, viewMode]);
 
   const getRedisDataItemDetail = (redisDataItem: RedisDataItem) => {
-    if (!redisDataItem.name) {
+    const requestIdentity = getRedisDataItemIdentity(redisDataItem);
+    if (!requestIdentity || selectedRowIdentityRef.current !== requestIdentity) {
+      return;
+    }
+    if (redisDataItem.name === null) {
       setRedisDataItem(redisDataItem);
       return;
     }
@@ -191,30 +257,50 @@ const RedisAllData = (props) => {
         keyName,
       })
       .then((res) => {
-        if (detailRequestIdRef.current !== requestId) {
+        if (
+          detailRequestIdRef.current !== requestId ||
+          selectedRowIdentityRef.current !== requestIdentity
+        ) {
           return;
         }
         if (!res || (res as any).type === 'none') {
-          setTableData((current) => current?.filter((item) => item.name !== keyName) || []);
-          setSelectedRows([]);
+          setTableData(
+            (current) =>
+              current?.filter((item) => getRedisDataItemIdentity(item) !== requestIdentity) || [],
+          );
+          updateSelectedRowIdentity(null);
           setRedisDataItem(null);
           return;
         }
         const nextRedisDataItem = { ...redisDataItem, ...res };
         setTableData((current) => {
+          if (
+            detailRequestIdRef.current !== requestId ||
+            selectedRowIdentityRef.current !== requestIdentity
+          ) {
+            return current;
+          }
           return (
             current?.map((item) => {
-              if (item.name === keyName) {
+              if (getRedisDataItemIdentity(item) === requestIdentity) {
                 return nextRedisDataItem;
               }
               return item;
             }) || []
           );
         });
-        setRedisDataItem(nextRedisDataItem);
+        setRedisDataItem((current) =>
+          detailRequestIdRef.current === requestId &&
+          selectedRowIdentityRef.current === requestIdentity
+            ? nextRedisDataItem
+            : current,
+        );
       })
       .finally(() => {
-        if (detailRequestIdRef.current === requestId) {
+        if (
+          detailRequestIdRef.current === requestId &&
+          selectedRowIdentityRef.current === requestIdentity
+        ) {
           setDetailLoadingKey(null);
         }
       });
@@ -228,12 +314,13 @@ const RedisAllData = (props) => {
     scanRequestIdRef.current = requestId;
     const cursor = reset ? INITIAL_SCAN_CURSOR : scanCursor;
     if (reset) {
+      editSessionRegistry.invalidateAll();
+      activeEditSessionRef.current = null;
       setAppliedSearchKey(searchBarValue);
-      detailRequestIdRef.current += 1;
       setTableData(null);
       setPresenceDraft(false);
       setRedisDataItem(null);
-      setSelectedRows([]);
+      updateSelectedRowIdentity(null);
       setDetailLoadingKey(null);
       setScanCursor(INITIAL_SCAN_CURSOR);
       setScanComplete(false);
@@ -253,9 +340,17 @@ const RedisAllData = (props) => {
         if (scanRequestIdRef.current !== requestId) {
           return;
         }
-        const nextKeys = (res?.keys || []).map((item) => {
-          return { ...item };
-        });
+        const nextKeys = (res?.keys || [])
+          .map((item) => {
+            return { ...item };
+          })
+          .filter((item) => {
+            const identity = getRedisDataItemIdentity(item);
+            const deletedAtRequestId = identity
+              ? deletedIdentityScanRequestRef.current.get(identity)
+              : undefined;
+            return deletedAtRequestId === undefined || requestId > deletedAtRequestId;
+          });
         setScanCursor(res?.nextCursor || INITIAL_SCAN_CURSOR);
         setScanComplete(res?.complete || !res?.hasMore);
         setTableData((current) => {
@@ -291,6 +386,8 @@ const RedisAllData = (props) => {
         title: i18n('redis.keyName'),
         name: 'name',
         lock: true,
+        transitionValue: (value, rowData) =>
+          rowData.kind === 'group' ? `${value} (${rowData.count})` : value,
       },
       {
         title: i18n('redis.type'),
@@ -303,7 +400,7 @@ const RedisAllData = (props) => {
       {
         title: 'TTL',
         name: 'ttl',
-        transitionValue: formatRedisTtl,
+        transitionValue: (value, rowData) => (rowData.kind === 'group' ? '' : formatRedisTtl(value)),
       },
     ];
   }, []);
@@ -316,39 +413,46 @@ const RedisAllData = (props) => {
       ttl: -1,
       isDraftFE: true,
     };
-    detailRequestIdRef.current += 1;
     const newTableData = [newKey, ...(tableData || [])];
     setTableData(newTableData);
-    setSelectedRows([0]);
+    updateSelectedRowIdentity(REDIS_DRAFT_ROW_IDENTITY);
     setPresenceDraft(true);
     setViewMode('list');
     baseTableRef.current?.scrollToTop();
   };
 
-  const handleTreeSelect: TreeProps<RedisKeyTreeNode>['onSelect'] = (_selectedKeys, info) => {
-    if (info.node.kind === 'key' && info.node.rowIndex !== undefined) {
-      setSelectedRows([info.node.rowIndex]);
-    }
+  const handleCloseEditPane = () => {
+    updateSelectedRowIdentity(null);
+    setRedisDataItem(null);
+    setDetailLoadingKey(null);
   };
 
   const handleViewModeChange = (value: string | number) => {
     const nextViewMode = value as RedisKeyViewMode;
-    if (nextViewMode === 'tree') {
-      treeExpansionInitializedRef.current = false;
+    if (nextViewMode !== viewMode) {
+      handleCloseEditPane();
     }
     setViewMode(nextViewMode);
+    persistRedisKeyViewMode(
+      getRedisViewModeStorage(),
+      REDIS_KEY_VIEW_MODE_STORAGE_KEY,
+      nextViewMode,
+    );
   };
 
   const handleDelete = () => {
-    const { name, isDraftFE } = tableData?.[selectedRows?.[0]] || {};
+    const { name, isDraftFE } = selectedRedisDataItem || {};
+    const deleteIdentity = selectedRedisDataItem
+      ? getRedisDataItemIdentity(selectedRedisDataItem)
+      : undefined;
     if (isDraftFE) {
       setTableData(tableData?.filter((item) => !item.isDraftFE) || []);
-      setSelectedRows([]);
+      updateSelectedRowIdentity(null);
       setPresenceDraft(false);
       setRedisDataItem(null);
       return;
     }
-    if (name) {
+    if (name !== null && name !== undefined && deleteIdentity) {
       openUnifiedDeletion({
         title: `${i18n('redis.tip.deleteKey', name)}`,
         okCallBack: () => {
@@ -356,36 +460,68 @@ const RedisAllData = (props) => {
             .deleteRedisData({
               dataSourceId: uniqueData.dataSourceId,
               databaseName: uniqueData.databaseName,
-              keyName: tableData![selectedRows[0]].name,
+              keyName: name,
             })
             .then(() => {
-              setSelectedRows([]);
-              setRedisDataItem(null);
-              getTableData();
+              deletedIdentityScanRequestRef.current.set(deleteIdentity, scanRequestIdRef.current);
+              if (selectedRowIdentityRef.current === deleteIdentity) {
+                updateSelectedRowIdentity(null);
+              }
+              setTableData((current) =>
+                current
+                  ? current.filter((item) => getRedisDataItemIdentity(item) !== deleteIdentity)
+                  : current,
+              );
             });
         },
       });
     }
   };
 
+  const editSession = activeEditSessionRef.current;
   const editDataSubmitSuccess = (_redisDataItem) => {
     if (!_redisDataItem) {
       return;
     }
+    if (!editSession || !editSessionRegistry.isLatest(editSession)) {
+      return;
+    }
+    const newRedisDataItem = { ..._redisDataItem };
+    delete newRedisDataItem.isDraftFE;
+    const savedIdentity = getRedisDataItemIdentity(newRedisDataItem);
+    if (!savedIdentity) {
+      return;
+    }
     // Replace the selected row in tableData with the current data.
-    const newTableData =
-      tableData?.map((item, index) => {
-        if (index === selectedRows[0]) {
-          const newRedisDataItem = {
-            ..._redisDataItem,
-          };
-          setRedisDataItem(newRedisDataItem);
-          return newRedisDataItem;
-        }
-        return item;
-      }) || [];
-    setTableData(newTableData);
-    setPresenceDraft(false);
+    setTableData((current) => {
+      if (!current || !editSessionRegistry.isLatest(editSession)) {
+        return current;
+      }
+      if (editSession.identity === REDIS_DRAFT_ROW_IDENTITY) {
+        return [
+          newRedisDataItem,
+          ...current.filter((item) => {
+            const identity = getRedisDataItemIdentity(item);
+            return identity !== REDIS_DRAFT_ROW_IDENTITY && identity !== savedIdentity;
+          }),
+        ];
+      }
+      return current.map((item) =>
+        getRedisDataItemIdentity(item) === editSession.identity ? newRedisDataItem : item,
+      );
+    });
+    if (editSession.identity === REDIS_DRAFT_ROW_IDENTITY) {
+      setPresenceDraft((current) => (editSessionRegistry.isLatest(editSession) ? false : current));
+    }
+    if (
+      selectedRowIdentityRef.current !== editSession.identity ||
+      activeEditSessionRef.current !== editSession ||
+      !editSessionRegistry.isLatest(editSession)
+    ) {
+      return;
+    }
+    updateSelectedRowIdentity(savedIdentity);
+    setRedisDataItem(newRedisDataItem);
   };
 
   return (
@@ -422,7 +558,7 @@ const RedisAllData = (props) => {
             <ToolbarBtn
               prefixIcon="icon-minus"
               text={i18n('redis.button.deleteKey')}
-              disabled={selectedRows[0] === undefined}
+              disabled={!selectedRedisDataItem}
               onClick={handleDelete}
             />
             <ToolbarBtn prefixIcon="icon-refresh" text={i18n('common.button.refresh')} onClick={getTableData} />
@@ -482,73 +618,33 @@ const RedisAllData = (props) => {
             />
           </div>
         </div>
-        {viewMode === 'list' ? (
-          <BaseTable
-            ref={baseTableRef}
-            className={styles.tableBox}
-            loading={tableData === null}
-            tableData={tableData}
-            columns={columns}
-            sizes={[160, 60, 120]}
-            selectedRows={selectedRows}
-            onSelectedRowsChange={setSelectedRows}
-          />
-        ) : (
-          <div className={styles.treeBox}>
-            <div className={styles.treeHeader} role="row">
-              <span className={styles.treeHeaderCell}>{i18n('redis.keyName')}</span>
-              <span className={styles.treeHeaderCell}>{i18n('redis.type')}</span>
-              <span className={styles.treeHeaderCell}>TTL</span>
-            </div>
-            <div className={styles.treeScroll}>
-              {tableData === null ? (
-                <Spin />
-              ) : redisKeyTreeData.length === 0 ? (
-                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={i18n('common.text.noData')} />
-              ) : (
-                <Tree<RedisKeyTreeNode>
-                  blockNode
-                  showIcon
-                  virtual={false}
-                  treeData={redisKeyTreeData}
-                  expandedKeys={expandedTreeKeys}
-                  selectedKeys={selectedTreeKeys}
-                  onExpand={(keys) => setExpandedTreeKeys(keys)}
-                  onSelect={handleTreeSelect}
-                  icon={(node) =>
-                    node.kind === 'group' ? (
-                      node.expanded ? (
-                        <FolderOpen size={14} />
-                      ) : (
-                        <Folder size={14} />
-                      )
-                    ) : (
-                      <KeyRound size={14} />
-                    )
-                  }
-                  titleRender={(node) => {
-                    const redisDataItem =
-                      node.rowIndex !== undefined && tableData ? tableData[node.rowIndex] : undefined;
-                    return (
-                      <span className={cx(styles.treeRow, { [styles.treeGroupRow]: node.kind === 'group' })}>
-                        <span className={styles.treeKeyCell} title={node.redisKey || node.title}>
-                          <span className={styles.treeTitleText}>{node.title}</span>
-                          {node.kind === 'group' && <span className={styles.treeCount}>({node.count})</span>}
-                        </span>
-                        <span className={styles.treeMetaCell}>{redisDataItem?.type || ''}</span>
-                        <span className={styles.treeMetaCell}>
-                          {redisDataItem ? formatRedisTtl(redisDataItem.ttl) : ''}
-                        </span>
-                      </span>
-                    );
-                  }}
-                />
-              )}
-            </div>
-          </div>
-        )}
+        <BaseTable
+          ref={baseTableRef}
+          className={styles.tableBox}
+          loading={tableData === null}
+          tableData={viewMode === 'tree' ? redisKeyTreeData : tableData}
+          columns={columns}
+          sizes={REDIS_TABLE_COLUMN_SIZES}
+          selectedRows={selectedRows}
+          onSelectedRowsChange={handleSelectedRowsChange}
+          onActivateRow={handleActivateRedisRow}
+          onEscapeKey={handleCloseEditPane}
+          primaryKey={viewMode === 'tree' ? 'key' : undefined}
+          treeMode={viewMode === 'tree' ? redisTreeMode : undefined}
+          getRowIndex={viewMode === 'tree' ? getRedisTreeRowIndex : undefined}
+        />
       </div>
       <div className={styles.editDataSide}>
+        <Tooltip title={i18n('redis.button.closeEditPane')}>
+          <Button
+            className={styles.closeEditPane}
+            type="text"
+            size="small"
+            aria-label={i18n('redis.button.closeEditPane')}
+            icon={<X size={14} />}
+            onClick={handleCloseEditPane}
+          />
+        </Tooltip>
         {curRedisDataItem ? (
           <EditData
             dataSourceId={uniqueData.dataSourceId}

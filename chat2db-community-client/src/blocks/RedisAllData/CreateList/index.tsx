@@ -247,6 +247,7 @@ const CreateList = forwardRef((props: IProps, ref: ForwardedRef<CreateListRef>) 
         columns={columns}
         editable
         draggableColumn={false}
+        showEmptyState={false}
         onChangeCell={handleCellChange}
         selectedRows={selectedRows}
         onSelectedRowsChange={setSelectedRows}

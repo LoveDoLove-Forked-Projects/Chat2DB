@@ -2,6 +2,7 @@ export default {
   'redis.button.addKey': '新增键',
   'redis.button.deleteKey': '删除键',
   'redis.button.loadMore': '加载更多',
+  'redis.button.closeEditPane': '关闭编辑区',
   'redis.viewMode.list': '列表视图',
   'redis.viewMode.tree': '层级视图',
   'redis.editData.emptyStatus': '选中行进行编辑',

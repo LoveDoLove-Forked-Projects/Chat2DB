@@ -1,4 +1,5 @@
 import type { RedisDataItem } from '@/typings/redis';
+import { redisKeyRowIdentity } from './redisRowIdentity';
 
 const REDIS_KEY_SEPARATOR = ':';
 const nameCollator = new Intl.Collator(undefined, {
@@ -16,13 +17,12 @@ interface MutableRedisKeyGroup {
 
 export interface RedisKeyTreeNode {
   key: string;
-  title: string;
+  name: string;
   kind: 'group' | 'key';
   count?: number;
   rowIndex?: number;
-  redisKey?: string;
-  selectable?: boolean;
-  isLeaf?: boolean;
+  type?: RedisDataItem['type'];
+  ttl?: RedisDataItem['ttl'];
   children?: RedisKeyTreeNode[];
 }
 
@@ -30,8 +30,8 @@ function groupNodeKey(path: string[]) {
   return `redis-group:${path.map(encodeURIComponent).join('/')}`;
 }
 
-export function redisKeyNodeKey(redisKey: string) {
-  return `redis-key:${encodeURIComponent(redisKey)}`;
+export function getRedisTreeRowIndex(node: RedisKeyTreeNode) {
+  return node.kind === 'key' ? node.rowIndex : undefined;
 }
 
 function createMutableGroup(key: string, title: string): MutableRedisKeyGroup {
@@ -48,7 +48,7 @@ function compareTreeNodes(left: RedisKeyTreeNode, right: RedisKeyTreeNode) {
   if (left.kind !== right.kind) {
     return left.kind === 'group' ? -1 : 1;
   }
-  return nameCollator.compare(left.title, right.title);
+  return nameCollator.compare(left.name, right.name);
 }
 
 function finalizeGroup(group: MutableRedisKeyGroup): RedisKeyTreeNode {
@@ -59,11 +59,9 @@ function finalizeGroup(group: MutableRedisKeyGroup): RedisKeyTreeNode {
 
   return {
     key: group.key,
-    title: group.title,
+    name: group.title,
     kind: 'group',
     count: group.count,
-    selectable: false,
-    isLeaf: false,
     children,
   };
 }
@@ -72,7 +70,7 @@ export function buildRedisKeyTree(items: RedisDataItem[]) {
   const root = createMutableGroup('redis-root', '');
 
   items.forEach((item, rowIndex) => {
-    if (!item.name) {
+    if (item.name === null) {
       return;
     }
 
@@ -96,12 +94,12 @@ export function buildRedisKeyTree(items: RedisDataItem[]) {
     }
 
     parent.leaves.push({
-      key: redisKeyNodeKey(item.name),
-      title: item.name,
+      key: redisKeyRowIdentity(item.name),
+      name: item.name,
       kind: 'key',
       rowIndex,
-      redisKey: item.name,
-      isLeaf: true,
+      type: item.type,
+      ttl: item.ttl,
     });
   });
 
@@ -123,6 +121,27 @@ export function collectRedisGroupKeys(nodes: RedisKeyTreeNode[]) {
       if (node.children) {
         visit(node.children);
       }
+    });
+  };
+
+  visit(nodes);
+  return keys;
+}
+
+export function collectRedisBranchGroupKeys(nodes: RedisKeyTreeNode[]) {
+  const keys: string[] = [];
+
+  const visit = (treeNodes: RedisKeyTreeNode[]) => {
+    treeNodes.forEach((node) => {
+      if (node.kind !== 'group') {
+        return;
+      }
+      const childGroups = node.children?.filter((child) => child.kind === 'group') || [];
+      if (childGroups.length === 0) {
+        return;
+      }
+      keys.push(node.key);
+      visit(childGroups);
     });
   };
 
