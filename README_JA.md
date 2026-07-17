@@ -63,7 +63,6 @@ Community、Pro、Enterprise は、同じデータベースクライアントの
 Chat2DB は、Windows、macOS、Linux をサポートするクロスプラットフォームアプリケーションです。以下のリンクから Chat2DB をダウンロードできます。
 
 - [Proバージョンのダウンロード](https://chat2db.ai/download)
-- [ローカルバージョンのダウンロード](https://chat2db.ai/download)
 - [Community（Source Available）のダウンロード](https://github.com/OtterMind/Chat2DB/releases)
 
 ## Community Edition のセキュリティ境界

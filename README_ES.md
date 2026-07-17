@@ -64,7 +64,6 @@ Community, Pro y Enterprise comparten las mismas funciones básicas del cliente 
 Chat2DB es una aplicación multiplataforma compatible con Windows, macOS y Linux. Puede descargar Chat2DB desde los enlaces siguientes:
 
 - [Descargar la versión Pro](https://chat2db.ai/download)
-- [Descargar la versión Local](https://chat2db.ai/download)
 - [Descargar Community (Source Available)](https://github.com/OtterMind/Chat2DB/releases)
 
 ## Límite de seguridad de Community Edition
