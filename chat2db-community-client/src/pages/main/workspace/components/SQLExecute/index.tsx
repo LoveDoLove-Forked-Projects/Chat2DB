@@ -195,6 +195,7 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
   const statementBySequenceRef = useRef<Record<number, SqlExecutionStatement>>({});
   const currentStatementRef = useRef<SqlExecutionStatement>();
   const [resultBatchKey, setResultBatchKey] = useState(0);
+  const [forceOutputTab, setForceOutputTab] = useState(false);
   const { activeConsoleId, setEditorToList, deleteEditor, updateWorkspaceTabBoundInfo } = useWorkspaceStore(
     (state) => ({
       activeConsoleId: state.activeConsoleId,
@@ -260,6 +261,7 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
     currentStatementRef.current = undefined;
   }, []);
   const beginExecutionResultBatch = useCallback(() => {
+    setForceOutputTab(false);
     executionSnapshotRef.current = {
       resultDataList: resultDataListRef.current,
       historyResultDataList: historyResultDataListRef.current,
@@ -616,6 +618,7 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
       });
     })
       .catch((error) => {
+        setForceOutputTab(true);
         if (webExecutionId) {
           setSqlExecutionLogState((state) =>
             failWebSqlExecution(state, {
@@ -689,6 +692,7 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
                 historyResultDataList={historyResultDataList}
                 executionLogRecords={sqlExecutionLogState.records}
                 resultBatchKey={resultBatchKey}
+                forceOutputTab={forceOutputTab}
                 onClearExecutionLog={handleClearExecutionLog}
                 onResultDataListChange={handleResultDataListChange}
               />
