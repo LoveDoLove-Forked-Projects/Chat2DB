@@ -27,40 +27,24 @@ public class GaussDBMetaData extends PostgreSQLMetaData implements IDbMetaData {
             return null;
         }
 
-        int statementStart = 0;
-        while (statementStart < ddl.length() && Character.isWhitespace(ddl.charAt(statementStart))) {
-            statementStart++;
-        }
-
-        if (!ddl.regionMatches(true, statementStart, SEARCH_PATH_STATEMENT_PREFIX, 0,
+        String normalizedDdl = ddl.stripLeading();
+        if (!normalizedDdl.regionMatches(true, 0, SEARCH_PATH_STATEMENT_PREFIX, 0,
                 SEARCH_PATH_STATEMENT_PREFIX.length())) {
             return ddl;
         }
 
-        int prefixEnd = statementStart + SEARCH_PATH_STATEMENT_PREFIX.length();
-        if (prefixEnd < ddl.length() && Character.isJavaIdentifierPart(ddl.charAt(prefixEnd))) {
+        int prefixEnd = SEARCH_PATH_STATEMENT_PREFIX.length();
+        if (prefixEnd < normalizedDdl.length()
+                && Character.isJavaIdentifierPart(normalizedDdl.charAt(prefixEnd))) {
             return ddl;
         }
 
-        int statementEnd = findStatementEnd(ddl, prefixEnd);
-        if (statementEnd < 0) {
-            return ddl;
-        }
-
-        int ddlStart = statementEnd + 1;
-        while (ddlStart < ddl.length() && Character.isWhitespace(ddl.charAt(ddlStart))) {
-            ddlStart++;
-        }
-        return ddl.substring(ddlStart);
-    }
-
-    private static int findStatementEnd(String sql, int start) {
         char quote = 0;
-        for (int i = start; i < sql.length(); i++) {
-            char current = sql.charAt(i);
+        for (int i = prefixEnd; i < normalizedDdl.length(); i++) {
+            char current = normalizedDdl.charAt(i);
             if (quote != 0) {
                 if (current == quote) {
-                    if (i + 1 < sql.length() && sql.charAt(i + 1) == quote) {
+                    if (i + 1 < normalizedDdl.length() && normalizedDdl.charAt(i + 1) == quote) {
                         i++;
                     } else {
                         quote = 0;
@@ -69,10 +53,10 @@ public class GaussDBMetaData extends PostgreSQLMetaData implements IDbMetaData {
             } else if (current == '\'' || current == '"') {
                 quote = current;
             } else if (current == ';') {
-                return i;
+                return normalizedDdl.substring(i + 1).stripLeading();
             }
         }
-        return -1;
+        return ddl;
     }
 
     @Override
