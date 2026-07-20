@@ -8,7 +8,9 @@ import {
   completeWebSqlExecution,
   createSqlExecutionLogState,
   failWebSqlExecution,
+  isSqlExecutionCancellationError,
   reduceDesktopSqlExecutionEvent,
+  rethrowNonCancellationSqlExecutionError,
 } from './sqlExecutionLog';
 
 const context = {
@@ -153,6 +155,16 @@ function webExecution() {
   const output = state.records[0].outputs[0];
   assert.equal(output.kind === 'result' ? output.updateCount : undefined, 3);
   assert.equal(output.kind === 'result' ? output.resultKey : undefined, undefined);
+}
+
+{
+  assert.equal(isSqlExecutionCancellationError({ name: 'AbortError' }), true);
+  assert.equal(isSqlExecutionCancellationError({ name: 'CanceledError' }), true);
+  assert.equal(isSqlExecutionCancellationError({ code: 'ERR_CANCELED' }), true);
+  const databaseError = { message: 'current transaction is aborted' };
+  assert.equal(isSqlExecutionCancellationError(databaseError), false);
+  assert.doesNotThrow(() => rethrowNonCancellationSqlExecutionError({ name: 'AbortError' }));
+  assert.throws(() => rethrowNonCancellationSqlExecutionError(databaseError), (error) => error === databaseError);
 }
 
 {

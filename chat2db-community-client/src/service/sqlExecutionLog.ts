@@ -171,7 +171,7 @@ export function failWebSqlExecution(
   params: FailWebSqlExecutionParams,
 ): SqlExecutionLogState {
   const finishedAtEpochMs = params.occurredAtEpochMs ?? Date.now();
-  const cancelled = isCancellationError(params.error);
+  const cancelled = isSqlExecutionCancellationError(params.error);
   const existing = latestRecord(state.records, params.executionId);
   if (!existing) {
     const record = createRecord({
@@ -598,13 +598,14 @@ function errorText(error: unknown): string {
   return text(value.message) || text(value.errorMessage);
 }
 
-function isCancellationError(error: unknown) {
-  if (!error || typeof error !== 'object') {
-    return typeof error === 'string' && isCancellationMessage(error);
-  }
-  const value = error as { name?: unknown; code?: unknown; message?: unknown };
-  if (value.name === 'AbortError' || value.code === 'ERR_CANCELED') return true;
-  return typeof value.message === 'string' && isCancellationMessage(value.message);
+export function isSqlExecutionCancellationError(error: unknown) {
+  if (!error || typeof error !== 'object') return false;
+  const value = error as { name?: unknown; code?: unknown };
+  return value.name === 'AbortError' || value.name === 'CanceledError' || value.code === 'ERR_CANCELED';
+}
+
+export function rethrowNonCancellationSqlExecutionError(error: unknown) {
+  if (!isSqlExecutionCancellationError(error)) throw error;
 }
 
 function isCancellationMessage(message?: string) {

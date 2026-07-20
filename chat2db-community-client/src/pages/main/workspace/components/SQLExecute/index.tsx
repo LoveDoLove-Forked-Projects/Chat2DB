@@ -42,6 +42,7 @@ import {
   createSqlExecutionLogState,
   failWebSqlExecution,
   reduceDesktopSqlExecutionEvent,
+  rethrowNonCancellationSqlExecutionError,
   SqlExecutionLogContext,
 } from '@/service/sqlExecutionLog';
 import { isDesktop } from '@/utils/env';
@@ -630,7 +631,7 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
           );
         }
         restoreExecutionSnapshotIfEmpty();
-        return Promise.reject(error);
+        rethrowNonCancellationSqlExecutionError(error);
       });
   };
 
