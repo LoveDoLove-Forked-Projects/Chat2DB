@@ -40,4 +40,14 @@ class StringTypeScriptTest {
 
         assertEquals(List.of("SET 'k' 'new' XX \n"), scripts);
     }
+
+    @Test
+    void createKeySkipsWriteWhenValueIsNull() {
+        assertEquals(List.of(), typeScript.createKey(key("k", null)));
+    }
+
+    @Test
+    void createKeyGeneratesSetScript() {
+        assertEquals(List.of("SET 'k' 'v'"), typeScript.createKey(key("k", "v")));
+    }
 }

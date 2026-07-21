@@ -48,6 +48,9 @@ public class StringTypeScript extends BaseTypeScript implements ITypeScript {
 
     @Override
     public List<String> createKey(RedisKey redisKey) {
+        if (redisKey == null || redisKey.getValue() == null) {
+            return List.of();
+        }
         StringBuilder script = new StringBuilder();
         script.append(RedisConstants.COMMAND_SET_KEY_PREFIX).append(getRedisValue(redisKey.getName()))
                 .append(RedisConstants.COMMAND_ARGUMENT_SEPARATOR).append(getRedisValue(redisKey.getValue()));
