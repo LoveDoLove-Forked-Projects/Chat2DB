@@ -37,6 +37,7 @@ import { cx } from 'antd-style';
 import AIModelConfigModal from './components/AIModelConfigModal';
 import { listAvailableModelOptions, resolveModelRequestPayload } from '@/service/aiModelConfig';
 import { isDesktop } from '@/utils/env';
+import { MarkdownPre, resolveMarkdownCode, useIsMarkdownCodeBlock } from './markdownCode';
 
 /** detects unclosed text in flowing text ```chart block, return chart and whether there are any unfinished diagrams */
 function splitIncompleteChartBlock(text: string): { textBeforeChart: string; hasIncompleteChart: boolean } {
@@ -167,10 +168,6 @@ const TableClickContext = React.createContext<((tableName: string) => void) | nu
 /** SQL nailed to the Context of the Console */
 const PinSqlContext = React.createContext<((sql: string) => void) | null>(null);
 
-function MarkdownPre({ children }: React.ComponentProps<'pre'>) {
-  return <>{children}</>;
-}
-
 /**
  * Code block component: language=chart renders a chart, table:: renders a clickable table name,
  * and all other languages render code.
@@ -180,13 +177,13 @@ function MarkdownCodeBlock({ className, children }: { className?: string; childr
   const [copied, setCopied] = useState(false);
   const onTableClick = React.useContext(TableClickContext);
   const onPinSql = React.useContext(PinSqlContext);
-  const match = /language-(\w+)/.exec(className || '');
+  const codeKind = resolveMarkdownCode(className, useIsMarkdownCodeBlock());
 
   const submitEditorChartCallback = (data: any) => {
     console.log('Chart updated:', data);
   };
 
-  if (!match) {
+  if (codeKind.kind === 'inline') {
     // checks whether it is a clickable table name prefixed by table::
     const text = String(children).replace(/\n$/, '');
     const tableMatch = text.match(/^table::(.+)$/);
@@ -217,7 +214,7 @@ function MarkdownCodeBlock({ className, children }: { className?: string; childr
     return <code className={styles.inlineCode}>{children}</code>;
   }
 
-  const lang = match[1];
+  const lang = codeKind.language;
   const code = String(children).replace(/\n$/, '');
 
   // ── Chart rendering ──
