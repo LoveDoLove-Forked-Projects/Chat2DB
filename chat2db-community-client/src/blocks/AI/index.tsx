@@ -167,6 +167,10 @@ const TableClickContext = React.createContext<((tableName: string) => void) | nu
 /** SQL nailed to the Context of the Console */
 const PinSqlContext = React.createContext<((sql: string) => void) | null>(null);
 
+function MarkdownPre({ children }: React.ComponentProps<'pre'>) {
+  return <>{children}</>;
+}
+
 /**
  * Code block component: language=chart renders a chart, table:: renders a clickable table name,
  * and all other languages render code.
@@ -1681,7 +1685,10 @@ export default function AI({ variant = 'page', onTableClick, onPinSql, onSession
       <PinSqlContext.Provider value={handlePinSql}>
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
-          components={{ code: MarkdownCodeBlock as React.ComponentType<React.HTMLAttributes<HTMLElement>> }}
+          components={{
+            pre: MarkdownPre,
+            code: MarkdownCodeBlock as React.ComponentType<React.HTMLAttributes<HTMLElement>>,
+          }}
         >
           {normalizeAiMarkdown(preprocessTableRefs(content))}
         </ReactMarkdown>
