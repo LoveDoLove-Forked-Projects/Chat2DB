@@ -1,5 +1,5 @@
 <div align="center">
-  <h1>Chat2DB</h1>
+  <img src="./icon.png" alt="Chat2DB" width="100">
   <p><strong>Un cliente de bases de datos y espacio de trabajo SQL con IA para desarrolladores, administradores de bases de datos, analistas y equipos de datos.</strong></p>
 </div>
 

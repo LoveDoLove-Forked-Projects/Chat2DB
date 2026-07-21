@@ -1,5 +1,5 @@
 <div align="center">
-  <h1>Chat2DB</h1>
+  <img src="./icon.png" alt="Chat2DB" width="100">
   <p><strong>開発者、DBA、アナリスト、データチーム向けの AI 搭載データベースクライアント兼 SQL ワークスペースです。</strong></p>
 </div>
 
