@@ -285,16 +285,17 @@ public class RedisScriptExecutor extends DefaultSQLExecutor {
         List<String> scripts = new ArrayList<>();
         boolean typeChanged = oldKey != null && newKey != null && !oldKey.getType().equals(newKey.getType());
         if (typeChanged) {
+            List<String> addScript = RedisDataType.fromCode(newKey.getType()).getScript().createKey(newKey);
+            if (CollectionUtils.isEmpty(addScript)) {
+                // Nothing to write for the new type; abort instead of deleting the old key.
+                return new ExecuteResponse();
+            }
             ITypeScript typeScript = RedisDataType.fromCode(oldKey.getType()).getScript();
             List<String> script = typeScript.updateKey(oldKey, null);
             if (CollectionUtils.isNotEmpty(script)) {
                 scripts.addAll(script);
             }
-            typeScript = RedisDataType.fromCode(newKey.getType()).getScript();
-            List<String> addScript = typeScript.createKey(newKey);
-            if (CollectionUtils.isNotEmpty(addScript)) {
-                scripts.addAll(addScript);
-            }
+            scripts.addAll(addScript);
         } else {
             if (oldKey != null && newKey != null && !oldKey.getName().equals(newKey.getName())) {
                 StringBuilder stringBuilder = new StringBuilder();
