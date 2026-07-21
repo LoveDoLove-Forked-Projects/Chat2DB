@@ -538,6 +538,7 @@ jobs:
           ossutil stat "${manifest_destination}"
 
       - name: Refresh Community CDN cache
+        if: ${{ needs.resolve.outputs.channel == 'release' }}
         shell: bash
         env:
           ALIBABA_CLOUD_ACCESS_KEY_ID: ${{ secrets.OSS_ACCESS_KEY_ID }}
