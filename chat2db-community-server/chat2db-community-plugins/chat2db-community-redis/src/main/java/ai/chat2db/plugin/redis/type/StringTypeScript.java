@@ -69,7 +69,10 @@ public class StringTypeScript extends BaseTypeScript implements ITypeScript {
             String del = RedisConstants.COMMAND_DELETE_KEY_PREFIX + getRedisValue(oldKey.getName());
             return List.of(del);
         }
-        if (oldKey.getValue().equals(newKey.getValue())) {
+        if (Objects.equals(oldKey.getValue(), newKey.getValue())) {
+            return null;
+        }
+        if (newKey.getValue() == null) {
             return null;
         }
         String s = RedisConstants.COMMAND_SET_KEY_PREFIX + getRedisValue(newKey.getName())
