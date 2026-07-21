@@ -25,8 +25,6 @@ Chat2DB Community is a free, cross-platform database client for Windows, macOS, 
 
 [![Chat2DB workspace with SQL editor and AI assistant — click to watch the intro video](https://cdn.chat2db-ai.com/website/img/first_video_cover.webp)](https://cdn.chat2db-ai.com/website/video/first_sceen_en.mp4)
 
-*▶️ Click the image above to watch a short intro video.*
-
 </div>
 
 ### Screenshots
@@ -83,17 +81,16 @@ Notes:
 
 ## Security Notes
 
-> [!WARNING]
-> Chat2DB Community is a single-user, local-first application. It has no user
-> accounts or authorization boundaries between users. Keep the HTTP service
-> bound to `127.0.0.1` or `::1` and do not expose it to other users or
-> untrusted networks.
->
-> Custom JDBC drivers are executable Java code — install them only from
-> sources you trust. Imported configuration files, archives, SQL files,
-> database contents, and AI responses remain untrusted data. See the
-> [Security Policy](SECURITY.md) for the complete trust boundary and
-> vulnerability reporting process.
+Chat2DB Community is a single-user, local-first application. It has no user
+accounts or authorization boundaries between users. Keep the HTTP service
+bound to `127.0.0.1` or `::1` and do not expose it to other users or
+untrusted networks.
+
+Custom JDBC drivers are executable Java code — install them only from
+sources you trust. Imported configuration files, archives, SQL files,
+database contents, and AI responses remain untrusted data. See the
+[Security Policy](SECURITY.md) for the complete trust boundary and
+vulnerability reporting process.
 
 ## Encryption Key
 

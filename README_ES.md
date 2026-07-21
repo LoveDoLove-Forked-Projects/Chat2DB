@@ -25,8 +25,6 @@ Chat2DB Community es un cliente de bases de datos gratuito y multiplataforma par
 
 [![Espacio de trabajo de Chat2DB con editor SQL y asistente de IA — haga clic para ver el vídeo de presentación](https://cdn.chat2db-ai.com/website/img/first_video_cover.webp)](https://cdn.chat2db-ai.com/website/video/first_sceen_en.mp4)
 
-*▶️ Haga clic en la imagen superior para ver un breve vídeo de presentación.*
-
 </div>
 
 ### Capturas de pantalla
@@ -83,18 +81,17 @@ Notas:
 
 ## Notas de seguridad
 
-> [!WARNING]
-> Chat2DB Community es una aplicación local y para un solo usuario. No tiene
-> cuentas de usuario ni límites de autorización entre usuarios. Mantenga el
-> servicio HTTP enlazado a `127.0.0.1` o `::1` y no lo exponga a otros usuarios
-> ni a redes que no sean de confianza.
->
-> Los controladores JDBC personalizados son código Java ejecutable: instálelos
-> solo desde fuentes en las que confíe. Los archivos de configuración
-> importados, los archivos comprimidos, los archivos SQL, los contenidos de las
-> bases de datos y las respuestas de la IA siguen siendo datos no confiables.
-> Consulte la [Política de seguridad](SECURITY.md) para conocer el límite de
-> confianza completo y el proceso de notificación de vulnerabilidades.
+Chat2DB Community es una aplicación local y para un solo usuario. No tiene
+cuentas de usuario ni límites de autorización entre usuarios. Mantenga el
+servicio HTTP enlazado a `127.0.0.1` o `::1` y no lo exponga a otros usuarios
+ni a redes que no sean de confianza.
+
+Los controladores JDBC personalizados son código Java ejecutable: instálelos
+solo desde fuentes en las que confíe. Los archivos de configuración
+importados, los archivos comprimidos, los archivos SQL, los contenidos de las
+bases de datos y las respuestas de la IA siguen siendo datos no confiables.
+Consulte la [Política de seguridad](SECURITY.md) para conocer el límite de
+confianza completo y el proceso de notificación de vulnerabilidades.
 
 ## Clave de cifrado
 
