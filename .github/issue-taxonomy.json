@@ -97,6 +97,7 @@
       }
     ],
     "workflows": {
+      "provider": ".github/workflows/community-project-sync.yml",
       "autoAddSubIssues": true,
       "autoCloseIssue": false,
       "itemAddedStatus": "Inbox",
