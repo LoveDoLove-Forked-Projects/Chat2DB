@@ -2,6 +2,7 @@ import { WorkspaceTabType } from '@/constants/workspace';
 import type { IWorkspaceTab } from '@/typings/workspace';
 
 export type WorkspaceLeftPanel = 'explorer' | 'database';
+export type WorkspaceTabActivationSource = 'workspaceTab' | 'explorerSession';
 
 export type DirectActiveTabLocateTarget =
   | {
@@ -19,11 +20,19 @@ export function resolveWorkspaceLeftPanel(panel?: WorkspaceLeftPanel): Workspace
 export function getAutoFollowWorkspaceLeftPanel(
   enabled: boolean,
   target?: Pick<DirectActiveTabLocateTarget, 'surface'> | null,
+  source: WorkspaceTabActivationSource = 'workspaceTab',
 ): WorkspaceLeftPanel | undefined {
-  if (!enabled || !target) {
+  if (!enabled || !target || source === 'explorerSession') {
     return undefined;
   }
   return target.surface === 'localFile' ? 'explorer' : 'database';
+}
+
+export function shouldLocateActiveTabOnPanelSelection(
+  panel: WorkspaceLeftPanel,
+  target?: Pick<DirectActiveTabLocateTarget, 'surface'> | null,
+): boolean {
+  return panel === 'database' && target?.surface === 'databaseTree';
 }
 
 export function getDirectActiveTabLocateTarget(

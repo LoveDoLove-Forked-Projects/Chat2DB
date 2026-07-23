@@ -14,6 +14,7 @@ import {
   getAutoFollowWorkspaceLeftPanel,
   getActiveTabLocateTarget,
   resolveWorkspaceLeftPanel,
+  shouldLocateActiveTabOnPanelSelection,
   type ActiveTabDatabaseCandidate,
   type ActiveTabLocateTarget,
   type WorkspaceLeftPanel,
@@ -135,6 +136,8 @@ function findDatabaseLocateNode(treeData: TreeNodeData[] | null | undefined, can
 const WorkspaceLeft = memo(() => {
   const explorerRef = useRef<WorkspaceExplorerRef>(null);
   const locateRequestSeqRef = useRef(0);
+  const explorerSessionActivationRef = useRef<string | number | null>(null);
+  const pendingManualDatabaseLocateRef = useRef(false);
   const shouldProbeDesktopBridge = !isWebEnv && (isDesktopEnv || isCommunityEnv || isDesktop);
   const [desktopBridgeReady, setDesktopBridgeReady] = useState(() => isDesktop || hasDesktopBridge());
   const { styles } = useStyles();
@@ -160,7 +163,12 @@ const WorkspaceLeft = memo(() => {
   );
   const activeTabLocateTarget = useMemo(() => getActiveTabLocateTarget(activeTab), [activeTab]);
   const autoFollowActiveWorkspaceTab = userConfigTree.followActiveWorkspaceTab !== false;
-  const autoFollowPanel = getAutoFollowWorkspaceLeftPanel(autoFollowActiveWorkspaceTab, activeTabLocateTarget);
+  const isExplorerSessionActivation = explorerSessionActivationRef.current === activeConsoleId;
+  const autoFollowPanel = getAutoFollowWorkspaceLeftPanel(
+    autoFollowActiveWorkspaceTab,
+    activeTabLocateTarget,
+    isExplorerSessionActivation ? 'explorerSession' : 'workspaceTab',
+  );
   const panelOptions: Array<{ label: string; value: WorkspaceLeftPanel }> = [
     { label: i18n('workspace.explorer.title'), value: 'explorer' },
     { label: i18n('workspace.explorer.databases'), value: 'database' },
@@ -316,14 +324,49 @@ const WorkspaceLeft = memo(() => {
     });
   }, [locateActiveWorkspaceTab]);
 
+  const handleExplorerSessionActivate = useCallback((sessionId: string | number) => {
+    explorerSessionActivationRef.current = sessionId;
+  }, []);
+
+  const handlePanelSelection = useCallback(
+    (panel: WorkspaceLeftPanel) => {
+      setActivePanel(panel);
+      const shouldLocate = shouldLocateActiveTabOnPanelSelection(panel, activeTabLocateTarget);
+      pendingManualDatabaseLocateRef.current = shouldLocate && !treeDataReady;
+      if (shouldLocate && treeDataReady) {
+        void locateActiveWorkspaceTab({ clearSearch: true });
+      }
+    },
+    [activeTabLocateTarget, locateActiveWorkspaceTab, setActivePanel, treeDataReady],
+  );
+
   useLayoutEffect(() => {
+    if (explorerSessionActivationRef.current !== null && !isExplorerSessionActivation) {
+      explorerSessionActivationRef.current = null;
+    }
     if (showExplorerPanel && autoFollowPanel) {
       setActivePanel(autoFollowPanel);
     }
-  }, [autoFollowPanel, setActivePanel, showExplorerPanel]);
+  }, [autoFollowPanel, isExplorerSessionActivation, setActivePanel, showExplorerPanel]);
+
+  useEffect(() => {
+    if (!pendingManualDatabaseLocateRef.current) {
+      return;
+    }
+    if (currentPanel !== 'database' || activeTabLocateTarget?.surface === 'localFile') {
+      pendingManualDatabaseLocateRef.current = false;
+      return;
+    }
+    if (!treeDataReady || activeTabLocateTarget?.surface !== 'databaseTree') {
+      return;
+    }
+    pendingManualDatabaseLocateRef.current = false;
+    void locateActiveWorkspaceTab({ clearSearch: true });
+  }, [activeTabLocateTarget, currentPanel, locateActiveWorkspaceTab, treeDataReady]);
 
   useEffect(() => {
     if (
+      isExplorerSessionActivation ||
       !autoFollowActiveWorkspaceTab ||
       !activeTabLocateTarget ||
       activeTabLocateTarget.surface === 'databaseTree'
@@ -331,10 +374,11 @@ const WorkspaceLeft = memo(() => {
       return;
     }
     void locateActiveWorkspaceTab();
-  }, [activeTabLocateTarget, autoFollowActiveWorkspaceTab, locateActiveWorkspaceTab]);
+  }, [activeTabLocateTarget, autoFollowActiveWorkspaceTab, isExplorerSessionActivation, locateActiveWorkspaceTab]);
 
   useEffect(() => {
     if (
+      isExplorerSessionActivation ||
       !autoFollowActiveWorkspaceTab ||
       !activeTabLocateTarget ||
       activeTabLocateTarget.surface !== 'databaseTree' ||
@@ -343,7 +387,13 @@ const WorkspaceLeft = memo(() => {
       return;
     }
     void locateActiveWorkspaceTab();
-  }, [activeTabLocateTarget, autoFollowActiveWorkspaceTab, locateActiveWorkspaceTab, treeDataReady]);
+  }, [
+    activeTabLocateTarget,
+    autoFollowActiveWorkspaceTab,
+    isExplorerSessionActivation,
+    locateActiveWorkspaceTab,
+    treeDataReady,
+  ]);
 
   return (
     <>
@@ -358,7 +408,7 @@ const WorkspaceLeft = memo(() => {
                   className={[styles.resourceTitle, activePanel === item.value ? styles.resourceTitleActive : '']
                     .filter(Boolean)
                     .join(' ')}
-                  onClick={() => setActivePanel(item.value)}
+                  onClick={() => handlePanelSelection(item.value)}
                 >
                   {item.label}
                 </button>
@@ -369,7 +419,11 @@ const WorkspaceLeft = memo(() => {
         {showExplorerPanel ? (
           <>
             <div className={[styles.panelPane, currentPanel === 'explorer' ? styles.panelPaneActive : ''].join(' ')}>
-              <WorkspaceExplorer ref={explorerRef} active={currentPanel === 'explorer'} />
+              <WorkspaceExplorer
+                ref={explorerRef}
+                active={currentPanel === 'explorer'}
+                onSessionActivate={handleExplorerSessionActivate}
+              />
             </div>
             <div className={[styles.panelPane, currentPanel === 'database' ? styles.panelPaneActive : ''].join(' ')}>
               <WorkspaceLeftActionBar

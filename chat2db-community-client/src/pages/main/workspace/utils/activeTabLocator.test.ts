@@ -5,6 +5,7 @@ import {
   getAutoFollowWorkspaceLeftPanel,
   getDirectActiveTabLocateTarget,
   resolveWorkspaceLeftPanel,
+  shouldLocateActiveTabOnPanelSelection,
 } from './activeTabTarget';
 
 function consoleTab(uniqueData: IWorkspaceTab['uniqueData']): IWorkspaceTab {
@@ -42,7 +43,11 @@ assert.equal(initUserConfigTree.workspaceLeftPanel, 'database');
 assert.equal(resolveWorkspaceLeftPanel(undefined), 'database');
 assert.equal(resolveWorkspaceLeftPanel('explorer'), 'explorer');
 assert.equal(getAutoFollowWorkspaceLeftPanel(true, { surface: 'databaseTree' }), 'database');
+assert.equal(getAutoFollowWorkspaceLeftPanel(true, { surface: 'databaseTree' }, 'explorerSession'), undefined);
 assert.equal(getAutoFollowWorkspaceLeftPanel(true, { surface: 'localFile' }), 'explorer');
 assert.equal(getAutoFollowWorkspaceLeftPanel(false, { surface: 'databaseTree' }), undefined);
+assert.equal(shouldLocateActiveTabOnPanelSelection('database', { surface: 'databaseTree' }), true);
+assert.equal(shouldLocateActiveTabOnPanelSelection('explorer', { surface: 'databaseTree' }), false);
+assert.equal(shouldLocateActiveTabOnPanelSelection('database', { surface: 'localFile' }), false);
 
 console.log('Active workspace tab locator tests passed');
