@@ -226,6 +226,8 @@ export default {
   'common.button.copyConsole': 'Copy output',
   'common.button.clearConsole': 'Clear output',
   'common.button.followConsole': 'Follow latest entry',
+  'common.text.oldestFirst': 'Oldest first',
+  'common.text.newestFirst': 'Newest first',
   'common.text.rowsReturned': '{1} rows returned',
   'common.text.executeDuration': 'execute {1} ms',
   'common.text.fetchDuration': 'fetch {1} ms',
