@@ -16,6 +16,16 @@ export function resolveWorkspaceLeftPanel(panel?: WorkspaceLeftPanel): Workspace
   return panel || 'database';
 }
 
+export function getAutoFollowWorkspaceLeftPanel(
+  enabled: boolean,
+  target?: Pick<DirectActiveTabLocateTarget, 'surface'> | null,
+): WorkspaceLeftPanel | undefined {
+  if (!enabled || !target) {
+    return undefined;
+  }
+  return target.surface === 'localFile' ? 'explorer' : 'database';
+}
+
 export function getDirectActiveTabLocateTarget(
   activeTab?: IWorkspaceTab | null,
 ): DirectActiveTabLocateTarget | null | undefined {

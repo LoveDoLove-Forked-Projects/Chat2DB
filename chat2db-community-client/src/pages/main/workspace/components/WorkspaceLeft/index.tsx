@@ -9,8 +9,9 @@ import type { TreeNodeData } from '@/typings';
 import { isCommunityEnv, isDesktop, isDesktopEnv, isWebEnv } from '@/utils/env';
 import feedback from '@/utils/feedback';
 import { Flex } from 'antd';
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type Key } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type Key } from 'react';
 import {
+  getAutoFollowWorkspaceLeftPanel,
   getActiveTabLocateTarget,
   resolveWorkspaceLeftPanel,
   type ActiveTabDatabaseCandidate,
@@ -159,6 +160,7 @@ const WorkspaceLeft = memo(() => {
   );
   const activeTabLocateTarget = useMemo(() => getActiveTabLocateTarget(activeTab), [activeTab]);
   const autoFollowActiveWorkspaceTab = userConfigTree.followActiveWorkspaceTab !== false;
+  const autoFollowPanel = getAutoFollowWorkspaceLeftPanel(autoFollowActiveWorkspaceTab, activeTabLocateTarget);
   const panelOptions: Array<{ label: string; value: WorkspaceLeftPanel }> = [
     { label: i18n('workspace.explorer.title'), value: 'explorer' },
     { label: i18n('workspace.explorer.databases'), value: 'database' },
@@ -313,6 +315,12 @@ const WorkspaceLeft = memo(() => {
       }
     });
   }, [locateActiveWorkspaceTab]);
+
+  useLayoutEffect(() => {
+    if (showExplorerPanel && autoFollowPanel) {
+      setActivePanel(autoFollowPanel);
+    }
+  }, [autoFollowPanel, setActivePanel, showExplorerPanel]);
 
   useEffect(() => {
     if (

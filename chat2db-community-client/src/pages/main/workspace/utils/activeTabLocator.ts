@@ -3,7 +3,11 @@ import { treeConfig } from '@/blocks/NewTree/treeConfig';
 import type { IWorkspaceTab } from '@/typings';
 import { getDirectActiveTabLocateTarget } from './activeTabTarget';
 
-export { resolveWorkspaceLeftPanel, type WorkspaceLeftPanel } from './activeTabTarget';
+export {
+  getAutoFollowWorkspaceLeftPanel,
+  resolveWorkspaceLeftPanel,
+  type WorkspaceLeftPanel,
+} from './activeTabTarget';
 
 export interface ActiveTabDatabaseCandidate {
   key?: string;

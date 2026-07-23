@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import { WorkspaceTabType, initUserConfigTree } from '@/constants/workspace';
 import type { IWorkspaceTab } from '@/typings';
-import { getDirectActiveTabLocateTarget, resolveWorkspaceLeftPanel } from './activeTabTarget';
+import {
+  getAutoFollowWorkspaceLeftPanel,
+  getDirectActiveTabLocateTarget,
+  resolveWorkspaceLeftPanel,
+} from './activeTabTarget';
 
 function consoleTab(uniqueData: IWorkspaceTab['uniqueData']): IWorkspaceTab {
   return {
@@ -37,5 +41,8 @@ assert.equal(getDirectActiveTabLocateTarget(consoleTab(undefined)), null);
 assert.equal(initUserConfigTree.workspaceLeftPanel, 'database');
 assert.equal(resolveWorkspaceLeftPanel(undefined), 'database');
 assert.equal(resolveWorkspaceLeftPanel('explorer'), 'explorer');
+assert.equal(getAutoFollowWorkspaceLeftPanel(true, { surface: 'databaseTree' }), 'database');
+assert.equal(getAutoFollowWorkspaceLeftPanel(true, { surface: 'localFile' }), 'explorer');
+assert.equal(getAutoFollowWorkspaceLeftPanel(false, { surface: 'databaseTree' }), undefined);
 
 console.log('Active workspace tab locator tests passed');
