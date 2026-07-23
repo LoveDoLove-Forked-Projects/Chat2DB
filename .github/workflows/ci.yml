@@ -45,6 +45,9 @@ jobs:
       - name: Run SQL clipboard test
         run: yarn run test:sql-in-clipboard
 
+      - name: Run AI Markdown code context test
+        run: yarn run test:ai-markdown-code
+
       - name: Run BaseTable tree interaction contract
         run: yarn run test:base-table-interaction
 
