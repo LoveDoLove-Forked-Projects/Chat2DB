@@ -30,6 +30,12 @@ function fallbackIssueStatus(issue) {
   return [...ELIGIBLE_LABELS].some((label) => labels.has(label)) ? 'Ready' : 'Backlog';
 }
 
+function issueEventStatus(action, issue) {
+  if (action === 'closed') return 'Done';
+  if (action === 'reopened') return fallbackIssueStatus(issue);
+  return 'Inbox';
+}
+
 class GitHubClient {
   constructor({ token, repository, apiUrl = 'https://api.github.com' }) {
     if (!token) throw new Error('GH_PROJECT_TOKEN is required.');
@@ -102,8 +108,12 @@ class ProjectSync {
   }
 
   async load() {
-    const data = await this.client.graphql(`
-      query CommunityProject($owner: String!, $number: Int!) {
+    let cursor = null;
+    let firstPage = true;
+    let hasNextPage = false;
+    do {
+      const data = await this.client.graphql(`
+      query CommunityProject($owner: String!, $number: Int!, $cursor: String) {
         organization(login: $owner) {
           projectV2(number: $number) {
             id
@@ -114,7 +124,7 @@ class ProjectSync {
                 }
               }
             }
-            items(first: 100) {
+            items(first: 100, after: $cursor) {
               nodes {
                 id
                 content {
@@ -122,21 +132,28 @@ class ProjectSync {
                   ... on PullRequest { id number state isDraft merged }
                 }
               }
+              pageInfo { hasNextPage endCursor }
             }
           }
         }
       }
-    `, { owner: this.owner, number: this.projectNumber });
-    const project = data.organization?.projectV2;
-    if (!project) throw new Error(`Project ${this.owner}/${this.projectNumber} was not found.`);
-    this.projectId = project.id;
-    const statusField = project.fields.nodes.find((field) => field?.name === 'Status');
-    if (!statusField) throw new Error('Project Status field was not found.');
-    this.statusFieldId = statusField.id;
-    this.statusOptions = new Map(statusField.options.map((option) => [option.name, option.id]));
-    for (const item of project.items.nodes) {
-      if (item.content?.id) this.itemsByContentId.set(item.content.id, { ...item, content: item.content });
-    }
+      `, { owner: this.owner, number: this.projectNumber, cursor });
+      const project = data.organization?.projectV2;
+      if (!project) throw new Error(`Project ${this.owner}/${this.projectNumber} was not found.`);
+      if (firstPage) {
+        this.projectId = project.id;
+        const statusField = project.fields.nodes.find((field) => field?.name === 'Status');
+        if (!statusField) throw new Error('Project Status field was not found.');
+        this.statusFieldId = statusField.id;
+        this.statusOptions = new Map(statusField.options.map((option) => [option.name, option.id]));
+        firstPage = false;
+      }
+      for (const item of project.items.nodes) {
+        if (item.content?.id) this.itemsByContentId.set(item.content.id, { ...item, content: item.content });
+      }
+      hasNextPage = project.items.pageInfo.hasNextPage;
+      cursor = project.items.pageInfo.endCursor;
+    } while (hasNextPage);
   }
 
   async ensureItem(content) {
@@ -190,7 +207,7 @@ class ProjectSync {
 
 async function handleIssue(sync, payload) {
   const issue = { ...payload.issue, id: payload.issue.node_id, kind: 'Issue' };
-  const status = payload.action === 'closed' ? 'Done' : 'Inbox';
+  const status = issueEventStatus(payload.action, issue);
   await sync.setStatus(issue, status);
 }
 
@@ -245,8 +262,10 @@ async function run() {
 }
 
 module.exports = {
+  ProjectSync,
   closingIssueNumbers,
   fallbackIssueStatus,
+  issueEventStatus,
   pullRequestStatus,
 };
 
