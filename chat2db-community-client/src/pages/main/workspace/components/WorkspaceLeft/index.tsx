@@ -14,6 +14,7 @@ import {
   getAutoFollowWorkspaceLeftPanel,
   getActiveTabLocateTarget,
   resolveWorkspaceLeftPanel,
+  resolveWorkspaceLeftAutoFollowState,
   shouldLocateActiveTabOnPanelSelection,
   type ActiveTabDatabaseCandidate,
   type ActiveTabLocateTarget,
@@ -146,10 +147,18 @@ const WorkspaceLeft = memo(() => {
     activeConsoleId: state.activeConsoleId,
     workspaceTabList: state.workspaceTabList,
   }));
-  const { changeUserConfigTree, treeDataReady, userConfigTree } = useTreeStore((state) => ({
+  const {
+    changeUserConfigTree,
+    setWorkspaceLeftPanelManualOverrideTabId,
+    treeDataReady,
+    userConfigTree,
+    workspaceLeftPanelManualOverrideTabId,
+  } = useTreeStore((state) => ({
     changeUserConfigTree: state.changeUserConfigTree,
+    setWorkspaceLeftPanelManualOverrideTabId: state.setWorkspaceLeftPanelManualOverrideTabId,
     treeDataReady: !!state.treeData,
     userConfigTree: state.userConfigTree,
+    workspaceLeftPanelManualOverrideTabId: state.workspaceLeftPanelManualOverrideTabId,
   }));
   const activePanel = resolveWorkspaceLeftPanel(userConfigTree.workspaceLeftPanel);
   const currentPanel = showExplorerPanel ? activePanel : 'database';
@@ -352,6 +361,7 @@ const WorkspaceLeft = memo(() => {
 
   const handlePanelSelection = useCallback(
     (panel: WorkspaceLeftPanel) => {
+      setWorkspaceLeftPanelManualOverrideTabId(activeConsoleId ?? null);
       setActivePanel(panel);
       const shouldLocate = shouldLocateActiveTabOnPanelSelection(panel, activeTabLocateTarget);
       pendingManualDatabaseLocateRef.current = shouldLocate && !treeDataReady;
@@ -359,17 +369,41 @@ const WorkspaceLeft = memo(() => {
         void locateActiveWorkspaceTab({ clearSearch: true });
       }
     },
-    [activeTabLocateTarget, locateActiveWorkspaceTab, setActivePanel, treeDataReady],
+    [
+      activeConsoleId,
+      activeTabLocateTarget,
+      locateActiveWorkspaceTab,
+      setActivePanel,
+      setWorkspaceLeftPanelManualOverrideTabId,
+      treeDataReady,
+    ],
   );
 
   useLayoutEffect(() => {
     if (explorerSessionActivationRef.current !== null && !isExplorerSessionActivation) {
       explorerSessionActivationRef.current = null;
     }
-    if (showExplorerPanel && autoFollowPanel && activePanel !== autoFollowPanel) {
+    const autoFollowState = resolveWorkspaceLeftAutoFollowState({
+      activeWorkspaceTabId: activeConsoleId,
+      autoFollowPanel,
+      manualOverrideTabId: workspaceLeftPanelManualOverrideTabId,
+      showExplorerPanel,
+    });
+    if (autoFollowState.manualOverrideTabId !== workspaceLeftPanelManualOverrideTabId) {
+      setWorkspaceLeftPanelManualOverrideTabId(autoFollowState.manualOverrideTabId);
+    }
+    if (autoFollowState.shouldApplyAutoFollow && autoFollowPanel) {
       setActivePanel(autoFollowPanel);
     }
-  }, [activePanel, autoFollowPanel, isExplorerSessionActivation, setActivePanel, showExplorerPanel]);
+  }, [
+    activeConsoleId,
+    autoFollowPanel,
+    isExplorerSessionActivation,
+    setActivePanel,
+    setWorkspaceLeftPanelManualOverrideTabId,
+    showExplorerPanel,
+    workspaceLeftPanelManualOverrideTabId,
+  ]);
 
   useEffect(() => {
     if (!pendingManualDatabaseLocateRef.current) {

@@ -4,6 +4,7 @@ import type { IWorkspaceTab } from '@/typings';
 import {
   getAutoFollowWorkspaceLeftPanel,
   getDirectActiveTabLocateTarget,
+  resolveWorkspaceLeftAutoFollowState,
   resolveWorkspaceLeftPanel,
   shouldLocateActiveTabOnPanelSelection,
 } from './activeTabTarget';
@@ -49,5 +50,58 @@ assert.equal(getAutoFollowWorkspaceLeftPanel(false, { surface: 'databaseTree' })
 assert.equal(shouldLocateActiveTabOnPanelSelection('database', { surface: 'databaseTree' }), true);
 assert.equal(shouldLocateActiveTabOnPanelSelection('explorer', { surface: 'databaseTree' }), false);
 assert.equal(shouldLocateActiveTabOnPanelSelection('database', { surface: 'localFile' }), false);
+
+assert.deepEqual(
+  resolveWorkspaceLeftAutoFollowState({
+    activeWorkspaceTabId: 101,
+    autoFollowPanel: 'database',
+    manualOverrideTabId: null,
+    showExplorerPanel: true,
+  }),
+  {
+    activeWorkspaceTabId: 101,
+    manualOverrideTabId: null,
+    shouldApplyAutoFollow: true,
+  },
+);
+assert.deepEqual(
+  resolveWorkspaceLeftAutoFollowState({
+    activeWorkspaceTabId: 101,
+    autoFollowPanel: 'database',
+    manualOverrideTabId: 101,
+    showExplorerPanel: true,
+  }),
+  {
+    activeWorkspaceTabId: 101,
+    manualOverrideTabId: 101,
+    shouldApplyAutoFollow: false,
+  },
+);
+assert.deepEqual(
+  resolveWorkspaceLeftAutoFollowState({
+    activeWorkspaceTabId: 102,
+    autoFollowPanel: 'database',
+    manualOverrideTabId: 101,
+    showExplorerPanel: true,
+  }),
+  {
+    activeWorkspaceTabId: 102,
+    manualOverrideTabId: null,
+    shouldApplyAutoFollow: true,
+  },
+);
+assert.deepEqual(
+  resolveWorkspaceLeftAutoFollowState({
+    activeWorkspaceTabId: 102,
+    autoFollowPanel: 'database',
+    manualOverrideTabId: null,
+    showExplorerPanel: false,
+  }),
+  {
+    activeWorkspaceTabId: 102,
+    manualOverrideTabId: null,
+    shouldApplyAutoFollow: false,
+  },
+);
 
 console.log('Active workspace tab locator tests passed');
