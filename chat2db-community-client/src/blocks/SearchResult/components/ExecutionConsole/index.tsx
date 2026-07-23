@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Button, Dropdown, Segmented, type MenuProps } from 'antd';
-import { ArrowDownToLine, ArrowUpToLine, Copy, Sparkles, Trash2 } from 'lucide-react';
+import { Button, Dropdown, type MenuProps } from 'antd';
+import { ArrowDownToLine, ArrowDownUp, ArrowUpToLine, Check, Copy, Sparkles, Trash2 } from 'lucide-react';
 import { IconfontSvg, staticMessage } from '@chat2db/ui';
 import i18n from '@/i18n';
 import { copyToClipboard } from '@/utils/copy';
@@ -20,7 +20,6 @@ import {
   createExecutionConsoleOrderStorageKey,
   getExecutionConsolePreferenceStorage,
   getLatestExecutionEdgeScrollTop,
-  isAtLatestExecutionEdge,
   orderExecutionLogRecords,
   persistExecutionConsoleOrder,
   readExecutionConsoleOrder,
@@ -91,30 +90,17 @@ export default memo<IProps>(({ records, onClear, onOpenResult, isResultAvailable
     staticMessage.success(i18n('common.button.copySuccessfully'));
   };
 
-  const handleScroll = () => {
-    const container = scrollRef.current;
-    if (!container) return;
-    setFollowLatest(
-      isAtLatestExecutionEdge(
-        {
-          scrollTop: container.scrollTop,
-          scrollHeight: container.scrollHeight,
-          clientHeight: container.clientHeight,
-        },
-        order,
-      ),
-    );
-  };
-
-  const handleFollowLatest = () => {
+  const handleToggleFollowLatest = () => {
+    if (followLatest) {
+      setFollowLatest(false);
+      return;
+    }
     setFollowLatest(true);
     alignToLatest();
   };
 
-  const handleOrderChange = (value: string | number) => {
-    const nextOrder = value as ExecutionConsoleOrder;
+  const handleOrderChange = (nextOrder: ExecutionConsoleOrder) => {
     setOrder(nextOrder);
-    setFollowLatest(true);
     persistExecutionConsoleOrder(getExecutionConsolePreferenceStorage(), ORDER_STORAGE_KEY, nextOrder);
   };
 
@@ -124,7 +110,9 @@ export default memo<IProps>(({ records, onClear, onOpenResult, isResultAvailable
     } else if (key === 'clear') {
       onClear();
     } else if (key === 'follow') {
-      handleFollowLatest();
+      handleToggleFollowLatest();
+    } else if (key === 'toggle-order') {
+      handleOrderChange(order === 'oldest-first' ? 'newest-first' : 'oldest-first');
     }
   };
 
@@ -147,43 +135,37 @@ export default memo<IProps>(({ records, onClear, onOpenResult, isResultAvailable
 
   return (
     <div className={styles.console}>
-      <div className={styles.toolbar}>
-        <Segmented
-          className={styles.orderControl}
-          size="small"
-          value={order}
-          onChange={handleOrderChange}
-          options={[
-            { value: 'oldest-first', label: i18n('common.text.oldestFirst') },
-            { value: 'newest-first', label: i18n('common.text.newestFirst') },
-          ]}
-        />
-        {!followLatest && (
-          <Button
-            size="small"
-            icon={order === 'newest-first' ? <ArrowUpToLine size={14} /> : <ArrowDownToLine size={14} />}
-            onClick={handleFollowLatest}
-          >
-            {i18n('common.button.followConsole')}
-          </Button>
-        )}
-      </div>
       <Dropdown
         menu={{
           items: [
             { key: 'copy', icon: <Copy size={14} />, label: i18n('common.button.copyConsole') },
-            { key: 'clear', icon: <Trash2 size={14} />, label: i18n('common.button.clearConsole'), danger: true },
+            { type: 'divider' },
+            {
+              key: 'toggle-order',
+              icon: <ArrowDownUp size={14} />,
+              label: `${i18n('common.text.order')}: ${i18n(
+                order === 'oldest-first' ? 'common.text.oldestFirst' : 'common.text.newestFirst',
+              )}`,
+            },
             {
               key: 'follow',
-              icon: order === 'newest-first' ? <ArrowUpToLine size={14} /> : <ArrowDownToLine size={14} />,
+              icon: followLatest ? (
+                <Check size={14} />
+              ) : order === 'newest-first' ? (
+                <ArrowUpToLine size={14} />
+              ) : (
+                <ArrowDownToLine size={14} />
+              ),
               label: i18n('common.button.followConsole'),
             },
+            { type: 'divider' },
+            { key: 'clear', icon: <Trash2 size={14} />, label: i18n('common.button.clearConsole'), danger: true },
           ],
           onClick: handleContextMenuClick,
         }}
         trigger={['contextMenu']}
       >
-        <div className={styles.scrollArea} ref={scrollRef} onScroll={handleScroll}>
+        <div className={styles.scrollArea} ref={scrollRef}>
           <div className={styles.scrollContent} ref={contentRef}>
             {orderedRecords.map((record, recordIndex) => {
               const showContext =

@@ -8,20 +8,6 @@ export const useStyles = createStyles(({ css, token }) => ({
     background: ${token.colorBgContainer};
     color: ${token.colorText};
   `,
-  toolbar: css`
-    flex: none;
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    flex-wrap: wrap;
-    gap: 8px;
-    min-height: 36px;
-    padding: 4px 12px;
-    border-bottom: 1px solid ${token.colorBorderSecondary};
-  `,
-  orderControl: css`
-    max-width: 100%;
-  `,
   scrollArea: css`
     flex: 1;
     min-height: 0;

@@ -441,7 +441,17 @@ export default memo<IProps>(
     }, []);
 
     useEffect(() => {
-      setTimeout(() => tableInstance?.resize?.(), 0);
+      if (!tableInstance) {
+        return;
+      }
+
+      const resizeTimer = window.setTimeout(() => {
+        if (resultSetTableRef.current?.tableInstance === tableInstance) {
+          tableInstance.resize?.();
+        }
+      }, 0);
+
+      return () => window.clearTimeout(resizeTimer);
     }, [inspectorOpen, tableInstance]);
 
     return (

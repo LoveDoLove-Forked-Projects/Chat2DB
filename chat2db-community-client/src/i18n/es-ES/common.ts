@@ -263,6 +263,7 @@ export default {
   'common.button.copyConsole': 'Copiar salida',
   'common.button.clearConsole': 'Limpiar salida',
   'common.button.followConsole': 'Seguir la última entrada',
+  'common.text.order': 'Orden',
   'common.text.oldestFirst': 'Antiguos primero',
   'common.text.newestFirst': 'Nuevos primero',
   'common.text.rowsReturned': '{1} filas devueltas',

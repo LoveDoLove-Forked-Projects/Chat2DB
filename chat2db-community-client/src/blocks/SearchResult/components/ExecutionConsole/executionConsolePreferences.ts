@@ -7,12 +7,6 @@ interface ExecutionConsolePreferenceStorage {
   setItem(key: string, value: string): void;
 }
 
-interface ScrollMetrics {
-  scrollTop: number;
-  scrollHeight: number;
-  clientHeight: number;
-}
-
 export const DEFAULT_EXECUTION_CONSOLE_ORDER: ExecutionConsoleOrder = 'oldest-first';
 
 export function createExecutionConsoleOrderStorageKey(clientEdition: string, runtimeEnv: string) {
@@ -74,13 +68,6 @@ export function orderExecutionLogRecords(
   return Array.from(executionGroups.values())
     .reverse()
     .flat();
-}
-
-export function isAtLatestExecutionEdge(metrics: ScrollMetrics, order: ExecutionConsoleOrder, threshold = 24) {
-  if (order === 'newest-first') {
-    return metrics.scrollTop <= threshold;
-  }
-  return metrics.scrollHeight - metrics.scrollTop - metrics.clientHeight <= threshold;
 }
 
 export function getLatestExecutionEdgeScrollTop(scrollHeight: number, order: ExecutionConsoleOrder) {

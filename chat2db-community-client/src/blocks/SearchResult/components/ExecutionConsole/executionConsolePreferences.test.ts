@@ -3,7 +3,6 @@ import type { SqlExecutionLogRecord } from '@/service/sqlExecutionLog';
 import {
   createExecutionConsoleOrderStorageKey,
   getLatestExecutionEdgeScrollTop,
-  isAtLatestExecutionEdge,
   orderExecutionLogRecords,
   persistExecutionConsoleOrder,
   readExecutionConsoleOrder,
@@ -94,10 +93,6 @@ assert.deepEqual(
   'ordering does not mutate reducer state',
 );
 
-assert.equal(isAtLatestExecutionEdge({ scrollTop: 0, scrollHeight: 500, clientHeight: 100 }, 'newest-first'), true);
-assert.equal(isAtLatestExecutionEdge({ scrollTop: 30, scrollHeight: 500, clientHeight: 100 }, 'newest-first'), false);
-assert.equal(isAtLatestExecutionEdge({ scrollTop: 380, scrollHeight: 500, clientHeight: 100 }, 'oldest-first'), true);
-assert.equal(isAtLatestExecutionEdge({ scrollTop: 350, scrollHeight: 500, clientHeight: 100 }, 'oldest-first'), false);
 assert.equal(getLatestExecutionEdgeScrollTop(500, 'newest-first'), 0);
 assert.equal(getLatestExecutionEdgeScrollTop(500, 'oldest-first'), 500);
 
