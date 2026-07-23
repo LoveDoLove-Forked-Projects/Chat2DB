@@ -92,5 +92,6 @@ export const workspaceTabConfig: {
 export const initUserConfigTree = {
   showComment: true,
   followActiveWorkspaceTab: true,
+  workspaceLeftPanel: 'database' as const,
   sortDatabaseObjects: false,
 };

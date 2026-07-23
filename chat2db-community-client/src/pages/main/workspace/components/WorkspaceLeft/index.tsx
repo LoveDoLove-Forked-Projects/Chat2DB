@@ -12,6 +12,7 @@ import { Flex } from 'antd';
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type Key } from 'react';
 import {
   getActiveTabLocateTarget,
+  resolveWorkspaceLeftPanel,
   type ActiveTabDatabaseCandidate,
   type ActiveTabLocateTarget,
   type WorkspaceLeftPanel,
@@ -133,20 +134,25 @@ function findDatabaseLocateNode(treeData: TreeNodeData[] | null | undefined, can
 const WorkspaceLeft = memo(() => {
   const explorerRef = useRef<WorkspaceExplorerRef>(null);
   const locateRequestSeqRef = useRef(0);
-  const [activePanel, setActivePanel] = useState<WorkspaceLeftPanel>('explorer');
   const shouldProbeDesktopBridge = !isWebEnv && (isDesktopEnv || isCommunityEnv || isDesktop);
   const [desktopBridgeReady, setDesktopBridgeReady] = useState(() => isDesktop || hasDesktopBridge());
   const { styles } = useStyles();
   const showExplorerPanel = shouldProbeDesktopBridge && desktopBridgeReady;
-  const currentPanel = showExplorerPanel ? activePanel : 'database';
   const { activeConsoleId, workspaceTabList } = useWorkspaceStore((state) => ({
     activeConsoleId: state.activeConsoleId,
     workspaceTabList: state.workspaceTabList,
   }));
-  const { treeDataReady, userConfigTree } = useTreeStore((state) => ({
+  const { changeUserConfigTree, treeDataReady, userConfigTree } = useTreeStore((state) => ({
+    changeUserConfigTree: state.changeUserConfigTree,
     treeDataReady: !!state.treeData,
     userConfigTree: state.userConfigTree,
   }));
+  const activePanel = resolveWorkspaceLeftPanel(userConfigTree.workspaceLeftPanel);
+  const currentPanel = showExplorerPanel ? activePanel : 'database';
+  const setActivePanel = useCallback(
+    (panel: WorkspaceLeftPanel) => changeUserConfigTree('workspaceLeftPanel', panel),
+    [changeUserConfigTree],
+  );
   const activeTab = useMemo(
     () => workspaceTabList?.find((tab) => tab.id === activeConsoleId),
     [activeConsoleId, workspaceTabList],
@@ -271,7 +277,7 @@ const WorkspaceLeft = memo(() => {
       selectDatabaseTreeNode(result, { clearSearch: options?.clearSearch });
       return result.fallback ? 'fallback' : 'hit';
     },
-    [loadDatabasePath, selectDatabaseTreeNode, showExplorerPanel],
+    [loadDatabasePath, selectDatabaseTreeNode, setActivePanel, showExplorerPanel],
   );
 
   const locateActiveWorkspaceTab = useCallback(
@@ -294,7 +300,7 @@ const WorkspaceLeft = memo(() => {
 
       return locateDatabaseTree(target, { ...options, requestSeq });
     },
-    [activeTabLocateTarget, locateDatabaseTree, showExplorerPanel],
+    [activeTabLocateTarget, locateDatabaseTree, setActivePanel, showExplorerPanel],
   );
 
   const handleLocateActiveWorkspaceTab = useCallback(() => {

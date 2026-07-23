@@ -1,8 +1,9 @@
 import { TreeNodeType, WorkspaceTabType } from '@/constants';
 import { treeConfig } from '@/blocks/NewTree/treeConfig';
 import type { IWorkspaceTab } from '@/typings';
+import { getDirectActiveTabLocateTarget } from './activeTabTarget';
 
-export type WorkspaceLeftPanel = 'explorer' | 'database';
+export { resolveWorkspaceLeftPanel, type WorkspaceLeftPanel } from './activeTabTarget';
 
 export interface ActiveTabDatabaseCandidate {
   key?: string;
@@ -278,22 +279,16 @@ export function getActiveTabLocateTarget(
     return null;
   }
 
-  if (activeTab.type === WorkspaceTabType.CONSOLE) {
+  const directTarget = getDirectActiveTabLocateTarget(activeTab);
+  if (directTarget?.surface === 'databaseTree') {
     return databaseTreeTarget(
       getContextCandidates(activeTab.uniqueData),
       getContextLoadPath(activeTab.uniqueData),
     );
   }
 
-  if (activeTab.type === WorkspaceTabType.LocalSQLFile) {
-    const filePath = activeTab.uniqueData?.filePath;
-    if (!filePath) {
-      return null;
-    }
-    return {
-      surface: 'localFile',
-      filePath,
-    };
+  if (directTarget !== undefined) {
+    return directTarget;
   }
 
   return getDatabaseObjectLocateTarget(activeTab);
