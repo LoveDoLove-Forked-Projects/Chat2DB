@@ -21,6 +21,7 @@ type SearchBarHandle = { focus: () => void; blur: () => void };
 
 interface WorkspaceExplorerProps {
   active?: boolean;
+  onSessionActivate?: (sessionId: IWorkspaceTab['id']) => void;
 }
 
 export interface WorkspaceExplorerRef {
@@ -29,7 +30,7 @@ export interface WorkspaceExplorerRef {
 
 const WorkspaceExplorer = memo(
   forwardRef<WorkspaceExplorerRef, WorkspaceExplorerProps>((
-    { active = true },
+    { active = true, onSessionActivate },
     ref,
   ) => {
   const { styles } = useStyles();
@@ -152,6 +153,7 @@ const WorkspaceExplorer = memo(
   }
 
   function handleSessionDragStart(event: React.DragEvent<HTMLButtonElement>, session: IWorkspaceTab) {
+    onSessionActivate?.(session.id);
     setActiveConsoleId(session.id);
     const payload = {
       id: session.id,
@@ -249,6 +251,7 @@ const WorkspaceExplorer = memo(
                 onDragStart={(event) => handleSessionDragStart(event, session)}
                 onClick={(event) => {
                   event.stopPropagation();
+                  onSessionActivate?.(session.id);
                   setActiveConsoleId(session.id);
                 }}
               >
