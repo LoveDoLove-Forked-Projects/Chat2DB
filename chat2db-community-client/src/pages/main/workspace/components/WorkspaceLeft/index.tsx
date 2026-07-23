@@ -154,7 +154,12 @@ const WorkspaceLeft = memo(() => {
   const activePanel = resolveWorkspaceLeftPanel(userConfigTree.workspaceLeftPanel);
   const currentPanel = showExplorerPanel ? activePanel : 'database';
   const setActivePanel = useCallback(
-    (panel: WorkspaceLeftPanel) => changeUserConfigTree('workspaceLeftPanel', panel),
+    (panel: WorkspaceLeftPanel) => {
+      const persistedPanel = resolveWorkspaceLeftPanel(useTreeStore.getState().userConfigTree.workspaceLeftPanel);
+      if (persistedPanel !== panel) {
+        changeUserConfigTree('workspaceLeftPanel', panel);
+      }
+    },
     [changeUserConfigTree],
   );
   const activeTab = useMemo(
@@ -344,10 +349,10 @@ const WorkspaceLeft = memo(() => {
     if (explorerSessionActivationRef.current !== null && !isExplorerSessionActivation) {
       explorerSessionActivationRef.current = null;
     }
-    if (showExplorerPanel && autoFollowPanel) {
+    if (showExplorerPanel && autoFollowPanel && activePanel !== autoFollowPanel) {
       setActivePanel(autoFollowPanel);
     }
-  }, [autoFollowPanel, isExplorerSessionActivation, setActivePanel, showExplorerPanel]);
+  }, [activePanel, autoFollowPanel, isExplorerSessionActivation, setActivePanel, showExplorerPanel]);
 
   useEffect(() => {
     if (!pendingManualDatabaseLocateRef.current) {
