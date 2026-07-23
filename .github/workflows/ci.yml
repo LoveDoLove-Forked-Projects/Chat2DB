@@ -105,5 +105,8 @@ jobs:
             puts "validated #{path}"
           end
 
-      - name: Test issue claim automation
-        run: node --test script/github/issue-claim.test.js
+      - name: Validate Community operations contracts
+        run: ruby script/github/validate-community-operations.rb
+
+      - name: Test Community workflow automation
+        run: node --test script/github/issue-claim.test.js script/github/sync-community-project.test.js
