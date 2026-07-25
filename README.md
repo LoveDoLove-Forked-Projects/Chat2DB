@@ -1,10 +1,10 @@
 <div align="center">
   <img src="./icon.png" alt="Chat2DB" width="100">
-  <p><strong>An AI-powered database client and SQL workspace for developers, DBAs, analysts, and data teams.</strong></p>
+  <div align="center">
+  Powered by  <a href="https://ottermind.ai">OtterMind.ai</a>
 </div>
-
-<div align="center">
-  <a href="https://ottermind.ai">Powered by OtterMind.ai</a>
+  <br/>
+  <p><strong>An AI-powered database client and SQL workspace for developers, DBAs, analysts, and data teams.</strong></p>
 </div>
 
 <div align="center">
