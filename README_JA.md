@@ -1,7 +1,7 @@
 <div align="center">
   <img src="./icon.png" alt="Chat2DB" width="100">
   <div align="center">
-  Powered by  <a href="https://ottermind.ai">OtterMind.ai</a>
+  Powered by  <a href="https://ottermind.ai">OtterMind</a>
 </div>
   <br/>
   <p><strong>開発者、DBA、アナリスト、データチーム向けの AI 搭載データベースクライアント兼 SQL ワークスペースです。</strong></p>
