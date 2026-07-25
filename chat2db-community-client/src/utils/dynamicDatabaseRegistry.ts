@@ -206,6 +206,26 @@ export interface DynamicDatabaseRegistries {
 }
 
 /**
+ * Registration happens asynchronously after first render, while consumers such
+ * as the add-datasource menu memoize their view of databaseTypeList. This
+ * version counter lets them subscribe and recompute once registration lands,
+ * instead of showing a stale snapshot without the dynamic databases.
+ */
+let dynamicDatabaseVersion = 0;
+const dynamicDatabaseListeners = new Set<() => void>();
+
+export function getDynamicDatabaseVersion(): number {
+  return dynamicDatabaseVersion;
+}
+
+export function subscribeDynamicDatabases(listener: () => void): () => void {
+  dynamicDatabaseListeners.add(listener);
+  return () => {
+    dynamicDatabaseListeners.delete(listener);
+  };
+}
+
+/**
  * Registers every unknown summary into the given registries. Returns the list
  * of database types that were added. Known types and blank entries are
  * skipped, and a type is never registered twice.
@@ -228,6 +248,10 @@ export function registerDynamicDatabases(
       registries.dataSourceFormConfigs.push(buildDynamicFormConfig(summary, shared));
     }
     added.push(dbType);
+  }
+  if (added.length) {
+    dynamicDatabaseVersion += 1;
+    dynamicDatabaseListeners.forEach((listener) => listener());
   }
   return added;
 }

@@ -116,6 +116,131 @@ class PgWireFamilyBusinessFlowIntegrationTest {
         }
     }
 
+    @Test
+    void yugabytedbFullBusinessFlow() throws Exception {
+        assumeTrue(reachable(5435), "YugabyteDB test container not running; skipping");
+        try (Connection connection = connect("jdbc:postgresql://127.0.0.1:5435/yugabyte", "yugabyte", "yugabyte")) {
+            String table = "c2d_flow_yb";
+            dropQuietly(connection, table);
+
+            executor.execute(connection,
+                    "CREATE TABLE " + table + " (id INTEGER PRIMARY KEY, name TEXT)", resultSet -> null);
+            assertTrue(executor.executeUpdate(
+                    "INSERT INTO " + table + " (id, name) VALUES (1, 'chat2db')", connection, 1).getSuccess());
+            Integer count = executor.execute(connection,
+                    "SELECT COUNT(*) FROM " + table, resultSet -> {
+                        assertTrue(resultSet.next());
+                        return resultSet.getInt(1);
+                    });
+            assertEquals(1, count, "YugabyteDB query should see the inserted row");
+
+            List<Table> tables = metaData.tables(connection, null, "public", table);
+            assertTrue(tables.stream().anyMatch(item -> table.equals(item.getName())),
+                    "YugabyteDB table listing should contain " + table);
+
+            dropQuietly(connection, table);
+        }
+    }
+
+    @Test
+    void greenplumFullBusinessFlow() throws Exception {
+        assumeTrue(reachable(5436), "Greenplum test container not running; skipping");
+        try (Connection connection = connect("jdbc:postgresql://127.0.0.1:5436/postgres", "gpadmin", "gpadmin")) {
+            String table = "c2d_flow_gp";
+            dropQuietly(connection, table);
+
+            // Greenplum distributes by the first column when no clause is given.
+            executor.execute(connection,
+                    "CREATE TABLE " + table + " (id INTEGER, name TEXT) DISTRIBUTED BY (id)", resultSet -> null);
+            assertTrue(executor.executeUpdate(
+                    "INSERT INTO " + table + " (id, name) VALUES (1, 'chat2db')", connection, 1).getSuccess());
+            Integer count = executor.execute(connection,
+                    "SELECT COUNT(*) FROM " + table, resultSet -> {
+                        assertTrue(resultSet.next());
+                        return resultSet.getInt(1);
+                    });
+            assertEquals(1, count, "Greenplum query should see the inserted row");
+
+            List<Table> tables = metaData.tables(connection, null, "public", table);
+            assertTrue(tables.stream().anyMatch(item -> table.equals(item.getName())),
+                    "Greenplum table listing should contain " + table);
+
+            dropQuietly(connection, table);
+        }
+    }
+
+    /**
+     * Regression for the table-browse failures recorded in the operation log:
+     * "select * from qdb.telemetry" -> table does not exist. QuestDB's namespace
+     * is flat, so the browse SQL must reference the bare table name.
+     */
+    @Test
+    void questdbTableBrowseUsesUnqualifiedName() throws Exception {
+        assumeTrue(reachable(8812), "QuestDB test container not running; skipping");
+        try (Connection connection = connect("jdbc:postgresql://127.0.0.1:8812/qdb", "admin", "quest")) {
+            String table = "c2d_browse_qdb";
+            dropQuietly(connection, table);
+            executor.execute(connection, "CREATE TABLE " + table + " (id INT)", resultSet -> null);
+            assertTrue(executor.executeUpdate(
+                    "INSERT INTO " + table + " (id) VALUES (7)", connection, 1).getSuccess());
+
+            String qualified = new GenericMetaData(configFor("QUESTDB"))
+                    .getQualifiedTableName("qdb", null, table);
+            assertEquals(table, qualified, "QuestDB browse SQL must not carry the database prefix");
+            Integer rows = executor.execute(connection, "select * from " + qualified, resultSet -> {
+                int n = 0;
+                while (resultSet.next()) {
+                    n++;
+                }
+                return n;
+            });
+            assertEquals(1, rows, "browse SQL built from getQualifiedTableName should read the table");
+
+            dropQuietly(connection, table);
+        }
+    }
+
+    /**
+     * Regression for "select * from doc.crate.c2d_flow_crate" -> Unexpected
+     * catalog name: doc. The JDBC catalog CrateDB reports must never reach the
+     * SQL; a schema-qualified reference is the correct browse form, including
+     * for a schema that happens to be named "crate".
+     */
+    @Test
+    void cratedbTableBrowseDropsCatalogQualifier() throws Exception {
+        assumeTrue(reachable(5433), "CrateDB test container not running; skipping");
+        try (Connection connection = connect("jdbc:postgresql://127.0.0.1:5433/doc", "crate", null)) {
+            String table = "c2d_browse_crate";
+            dropQuietly(connection, "crate." + table);
+            executor.execute(connection,
+                    "CREATE TABLE crate." + table + " (id INTEGER PRIMARY KEY)", resultSet -> null);
+            assertTrue(executor.executeUpdate(
+                    "INSERT INTO crate." + table + " (id) VALUES (1)", connection, 1).getSuccess());
+            executor.execute(connection, "REFRESH TABLE crate." + table, resultSet -> null);
+
+            String qualified = new GenericMetaData(configFor("CRATEDB"))
+                    .getQualifiedTableName("doc", "crate", table);
+            assertEquals("crate." + table, qualified,
+                    "CrateDB browse SQL must qualify with the schema only");
+            Integer rows = executor.execute(connection, "select * from " + qualified, resultSet -> {
+                int n = 0;
+                while (resultSet.next()) {
+                    n++;
+                }
+                return n;
+            });
+            assertEquals(1, rows, "browse SQL built from getQualifiedTableName should read the table");
+
+            dropQuietly(connection, "crate." + table);
+        }
+    }
+
+    private ai.chat2db.community.domain.api.config.DBConfig configFor(String dbType) {
+        return new GenericPlugin().getDBConfigList().stream()
+                .filter(config -> dbType.equals(config.getDbType()))
+                .findFirst().orElseThrow();
+    }
+
     private static boolean reachable(int port) {
         try (Socket socket = new Socket()) {
             socket.connect(new InetSocketAddress("127.0.0.1", port), 1500);

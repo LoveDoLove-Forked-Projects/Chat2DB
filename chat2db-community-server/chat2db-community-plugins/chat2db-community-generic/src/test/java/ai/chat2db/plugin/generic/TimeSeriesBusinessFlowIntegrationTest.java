@@ -112,6 +112,51 @@ class TimeSeriesBusinessFlowIntegrationTest {
         }
     }
 
+    /**
+     * Regression for browsing an IoTDB timeseries from the tree:
+     * select * from "root.factory.line1" -> 700 no viable alternative. Dots in
+     * an IoTDB reference are path separators, so the browse SQL built from
+     * getQualifiedTableName must stay raw (identifierQuotes=none,
+     * tableQualification=table in generic.json).
+     */
+    @Test
+    void iotdbTableBrowseUsesRawPathReference() throws Exception {
+        assumeTrue(reachable(6667), "IoTDB test container not running; skipping");
+        Class.forName("org.apache.iotdb.jdbc.IoTDBDriver");
+        Properties properties = new Properties();
+        properties.setProperty("user", "root");
+        properties.setProperty("password", "root");
+        try (Connection connection = DriverManager.getConnection(
+                "jdbc:iotdb://127.0.0.1:6667/", properties)) {
+            try {
+                executor.execute(connection, "DELETE DATABASE root.c2dbrowse", resultSet -> null);
+            } catch (RuntimeException ignored) {
+                // absent on fresh container
+            }
+            executor.execute(connection, "CREATE DATABASE root.c2dbrowse", resultSet -> null);
+            executor.execute(connection,
+                    "INSERT INTO root.c2dbrowse.dev1(timestamp, temperature) VALUES (now(), 21.5)",
+                    resultSet -> null);
+
+            ai.chat2db.community.domain.api.config.DBConfig config = new GenericPlugin().getDBConfigList().stream()
+                    .filter(item -> "IOTDB".equals(item.getDbType()))
+                    .findFirst().orElseThrow();
+            String qualified = new GenericMetaData(config)
+                    .getQualifiedTableName(null, null, "root.c2dbrowse.dev1");
+            assertEquals("root.c2dbrowse.dev1", qualified, "IoTDB browse reference must stay unquoted");
+            Integer rows = executor.execute(connection, "select * from " + qualified, resultSet -> {
+                int seen = 0;
+                while (resultSet.next()) {
+                    seen++;
+                }
+                return seen;
+            });
+            assertEquals(1, rows, "browse SQL built from getQualifiedTableName should read the timeseries");
+
+            executor.execute(connection, "DELETE DATABASE root.c2dbrowse", resultSet -> null);
+        }
+    }
+
     private static boolean reachable(int port) {
         try (Socket socket = new Socket()) {
             socket.connect(new InetSocketAddress("127.0.0.1", port), 1500);

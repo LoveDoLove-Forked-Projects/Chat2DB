@@ -56,6 +56,40 @@ public class GenericMetaData extends DefaultMetaService implements IDbMetaData {
         return configured != null ? configured : super.getSQLIdentifierProcessor();
     }
 
+    /**
+     * JDBC getTables with the default type list also returns engine-internal
+     * relations (Firebird MON$/RDB$, HSQLDB INFORMATION_SCHEMA views, ...);
+     * browsing them fails or is meaningless, so the generic table listing keeps
+     * user relations only.
+     */
+    @Override
+    public List<Table> tables(Connection connection, String databaseName, String schemaName, String tableName) {
+        List<Table> tables = super.tables(connection, databaseName, schemaName, tableName);
+        if (CollectionUtils.isEmpty(tables)) {
+            return tables;
+        }
+        return tables.stream()
+                .filter(table -> !isSystemTableType(table.getType()))
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    private static boolean isSystemTableType(String type) {
+        return "SYSTEM TABLE".equalsIgnoreCase(type) || "SYSTEM VIEW".equalsIgnoreCase(type);
+    }
+
+    @Override
+    public String getQualifiedTableName(String databaseName, String schemaName, String tableName) {
+        DBConfig config = currentConfig();
+        String policy = config == null ? null : config.getTableQualification();
+        if ("table".equals(policy)) {
+            return getMetaDataName(tableName);
+        }
+        if ("schema.table".equals(policy)) {
+            return getMetaDataName(schemaName, tableName);
+        }
+        return getMetaDataName(databaseName, schemaName, tableName);
+    }
+
     @Override
     public String getMetaDataName(String... names) {
         ai.chat2db.spi.ISQLIdentifierProcessor processor = getSQLIdentifierProcessor();

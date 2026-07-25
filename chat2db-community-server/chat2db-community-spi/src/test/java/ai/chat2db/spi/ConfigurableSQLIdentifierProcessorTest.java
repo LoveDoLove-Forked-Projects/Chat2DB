@@ -51,6 +51,17 @@ class ConfigurableSQLIdentifierProcessorTest {
     }
 
     @Test
+    void noneSpecNeverQuotes() {
+        ConfigurableSQLIdentifierProcessor processor = ConfigurableSQLIdentifierProcessor.fromSpec("none");
+
+        assertEquals("root.factory.line1", processor.quoteIdentifier("root.factory.line1"),
+                "path-based dialects (IoTDB) must keep dotted references raw");
+        assertEquals("order table", processor.quoteIdentifier("order table"));
+        assertFalse(processor.isQuoteIdentifier("\"a\""));
+        assertEquals("\"a\"", processor.removeIdentifierQuote("\"a\""));
+    }
+
+    @Test
     void versionedAndIgnoreCaseVariantsDelegate() {
         ConfigurableSQLIdentifierProcessor processor = ConfigurableSQLIdentifierProcessor.fromSpec("`");
 

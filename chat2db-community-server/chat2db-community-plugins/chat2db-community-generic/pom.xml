@@ -92,6 +92,14 @@
             <version>5.0.6.java11</version>
             <scope>test</scope>
         </dependency>
+        <!-- Matches the trinodb/trino:475 container in start-test-databases.sh;
+             used only by the opt-in container integration test. -->
+        <dependency>
+            <groupId>io.trino</groupId>
+            <artifactId>trino-jdbc</artifactId>
+            <version>475</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
     <build>
         <resources>

@@ -9,7 +9,9 @@ import {
   dynamicIconCode,
   parseFileUrlSample,
   parseHostPortUrlSample,
+  getDynamicDatabaseVersion,
   registerDynamicDatabases,
+  subscribeDynamicDatabases,
 } from './dynamicDatabaseRegistry';
 
 const SVG = '<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><rect fill="#F0491F"/></svg>';
@@ -110,6 +112,24 @@ const freshRegistries = () => ({
   assert.equal(registries.dataSourceFormConfigs.length, 1);
   assert.deepEqual(registerDynamicDatabases([summary('FIREBIRD')], registries, shared), []);
   assert.deepEqual(registerDynamicDatabases(null, freshRegistries(), shared), []);
+}
+
+// version bump + subscription: consumers memoizing databaseTypeList re-render
+// when async registration lands; no-op registrations do not notify
+{
+  const before = getDynamicDatabaseVersion();
+  let notified = 0;
+  const unsubscribe = subscribeDynamicDatabases(() => {
+    notified += 1;
+  });
+  registerDynamicDatabases([summary('QUESTDB')], freshRegistries(), shared);
+  assert.equal(getDynamicDatabaseVersion(), before + 1);
+  assert.equal(notified, 1);
+  registerDynamicDatabases([], freshRegistries(), shared);
+  assert.equal(notified, 1, 'empty registration must not notify');
+  unsubscribe();
+  registerDynamicDatabases([summary('CRATEDB')], freshRegistries(), shared);
+  assert.equal(notified, 1, 'unsubscribed listener must not fire');
 }
 
 console.log('dynamicDatabaseRegistry tests passed');

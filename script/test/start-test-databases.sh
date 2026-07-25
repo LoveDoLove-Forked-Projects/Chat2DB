@@ -62,6 +62,19 @@ want "iotdb" "${targets[@]}" && start c2d-test-iotdb \
   --publish 127.0.0.1:6667:6667 \
   apache/iotdb:1.3.2-standalone
 
+want "yugabytedb" "${targets[@]}" && start c2d-test-yugabytedb \
+  --publish 127.0.0.1:5435:5433 \
+  yugabytedb/yugabyte:latest \
+  bin/yugabyted start --background=false
+
+want "greenplum" "${targets[@]}" && start c2d-test-greenplum \
+  --publish 127.0.0.1:5436:5432 \
+  datagrip/greenplum:6.8
+
+want "trino" "${targets[@]}" && start c2d-test-trino \
+  --publish 127.0.0.1:8085:8080 \
+  trinodb/trino:475
+
 echo "Run the suite with tests enabled, e.g.:"
 echo "  mvn -f chat2db-community-server/pom.xml -pl :chat2db-community-generic -am \\"
 echo "    -Dmaven.test.skip=false -DskipTests=false '-Dsurefire.includes=**/*Test.java' \\"

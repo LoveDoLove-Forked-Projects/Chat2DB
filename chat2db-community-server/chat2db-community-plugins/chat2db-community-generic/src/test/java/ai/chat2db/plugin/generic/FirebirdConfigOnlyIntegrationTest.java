@@ -13,9 +13,13 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.List;
 import java.util.Properties;
 
+import ai.chat2db.community.domain.api.model.metadata.Table;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
@@ -94,6 +98,53 @@ class FirebirdConfigOnlyIntegrationTest {
             }
             assertTrue(found, "JDBC DatabaseMetaData should list the created table");
 
+            try (Statement statement = connection.createStatement()) {
+                statement.execute("DROP TABLE C2D_IT_SMOKE");
+            }
+        }
+    }
+
+    /**
+     * Regression for the empty database node in the connection tree: Firebird
+     * has no catalog or schema concept (getCatalogs()/getSchemas() return
+     * nothing), so generic.json must declare supportDatabase=false and
+     * supportSchema=false, and table listing must work without either context.
+     */
+    @Test
+    void firebirdDeclaresNeitherDatabasesNorSchemasAndListsTablesDirectly() throws Exception {
+        DBConfig config = new GenericPlugin().getDBConfigList().stream()
+                .filter(item -> "FIREBIRD".equals(item.getDbType()))
+                .findFirst().orElseThrow();
+        assertFalse(config.isSupportDatabase(),
+                "Firebird has no catalogs: the tree must not show a database level");
+        assertFalse(config.isSupportSchema(),
+                "Firebird has no schemas: the tree must not show a schema level");
+
+        assumeTrue(containerReachable(), "Firebird test container not running; skipping");
+        DriverConfig driver = firebirdDriver();
+        Class.forName(driver.getJdbcDriverClass());
+        Properties properties = new Properties();
+        properties.setProperty("user", "SYSDBA");
+        properties.setProperty("password", "masterkey");
+        properties.setProperty("charSet", "utf-8");
+        try (Connection connection = DriverManager.getConnection(driver.getUrl(), properties)) {
+            try (ResultSet catalogs = connection.getMetaData().getCatalogs()) {
+                assertTrue(!catalogs.next(), "Jaybird reports no catalogs");
+            }
+            try (Statement statement = connection.createStatement()) {
+                dropTableIfExists(statement);
+                statement.execute("CREATE TABLE C2D_IT_SMOKE (ID INTEGER NOT NULL PRIMARY KEY)");
+            }
+            if (!connection.getAutoCommit()) {
+                connection.commit();
+            }
+            List<Table> tables = new GenericMetaData(config).tables(connection, null, null, null);
+            assertTrue(tables.stream().anyMatch(item -> "C2D_IT_SMOKE".equals(item.getName())),
+                    "table listing must work without database or schema context");
+            assertTrue(tables.stream().noneMatch(item -> item.getName() != null
+                            && (item.getName().startsWith("MON$") || item.getName().startsWith("RDB$")
+                                || item.getName().startsWith("SEC$"))),
+                    "engine-internal MON$/RDB$/SEC$ relations must not pollute the table listing");
             try (Statement statement = connection.createStatement()) {
                 statement.execute("DROP TABLE C2D_IT_SMOKE");
             }

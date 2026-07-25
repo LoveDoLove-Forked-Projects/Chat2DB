@@ -40,6 +40,14 @@ public class DBConfig {
      */
     private String identifierQuotes;
 
+    /**
+     * How generated SQL qualifies table references. Accepted values:
+     * {@code database.schema.table} (default when absent), {@code schema.table}
+     * for dialects whose JDBC catalog must not appear in SQL (CrateDB), and
+     * {@code table} for flat-namespace dialects (QuestDB).
+     */
+    private String tableQualification;
+
 
     /** Inline SVG icon for this database, served to clients for rendering. */
     private String icon;
@@ -166,6 +174,14 @@ public class DBConfig {
 
     public void setIdentifierQuotes(String identifierQuotes) {
         this.identifierQuotes = identifierQuotes;
+    }
+
+    public String getTableQualification() {
+        return tableQualification;
+    }
+
+    public void setTableQualification(String tableQualification) {
+        this.tableQualification = tableQualification;
     }
 
     public DriverConfig getDefaultDriverConfig() {
