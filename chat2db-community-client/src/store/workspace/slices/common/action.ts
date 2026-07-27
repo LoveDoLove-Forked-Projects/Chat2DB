@@ -10,7 +10,11 @@ export interface CommonAction {
   setCurrentConnectionDetails: (data: CommonState['currentConnectionDetails']) => void;
   setCurrentWorkspaceExtend: (workspaceExtend: CommonState['currentWorkspaceExtend']) => void;
   setCurrentWorkspaceGlobalExtend: (workspaceGlobalExtend: CommonState['currentWorkspaceGlobalExtend']) => void;
-  readFile: (filePath: string, fileExtension?: string) => void;
+  readFile: (
+    filePath: string,
+    fileExtension?: string,
+    context?: { rootToken?: string; relativePath?: string; previewFile?: boolean },
+  ) => void;
 }
 
 export const createCommonAction: StateCreator<WorkspaceStore, [['zustand/devtools', never]], [], CommonAction> = (
@@ -26,18 +30,42 @@ export const createCommonAction: StateCreator<WorkspaceStore, [['zustand/devtool
   setCurrentWorkspaceGlobalExtend: (workspaceGlobalExtend) => {
     set({ currentWorkspaceGlobalExtend: workspaceGlobalExtend });
   },
-  readFile: (filePath: string, fileExtension?: string) => {
-    jcefApi.readFile(filePath).then((fileContent) => {
+  readFile: (filePath, fileExtension, context) => {
+    const contentPromise =
+      context?.previewFile && context.rootToken
+        ? jcefApi.readSqlDirectoryPreview({
+            rootToken: context.rootToken,
+            relativePath: context.relativePath || '',
+          })
+        : jcefApi.readFile(filePath).then((ddl) => ({ ddl }));
+
+    contentPromise.then((fileContent) => {
       useGlobalStore.getState().setMainPageActiveTab({ page: 'workspace' });
       const workspaceTabList = get().workspaceTabList;
+      const nextUniqueData = {
+        filePath,
+        fileExtension,
+        fileRootToken: context?.rootToken,
+        fileRelativePath: context?.relativePath,
+        ...(context?.previewFile
+          ? {
+              filePreviewDataUrl: 'dataUrl' in fileContent ? fileContent.dataUrl : undefined,
+              filePreviewMimeType: 'mimeType' in fileContent ? fileContent.mimeType : undefined,
+              ddl: undefined,
+            }
+          : {
+              ddl: 'ddl' in fileContent ? fileContent.ddl : '',
+              filePreviewDataUrl: undefined,
+              filePreviewMimeType: undefined,
+            }),
+      };
       if (workspaceTabList?.some((tab) => tab.uniqueData?.filePath === filePath)) {
         const tab: any = workspaceTabList.find((_tab) => _tab.uniqueData?.filePath === filePath);
         if (tab) {
           tab.uniqueData = {
             ...tab.uniqueData,
-            filePath,
+            ...nextUniqueData,
             fileExtension: fileExtension || tab.uniqueData?.fileExtension,
-            ddl: fileContent,
           };
           get().setActiveConsoleId(tab.id);
           get().setWorkspaceTabList([...workspaceTabList]);
@@ -48,11 +76,7 @@ export const createCommonAction: StateCreator<WorkspaceStore, [['zustand/devtool
             id: randomLargeLong(),
             type: WorkspaceTabType.LocalSQLFile,
             title: filePath,
-            uniqueData: {
-              filePath,
-              fileExtension,
-              ddl: fileContent,
-            },
+            uniqueData: nextUniqueData,
           });
         }, 0);
       }

@@ -62,6 +62,7 @@ interface ISQLEditorWithOperationProps {
   reloadSQL?: () => Promise<string>;
 
   onExecuteSQL: (props: IConsoleReturnExecuteSql) => Promise<any>;
+  onChange?: (value: string) => void;
 }
 
 export interface ISQLEditorWithOperationRef extends SQLEditorRef {
@@ -113,6 +114,7 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
     isConsole = true,
     sqlActionEnabled = true,
     reloadSQL,
+    onChange,
   } = props;
   const isReadOnly = !!dbInfo.readOnly;
   const isSupportedRoutineEditor =
@@ -945,6 +947,7 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
           action={handleAction}
           enableContentDiffHints={enableContentDiffHints}
           onContentChange={handleEditorContentChange}
+          onChange={onChange}
           contextMenuInfo={contextMenuInfo}
           onTableIdentifierContextChange={setContextTableIdentifier}
           onContextMenu={isReadOnly ? undefined : handleContextMenu}

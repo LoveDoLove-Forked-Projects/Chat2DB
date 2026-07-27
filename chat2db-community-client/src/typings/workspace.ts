@@ -84,6 +84,14 @@ export interface IBoundInfo {
 
   filePath?: string;
   fileExtension?: string;
+  filePreviewDataUrl?: string;
+  filePreviewMimeType?: string;
+  fileRootToken?: string;
+  fileRelativePath?: string;
+  terminalSessionId?: string;
+  terminalCwd?: string;
+  terminalShell?: string;
+  terminalShellId?: string;
   viewName?: string;
   functionName?: string;
   procedureName?: string;

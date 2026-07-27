@@ -76,6 +76,7 @@ interface IProps {
   height?: number;
   onChange: (key: string | number | null) => void;
   onEdit?: (action: 'add' | 'remove', data?: ITabItem[], list?: ITabItem[]) => void;
+  beforeRemove?: (tabs: ITabItem[]) => boolean | Promise<boolean>;
   hideAdd?: boolean;
   editableNameOnBlur?: (option: ITabItem) => void;
   concealTabHeader?: boolean;
@@ -191,6 +192,7 @@ export default memo<IProps>((props) => {
     items,
     onChange,
     onEdit,
+    beforeRemove,
     activeKey,
     hideAdd,
     lastTabCannotClosed,
@@ -286,8 +288,11 @@ export default memo<IProps>((props) => {
   //   }
   // }, [internalTabs]);
 
-  const deleteTab = (data: ITabItem) => {
+  const deleteTab = async (data: ITabItem) => {
     if (!showClosed(data)) {
+      return;
+    }
+    if (beforeRemove && !(await beforeRemove([data]))) {
       return;
     }
     const newInternalTabs = internalTabs?.filter((t) => t.key !== data.key);
@@ -308,18 +313,24 @@ export default memo<IProps>((props) => {
     onEdit?.('remove', [data], newInternalTabs);
   };
 
-  const deleteOtherTab = (data: ITabItem) => {
+  const deleteOtherTab = async (data: ITabItem) => {
     const newInternalTabs = internalTabs?.filter((t) => t.key === data.key || t.pinned);
     const deleteTabs = internalTabs?.filter((t) => t.key !== data.key && !t.pinned);
+    if (beforeRemove && !(await beforeRemove(deleteTabs))) {
+      return;
+    }
     changeTab(data.key);
     setInternalTabs(newInternalTabs);
     onEdit?.('remove', deleteTabs, newInternalTabs);
   };
 
   // Close all tabs.
-  const deleteAllTab = () => {
+  const deleteAllTab = async () => {
     const deleteTabs = internalTabs.filter((tab) => !tab.pinned);
     const newInternalTabs = internalTabs.filter((tab) => tab.pinned);
+    if (beforeRemove && !(await beforeRemove(deleteTabs))) {
+      return;
+    }
     changeTab(newInternalTabs[0]?.key ?? null);
     setInternalTabs(newInternalTabs);
     onEdit?.('remove', deleteTabs, newInternalTabs);

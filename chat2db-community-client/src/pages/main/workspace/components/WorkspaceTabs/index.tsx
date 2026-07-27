@@ -38,6 +38,8 @@ import Iconfont from '@/components/Iconfont';
 import { useZoerStore } from '@/store/zoer';
 import AccountPrivilegePanel from '../AccountPrivilegePanel';
 import ContentDiffTab from './ContentDiffTab';
+import FilePreviewTab from './FilePreviewTab';
+import TerminalTab from './TerminalTab';
 
 // ---- store -----
 import { useWorkspaceStore } from '@/store/workspace';
@@ -47,6 +49,7 @@ import { useTreeStore } from '@/store/tree';
 // ----- services -----
 import historyService from '@/service/history';
 import sqlService from '@/service/sql';
+import jcefApi from '@/jcef';
 
 import { copyToClipboard, getTemporaryId, isTemporaryId } from '@/utils';
 
@@ -54,6 +57,7 @@ import { useIndexDBStore } from '@/store/indexDB';
 import { getDatabaseSupport } from '@/utils/database';
 import ConsoleERModal from '@/blocks/ERModal/ConsoleERModal';
 import { getLocalTextFileIcon, SQL_FILE_EXTENSION_NAME } from '../../utils/localTextFile';
+import { confirmAndKillTerminalTabs } from '@/utils/terminalSession';
 import { EditorType } from '@/components/SQLEditor';
 
 const SplitPaneAny = SplitPane as any;
@@ -348,7 +352,7 @@ function createWorkspaceTabSnapshot(
 }
 
 function createPersistableWorkspaceTabSnapshot(item: IWorkspaceTab, ddl?: string): IWorkspaceTab | null {
-  if (hasFunctionValue(item.uniqueData)) {
+  if (item.type === WorkspaceTabType.Terminal || hasFunctionValue(item.uniqueData)) {
     return null;
   }
   return createWorkspaceTabSnapshot(item, ddl, { stripFunctions: true });
@@ -373,6 +377,37 @@ function createTemporaryWorkspaceTabCopy(
     uniqueData: {
       ...snapshot.uniqueData,
       consoleId: undefined,
+    },
+  };
+}
+
+async function createIndependentWorkspaceTabCopy(
+  item: IWorkspaceTab,
+  ddl: string | undefined,
+  idPrefix: string,
+  title: string,
+) {
+  const copy = createTemporaryWorkspaceTabCopy(item, ddl, idPrefix, title);
+  if (item.type !== WorkspaceTabType.Terminal) {
+    return copy;
+  }
+  const sourceSessionId = item.uniqueData?.terminalSessionId;
+  if (!sourceSessionId) {
+    throw new Error('Terminal session is not available');
+  }
+  const terminal = await jcefApi.duplicateTerminal({
+    sessionId: sourceSessionId,
+    columns: 100,
+    rows: 30,
+  });
+  return {
+    ...copy,
+    uniqueData: {
+      ...copy.uniqueData,
+      terminalSessionId: terminal.sessionId,
+      terminalCwd: terminal.cwd,
+      terminalShell: terminal.shell,
+      terminalShellId: terminal.shellId,
     },
   };
 }
@@ -860,6 +895,21 @@ const WorkspaceTabs = memo(() => {
     });
   };
 
+  const confirmWorkspaceTabItemsClose = (tabs: ITabItem[]) => {
+    const closeKeySet = new Set(tabs.map((tab) => tab.key));
+    return confirmAndKillTerminalTabs(
+      (workspaceTabList || []).filter((tab) => closeKeySet.has(tab.id)),
+      workspaceTabList || [],
+    );
+  };
+
+  const requestCloseWorkspaceTabs = async (tabs: IWorkspaceTab[]) => {
+    const closableTabs = tabs.filter((item) => !item.pinned);
+    if (await confirmAndKillTerminalTabs(closableTabs, workspaceTabList || [])) {
+      closeWorkspaceTabs(closableTabs);
+    }
+  };
+
   const createNewConsole = (targetPaneId?: WorkspaceTabPaneId) => {
     const appendNewConsoleToActivePane = (consoleId: string | number) => {
       const currentLayout = useWorkspaceStore.getState().workspaceTabSplitLayout;
@@ -1017,7 +1067,7 @@ const WorkspaceTabs = memo(() => {
       return;
     }
     const closeTabs = currentList.slice(0, currentIndex).filter((item) => !item.pinned);
-    closeWorkspaceTabs(closeTabs);
+    requestCloseWorkspaceTabs(closeTabs);
   };
 
   const closeWorkspaceTabsToRight = (tab: ITabItem) => {
@@ -1027,7 +1077,7 @@ const WorkspaceTabs = memo(() => {
       return;
     }
     const closeTabs = currentList.slice(currentIndex + 1).filter((item) => !item.pinned);
-    closeWorkspaceTabs(closeTabs);
+    requestCloseWorkspaceTabs(closeTabs);
   };
 
   const copyWorkspaceTabReference = (tab: ITabItem) => {
@@ -1039,13 +1089,25 @@ const WorkspaceTabs = memo(() => {
     staticMessage.success(i18n('common.button.copySuccessfully'));
   };
 
-  const duplicateWorkspaceTab = (tab: ITabItem) => {
+  const duplicateWorkspaceTab = async (tab: ITabItem) => {
     const workspaceTab = getWorkspaceTabByKey(tab.key);
     if (!workspaceTab) {
       return;
     }
     const ddl = useWorkspaceStore.getState().editorList?.[workspaceTab.id]?.getValue?.();
-    const duplicateTab = createTemporaryWorkspaceTabCopy(workspaceTab, ddl, 'duplicate', `${workspaceTab.title} copy`);
+    let duplicateTab: IWorkspaceTab;
+    try {
+      duplicateTab = await createIndependentWorkspaceTabCopy(
+        workspaceTab,
+        ddl,
+        'duplicate',
+        `${workspaceTab.title} copy`,
+      );
+    } catch (error) {
+      console.error('duplicate workspace terminal error', error);
+      staticMessage.error(i18n('workspace.localSqlFileTree.openTerminalFailed'));
+      return;
+    }
     const nextWorkspaceTabList = [...(workspaceTabList || []), duplicateTab];
     const sourcePaneId = getPaneIdByTabKey(tab.key);
     const nextLayout = workspaceTabSplitLayout
@@ -1246,7 +1308,7 @@ const WorkspaceTabs = memo(() => {
     moveWorkspaceTabInSplitLayout(activeTabId, targetPaneId, overTabId);
   };
 
-  const splitWorkspaceTab = (
+  const splitWorkspaceTab = async (
     tab: ITabItem,
     direction: WorkspaceTabSplitDirection,
     splitMode: 'copy' | 'move',
@@ -1284,7 +1346,19 @@ const WorkspaceTabs = memo(() => {
     let nextTabId = workspaceTab.id;
     if (splitMode === 'copy') {
       const ddl = useWorkspaceStore.getState().editorList?.[workspaceTab.id]?.getValue?.();
-      const splitTab = createTemporaryWorkspaceTabCopy(workspaceTab, ddl, `split_${direction}`, workspaceTab.title);
+      let splitTab: IWorkspaceTab;
+      try {
+        splitTab = await createIndependentWorkspaceTabCopy(
+          workspaceTab,
+          ddl,
+          `split_${direction}`,
+          workspaceTab.title,
+        );
+      } catch (error) {
+        console.error('split workspace terminal error', error);
+        staticMessage.error(i18n('workspace.localSqlFileTree.openTerminalFailed'));
+        return;
+      }
       nextWorkspaceTabList.push(splitTab);
       nextTabId = splitTab.id;
     }
@@ -1348,6 +1422,21 @@ const WorkspaceTabs = memo(() => {
 
     delete boundInfo.ddl;
     delete boundInfo.loadSQL;
+
+    const fileExtension = (uniqueData.fileExtension || '').toLowerCase();
+    if (
+      item.type === WorkspaceTabType.LocalSQLFile &&
+      (fileExtension === 'md' || fileExtension === 'markdown' || uniqueData.filePreviewDataUrl)
+    ) {
+      return (
+        <FilePreviewTab
+          file={uniqueData}
+          boundInfo={boundInfo}
+          workspaceTabId={item.id}
+          workspaceTabsTitle={item.title}
+        />
+      );
+    }
 
     return (
       <SQLExecute
@@ -1455,6 +1544,20 @@ const WorkspaceTabs = memo(() => {
     );
   };
 
+  const renderTerminal = (item: IWorkspaceTab) => {
+    const sessionId = item.uniqueData?.terminalSessionId;
+    if (!sessionId) {
+      return;
+    }
+    return (
+      <TerminalTab
+        sessionId={sessionId}
+        cwd={item.uniqueData?.terminalCwd}
+        shell={item.uniqueData?.terminalShell}
+      />
+    );
+  };
+
   // Render content according to the tab type.
   const workspaceTabConnectionMap = (item: IWorkspaceTab) => {
     switch (item.type) {
@@ -1486,6 +1589,8 @@ const WorkspaceTabs = memo(() => {
         return renderAccountPrivileges(item);
       case WorkspaceTabType.ContentDiff:
         return renderContentDiff(item);
+      case WorkspaceTabType.Terminal:
+        return renderTerminal(item);
       default:
         return <div>Unknown</div>;
     }
@@ -1502,7 +1607,8 @@ const WorkspaceTabs = memo(() => {
         label: item.title,
         popover: popoverContent ? <div style={{ padding: '4px 6px' }}>{popoverContent}</div> : undefined,
         key: item.id,
-        editableName: item.type === WorkspaceTabType.CONSOLE,
+        editableName:
+          item.type === WorkspaceTabType.CONSOLE || item.type === WorkspaceTabType.Terminal,
         pinned: item.pinned,
         children: <Fragment key={item.id}>{workspaceTabConnectionMap(item)}</Fragment>,
       };
@@ -1612,6 +1718,7 @@ const WorkspaceTabs = memo(() => {
           className={styles.tabBox}
           onChange={(key) => onPaneTabChange(paneId, key)}
           onEdit={(action, data) => handelTabsEdit(action, data || [], paneId)}
+          beforeRemove={confirmWorkspaceTabItemsClose}
           activeKey={activeKey}
           editableNameOnBlur={editableNameOnBlur}
           items={items}
@@ -1674,6 +1781,7 @@ const WorkspaceTabs = memo(() => {
         className={styles.tabBox}
         onChange={onTabChange as any}
         onEdit={(action, data) => handelTabsEdit(action, data || [], MAIN_WORKSPACE_TAB_PANE)}
+        beforeRemove={confirmWorkspaceTabItemsClose}
         activeKey={activeConsoleId}
         editableNameOnBlur={editableNameOnBlur}
         items={workspaceTabItems}
