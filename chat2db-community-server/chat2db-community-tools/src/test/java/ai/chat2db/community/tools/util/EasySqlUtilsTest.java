@@ -19,7 +19,9 @@ class EasySqlUtilsTest {
     @SuppressWarnings("unchecked")
     void fivePartDottedIdentifierFallsBackToLastSegment() {
         StringBuilder error = new StringBuilder();
-        Map<String, Object> result = EasySqlUtils.parseTableSchema("SELECT * FROM srv.db.dbo.t1", error);
+        // A genuine 5-part identifier hits the new default branch (4-part srv.db.dbo.t1
+        // was already handled by case 4, so it could not prove the fix).
+        Map<String, Object> result = EasySqlUtils.parseTableSchema("SELECT * FROM srv.db.dbo.sch.t1", error);
         assertEquals(0, error.length(), "no exception should be recorded");
         List<String> tables = (List<String>) result.get(EasySqlUtils.TABLE_NAME);
         assertTrue(tables.contains("t1"));
