@@ -35,7 +35,9 @@ public class PageQueryParam {
         this.pageSize = 1;
     }
     public PageQueryParam orderBy(OrderBy orderBy) {
-        orderByList = new ArrayList<>();
+        if (orderByList == null) {
+            orderByList = new ArrayList<>();
+        }
         orderByList.add(orderBy);
         return this;
     }
@@ -46,6 +48,9 @@ public class PageQueryParam {
         return orderBy(orderCondition.getOrderBy());
     }
     public PageQueryParam andOrderBy(OrderBy orderBy) {
+        if (orderByList == null) {
+            orderByList = new ArrayList<>();
+        }
         orderByList.add(orderBy);
         return this;
     }

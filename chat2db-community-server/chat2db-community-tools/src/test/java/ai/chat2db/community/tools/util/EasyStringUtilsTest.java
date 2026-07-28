@@ -27,4 +27,34 @@ class EasyStringUtilsTest {
     void escapeAndQuoteStringDoublesBackslashes() {
         assertEquals("'a\\\\b'", EasyStringUtils.escapeAndQuoteString("a\\b"));
     }
+
+    /**
+     * Regression: getBitString must pad each byte to 8 bits before
+     * concatenating, otherwise multi-byte BIT values are corrupted
+     * (e.g. {0x01, 0x02} used to become "110" instead of "0000000100000010").
+     */
+    @Test
+    void getBitStringPadsEachByteToEightBits() {
+        assertEquals("0000000100000010", EasyStringUtils.getBitString(new byte[] {0x01, 0x02}, 16));
+    }
+
+    @Test
+    void getBitStringSingleByte() {
+        assertEquals("00000011", EasyStringUtils.getBitString(new byte[] {0x03}, 8));
+    }
+
+    /**
+     * Regression: cutName must treat workNo as a literal prefix, not a regex
+     * (previously RegExUtils.removeFirst interpreted metacharacters).
+     */
+    @Test
+    void cutNameTreatsWorkNoAsLiteral() {
+        // "a.b" as regex would match "axb"; as a literal prefix it does not match
+        assertEquals("axb", EasyStringUtils.cutName("axb", "a.b"));
+    }
+
+    @Test
+    void cutNameRemovesLiteralPrefixAndTrailingZeros() {
+        assertEquals("name", EasyStringUtils.cutName("WK001name00", "WK001"));
+    }
 }

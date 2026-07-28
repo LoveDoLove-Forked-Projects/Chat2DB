@@ -12,6 +12,7 @@ import java.util.concurrent.Executors;
 
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.ZipUtil;
+import lombok.extern.slf4j.Slf4j;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.Dispatcher;
@@ -20,6 +21,7 @@ import okhttp3.Request;
 import okhttp3.Response;
 
 
+@Slf4j
 public class JdbcJarUtils {
 
     private static final OkHttpClient async_client = new OkHttpClient.Builder()
@@ -58,6 +60,7 @@ public class JdbcJarUtils {
         async_client.newCall(request).enqueue(new Callback() {
             @Override
             public void onFailure(Call call, IOException e) {
+                log.warn("async download failed: {}", url, e);
             }
 
             @Override

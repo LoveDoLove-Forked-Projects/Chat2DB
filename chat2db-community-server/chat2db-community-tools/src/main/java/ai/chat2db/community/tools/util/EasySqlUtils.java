@@ -160,9 +160,16 @@ public class EasySqlUtils {
                             case 1:
                                 actualTableName = parts[0];
                                 break;
+                            default:
+                                // 5+-part dotted identifiers (e.g. linked-server style
+                                // names): fall back to the last segment as the table name
+                                actualTableName = parts[parts.length - 1];
+                                break;
                         }
-                        actualTableName = actualTableName.replaceAll("^['\"`]+|['\"`]+$", "");
-                        tableList.add(actualTableName);
+                        if (actualTableName != null) {
+                            actualTableName = actualTableName.replaceAll("^['\"`]+|['\"`]+$", "");
+                            tableList.add(actualTableName);
+                        }
                         if (StringUtils.isNotBlank(tableAlias)) {
                             tableAliases.put(tableAlias, tableName);
                         }

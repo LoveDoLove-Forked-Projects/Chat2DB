@@ -15,10 +15,12 @@ public final class JdbcUrlUtils {
             return url;
         }
         if ("H2".equalsIgnoreCase(type) || "SQLite".equalsIgnoreCase(type)) {
+            String userHome = System.getProperty("user.home");
             String osName = System.getProperty("os.name");
             if (osName != null && osName.toLowerCase().contains("win")) {
-                return url.replace("~", System.getProperty("user.home").replace("/", "\\"));
+                userHome = userHome.replace("/", "\\");
             }
+            return url.replace("~", userHome);
         }
         return url;
     }
