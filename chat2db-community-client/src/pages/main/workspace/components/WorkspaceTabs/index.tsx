@@ -1,16 +1,19 @@
 import React, { memo, useEffect, useMemo, Fragment, useState } from 'react';
 import styles from './index.less';
 import i18n from '@/i18n';
-import { Button } from 'antd';
-import { staticMessage } from '@chat2db/ui';
+import { Button, theme } from 'antd';
+import { IconfontSvg, staticMessage } from '@chat2db/ui';
 import SplitPane from 'react-split-pane';
 import {
   DndContext,
+  DragOverlay,
   PointerSensor,
   pointerWithin,
   type CollisionDetection,
   type DragEndEvent,
+  type DragOverEvent,
   type DragStartEvent,
+  useDroppable,
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
@@ -59,6 +62,13 @@ import ConsoleERModal from '@/blocks/ERModal/ConsoleERModal';
 import { getLocalTextFileIcon, SQL_FILE_EXTENSION_NAME } from '../../utils/localTextFile';
 import { confirmAndKillTerminalTabs } from '@/utils/terminalSession';
 import { EditorType } from '@/components/SQLEditor';
+import {
+  createWorkspaceTabEdgeSplitLayout,
+  getWorkspaceTabDropPlacement,
+  getWorkspaceTabEdgeDropId,
+  getWorkspaceTabEdgeDropTarget,
+  WorkspaceTabDropPosition,
+} from './workspaceTabDrop';
 
 const SplitPaneAny = SplitPane as any;
 const MAIN_WORKSPACE_TAB_PANE: WorkspaceTabPaneId = 'main';
@@ -88,6 +98,44 @@ function createPaneNode(id: WorkspaceTabPaneId): IWorkspaceTabPaneNode {
     type: 'pane',
     id,
   };
+}
+
+function WorkspaceTabPaneDropOverlay({
+  paneId,
+  previewPosition,
+  previewStyle,
+}: {
+  paneId: WorkspaceTabPaneId;
+  previewPosition?: WorkspaceTabDropPosition;
+  previewStyle: React.CSSProperties;
+}) {
+  const top = useDroppable({ id: getWorkspaceTabEdgeDropId(paneId, 'top') });
+  const right = useDroppable({ id: getWorkspaceTabEdgeDropId(paneId, 'right') });
+  const bottom = useDroppable({ id: getWorkspaceTabEdgeDropId(paneId, 'bottom') });
+  const left = useDroppable({ id: getWorkspaceTabEdgeDropId(paneId, 'left') });
+  const previewClassName = previewPosition
+    ? {
+        top: styles.dropPreviewTop,
+        right: styles.dropPreviewRight,
+        bottom: styles.dropPreviewBottom,
+        left: styles.dropPreviewLeft,
+      }[previewPosition]
+    : undefined;
+
+  return (
+    <div className={styles.workspacePaneDropOverlay}>
+      <div ref={top.setNodeRef} className={`${styles.workspacePaneDropZone} ${styles.dropZoneTop}`} />
+      <div ref={right.setNodeRef} className={`${styles.workspacePaneDropZone} ${styles.dropZoneRight}`} />
+      <div ref={bottom.setNodeRef} className={`${styles.workspacePaneDropZone} ${styles.dropZoneBottom}`} />
+      <div ref={left.setNodeRef} className={`${styles.workspacePaneDropZone} ${styles.dropZoneLeft}`} />
+      {previewPosition && (
+        <div
+          style={previewStyle}
+          className={`${styles.workspacePaneDropPreview} ${previewClassName}`}
+        />
+      )}
+    </div>
+  );
 }
 
 function createDefaultSplitRoot(direction: WorkspaceTabSplitDirection): IWorkspaceTabPaneNode {
@@ -650,9 +698,19 @@ function getWorkspaceTabIdFromDndId(id: string, workspaceTabList: IWorkspaceTab[
 
 const workspaceTabCollisionDetection: CollisionDetection = (args) => {
   const collisions = pointerWithin(args);
+  const edgeCollisions = collisions.filter(({ id }) => getWorkspaceTabEdgeDropTarget(String(id)));
   const paneCollisions = collisions.filter(({ id }) => getWorkspaceTabPaneIdFromDroppableId(String(id)));
-  const tabCollisions = collisions.filter(({ id }) => !getWorkspaceTabPaneIdFromDroppableId(String(id)));
-  return tabCollisions.length ? tabCollisions : paneCollisions.length ? paneCollisions : collisions;
+  const tabCollisions = collisions.filter(
+    ({ id }) =>
+      !getWorkspaceTabPaneIdFromDroppableId(String(id)) && !getWorkspaceTabEdgeDropTarget(String(id)),
+  );
+  return edgeCollisions.length
+    ? edgeCollisions
+    : tabCollisions.length
+      ? tabCollisions
+      : paneCollisions.length
+        ? paneCollisions
+        : collisions;
 };
 
 const WorkspaceTabs = memo(() => {
@@ -705,7 +763,11 @@ const WorkspaceTabs = memo(() => {
       deleteValue: state.deleteValue,
     };
   });
+  const { token } = theme.useToken();
   const [draggingWorkspaceTabKey, setDraggingWorkspaceTabKey] = useState<string | undefined>();
+  const [workspaceTabDropTarget, setWorkspaceTabDropTarget] = useState<
+    { paneId: WorkspaceTabPaneId; position: WorkspaceTabDropPosition } | undefined
+  >();
   const splitTabDragSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
   // Get the console.
@@ -969,11 +1031,6 @@ const WorkspaceTabs = memo(() => {
     if (action === 'add') {
       createNewConsole(paneId);
     }
-  };
-
-  // Switch tabs.
-  const onTabChange = (key: string | number | null) => {
-    setActiveConsoleId(key);
   };
 
   const onPaneTabChange = (paneId: WorkspaceTabPaneId, key: string | number | null) => {
@@ -1281,12 +1338,67 @@ const WorkspaceTabs = memo(() => {
   };
 
   const handleSplitTabDragStart = (event: DragStartEvent) => {
+    setWorkspaceTabDropTarget(undefined);
     setDraggingWorkspaceTabKey(String(event.active.id));
+  };
+
+  const handleSplitTabDragOver = (event: DragOverEvent) => {
+    setWorkspaceTabDropTarget(
+      event.over ? getWorkspaceTabEdgeDropTarget(String(event.over.id)) : undefined,
+    );
+  };
+
+  const splitWorkspaceTabByDrop = (
+    sourceTabId: string | number,
+    targetPaneId: WorkspaceTabPaneId,
+    position: WorkspaceTabDropPosition,
+  ) => {
+    const currentList = workspaceTabList || [];
+    const { direction } = getWorkspaceTabDropPlacement(position);
+    const currentLayout =
+      workspaceTabSplitLayout ||
+      ({
+        direction,
+        activePane: MAIN_WORKSPACE_TAB_PANE,
+        root: createPaneNode(MAIN_WORKSPACE_TAB_PANE),
+        paneTabIds: {
+          [MAIN_WORKSPACE_TAB_PANE]: currentList.map((item) => item.id),
+        },
+        activeTabIds: {
+          [MAIN_WORKSPACE_TAB_PANE]: activeConsoleId,
+        },
+      } as IWorkspaceTabSplitLayout);
+    const sourcePaneId = getPaneIdForTab(currentLayout, sourceTabId);
+    const sourcePaneIds = currentLayout.paneTabIds[sourcePaneId] || [];
+    const currentRoot = currentLayout.root || createDefaultSplitRoot(currentLayout.direction || direction);
+
+    if (sourcePaneId === targetPaneId && sourcePaneIds.length <= 1) {
+      staticMessage.warning(i18n('workspace.tips.cannotMoveLastSplitTab'));
+      return;
+    }
+
+    const newPaneId = createWorkspaceTabPaneId();
+    const nextLayout = createWorkspaceTabEdgeSplitLayout({
+      currentLayout,
+      currentRoot,
+      sourcePaneId,
+      sourceTabId,
+      targetPaneId,
+      newPaneId,
+      position,
+    });
+    if (!nextLayout) {
+      return;
+    }
+
+    setWorkspaceTabsState(currentList, nextLayout, sourceTabId);
+    setActiveConsoleId(sourceTabId);
   };
 
   const handleSplitTabDragEnd = (event: DragEndEvent) => {
     setDraggingWorkspaceTabKey(undefined);
-    if (!workspaceTabSplitLayout || !event.over) {
+    setWorkspaceTabDropTarget(undefined);
+    if (!event.over) {
       return;
     }
 
@@ -1296,8 +1408,30 @@ const WorkspaceTabs = memo(() => {
     }
 
     const overId = String(event.over.id);
+    const edgeDropTarget = getWorkspaceTabEdgeDropTarget(overId);
+    if (edgeDropTarget) {
+      splitWorkspaceTabByDrop(activeTabId, edgeDropTarget.paneId, edgeDropTarget.position);
+      return;
+    }
+
     const overPaneId = getWorkspaceTabPaneIdFromDroppableId(overId);
     const overTabId = getWorkspaceTabIdFromDndId(overId, workspaceTabList || []);
+    if (!workspaceTabSplitLayout) {
+      if (overTabId === undefined || overTabId === activeTabId) {
+        return;
+      }
+      const sourceIndex = (workspaceTabList || []).findIndex((tab) => tab.id === activeTabId);
+      const targetIndex = (workspaceTabList || []).findIndex((tab) => tab.id === overTabId);
+      if (sourceIndex === -1 || targetIndex === -1) {
+        return;
+      }
+      const nextWorkspaceTabList = [...(workspaceTabList || [])];
+      const [sourceTab] = nextWorkspaceTabList.splice(sourceIndex, 1);
+      nextWorkspaceTabList.splice(targetIndex, 0, sourceTab);
+      setWorkspaceTabsState(nextWorkspaceTabList, null, activeTabId);
+      return;
+    }
+
     const targetPaneId =
       overPaneId ||
       (overTabId !== undefined ? getPaneIdForTab(workspaceTabSplitLayout, overTabId) : undefined);
@@ -1702,7 +1836,19 @@ const WorkspaceTabs = memo(() => {
     className?: string,
   ) {
     const items = getWorkspaceTabItems(getPaneWorkspaceTabs(paneId));
-    const activeKey = workspaceTabSplitLayout?.activeTabIds[paneId];
+    const activeKey =
+      workspaceTabSplitLayout?.activeTabIds[paneId] ??
+      (paneId === MAIN_WORKSPACE_TAB_PANE ? activeConsoleId : null);
+    const draggingTabId = draggingWorkspaceTabKey
+      ? getWorkspaceTabIdFromDndId(draggingWorkspaceTabKey, workspaceTabList || [])
+      : undefined;
+    const sourcePaneId =
+      draggingTabId !== undefined ? getPaneIdForTab(workspaceTabSplitLayout, draggingTabId) : undefined;
+    const canSplitDraggedTabHere =
+      draggingTabId !== undefined &&
+      (sourcePaneId !== paneId || getPaneWorkspaceTabs(sourcePaneId).length > 1);
+    const previewPosition =
+      workspaceTabDropTarget?.paneId === paneId ? workspaceTabDropTarget.position : undefined;
     return (
       <div
         className={className}
@@ -1725,11 +1871,22 @@ const WorkspaceTabs = memo(() => {
           contextActions={commonWorkspaceTabContextActions}
           contextActionAvailability={getWorkspaceTabContextActionAvailability}
           contextActionHandlers={commonWorkspaceTabContextActionHandlers}
-          useExternalSortableContext={!!workspaceTabSplitLayout}
+          useExternalSortableContext
           draggingTabKey={draggingWorkspaceTabKey}
           onDraggingTabKeyChange={setDraggingWorkspaceTabKey}
-          tabPaneDroppableId={workspaceTabSplitLayout ? getWorkspaceTabPaneDroppableId(paneId) : undefined}
+          tabPaneDroppableId={getWorkspaceTabPaneDroppableId(paneId)}
         />
+        {draggingWorkspaceTabKey && canSplitDraggedTabHere && (
+          <WorkspaceTabPaneDropOverlay
+            paneId={paneId}
+            previewPosition={previewPosition}
+            previewStyle={{
+              background: token.colorPrimaryBg,
+              border: `1px solid ${token.colorPrimary}`,
+              boxShadow: `inset 0 0 0 1px ${token.colorPrimaryBorder}`,
+            }}
+          />
+        )}
       </div>
     );
   }
@@ -1759,37 +1916,56 @@ const WorkspaceTabs = memo(() => {
     );
   }
 
+  const draggingWorkspaceTab = draggingWorkspaceTabKey
+    ? workspaceTabItems.find((item) => String(item.key) === draggingWorkspaceTabKey)
+    : undefined;
+
   return workspaceTabItems?.length ? (
-    workspaceTabSplitLayout ? (
-      <DndContext
-        sensors={splitTabDragSensors}
-        collisionDetection={workspaceTabCollisionDetection}
-        onDragStart={handleSplitTabDragStart}
-        onDragEnd={handleSplitTabDragEnd}
-        onDragCancel={() => setDraggingWorkspaceTabKey(undefined)}
-      >
-        <div className={styles.splitTabBox}>
-          {renderWorkspaceTabPaneNode(
+    <DndContext
+      sensors={splitTabDragSensors}
+      collisionDetection={workspaceTabCollisionDetection}
+      onDragStart={handleSplitTabDragStart}
+      onDragOver={handleSplitTabDragOver}
+      onDragEnd={handleSplitTabDragEnd}
+      onDragCancel={() => {
+        setDraggingWorkspaceTabKey(undefined);
+        setWorkspaceTabDropTarget(undefined);
+      }}
+    >
+      <div className={styles.splitTabBox}>
+        {workspaceTabSplitLayout ? (
+          renderWorkspaceTabPaneNode(
             workspaceTabSplitLayout.root || createDefaultSplitRoot(workspaceTabSplitLayout.direction),
-          )}
-        </div>
-      </DndContext>
-    ) : (
-      <CustomTabs
-        height={36}
-        hideAdd={hideAdd}
-        className={styles.tabBox}
-        onChange={onTabChange as any}
-        onEdit={(action, data) => handelTabsEdit(action, data || [], MAIN_WORKSPACE_TAB_PANE)}
-        beforeRemove={confirmWorkspaceTabItemsClose}
-        activeKey={activeConsoleId}
-        editableNameOnBlur={editableNameOnBlur}
-        items={workspaceTabItems}
-        contextActions={commonWorkspaceTabContextActions}
-        contextActionAvailability={getWorkspaceTabContextActionAvailability}
-        contextActionHandlers={commonWorkspaceTabContextActionHandlers}
-      />
-    )
+          )
+        ) : (
+          renderWorkspaceTabPane(MAIN_WORKSPACE_TAB_PANE, styles.splitPaneItem)
+        )}
+      </div>
+      <DragOverlay adjustScale={false}>
+        {draggingWorkspaceTab && (
+          <div
+            className={styles.workspaceTabDragOverlay}
+            style={{
+              color: token.colorText,
+              background: token.colorBgElevated,
+              borderColor: token.colorPrimary,
+              boxShadow: token.boxShadowSecondary,
+            }}
+          >
+            {draggingWorkspaceTab.prefixIcon &&
+              (typeof draggingWorkspaceTab.prefixIcon === 'string' ? (
+                <IconfontSvg
+                  className={styles.workspaceTabDragOverlayIcon}
+                  code={draggingWorkspaceTab.prefixIcon}
+                />
+              ) : (
+                <span className={styles.workspaceTabDragOverlayIcon}>{draggingWorkspaceTab.prefixIcon}</span>
+              ))}
+            <span className={styles.workspaceTabDragOverlayLabel}>{draggingWorkspaceTab.label}</span>
+          </div>
+        )}
+      </DragOverlay>
+    </DndContext>
   ) : (
     <>
       {showWorkspaceRightEmpty && (
