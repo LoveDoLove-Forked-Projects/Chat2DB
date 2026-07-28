@@ -53,7 +53,11 @@ import { copyToClipboard, getTemporaryId, isTemporaryId } from '@/utils';
 import { useIndexDBStore } from '@/store/indexDB';
 import { getDatabaseSupport } from '@/utils/database';
 import ConsoleERModal from '@/blocks/ERModal/ConsoleERModal';
-import { getLocalTextFileIcon, SQL_FILE_EXTENSION_NAME } from '../../utils/localTextFile';
+import {
+  getLocalTextFileIcon,
+  getLocalTextFileTabPresentation,
+  SQL_FILE_EXTENSION_NAME,
+} from '../../utils/localTextFile';
 import { EditorType } from '@/components/SQLEditor';
 import { ShortcutAction } from '@/constants/shortcut';
 
@@ -1495,13 +1499,17 @@ const WorkspaceTabs = memo(() => {
 
   const getWorkspaceTabItems = (tabs: IWorkspaceTab[]) => {
     return tabs.map((item) => {
-      const popoverContent = item.uniqueData?.popoverContent;
+      const localFileTabPresentation =
+        item.type === WorkspaceTabType.LocalSQLFile
+          ? getLocalTextFileTabPresentation(item.uniqueData?.filePath, item.title)
+          : undefined;
+      const popoverContent = localFileTabPresentation?.popover || item.uniqueData?.popoverContent;
       return {
         prefixIcon:
           item.type === WorkspaceTabType.LocalSQLFile
             ? getLocalTextFileIcon(item.uniqueData?.fileExtension)
             : workspaceTabConfig[item.type]?.icon,
-        label: item.title,
+        label: localFileTabPresentation?.label ?? item.title,
         popover: popoverContent ? <div style={{ padding: '4px 6px' }}>{popoverContent}</div> : undefined,
         key: item.id,
         editableName: item.type === WorkspaceTabType.CONSOLE,
