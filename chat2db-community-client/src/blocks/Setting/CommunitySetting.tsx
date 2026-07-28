@@ -1,5 +1,5 @@
 import i18n from '@/i18n';
-import { ClipboardPen, Info, Keyboard, SlidersHorizontal, SquareTerminal } from 'lucide-react';
+import { ClipboardPen, Info, Keyboard, SlidersHorizontal, Terminal } from 'lucide-react';
 import { useEffect, useMemo } from 'react';
 import About from './About';
 import BaseSetting from './BaseSetting';
@@ -50,7 +50,7 @@ function CommunitySetting() {
                 title: i18n('setting.nav.terminal'),
                 describe: i18n('setting.nav.terminalDescribe'),
                 group: 'general' as const,
-                icon: SquareTerminal,
+                icon: Terminal,
                 body: <TerminalSetting />,
                 code: 'terminal',
               },

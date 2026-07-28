@@ -4,9 +4,8 @@ import jcefApi from '@/jcef';
 import { useGlobalStore } from '@/store/global';
 import type { TerminalShellId, TerminalThemeId } from '@/typings/settings';
 import { Alert, Select, Spin } from 'antd';
-import { ChevronDown } from 'lucide-react';
+import { Check, ChevronDown, Palette, Terminal } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import SettingSubsection from '../SettingSubsection';
 import { useStyles } from './style';
 
 interface ShellOption {
@@ -61,70 +60,105 @@ export default function TerminalSetting() {
   }, [terminalSettings.shellId, updateTerminalSettings]);
 
   return (
-    <div className={styles.container}>
-      <section>
-        <SettingSubsection
-          title={i18n('setting.terminal.shell')}
-          describe={i18n('setting.terminal.shellDescribe')}
-        />
-        {loading ? (
-          <Spin size="small" />
-        ) : loadFailed ? (
-          <Alert type="warning" showIcon message={i18n('setting.terminal.capabilitiesFailed')} />
-        ) : (
-          <Select
-            value={terminalSettings.shellId}
-            className={styles.shellSelect}
-            suffixIcon={<ChevronDown size={14} />}
-            options={shells.map((shell) => ({ value: shell.id, label: shell.label }))}
-            onChange={(shellId: TerminalShellId) => updateTerminalSettings({ shellId })}
-          />
-        )}
-        <div className={styles.hint}>{i18n('setting.terminal.shellApplyHint')}</div>
+    <div className={styles.settingsList}>
+      <section className={styles.settingRow} data-setting-group="shell" data-setting-search-id="terminal.shell">
+        <div className={styles.settingMeta}>
+          <Terminal aria-hidden="true" className={styles.settingGroupIcon} size={18} strokeWidth={1.8} />
+          <div className={styles.settingMetaContent}>
+            <div className={styles.settingTitle} data-setting-search-title="true">
+              {i18n('setting.terminal.shell')}
+            </div>
+            <div className={styles.settingDescription}>{i18n('setting.terminal.shellDescribe')}</div>
+          </div>
+        </div>
+        <div className={styles.settingControl}>
+          {loading ? (
+            <div className={styles.controlState}>
+              <Spin size="small" />
+            </div>
+          ) : loadFailed ? (
+            <Alert
+              className={styles.capabilitiesAlert}
+              type="warning"
+              showIcon
+              message={i18n('setting.terminal.capabilitiesFailed')}
+            />
+          ) : (
+            <Select
+              aria-label={i18n('setting.terminal.shell')}
+              value={terminalSettings.shellId}
+              className={styles.shellSelect}
+              suffixIcon={<ChevronDown size={14} />}
+              options={shells.map((shell) => ({ value: shell.id, label: shell.label }))}
+              onChange={(shellId: TerminalShellId) => updateTerminalSettings({ shellId })}
+            />
+          )}
+          <div className={styles.hint}>{i18n('setting.terminal.shellApplyHint')}</div>
+        </div>
       </section>
 
-      <section>
-        <SettingSubsection
-          title={i18n('setting.terminal.theme')}
-          describe={i18n('setting.terminal.themeDescribe')}
-        />
-        <div className={styles.themeGrid}>
-          {themeOptions.map((config) => {
-            const colors = [
-              config.theme.red,
-              config.theme.yellow,
-              config.theme.green,
-              config.theme.cyan,
-              config.theme.blue,
-              config.theme.magenta,
-            ];
-            return (
-              <button
-                key={config.id}
-                type="button"
-                className={cx(styles.themeCard, {
-                  [styles.activeThemeCard]: terminalSettings.themeId === config.id,
-                })}
-                style={{
-                  backgroundColor: config.theme.background,
-                  color: config.theme.foreground,
-                }}
-                onClick={() => updateTerminalSettings({ themeId: config.id as TerminalThemeId })}
-              >
-                <span className={styles.themeTitle}>{config.name}</span>
-                <span className={styles.colorRow}>
-                  {colors.map((color, index) => (
-                    <span key={`${config.id}-${index}`} style={{ backgroundColor: color }} />
-                  ))}
-                </span>
-                <span className={styles.commandPreview}>
-                  <span style={{ color: config.theme.green }}>$</span> npm run dev
-                </span>
-              </button>
-            );
-          })}
+      <section className={styles.settingRow} data-setting-group="theme" data-setting-search-id="terminal.theme">
+        <div className={styles.settingMeta}>
+          <Palette aria-hidden="true" className={styles.settingGroupIcon} size={18} strokeWidth={1.8} />
+          <div className={styles.settingMetaContent}>
+            <div className={styles.settingTitle} data-setting-search-title="true">
+              {i18n('setting.terminal.theme')}
+            </div>
+            <div className={styles.settingDescription}>{i18n('setting.terminal.themeDescribe')}</div>
+          </div>
         </div>
-        <div className={styles.hint}>{i18n('setting.terminal.themeApplyHint')}</div>
+        <div className={styles.settingControl}>
+          <div aria-label={i18n('setting.terminal.theme')} className={styles.themeGrid} role="group">
+            {themeOptions.map((config) => {
+              const isActive = terminalSettings.themeId === config.id;
+              const colors = [
+                config.theme.red,
+                config.theme.yellow,
+                config.theme.green,
+                config.theme.cyan,
+                config.theme.blue,
+                config.theme.magenta,
+              ];
+              return (
+                <button
+                  aria-pressed={isActive}
+                  key={config.id}
+                  type="button"
+                  className={cx(styles.themeOption, {
+                    [styles.activeThemeOption]: isActive,
+                  })}
+                  onClick={() => updateTerminalSettings({ themeId: config.id as TerminalThemeId })}
+                >
+                  <span
+                    className={cx(styles.themePreview, {
+                      [styles.activeThemePreview]: isActive,
+                    })}
+                    style={{
+                      backgroundColor: config.theme.background,
+                      color: config.theme.foreground,
+                    }}
+                  >
+                    {isActive ? (
+                      <span className={styles.themeCheck}>
+                        <Check aria-hidden="true" size={13} strokeWidth={2.2} />
+                      </span>
+                    ) : null}
+                    <span className={styles.colorRow}>
+                      {colors.map((color, index) => (
+                        <span key={`${config.id}-${index}`} style={{ backgroundColor: color }} />
+                      ))}
+                    </span>
+                    <span className={styles.commandPreview}>
+                      <span style={{ color: config.theme.green }}>$</span> npm run dev
+                    </span>
+                  </span>
+                  <span className={styles.themeName}>{config.name}</span>
+                </button>
+              );
+            })}
+          </div>
+          <div className={styles.hint}>{i18n('setting.terminal.themeApplyHint')}</div>
+        </div>
       </section>
     </div>
   );
