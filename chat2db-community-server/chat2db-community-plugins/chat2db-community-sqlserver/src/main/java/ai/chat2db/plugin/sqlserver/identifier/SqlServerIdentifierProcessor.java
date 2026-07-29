@@ -220,11 +220,25 @@ public class SqlServerIdentifierProcessor extends DefaultSQLIdentifierProcessor 
     }
 
     @Override
+    public String quoteIdentifierAlways(String identifier) {
+        if (identifier == null) {
+            return null;
+        }
+        return "[" + identifier.replace("]", "]]") + "]";
+    }
+
+    @Override
     public String removeIdentifierQuote(String identifier) {
         if (StringUtils.isBlank(identifier)) {
             return identifier;
         }
-        return removePattern(identifier, SQL_SERVER_PATTERN);
+        if (identifier.startsWith("[") && identifier.endsWith("]") && identifier.length() >= 2) {
+            return identifier.substring(1, identifier.length() - 1).replace("]]", "]");
+        }
+        if (identifier.startsWith("\"") && identifier.endsWith("\"") && identifier.length() >= 2) {
+            return identifier.substring(1, identifier.length() - 1).replace("\"\"", "\"");
+        }
+        return identifier;
     }
 
     @Override
