@@ -41,6 +41,17 @@ public final class TerminalSessionManager {
         return create(directory, columns, rows, resolveShell(shellId));
     }
 
+    public static Map<String, Object> createInUserHome(int columns, int rows, String shellId) throws IOException {
+        return create(resolveUserHomeDirectory(System.getProperty("user.home")), columns, rows, shellId);
+    }
+
+    static Path resolveUserHomeDirectory(String configuredUserHome) {
+        if (configuredUserHome == null || configuredUserHome.isBlank()) {
+            throw new IllegalStateException("User home directory is not available");
+        }
+        return Path.of(configuredUserHome);
+    }
+
     private static Map<String, Object> create(Path directory, int columns, int rows, ShellCommand shell) throws IOException {
         Path cwd = directory.toRealPath();
         if (!Files.isDirectory(cwd)) {

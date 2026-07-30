@@ -1684,11 +1684,7 @@ const WorkspaceTabs = memo(() => {
       return;
     }
     return (
-      <TerminalTab
-        sessionId={sessionId}
-        cwd={item.uniqueData?.terminalCwd}
-        shell={item.uniqueData?.terminalShell}
-      />
+      <TerminalTab sessionId={sessionId} />
     );
   };
 

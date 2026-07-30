@@ -9,13 +9,11 @@ import { DEFAULT_TERMINAL_SETTINGS, getTerminalTheme } from '@/constants/termina
 
 interface TerminalTabProps {
   sessionId: string;
-  cwd?: string;
-  shell?: string;
 }
 
 const terminalMounts = new Map<string, { count: number; killTimer?: ReturnType<typeof setTimeout> }>();
 
-const TerminalTab = memo(({ sessionId, cwd, shell }: TerminalTabProps) => {
+const TerminalTab = memo(({ sessionId }: TerminalTabProps) => {
   const terminalRef = useRef<IXtermRef>(null);
   const [exited, setExited] = useState(false);
   const themeId = useGlobalStore(
@@ -93,26 +91,6 @@ const TerminalTab = memo(({ sessionId, cwd, shell }: TerminalTabProps) => {
       theme={terminalTheme}
       onData={handleData}
       onResize={handleResize}
-      xtermHeaderSlot={
-        <div
-          className={styles.header}
-          style={{
-            color: terminalTheme.foreground,
-            backgroundColor: terminalTheme.background,
-            borderBottomColor: terminalTheme.brightBlack,
-          }}
-        >
-          <span className={styles.location}>
-            {shell ? (
-              <>
-                <span style={{ color: terminalTheme.blue }}>{shell}</span>
-                <span style={{ color: terminalTheme.brightBlack }}> · </span>
-              </>
-            ) : null}
-            <span style={{ color: terminalTheme.green }}>{cwd}</span>
-          </span>
-        </div>
-      }
     />
   );
 });

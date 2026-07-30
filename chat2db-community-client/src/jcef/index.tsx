@@ -74,6 +74,12 @@ const jcefApi = {
       params,
     );
   },
+  createTerminal: (params: { columns: number; rows: number; shellId?: string }) => {
+    return createJcefApi<{ sessionId: string; cwd: string; shell: string; shellId: string }>(
+      'create-terminal',
+      params,
+    );
+  },
   duplicateTerminal: (params: { sessionId: string; columns: number; rows: number }) => {
     return createJcefApi<{ sessionId: string; cwd: string; shell: string; shellId: string }>(
       'duplicate-terminal',

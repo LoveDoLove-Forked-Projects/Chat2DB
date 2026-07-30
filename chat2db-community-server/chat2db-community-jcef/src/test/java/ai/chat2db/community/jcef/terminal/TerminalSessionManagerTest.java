@@ -75,6 +75,11 @@ class TerminalSessionManagerTest {
     }
 
     @Test
+    void resolvesConfiguredUserHomeForDefaultTerminalDirectory() {
+        assertEquals(directory, TerminalSessionManager.resolveUserHomeDirectory(directory.toString()));
+    }
+
+    @Test
     void exposesSystemDefaultAndInstalledShells() {
         Map<String, Object> capabilities = TerminalSessionManager.capabilities();
         assertNotNull(capabilities.get("os"));
