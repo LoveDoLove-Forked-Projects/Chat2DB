@@ -776,6 +776,7 @@ public class DefaultSqlBuilder implements ISqlBuilder, IIdentifierSqlBuilder, ID
             return SQLConstants.EMPTY;
         }
         script.append(SQL_UPDATE).append(tableName).append(SQL_SET);
+        int assignmentsStart = script.length();
         IValueProcessor valueProcessor = Chat2DBContext.getDbMetaData().getValueProcessor();
         for (int i = 1; i < row.size(); i++) {
             String newValue = row.get(i);
@@ -796,6 +797,10 @@ public class DefaultSqlBuilder implements ISqlBuilder, IIdentifierSqlBuilder, ID
                     .append(SQLConstants.EQUAL_SQL)
                     .append(newSqlValue)
                     .append(SQLConstants.COMMA);
+        }
+        if (script.length() == assignmentsStart) {
+            // no column changed: skip the row instead of emitting 'UPDATE t SET WHERE ...'
+            return SQLConstants.EMPTY;
         }
         script.deleteCharAt(script.length() - 1);
         script.append(buildWhere(headerList, odlRow, metaSchema, keyColumns, valueProcessor));
