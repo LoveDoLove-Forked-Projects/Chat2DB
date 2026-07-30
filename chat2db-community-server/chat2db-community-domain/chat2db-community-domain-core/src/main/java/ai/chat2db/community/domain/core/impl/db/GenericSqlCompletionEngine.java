@@ -701,7 +701,7 @@ public class GenericSqlCompletionEngine {
         if (supportSchema) {
             databaseName = names.length - 3 < 0 ? paramDatabaseName : names[names.length - 3];
         } else {
-            databaseName = names.length - 2 < 0 ? paramSchemaName : names[names.length - 2];
+            databaseName = names.length - 2 < 0 ? paramDatabaseName : names[names.length - 2];
         }
         if (supportDatabase && StringUtils.isBlank(databaseName)) {
             return List.of();
