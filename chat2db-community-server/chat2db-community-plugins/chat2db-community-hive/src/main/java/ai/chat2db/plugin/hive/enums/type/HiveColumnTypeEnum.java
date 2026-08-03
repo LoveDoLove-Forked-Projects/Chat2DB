@@ -236,16 +236,14 @@ public enum HiveColumnTypeEnum implements IColumnBuilder {
         }
 
 
-        if (Arrays.asList(DECIMAL, FLOAT, DOUBLE,TINYINT).contains(type)) {
-            if (column.getColumnSize() == null || column.getDecimalDigits() == null) {
+        if (DECIMAL == type) {
+            if (column.getColumnSize() == null) {
                 return columnType;
             }
-            if (column.getColumnSize() != null && column.getDecimalDigits() == null) {
+            if (column.getDecimalDigits() == null) {
                 return StringUtils.join(columnType, "(", column.getColumnSize() + ")");
             }
-            if (column.getColumnSize() != null && column.getDecimalDigits() != null) {
-                return StringUtils.join(columnType, "(", column.getColumnSize() + "," + column.getDecimalDigits() + ")");
-            }
+            return StringUtils.join(columnType, "(", column.getColumnSize() + "," + column.getDecimalDigits() + ")");
         }
 
         return columnType;

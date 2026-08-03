@@ -10,6 +10,7 @@ import { useIndexDBStore } from '@/store/indexDB';
 import { useZoerStore } from '@/store/zoer';
 import { getPersistableActiveConsoleId } from '../../utils/workspaceTabPersistence';
 import { executeSavedConsoleRemoval, resolveSavedConsoleRemoval } from '../../utils/savedConsoleLifecycle';
+import { confirmAndKillTerminalTabs } from '@/utils/terminalSession';
 
 const RECENTLY_CLOSED_WORKSPACE_TAB_LIMIT = 20;
 
@@ -79,7 +80,7 @@ export interface ConsoleAction {
   setEditorToList: (id: number | string, editorIns: any) => void;
   deleteEditor: (id: number | string) => void;
   appendConsole: (params: { id: number | string; content: string; type?: EditorSetValueType; space?: boolean }) => void;
-  deleteActiveWorkspaceTab: () => void;
+  deleteActiveWorkspaceTab: () => Promise<void>;
 }
 
 export const createConsoleAction: StateCreator<WorkspaceStore, [['zustand/devtools', never]], [], ConsoleAction> = (
@@ -297,6 +298,12 @@ export const createConsoleAction: StateCreator<WorkspaceStore, [['zustand/devtoo
 
     const activeWorkspaceTab = workspaceTabList.find((item) => item?.id === activeConsoleId);
     if (activeWorkspaceTab?.pinned) {
+      return;
+    }
+    if (
+      activeWorkspaceTab &&
+      !(await confirmAndKillTerminalTabs([activeWorkspaceTab], workspaceTabList))
+    ) {
       return;
     }
 
