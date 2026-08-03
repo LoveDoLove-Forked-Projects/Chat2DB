@@ -72,6 +72,9 @@ jobs:
       - name: Run ComboAxisSelect action filter contract
         run: yarn run test:combo-axis-actions
 
+      - name: Run BI label rotation contract
+        run: yarn run test:label-rotation
+
       - name: Run Redis explorer contract
         run: yarn run test:redis-explorer
 
