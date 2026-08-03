@@ -66,6 +66,15 @@ class OscarIdentifierProcessorTest {
     }
 
     @Test
+    void reservedKeywordLookupIsCaseInsensitiveAndNullSafe() {
+        assertTrue(OscarIdentifierProcessor.INSTANCE.isReservedKeyword("SELECT", null, null));
+        assertTrue(OscarIdentifierProcessor.INSTANCE.isReservedKeyword("select", null, null));
+        assertTrue(OscarIdentifierProcessor.INSTANCE.isReservedKeyword("SeLeCt", null, null));
+        assertFalse(OscarIdentifierProcessor.INSTANCE.isReservedKeyword("plain_name", null, null));
+        assertFalse(OscarIdentifierProcessor.INSTANCE.isReservedKeyword(null, null, null));
+    }
+
+    @Test
     void quoteIdentifierAlwaysQuotesUnconditionally() {
         assertNull(OscarIdentifierProcessor.INSTANCE.quoteIdentifierAlways(null));
         assertEquals("\"\"", OscarIdentifierProcessor.INSTANCE.quoteIdentifierAlways(""));

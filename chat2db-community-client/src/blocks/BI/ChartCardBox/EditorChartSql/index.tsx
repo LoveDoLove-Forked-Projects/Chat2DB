@@ -1,19 +1,10 @@
-import {
-  memo,
-  useState,
-  useEffect,
-  useRef,
-  useMemo,
-  forwardRef,
-  useImperativeHandle,
-  ForwardedRef,
-} from 'react';
+import { memo, useState, useEffect, useRef, useMemo, forwardRef, useImperativeHandle, ForwardedRef } from 'react';
 import { useStyles } from './style';
 import { IDatabaseBaseInfo } from '@/typings/database';
 import { IChartItem } from '@/typings/dashboard';
 import SQLExecute, { SQLExecuteRef } from '@/pages/main/workspace/components/SQLExecute';
 import { WorkspaceTabType } from '@/constants';
-import { randomLargeLong } from '@/utils';
+import { getTemporaryId, randomLargeLong } from '@/utils';
 import { buildChartExecutionResult, type DatabaseInfoAndMetaData } from './executionResult';
 
 export interface IProps {
@@ -66,6 +57,7 @@ const EditorChartSql = forwardRef((props: IProps, ref: ForwardedRef<EditorChartS
   const consoleId: any = useMemo(() => {
     return randomLargeLong();
   }, []);
+  const workspaceTabId = useMemo(() => getTemporaryId(), []);
 
   const onExecuteSQLCallback = (params) => {
     setDatabaseInfoAndMetaData(buildChartExecutionResult(params));
@@ -74,7 +66,7 @@ const EditorChartSql = forwardRef((props: IProps, ref: ForwardedRef<EditorChartS
   return (
     <div className={cx(styles.editorChartSqlBox, className)}>
       <SQLExecute
-        boundInfo={{ ...databaseBaseInfo, consoleId }}
+        boundInfo={{ ...databaseBaseInfo, consoleId, workspaceTabId }}
         type={WorkspaceTabType.CONSOLE}
         initDDL={databaseBaseInfo?.sql || ''}
         isActive={true}
