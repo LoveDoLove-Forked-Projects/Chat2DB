@@ -154,6 +154,12 @@ class XugudbIdentifierProcessorTest {
     }
 
     @Test
+    void checkClauseCannotBeSmuggledIntoFallbackColumnType() {
+        assertThrows(IllegalArgumentException.class,
+                () -> XugudbSqlGuards.requireColumnTypeExpression("VARCHAR(32) CHECK (1 = 1)"));
+    }
+
+    @Test
     void unbalancedQuoteInFunctionDefaultIsRejected() {
         TableColumn c1 = column("id", "INTEGER");
         c1.setDefaultValue("length(')");
