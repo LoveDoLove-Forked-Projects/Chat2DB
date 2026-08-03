@@ -455,6 +455,18 @@ class XugudbIdentifierProcessorTest {
     }
 
     @Test
+    void numericTypePreservesPrecisionAndScale() {
+        TableColumn decimal = column("amount", "NUMERIC");
+        decimal.setColumnSize(10);
+        decimal.setDecimalDigits(2);
+        assertTrue(XUGUDBColumnTypeEnum.NUMERIC.buildCreateColumnSql(decimal).contains("NUMERIC(10,2)"));
+
+        TableColumn precisionOnly = column("amount", "NUMERIC");
+        precisionOnly.setColumnSize(18);
+        assertTrue(XUGUDBColumnTypeEnum.NUMERIC.buildCreateColumnSql(precisionOnly).contains("NUMERIC(18)"));
+    }
+
+    @Test
     void requireDefaultValueAcceptsValidExpressionsAndRejectsInjection() {
         assertEquals("0", XugudbSqlGuards.requireDefaultValue("0"));
         assertEquals("-1.5", XugudbSqlGuards.requireDefaultValue("-1.5"));
