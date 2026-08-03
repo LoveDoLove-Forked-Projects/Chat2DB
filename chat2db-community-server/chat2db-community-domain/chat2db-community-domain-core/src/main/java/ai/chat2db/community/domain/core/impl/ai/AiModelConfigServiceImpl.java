@@ -565,7 +565,7 @@ public class AiModelConfigServiceImpl implements IAiModelConfigService {
         }
     }
 
-    private String resolveTestApiKey(AiModelConfigSaveRequest request) {
+    private synchronized String resolveTestApiKey(AiModelConfigSaveRequest request) {
         if (StringUtils.isNotBlank(request.getApiKey())) {
             return request.getApiKey().trim();
         }
