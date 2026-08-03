@@ -1,26 +1,24 @@
 import { memo, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { MinusOutlined, PlusOutlined } from '@ant-design/icons';
 import { Button, Segmented, Tooltip } from 'antd';
+import { staticMessage } from '@chat2db/ui';
 import { Code, Columns2, Eye } from 'lucide-react';
+import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import rehypeKatex from 'rehype-katex';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
-import { WorkspaceTabType } from '@/constants';
-import type { EditorType } from '@/components/SQLEditor';
-import jcefApi from '@/jcef';
+import MonacoEditor, { type IEditorIns, type IExportRefFunction } from '@/components/MonacoEditor';
 import i18n from '@/i18n';
-import { useWorkspaceStore } from '@/store/workspace';
 import type { IBoundInfo } from '@/typings';
-import SQLExecute from '../SQLExecute';
+import { updateFileContent } from '@/utils/file';
 import 'katex/dist/katex.min.css';
 import styles from './FilePreviewTab.less';
+import { getSqlDirectoryPreviewUrl } from '@/utils/previewResource';
 
 interface FilePreviewTabProps {
   file: IBoundInfo;
-  boundInfo: IBoundInfo;
   workspaceTabId: string | number;
-  workspaceTabsTitle?: string;
 }
 
 type MarkdownViewMode = 'source' | 'review' | 'split';
@@ -31,6 +29,51 @@ const MIN_IMAGE_ZOOM = 0.25;
 const MAX_IMAGE_ZOOM = 5;
 const IMAGE_ZOOM_STEP = 0.25;
 const PDF_LOAD_TIMEOUT_MS = 8000;
+const MARKDOWN_PREVIEW_DELAY_MS = 200;
+const MERMAID_CACHE_LIMIT = 50;
+
+let mermaidPromise: Promise<(typeof import('mermaid'))['default']> | undefined;
+let mermaidRenderQueue: Promise<unknown> = Promise.resolve();
+const mermaidSvgCache = new Map<string, { diagramId: string; svg: string }>();
+
+function getMermaid() {
+  if (!mermaidPromise) {
+    mermaidPromise = import('mermaid').then(({ default: mermaid }) => {
+      mermaid.initialize({
+        startOnLoad: false,
+        securityLevel: 'strict',
+        theme: 'neutral',
+        fontFamily: 'inherit',
+      });
+      return mermaid;
+    });
+  }
+  return mermaidPromise;
+}
+
+function renderMermaid(source: string, diagramId: string, host?: HTMLDivElement) {
+  const cached = mermaidSvgCache.get(source);
+  if (cached) {
+    return Promise.resolve(cached.svg.replaceAll(cached.diagramId, diagramId));
+  }
+  const renderPromise = mermaidRenderQueue
+    .catch(() => undefined)
+    .then(async () => {
+      const mermaid = await getMermaid();
+      const parseResult = await mermaid.parse(source, { suppressErrors: true });
+      if (!parseResult) {
+        return undefined;
+      }
+      const { svg } = await mermaid.render(diagramId, source, host);
+      mermaidSvgCache.set(source, { diagramId, svg });
+      if (mermaidSvgCache.size > MERMAID_CACHE_LIMIT) {
+        mermaidSvgCache.delete(mermaidSvgCache.keys().next().value!);
+      }
+      return svg;
+    });
+  mermaidRenderQueue = renderPromise;
+  return renderPromise;
+}
 
 function MermaidDiagram({ source }: { source: string }) {
   const reactId = useId();
@@ -43,23 +86,9 @@ function MermaidDiagram({ source }: { source: string }) {
     let active = true;
     setSvg('');
     setError(false);
-    import('mermaid')
-      .then(async ({ default: mermaid }) => {
-        mermaid.initialize({
-          startOnLoad: false,
-          securityLevel: 'strict',
-          theme: 'neutral',
-          fontFamily: 'inherit',
-        });
-        const parseResult = await mermaid.parse(source, { suppressErrors: true });
-        if (!parseResult) {
-          return undefined;
-        }
-        return mermaid.render(diagramId, source, renderHostRef.current || undefined);
-      })
-      .then((renderResult) => {
-        if (active && renderResult) {
-          const { svg: renderedSvg } = renderResult;
+    renderMermaid(source, diagramId, renderHostRef.current || undefined)
+      .then((renderedSvg) => {
+        if (active && renderedSvg) {
           setSvg(renderedSvg);
         } else if (active) {
           setError(true);
@@ -83,6 +112,56 @@ function MermaidDiagram({ source }: { source: string }) {
       {!error && !svg && <div className={styles.diagramLoading}>{i18n('common.text.loading')}</div>}
       {!error && svg && <div className={styles.diagram} dangerouslySetInnerHTML={{ __html: svg }} />}
     </>
+  );
+}
+
+function MarkdownSourceEditor({
+  source,
+  filePath,
+  onChange,
+  onEditorChange,
+}: {
+  source: string;
+  filePath?: string;
+  onChange: (value: string) => void;
+  onEditorChange: (editor?: IEditorIns) => void;
+}) {
+  const reactId = useId();
+  const editorId = useMemo(() => `markdown-${reactId.replace(/[^a-zA-Z0-9_-]/g, '')}`, [reactId]);
+  const editorRef = useRef<IExportRefFunction>(null);
+
+  useEffect(() => {
+    if (editorRef.current?.getAllContent() !== source) {
+      editorRef.current?.setValue(source, 'reset');
+    }
+  }, [source]);
+
+  useEffect(() => () => onEditorChange(undefined), [onEditorChange]);
+
+  return (
+    <MonacoEditor
+      ref={editorRef}
+      id={editorId}
+      language="markdown"
+      defaultValue={source}
+      options={{
+        minimap: { enabled: false },
+        wordWrap: 'on',
+        scrollBeyondLastLine: false,
+        automaticLayout: true,
+        padding: { top: 12, bottom: 12 },
+      }}
+      didMount={(editor) => {
+        onEditorChange(editor);
+        editor.onDidChangeModelContent(() => onChange(editor.getValue()));
+        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+          if (filePath) {
+            updateFileContent({ filePath, fileContent: editor.getValue() });
+            staticMessage.success(i18n('workspace.text.changeFileSuccess'));
+          }
+        });
+      }}
+    />
   );
 }
 
@@ -114,32 +193,11 @@ function MarkdownImage({
   src?: string;
   file: IBoundInfo;
 }) {
-  const [resolvedSource, setResolvedSource] = useState(src);
   const relativePath = resolveRelativePath(file.fileRelativePath, src || '');
-
-  useEffect(() => {
-    let active = true;
-    if (!file.fileRootToken || !relativePath) {
-      setResolvedSource(src);
-      return;
-    }
-    jcefApi
-      .readSqlDirectoryPreview({ rootToken: file.fileRootToken, relativePath })
-      .then((preview) => {
-        if (active) {
-          setResolvedSource(preview.dataUrl);
-        }
-      })
-      .catch((error) => {
-        console.error('read markdown image error', error);
-        if (active) {
-          setResolvedSource(undefined);
-        }
-      });
-    return () => {
-      active = false;
-    };
-  }, [file.fileRootToken, relativePath, src]);
+  const resolvedSource =
+    file.fileRootToken && relativePath
+      ? getSqlDirectoryPreviewUrl(file.fileRootToken, relativePath)
+      : src;
 
   if (!resolvedSource) {
     return <span className={styles.brokenImage}>{alt || i18n('workspace.filePreview.imageFailed')}</span>;
@@ -147,11 +205,13 @@ function MarkdownImage({
   return <img alt={alt || ''} src={resolvedSource} loading="lazy" />;
 }
 
-const FilePreviewTab = memo(({ file, boundInfo, workspaceTabId, workspaceTabsTitle }: FilePreviewTabProps) => {
+const FilePreviewTab = memo(({ file, workspaceTabId }: FilePreviewTabProps) => {
   const extension = (file.fileExtension || '').toLowerCase();
   const isMarkdown = extension === 'md' || extension === 'markdown';
   const [markdownViewMode, setMarkdownViewMode] = useState<MarkdownViewMode>('review');
   const [markdownContent, setMarkdownContent] = useState(file.ddl || '');
+  const [markdownPreviewContent, setMarkdownPreviewContent] = useState(file.ddl || '');
+  const [editor, setEditor] = useState<IEditorIns>();
   const [imageZoom, setImageZoom] = useState(1);
   const [imageNaturalSize, setImageNaturalSize] = useState({ width: 0, height: 0 });
   const [imageViewportSize, setImageViewportSize] = useState({ width: 0, height: 0 });
@@ -162,15 +222,22 @@ const FilePreviewTab = memo(({ file, boundInfo, workspaceTabId, workspaceTabsTit
   const scrollSyncOwnerRef = useRef<ScrollSyncOwner>(null);
   const scrollSyncFrameRef = useRef<number | undefined>(undefined);
   const pdfLoadTimeoutRef = useRef<number | undefined>(undefined);
-  const editorRef = useWorkspaceStore((state) => state.editorList?.[workspaceTabId]);
-  const editor = editorRef?.getInstance?.();
 
   useEffect(() => {
     setMarkdownContent(file.ddl || '');
+    setMarkdownPreviewContent(file.ddl || '');
     setMarkdownViewMode('review');
     setImageZoom(1);
     setImageNaturalSize({ width: 0, height: 0 });
   }, [file.filePath]);
+
+  useEffect(() => {
+    if (markdownViewMode === 'source') {
+      return undefined;
+    }
+    const timer = window.setTimeout(() => setMarkdownPreviewContent(markdownContent), MARKDOWN_PREVIEW_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [markdownContent, markdownViewMode]);
 
   useEffect(() => {
     const viewport = imageViewportRef.current;
@@ -194,7 +261,7 @@ const FilePreviewTab = memo(({ file, boundInfo, workspaceTabId, workspaceTabsTit
       window.clearTimeout(pdfLoadTimeoutRef.current);
       pdfLoadTimeoutRef.current = undefined;
     }
-    if (file.filePreviewMimeType !== 'application/pdf' || !file.filePreviewDataUrl) {
+    if (file.filePreviewMimeType !== 'application/pdf' || !file.filePreviewUrl) {
       return undefined;
     }
 
@@ -216,7 +283,7 @@ const FilePreviewTab = memo(({ file, boundInfo, workspaceTabId, workspaceTabsTit
         pdfLoadTimeoutRef.current = undefined;
       }
     };
-  }, [file.filePath, file.filePreviewDataUrl, file.filePreviewMimeType]);
+  }, [file.filePath, file.filePreviewUrl, file.filePreviewMimeType]);
 
   const handlePdfLoad = () => {
     if (pdfLoadTimeoutRef.current) {
@@ -371,19 +438,18 @@ const FilePreviewTab = memo(({ file, boundInfo, workspaceTabId, workspaceTabsTit
             rehypePlugins={[rehypeKatex]}
             components={markdownComponents}
           >
-            {markdownContent}
+            {markdownPreviewContent}
           </ReactMarkdown>
         </article>
       </div>
     );
     const source = (
-      <SQLExecute
-        boundInfo={{ ...boundInfo, workspaceTabId }}
-        type={WorkspaceTabType.LocalSQLFile as EditorType}
-        initDDL={markdownContent}
-        workspaceTabsTitle={workspaceTabsTitle}
-        sqlActionEnabled={false}
-        onEditorChange={setMarkdownContent}
+      <MarkdownSourceEditor
+        key={`${workspaceTabId}:${file.filePath || ''}`}
+        source={markdownContent}
+        filePath={file.filePath}
+        onChange={setMarkdownContent}
+        onEditorChange={setEditor}
       />
     );
 
@@ -442,7 +508,7 @@ const FilePreviewTab = memo(({ file, boundInfo, workspaceTabId, workspaceTabsTit
     );
   }
 
-  if (file.filePreviewMimeType?.startsWith('image/') && file.filePreviewDataUrl) {
+  if (file.filePreviewMimeType?.startsWith('image/') && file.filePreviewUrl) {
     const fitScale =
       imageNaturalSize.width && imageNaturalSize.height && imageViewportSize.width && imageViewportSize.height
         ? Math.min(
@@ -492,7 +558,7 @@ const FilePreviewTab = memo(({ file, boundInfo, workspaceTabId, workspaceTabsTit
             }}
           >
             <img
-              src={file.filePreviewDataUrl}
+              src={file.filePreviewUrl}
               alt={file.filePath || ''}
               style={imageNaturalSize.width ? { width: renderedWidth, height: renderedHeight } : undefined}
               onLoad={(event) =>
@@ -508,14 +574,14 @@ const FilePreviewTab = memo(({ file, boundInfo, workspaceTabId, workspaceTabsTit
     );
   }
 
-  if (file.filePreviewMimeType === 'application/pdf' && file.filePreviewDataUrl) {
+  if (file.filePreviewMimeType === 'application/pdf' && file.filePreviewUrl) {
     return (
       <div className={styles.pdfPreview}>
         {pdfPreviewState !== 'failed' && (
           <object
             ref={pdfObjectRef}
             className={styles.pdfObject}
-            data={file.filePreviewDataUrl}
+            data={file.filePreviewUrl}
             type="application/pdf"
             aria-label={file.filePath || 'PDF'}
             onLoad={handlePdfLoad}

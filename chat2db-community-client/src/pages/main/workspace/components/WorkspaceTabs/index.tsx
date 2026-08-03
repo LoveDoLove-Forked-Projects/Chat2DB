@@ -75,13 +75,21 @@ import {
   WorkspaceTabDropPosition,
 } from './workspaceTabDrop';
 import { applyTerminalTabOpenPositions } from './terminalTabPlacement';
+import {
+  areWorkspaceTabSplitLayoutsEqual,
+  collectWorkspaceTabPaneIds,
+  createWorkspaceTabSplitNode,
+  ensureWorkspaceTabSplitNodeIds,
+  pruneWorkspaceTabPaneNode,
+  replaceWorkspaceTabPaneNode,
+  updateWorkspaceTabSplitNodeSize,
+} from './workspaceTabLayout';
 
 const SplitPaneAny = SplitPane as any;
 const MAIN_WORKSPACE_TAB_PANE: WorkspaceTabPaneId = 'main';
 const SPLIT_WORKSPACE_TAB_PANE: WorkspaceTabPaneId = 'split';
 const WORKSPACE_TAB_PANE_DROPPABLE_PREFIX = 'workspace-tab-pane:';
 const WORKSPACE_TAB_WIDTH = 200;
-type WorkspaceTabSplitNodePath = Array<'first' | 'second'>;
 
 function getWorkspaceTabPaneDroppableId(paneId: WorkspaceTabPaneId) {
   return `${WORKSPACE_TAB_PANE_DROPPABLE_PREFIX}${paneId}`;
@@ -146,22 +154,11 @@ function WorkspaceTabPaneDropOverlay({
 }
 
 function createDefaultSplitRoot(direction: WorkspaceTabSplitDirection): IWorkspaceTabPaneNode {
-  return {
-    type: 'split',
+  return createWorkspaceTabSplitNode(
     direction,
-    first: createPaneNode(MAIN_WORKSPACE_TAB_PANE),
-    second: createPaneNode(SPLIT_WORKSPACE_TAB_PANE),
-  };
-}
-
-function collectWorkspaceTabPaneIds(node?: IWorkspaceTabPaneNode | null): WorkspaceTabPaneId[] {
-  if (!node) {
-    return [];
-  }
-  if (node.type === 'pane') {
-    return [node.id];
-  }
-  return [...collectWorkspaceTabPaneIds(node.first), ...collectWorkspaceTabPaneIds(node.second)];
+    createPaneNode(MAIN_WORKSPACE_TAB_PANE),
+    createPaneNode(SPLIT_WORKSPACE_TAB_PANE),
+  );
 }
 
 function findWorkspaceTabPaneNode(node: IWorkspaceTabPaneNode | undefined, paneId: WorkspaceTabPaneId) {
@@ -172,68 +169,6 @@ function findWorkspaceTabPaneNode(node: IWorkspaceTabPaneNode | undefined, paneI
     return node.id === paneId;
   }
   return findWorkspaceTabPaneNode(node.first, paneId) || findWorkspaceTabPaneNode(node.second, paneId);
-}
-
-function replaceWorkspaceTabPaneNode(
-  node: IWorkspaceTabPaneNode,
-  paneId: WorkspaceTabPaneId,
-  replacement: IWorkspaceTabPaneNode,
-): IWorkspaceTabPaneNode {
-  if (node.type === 'pane') {
-    return node.id === paneId ? replacement : node;
-  }
-  return {
-    ...node,
-    first: replaceWorkspaceTabPaneNode(node.first, paneId, replacement),
-    second: replaceWorkspaceTabPaneNode(node.second, paneId, replacement),
-  };
-}
-
-function updateWorkspaceTabSplitNodeSize(
-  node: IWorkspaceTabPaneNode,
-  path: WorkspaceTabSplitNodePath,
-  size: number | string,
-): IWorkspaceTabPaneNode {
-  if (node.type === 'pane') {
-    return node;
-  }
-
-  if (!path.length) {
-    return {
-      ...node,
-      size,
-    };
-  }
-
-  const [nextPathItem, ...restPath] = path;
-  return nextPathItem === 'first'
-    ? {
-        ...node,
-        first: updateWorkspaceTabSplitNodeSize(node.first, restPath, size),
-      }
-    : {
-        ...node,
-        second: updateWorkspaceTabSplitNodeSize(node.second, restPath, size),
-      };
-}
-
-function pruneWorkspaceTabPaneNode(
-  node: IWorkspaceTabPaneNode,
-  validPaneIds: Set<WorkspaceTabPaneId>,
-): IWorkspaceTabPaneNode | null {
-  if (node.type === 'pane') {
-    return validPaneIds.has(node.id) ? node : null;
-  }
-  const first = pruneWorkspaceTabPaneNode(node.first, validPaneIds);
-  const second = pruneWorkspaceTabPaneNode(node.second, validPaneIds);
-  if (first && second) {
-    return {
-      ...node,
-      first,
-      second,
-    };
-  }
-  return first || second;
 }
 
 function getSnapshotDDL(uniqueData: IWorkspaceTab['uniqueData']) {
@@ -536,7 +471,9 @@ function normalizeWorkspaceTabSplitLayout(
 
   const workspaceTabMap = getWorkspaceTabMap(workspaceTabList);
   const assignedIds = new Set<string | number>();
-  const root = layout.root || createDefaultSplitRoot(layout.direction || 'vertical');
+  const root = ensureWorkspaceTabSplitNodeIds(
+    layout.root || createDefaultSplitRoot(layout.direction || 'vertical'),
+  );
   const paneIdsFromRoot = collectWorkspaceTabPaneIds(root);
   const paneIds = paneIdsFromRoot.length ? paneIdsFromRoot : [MAIN_WORKSPACE_TAB_PANE, SPLIT_WORKSPACE_TAB_PANE];
   const nextPaneTabIds = paneIds.reduce(
@@ -614,13 +551,6 @@ function normalizeWorkspaceTabSplitLayout(
       {} as Partial<Record<WorkspaceTabPaneId, number | string | null>>,
     ),
   } as IWorkspaceTabSplitLayout;
-}
-
-function areWorkspaceTabSplitLayoutsEqual(
-  a: IWorkspaceTabSplitLayout | null | undefined,
-  b: IWorkspaceTabSplitLayout | null | undefined,
-) {
-  return JSON.stringify(a || null) === JSON.stringify(b || null);
 }
 
 function getWorkspaceTabListByPane(
@@ -1351,8 +1281,11 @@ const WorkspaceTabs = memo(() => {
   };
 
   const handleSplitTabDragOver = (event: DragOverEvent) => {
-    setWorkspaceTabDropTarget(
-      event.over ? getWorkspaceTabEdgeDropTarget(String(event.over.id)) : undefined,
+    const nextTarget = event.over ? getWorkspaceTabEdgeDropTarget(String(event.over.id)) : undefined;
+    setWorkspaceTabDropTarget((currentTarget) =>
+      currentTarget?.paneId === nextTarget?.paneId && currentTarget?.position === nextTarget?.position
+        ? currentTarget
+        : nextTarget,
     );
   };
 
@@ -1509,12 +1442,11 @@ const WorkspaceTabs = memo(() => {
     const sourcePaneIds = originalSourcePaneIds.filter((id) => id !== workspaceTab.id);
     const targetPaneIds = [nextTabId];
     const nextRoot = findWorkspaceTabPaneNode(currentRoot, sourcePaneId)
-      ? replaceWorkspaceTabPaneNode(currentRoot, sourcePaneId, {
-          type: 'split',
-          direction,
-          first: createPaneNode(sourcePaneId),
-          second: createPaneNode(targetPaneId),
-        })
+      ? replaceWorkspaceTabPaneNode(
+          currentRoot,
+          sourcePaneId,
+          createWorkspaceTabSplitNode(direction, createPaneNode(sourcePaneId), createPaneNode(targetPaneId)),
+        )
       : currentRoot;
     const nextLayout = {
       ...currentLayout,
@@ -1568,14 +1500,12 @@ const WorkspaceTabs = memo(() => {
     const fileExtension = (uniqueData.fileExtension || '').toLowerCase();
     if (
       item.type === WorkspaceTabType.LocalSQLFile &&
-      (fileExtension === 'md' || fileExtension === 'markdown' || uniqueData.filePreviewDataUrl)
+      (fileExtension === 'md' || fileExtension === 'markdown' || uniqueData.filePreviewUrl)
     ) {
       return (
         <FilePreviewTab
           file={uniqueData}
-          boundInfo={boundInfo}
           workspaceTabId={item.id}
-          workspaceTabsTitle={item.title}
         />
       );
     }
@@ -1752,6 +1682,7 @@ const WorkspaceTabs = memo(() => {
         editableName:
           item.type === WorkspaceTabType.CONSOLE || item.type === WorkspaceTabType.Terminal,
         pinned: item.pinned,
+        destroyOnHide: !!item.uniqueData?.filePreviewMimeType,
         styles: {
           width: WORKSPACE_TAB_WIDTH,
           maxWidth: WORKSPACE_TAB_WIDTH,
@@ -1831,7 +1762,7 @@ const WorkspaceTabs = memo(() => {
     };
   };
 
-  const updateSplitPaneSize = (path: WorkspaceTabSplitNodePath, size: number | string) => {
+  const updateSplitPaneSize = (nodeId: string, size: number | string) => {
     const currentLayout = useWorkspaceStore.getState().workspaceTabSplitLayout;
     const root = currentLayout?.root;
     if (!currentLayout || !root) {
@@ -1840,7 +1771,7 @@ const WorkspaceTabs = memo(() => {
     useWorkspaceStore.setState({
       workspaceTabSplitLayout: {
         ...currentLayout,
-        root: updateWorkspaceTabSplitNodeSize(root, path, size),
+        root: updateWorkspaceTabSplitNodeSize(root, nodeId, size),
       },
     });
   };
@@ -1906,27 +1837,24 @@ const WorkspaceTabs = memo(() => {
     );
   }
 
-  function renderWorkspaceTabPaneNode(
-    node: IWorkspaceTabPaneNode,
-    path: WorkspaceTabSplitNodePath = [],
-  ): React.ReactNode {
+  function renderWorkspaceTabPaneNode(node: IWorkspaceTabPaneNode): React.ReactNode {
     if (node.type === 'pane') {
       return renderWorkspaceTabPane(node.id, styles.splitPaneItem);
     }
 
     return (
       <SplitPaneAny
-        key={`${node.direction}:${collectWorkspaceTabPaneIds(node).join('|')}`}
+        key={node.nodeId}
         className={styles.splitPane}
         split={node.direction}
         primary="first"
         size={node.size ?? '50%'}
         minSize={180}
         paneClassName={styles.splitPaneInner}
-        onDragFinished={(size: number | string) => updateSplitPaneSize(path, size)}
+        onDragFinished={(size: number | string) => updateSplitPaneSize(node.nodeId!, size)}
       >
-        {renderWorkspaceTabPaneNode(node.first, [...path, 'first'])}
-        {renderWorkspaceTabPaneNode(node.second, [...path, 'second'])}
+        {renderWorkspaceTabPaneNode(node.first)}
+        {renderWorkspaceTabPaneNode(node.second)}
       </SplitPaneAny>
     );
   }
@@ -1950,7 +1878,9 @@ const WorkspaceTabs = memo(() => {
       <div className={styles.splitTabBox}>
         {workspaceTabSplitLayout ? (
           renderWorkspaceTabPaneNode(
-            workspaceTabSplitLayout.root || createDefaultSplitRoot(workspaceTabSplitLayout.direction),
+            ensureWorkspaceTabSplitNodeIds(
+              workspaceTabSplitLayout.root || createDefaultSplitRoot(workspaceTabSplitLayout.direction),
+            ),
           )
         ) : (
           renderWorkspaceTabPane(MAIN_WORKSPACE_TAB_PANE, styles.splitPaneItem)

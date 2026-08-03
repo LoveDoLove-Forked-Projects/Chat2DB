@@ -50,13 +50,13 @@ export const createCommonAction: StateCreator<WorkspaceStore, [['zustand/devtool
         fileRelativePath: context?.relativePath,
         ...(context?.previewFile
           ? {
-              filePreviewDataUrl: 'dataUrl' in fileContent ? fileContent.dataUrl : undefined,
+              filePreviewUrl: 'url' in fileContent ? fileContent.url : undefined,
               filePreviewMimeType: 'mimeType' in fileContent ? fileContent.mimeType : undefined,
               ddl: undefined,
             }
           : {
               ddl: 'ddl' in fileContent ? fileContent.ddl : '',
-              filePreviewDataUrl: undefined,
+              filePreviewUrl: undefined,
               filePreviewMimeType: undefined,
             }),
       };

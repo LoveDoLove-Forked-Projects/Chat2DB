@@ -6,7 +6,7 @@ import { refreshLocalFileWorkspaceTab } from './localFileWorkspaceTab';
 const originalUniqueData = Object.freeze({
   filePath: '/tmp/report.pdf',
   fileExtension: 'pdf',
-  filePreviewDataUrl: 'data:application/pdf;base64,old',
+  filePreviewUrl: 'chat2db-resource://preview/root/old',
   filePreviewMimeType: 'application/pdf',
 });
 const existingTab = Object.freeze({
@@ -25,7 +25,7 @@ const frozenTabs = Object.freeze([existingTab, otherTab]) as unknown as IWorkspa
 const nextUniqueData: IBoundInfo = {
   filePath: '/tmp/report.pdf',
   fileExtension: undefined,
-  filePreviewDataUrl: 'data:application/pdf;base64,new',
+  filePreviewUrl: 'chat2db-resource://preview/root/new',
   filePreviewMimeType: 'application/pdf',
 };
 
@@ -36,10 +36,10 @@ assert.equal(result.activeTabId, 'pdf-tab');
 assert.notEqual(result.workspaceTabList, frozenTabs, 'the workspace tab list must be replaced');
 assert.notEqual(result.workspaceTabList[0], existingTab, 'the matching tab must be replaced');
 assert.notEqual(result.workspaceTabList[0].uniqueData, originalUniqueData, 'the matching uniqueData must be replaced');
-assert.equal(result.workspaceTabList[0].uniqueData?.filePreviewDataUrl, 'data:application/pdf;base64,new');
+assert.equal(result.workspaceTabList[0].uniqueData?.filePreviewUrl, 'chat2db-resource://preview/root/new');
 assert.equal(result.workspaceTabList[0].uniqueData?.fileExtension, 'pdf', 'the previous extension must be retained');
 assert.equal(result.workspaceTabList[1], otherTab, 'unmatched tabs should retain their references');
-assert.equal(originalUniqueData.filePreviewDataUrl, 'data:application/pdf;base64,old', 'the frozen source must not change');
+assert.equal(originalUniqueData.filePreviewUrl, 'chat2db-resource://preview/root/old', 'the frozen source must not change');
 assert.equal(refreshLocalFileWorkspaceTab(frozenTabs, '/tmp/missing.sql', nextUniqueData), undefined);
 
 console.log('local file workspace tab tests passed');

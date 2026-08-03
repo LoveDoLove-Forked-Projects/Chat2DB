@@ -5,7 +5,6 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 
@@ -38,10 +37,9 @@ class SqlDirectoryTreeStoreTest {
 
         Map<String, Object> preview = SqlDirectoryTreeStore.readPreview(rootToken, "diagram.png");
         assertEquals("image/png", preview.get("mimeType"));
-        assertEquals(
-                "data:image/png;base64," + Base64.getEncoder().encodeToString(imageBytes),
-                preview.get("dataUrl")
-        );
+        assertEquals((long) imageBytes.length, preview.get("size"));
+        assertTrue(((String) preview.get("url")).startsWith("chat2db-resource://preview/" + rootToken + "/"));
+        assertTrue(((String) preview.get("etag")).startsWith("\""));
     }
 
     @Test
@@ -52,6 +50,23 @@ class SqlDirectoryTreeStoreTest {
         assertThrows(
                 IllegalArgumentException.class,
                 () -> SqlDirectoryTreeStore.readPreview(rootToken, "../outside.png")
+        );
+    }
+
+    @Test
+    void previewCannotEscapeThroughAnIntermediateSymbolicLink() throws Exception {
+        if (System.getProperty("os.name", "").toLowerCase().contains("win")) {
+            return;
+        }
+        Path rootDirectory = Files.createDirectory(directory.resolve("root"));
+        Path outsideDirectory = Files.createDirectory(directory.resolve("outside"));
+        Files.write(outsideDirectory.resolve("outside.png"), new byte[]{1, 2, 3});
+        Files.createSymbolicLink(rootDirectory.resolve("linked"), outsideDirectory);
+        Map<String, Object> root = SqlDirectoryTreeStore.createRoot(rootDirectory.toString());
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> SqlDirectoryTreeStore.readPreview((String) root.get("rootToken"), "linked/outside.png")
         );
     }
 }

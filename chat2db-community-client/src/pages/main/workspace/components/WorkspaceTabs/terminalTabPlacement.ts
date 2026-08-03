@@ -7,6 +7,7 @@ import type {
   WorkspaceTabSplitDirection,
 } from '@/typings';
 import type { TerminalOpenPosition } from '@/typings/settings';
+import { collectWorkspaceTabPaneIds, createWorkspaceTabSplitNode } from './workspaceTabLayout';
 
 const MAIN_WORKSPACE_TAB_PANE: WorkspaceTabPaneId = 'main';
 const TERMINAL_PANE_IDS: Record<Exclude<TerminalOpenPosition, 'tab'>, WorkspaceTabPaneId> = {
@@ -18,13 +19,6 @@ function isDockPosition(value?: TerminalOpenPosition): value is Exclude<Terminal
   return value === 'bottom' || value === 'right';
 }
 
-function collectPaneIds(node: IWorkspaceTabPaneNode): WorkspaceTabPaneId[] {
-  if (node.type === 'pane') {
-    return [node.id];
-  }
-  return [...collectPaneIds(node.first), ...collectPaneIds(node.second)];
-}
-
 function createRootFromLayout(layout: IWorkspaceTabSplitLayout): IWorkspaceTabPaneNode {
   if (layout.root) {
     return layout.root;
@@ -32,12 +26,7 @@ function createRootFromLayout(layout: IWorkspaceTabSplitLayout): IWorkspaceTabPa
   const paneIds = Object.keys(layout.paneTabIds).filter((paneId) => layout.paneTabIds[paneId]?.length);
   const firstPaneId = paneIds[0] || MAIN_WORKSPACE_TAB_PANE;
   return paneIds.slice(1).reduce<IWorkspaceTabPaneNode>(
-    (root, paneId) => ({
-      type: 'split',
-      direction: layout.direction,
-      first: root,
-      second: { type: 'pane', id: paneId },
-    }),
+    (root, paneId) => createWorkspaceTabSplitNode(layout.direction, root, { type: 'pane', id: paneId }),
     { type: 'pane', id: firstPaneId },
   );
 }
@@ -97,19 +86,18 @@ export function applyTerminalTabOpenPositions(
     const position = tab.uniqueData!.terminalOpenPosition as Exclude<TerminalOpenPosition, 'tab'>;
     const paneId = TERMINAL_PANE_IDS[position];
     const root = nextLayout!.root!;
-    const paneExists = collectPaneIds(root).includes(paneId);
+    const paneExists = collectWorkspaceTabPaneIds(root).includes(paneId);
 
     if (paneExists) {
       nextLayout!.paneTabIds[paneId] = [...(nextLayout!.paneTabIds[paneId] || []), tab.id];
     } else {
       const direction: WorkspaceTabSplitDirection = position === 'right' ? 'vertical' : 'horizontal';
-      const nextRoot: IWorkspaceTabPaneNode = {
-        type: 'split',
+      const nextRoot = createWorkspaceTabSplitNode(
         direction,
-        size: position === 'right' ? '70%' : '65%',
-        first: root,
-        second: { type: 'pane', id: paneId },
-      };
+        root,
+        { type: 'pane', id: paneId },
+        position === 'right' ? '70%' : '65%',
+      );
       nextLayout = {
         ...nextLayout!,
         direction,

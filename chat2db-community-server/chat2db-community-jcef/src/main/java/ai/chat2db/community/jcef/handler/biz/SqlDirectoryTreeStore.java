@@ -10,7 +10,6 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -255,23 +254,30 @@ final class SqlDirectoryTreeStore {
     }
 
     static Map<String, Object> readPreview(String rootToken, String relativePath) throws IOException {
+        PreviewResource resource = resolvePreviewResource(rootToken, relativePath);
+        Map<String, Object> result = new HashMap<>();
+        result.put("mimeType", resource.mimeType());
+        result.put("size", resource.size());
+        result.put("etag", resource.etag());
+        result.put("url", PreviewResourceScheme.createUrl(rootToken, relativePath, resource.etag()));
+        return result;
+    }
+
+    static PreviewResource resolvePreviewResource(String rootToken, String relativePath) throws IOException {
         Path root = getRoot(rootToken);
         Path target = resolveInRoot(root, relativePath);
-        if (!Files.isRegularFile(target, LinkOption.NOFOLLOW_LINKS) || !isSupportedPreviewFile(target.getFileName().toString())) {
+        if (!Files.isRegularFile(target, LinkOption.NOFOLLOW_LINKS)
+                || !isSupportedPreviewFile(target.getFileName().toString())) {
             throw new IllegalArgumentException("Selected file does not support preview");
         }
         long size = Files.size(target);
         if (size > MAX_PREVIEW_BYTES) {
             throw new IllegalArgumentException("Preview file exceeds the 50 MB limit");
         }
-
-        String extension = getFileExtension(target.getFileName().toString());
-        String mimeType = getPreviewMimeType(extension);
-        Map<String, Object> result = new HashMap<>();
-        result.put("mimeType", mimeType);
-        result.put("size", size);
-        result.put("dataUrl", "data:" + mimeType + ";base64," + Base64.getEncoder().encodeToString(Files.readAllBytes(target)));
-        return result;
+        long lastModifiedMillis = Files.getLastModifiedTime(target, LinkOption.NOFOLLOW_LINKS).toMillis();
+        String mimeType = getPreviewMimeType(getFileExtension(target.getFileName().toString()));
+        String etag = "\"" + Long.toHexString(size) + "-" + Long.toHexString(lastModifiedMillis) + "\"";
+        return new PreviewResource(target, mimeType, size, lastModifiedMillis, etag);
     }
 
     private static Map<String, Object> toNode(String rootToken, Path root, Path path) throws IOException {
@@ -434,11 +440,22 @@ final class SqlDirectoryTreeStore {
         if (!target.startsWith(root)) {
             throw new IllegalArgumentException("Path is outside of the selected SQL directory");
         }
+        Path current = root;
+        Path relativeTarget = root.relativize(target);
+        for (Path segment : relativeTarget) {
+            current = current.resolve(segment);
+            if (Files.isSymbolicLink(current)) {
+                throw new IllegalArgumentException("Symbolic links are not supported");
+            }
+        }
         Path realPath = target.toRealPath(LinkOption.NOFOLLOW_LINKS);
         if (!realPath.startsWith(root)) {
             throw new IllegalArgumentException("Path is outside of the selected SQL directory");
         }
         return realPath;
+    }
+
+    record PreviewResource(Path path, String mimeType, long size, long lastModifiedMillis, String etag) {
     }
 
     private static String getDisplayName(Path path) {

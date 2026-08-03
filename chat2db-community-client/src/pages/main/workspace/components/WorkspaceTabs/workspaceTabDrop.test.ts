@@ -6,6 +6,10 @@ import {
   getWorkspaceTabEdgeDropTarget,
 } from './workspaceTabDrop';
 
+function withoutNodeIds<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value, (key, item) => (key === 'nodeId' ? undefined : item)));
+}
+
 assert.deepEqual(getWorkspaceTabEdgeDropTarget(getWorkspaceTabEdgeDropId('main', 'right')), {
   paneId: 'main',
   position: 'right',
@@ -49,7 +53,8 @@ const unsplitLayout = createWorkspaceTabEdgeSplitLayout({
   newPaneId: 'right-pane',
   position: 'right',
 });
-assert.deepEqual(unsplitLayout?.root, {
+assert.match(unsplitLayout?.root?.type === 'split' ? unsplitLayout.root.nodeId || '' : '', /^split_/);
+assert.deepEqual(withoutNodeIds(unsplitLayout?.root), {
   type: 'split',
   direction: 'vertical',
   first: { type: 'pane', id: 'main' },
@@ -90,7 +95,7 @@ assert.deepEqual(crossPaneLayout?.paneTabIds, {
   target: ['existing'],
   'top-pane': ['dragged'],
 });
-assert.deepEqual(crossPaneLayout?.root, {
+assert.deepEqual(withoutNodeIds(crossPaneLayout?.root), {
   type: 'split',
   direction: 'vertical',
   first: { type: 'pane', id: 'source' },

@@ -26,6 +26,7 @@ export type IWorkspaceTabPaneNode =
     }
   | {
       type: 'split';
+      nodeId?: string;
       direction: WorkspaceTabSplitDirection;
       size?: number | string;
       first: IWorkspaceTabPaneNode;
@@ -85,7 +86,7 @@ export interface IBoundInfo {
 
   filePath?: string;
   fileExtension?: string;
-  filePreviewDataUrl?: string;
+  filePreviewUrl?: string;
   filePreviewMimeType?: string;
   fileRootToken?: string;
   fileRelativePath?: string;

@@ -4,6 +4,7 @@ import {
   WorkspaceTabPaneId,
   WorkspaceTabSplitDirection,
 } from '@/typings';
+import { createWorkspaceTabSplitNode, replaceWorkspaceTabPaneNode } from './workspaceTabLayout';
 
 export type WorkspaceTabDropPosition = 'top' | 'right' | 'bottom' | 'left';
 
@@ -50,21 +51,6 @@ export function getWorkspaceTabDropPlacement(position: WorkspaceTabDropPosition)
   return {
     direction: position === 'left' || position === 'right' ? 'vertical' : 'horizontal',
     newPanePlacement: position === 'left' || position === 'top' ? 'first' : 'second',
-  };
-}
-
-function replacePaneNode(
-  node: IWorkspaceTabPaneNode,
-  paneId: WorkspaceTabPaneId,
-  replacement: IWorkspaceTabPaneNode,
-): IWorkspaceTabPaneNode {
-  if (node.type === 'pane') {
-    return node.id === paneId ? replacement : node;
-  }
-  return {
-    ...node,
-    first: replacePaneNode(node.first, paneId, replacement),
-    second: replacePaneNode(node.second, paneId, replacement),
   };
 }
 
@@ -115,13 +101,12 @@ export function createWorkspaceTabEdgeSplitLayout({
   const { direction, newPanePlacement } = getWorkspaceTabDropPlacement(position);
   const newPaneNode: IWorkspaceTabPaneNode = { type: 'pane', id: newPaneId };
   const targetPaneNode: IWorkspaceTabPaneNode = { type: 'pane', id: targetPaneId };
-  const replacement: IWorkspaceTabPaneNode = {
-    type: 'split',
+  const replacement = createWorkspaceTabSplitNode(
     direction,
-    first: newPanePlacement === 'first' ? newPaneNode : targetPaneNode,
-    second: newPanePlacement === 'second' ? newPaneNode : targetPaneNode,
-  };
-  const nextRoot = replacePaneNode(currentRoot, targetPaneId, replacement);
+    newPanePlacement === 'first' ? newPaneNode : targetPaneNode,
+    newPanePlacement === 'second' ? newPaneNode : targetPaneNode,
+  );
+  const nextRoot = replaceWorkspaceTabPaneNode(currentRoot, targetPaneId, replacement);
   const nextSourcePaneTabIds = sourcePaneTabIds.filter((id) => id !== sourceTabId);
   const nextTargetPaneTabIds =
     sourcePaneId === targetPaneId

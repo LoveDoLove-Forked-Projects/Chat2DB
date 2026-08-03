@@ -6,15 +6,22 @@ import { JavaPushActionType, JcefEventBus } from '@/jcef/eventBus';
 import styles from './TerminalTab.less';
 import { useGlobalStore } from '@/store/global';
 import { DEFAULT_TERMINAL_SETTINGS, getTerminalTheme } from '@/constants/terminal';
+import {
+  getLastRenderedTerminalSequence,
+  setLastRenderedTerminalSequence,
+} from '@/utils/terminalBuffer';
 
 interface TerminalTabProps {
   sessionId: string;
 }
 
-const terminalMounts = new Map<string, { count: number; killTimer?: ReturnType<typeof setTimeout> }>();
-
 const TerminalTab = memo(({ sessionId }: TerminalTabProps) => {
   const terminalRef = useRef<IXtermRef>(null);
+  const consumerIdRef = useRef(
+    `${sessionId}:${Date.now()}:${Math.random()
+      .toString(36)
+      .slice(2)}`,
+  );
   const [exited, setExited] = useState(false);
   const themeId = useGlobalStore(
     (state) => state.terminalSettings?.themeId || DEFAULT_TERMINAL_SETTINGS.themeId,
@@ -24,10 +31,24 @@ const TerminalTab = memo(({ sessionId }: TerminalTabProps) => {
   useEffect(() => {
     const outputEvent = `${JavaPushActionType.TERMINAL_OUTPUT}_${sessionId}`;
     const exitEvent = `${JavaPushActionType.TERMINAL_EXIT}_${sessionId}`;
-    const handleOutput = (message: { data?: string }) => {
-      if (message?.data) {
-        terminalRef.current?.xtermWrite(message.data);
+    const acknowledgeOutput = (sequence: number) => {
+      jcefApi.acknowledgeTerminalOutput({ sessionId, sequence }).catch(() => undefined);
+    };
+    const handleOutput = (message: { data?: string; sequence?: number }) => {
+      const sequence = message?.sequence;
+      if (typeof sequence === 'number' && sequence <= (getLastRenderedTerminalSequence(sessionId) || 0)) {
+        acknowledgeOutput(sequence);
+        return;
       }
+      if (!message?.data || !terminalRef.current) {
+        return;
+      }
+      terminalRef.current.xtermWrite(message.data, () => {
+        if (typeof sequence === 'number') {
+          setLastRenderedTerminalSequence(sessionId, sequence);
+          acknowledgeOutput(sequence);
+        }
+      });
     };
     const handleExit = (message: { exitCode?: number }) => {
       terminalRef.current?.xtermWrite(
@@ -37,29 +58,17 @@ const TerminalTab = memo(({ sessionId }: TerminalTabProps) => {
     };
     JcefEventBus.on(outputEvent, handleOutput);
     JcefEventBus.on(exitEvent, handleExit);
-    const mountState = terminalMounts.get(sessionId) || { count: 0 };
-    if (mountState.killTimer) {
-      clearTimeout(mountState.killTimer);
-    }
-    terminalMounts.set(sessionId, { count: mountState.count + 1 });
-    jcefApi.attachTerminal({ sessionId }).catch((error) => {
+    const consumerId = consumerIdRef.current;
+    const attachPromise = jcefApi.attachTerminal({ sessionId, consumerId }).catch((error) => {
       console.error('attach terminal error', error);
       setExited(true);
     });
     return () => {
       JcefEventBus.off(outputEvent, handleOutput);
       JcefEventBus.off(exitEvent, handleExit);
-      const currentMountState = terminalMounts.get(sessionId);
-      const count = Math.max((currentMountState?.count || 1) - 1, 0);
-      if (count > 0) {
-        terminalMounts.set(sessionId, { count });
-        return;
-      }
-      const killTimer = setTimeout(() => {
-        terminalMounts.delete(sessionId);
-        jcefApi.killTerminal({ sessionId }).catch(() => undefined);
-      }, 500);
-      terminalMounts.set(sessionId, { count: 0, killTimer });
+      attachPromise.finally(() => {
+        jcefApi.detachTerminal({ sessionId, consumerId }).catch(() => undefined);
+      });
     };
   }, [sessionId]);
 
@@ -89,6 +98,7 @@ const TerminalTab = memo(({ sessionId }: TerminalTabProps) => {
       className={styles.terminal}
       readOnly={exited}
       theme={terminalTheme}
+      persistenceKey={sessionId}
       onData={handleData}
       onResize={handleResize}
     />

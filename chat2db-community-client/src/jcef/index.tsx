@@ -35,7 +35,10 @@ const jcefApi = {
   },
   // Read a binary preview file from an opened directory
   readSqlDirectoryPreview: (params: { rootToken: string; relativePath: string }) => {
-    return createJcefApi<{ dataUrl: string; mimeType: string; size: number }>('read-sql-directory-preview', params);
+    return createJcefApi<{ url: string; mimeType: string; size: number; etag: string }>(
+      'read-sql-directory-preview',
+      params,
+    );
   },
   // Create a new SQL file directory subnode
   createSqlDirectoryChild: (params: {
@@ -95,8 +98,14 @@ const jcefApi = {
   writeTerminal: (params: { sessionId: string; data: string }) => {
     return createJcefApi('write-terminal', params);
   },
-  attachTerminal: (params: { sessionId: string }) => {
+  attachTerminal: (params: { sessionId: string; consumerId: string }) => {
     return createJcefApi('attach-terminal', params);
+  },
+  detachTerminal: (params: { sessionId: string; consumerId: string }) => {
+    return createJcefApi('detach-terminal', params);
+  },
+  acknowledgeTerminalOutput: (params: { sessionId: string; sequence: number }) => {
+    return createJcefApi('ack-terminal-output', params);
   },
   resizeTerminal: (params: { sessionId: string; columns: number; rows: number }) => {
     return createJcefApi('resize-terminal', params);
@@ -104,8 +113,14 @@ const jcefApi = {
   getTerminalStatus: (params: { sessionId: string }) => {
     return createJcefApi<{ alive: boolean; busy: boolean }>('get-terminal-status', params);
   },
+  getTerminalStatuses: (params: { sessionIds: string[] }) => {
+    return createJcefApi<Record<string, { alive: boolean; busy: boolean }>>('get-terminal-statuses', params);
+  },
   killTerminal: (params: { sessionId: string }) => {
     return createJcefApi('kill-terminal', params);
+  },
+  killTerminals: (params: { sessionIds: string[] }) => {
+    return createJcefApi('kill-terminals', params);
   },
   // Select file
   selectFile: (params: { fileTypeList: string[]; fileSize?: number; multiple?: boolean }) => {

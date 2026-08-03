@@ -5,6 +5,7 @@ import i18n from '@/i18n';
 import jcefApi from '@/jcef';
 import { useGlobalStore } from '@/store/global';
 import type { IWorkspaceTab } from '@/typings';
+import { clearPersistentTerminalBuffer } from '@/utils/terminalBuffer';
 
 const TERMINAL_BRIDGE_TIMEOUT = 2000;
 
@@ -68,17 +69,18 @@ export async function confirmAndKillTerminalTabs(tabs: IWorkspaceTab[], allTabs:
   }
 
   if (isTerminalCloseConfirmationEnabled(useGlobalStore.getState().terminalSettings)) {
-    const statuses = await Promise.all(
-      sessionsToKill.map((sessionId) =>
-        resolveWithin(jcefApi.getTerminalStatus({ sessionId }), { alive: true, busy: false }),
-      ),
+    const statusMap = await resolveWithin(
+      jcefApi.getTerminalStatuses({ sessionIds: sessionsToKill }),
+      Object.fromEntries(sessionsToKill.map((sessionId) => [sessionId, { alive: true, busy: false }])),
     );
+    const statuses = sessionsToKill.map((sessionId) => statusMap[sessionId] || { alive: true, busy: false });
     const aliveStatuses = statuses.filter((status) => status.alive);
     if (aliveStatuses.length && !(await confirmTerminalClose(aliveStatuses.some((status) => status.busy)))) {
       return false;
     }
   }
 
-  await Promise.all(sessionsToKill.map((sessionId) => resolveWithin(jcefApi.killTerminal({ sessionId }), undefined)));
+  await resolveWithin(jcefApi.killTerminals({ sessionIds: sessionsToKill }), undefined);
+  sessionsToKill.forEach(clearPersistentTerminalBuffer);
   return true;
 }

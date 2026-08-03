@@ -11,12 +11,12 @@ import org.cef.callback.CefQueryCallback;
 
 import java.util.Map;
 
-@JcefAction(value = "attach-terminal", method = "client-command")
-public class AttachTerminalHandler implements IJcefActionHandler {
+@JcefAction(value = "ack-terminal-output", method = "client-command")
+public class AcknowledgeTerminalOutputHandler implements IJcefActionHandler {
     @Override
     public void handle(ConsoleMessage consoleMessage, ConsoleResult wsResult, CefQueryCallback callback) {
         JSONObject request = JSON.parseObject(consoleMessage.getMessage());
-        TerminalSessionManager.attach(request.getString("sessionId"), request.getString("consumerId"));
+        TerminalSessionManager.acknowledgeOutput(request.getString("sessionId"), request.getLongValue("sequence"));
         ResponseBuilder.buildSuccessJcef(Map.of("data", true), callback);
     }
 }

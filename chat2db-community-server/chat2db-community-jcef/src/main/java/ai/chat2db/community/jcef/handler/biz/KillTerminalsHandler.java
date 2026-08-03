@@ -9,14 +9,16 @@ import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
 import org.cef.callback.CefQueryCallback;
 
+import java.util.List;
 import java.util.Map;
 
-@JcefAction(value = "attach-terminal", method = "client-command")
-public class AttachTerminalHandler implements IJcefActionHandler {
+@JcefAction(value = "kill-terminals", method = "client-command")
+public class KillTerminalsHandler implements IJcefActionHandler {
     @Override
     public void handle(ConsoleMessage consoleMessage, ConsoleResult wsResult, CefQueryCallback callback) {
         JSONObject request = JSON.parseObject(consoleMessage.getMessage());
-        TerminalSessionManager.attach(request.getString("sessionId"), request.getString("consumerId"));
+        List<String> sessionIds = request.getList("sessionIds", String.class);
+        TerminalSessionManager.kill(sessionIds == null ? List.of() : sessionIds);
         ResponseBuilder.buildSuccessJcef(Map.of("data", true), callback);
     }
 }

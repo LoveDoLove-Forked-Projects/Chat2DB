@@ -19,16 +19,29 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 public final class TerminalSessionManager {
     private static final ConcurrentMap<String, TerminalSession> SESSIONS = new ConcurrentHashMap<>();
+    private static final ScheduledExecutorService OUTPUT_DISPATCHER = Executors.newSingleThreadScheduledExecutor(runnable -> {
+        Thread thread = new Thread(runnable, "chat2db-terminal-output-dispatcher");
+        thread.setDaemon(true);
+        return thread;
+    });
+    private static final TerminalEventPublisher JCEF_EVENT_PUBLISHER = TerminalSessionManager::publishToJcef;
+    private static volatile TerminalEventPublisher eventPublisher = JCEF_EVENT_PUBLISHER;
 
     private TerminalSessionManager() {
     }
@@ -136,8 +149,22 @@ public final class TerminalSessionManager {
         requireSession(sessionId).process().setWinSize(new WinSize(Math.max(columns, 20), Math.max(rows, 5)));
     }
 
-    public static void attach(String sessionId) {
-        requireSession(sessionId).attach();
+    public static void attach(String sessionId, String consumerId) {
+        requireKnownSession(sessionId).attach(consumerId);
+    }
+
+    public static void detach(String sessionId, String consumerId) {
+        TerminalSession session = SESSIONS.get(sessionId);
+        if (session != null) {
+            session.detach(consumerId);
+        }
+    }
+
+    public static void acknowledgeOutput(String sessionId, long sequence) {
+        TerminalSession session = SESSIONS.get(sessionId);
+        if (session != null) {
+            session.acknowledgeOutput(sequence);
+        }
     }
 
     public static Map<String, Object> status(String sessionId) {
@@ -147,12 +174,29 @@ public final class TerminalSessionManager {
         return Map.of("alive", alive, "busy", busy);
     }
 
+    public static Map<String, Map<String, Object>> statuses(List<String> sessionIds) {
+        Map<String, Map<String, Object>> result = new LinkedHashMap<>();
+        sessionIds.forEach(sessionId -> result.put(sessionId, status(sessionId)));
+        return result;
+    }
+
     public static void kill(String sessionId) {
         TerminalSession session = SESSIONS.remove(sessionId);
         if (session != null) {
+            session.close();
             getAliveDescendants(session.process()).forEach(ProcessHandle::destroy);
             session.process().destroy();
         }
+    }
+
+    public static void kill(List<String> sessionIds) {
+        sessionIds.forEach(TerminalSessionManager::kill);
+    }
+
+    public static void shutdown() {
+        List<String> sessionIds = List.copyOf(SESSIONS.keySet());
+        sessionIds.forEach(TerminalSessionManager::kill);
+        OUTPUT_DISPATCHER.shutdownNow();
     }
 
     private static List<ProcessHandle> getAliveDescendants(PtyProcess process) {
@@ -167,8 +211,16 @@ public final class TerminalSessionManager {
     }
 
     private static TerminalSession requireSession(String sessionId) {
-        TerminalSession session = SESSIONS.get(sessionId);
+        TerminalSession session = requireKnownSession(sessionId);
         if (session == null || !session.process().isAlive()) {
+            throw new IllegalArgumentException("Terminal session is not available");
+        }
+        return session;
+    }
+
+    private static TerminalSession requireKnownSession(String sessionId) {
+        TerminalSession session = SESSIONS.get(sessionId);
+        if (session == null) {
             throw new IllegalArgumentException("Terminal session is not available");
         }
         return session;
@@ -313,6 +365,10 @@ public final class TerminalSessionManager {
     }
 
     private static void publish(String sessionId, ActionTypeEnum actionType, Map<String, Object> message) {
+        eventPublisher.publish(sessionId, actionType, message);
+    }
+
+    private static void publishToJcef(String sessionId, ActionTypeEnum actionType, Map<String, Object> message) {
         ConsoleResult result = new ConsoleResult();
         result.setUuid(sessionId);
         result.setActionType(actionType.getName());
@@ -321,6 +377,19 @@ public final class TerminalSessionManager {
                 JcefContext.getInstance().getBrowser_(),
                 JSON.toJSONString(result)
         );
+    }
+
+    static void setEventPublisherForTests(TerminalEventPublisher publisher) {
+        eventPublisher = publisher == null ? JCEF_EVENT_PUBLISHER : publisher;
+    }
+
+    static void resetEventPublisherForTests() {
+        eventPublisher = JCEF_EVENT_PUBLISHER;
+    }
+
+    @FunctionalInterface
+    interface TerminalEventPublisher {
+        void publish(String sessionId, ActionTypeEnum actionType, Map<String, Object> message);
     }
 
     private enum ShellFamily {
@@ -336,12 +405,19 @@ public final class TerminalSessionManager {
 
     private static final class TerminalSession {
         private static final int MAX_PENDING_CHARACTERS = 1024 * 1024;
+        private static final int MAX_BATCH_CHARACTERS = 32 * 1024;
+        private static final long FLUSH_DELAY_MILLIS = 12;
         private final String id;
         private final Path cwd;
         private final ShellCommand shell;
         private final PtyProcess process;
         private final StringBuilder pendingOutput = new StringBuilder();
-        private boolean attached;
+        private final Set<String> consumers = new HashSet<>();
+        private OutputBatch inFlightOutput;
+        private long nextSequence;
+        private boolean flushScheduled;
+        private boolean closed;
+        private Integer exitCode;
 
         private TerminalSession(String id, Path cwd, ShellCommand shell, PtyProcess process) {
             this.id = id;
@@ -366,23 +442,117 @@ public final class TerminalSessionManager {
             return process.getOutputStream();
         }
 
-        synchronized void attach() {
-            attached = true;
-            if (!pendingOutput.isEmpty()) {
-                publish(id, ActionTypeEnum.TERMINAL_OUTPUT, Map.of("data", pendingOutput.toString()));
-                pendingOutput.setLength(0);
+        void attach(String consumerId) {
+            OutputBatch replay;
+            synchronized (this) {
+                boolean wasDetached = consumers.isEmpty();
+                consumers.add(consumerId);
+                replay = wasDetached ? inFlightOutput : null;
+                if (replay == null) {
+                    scheduleFlushLocked(0);
+                }
+            }
+            if (replay != null) {
+                publishOutputBatch(replay);
             }
         }
 
-        synchronized void publishOutput(String data) {
-            if (attached) {
-                publish(id, ActionTypeEnum.TERMINAL_OUTPUT, Map.of("data", data));
+        synchronized void detach(String consumerId) {
+            consumers.remove(consumerId);
+        }
+
+        synchronized void acknowledgeOutput(long sequence) {
+            if (inFlightOutput == null || inFlightOutput.sequence() != sequence) {
+                return;
+            }
+            inFlightOutput = null;
+            notifyAll();
+            scheduleFlushLocked(0);
+        }
+
+        synchronized void publishOutput(String data) throws InterruptedException {
+            while (!closed && !consumers.isEmpty()
+                    && bufferedCharacters() + data.length() > MAX_PENDING_CHARACTERS) {
+                wait();
+            }
+            if (closed) {
                 return;
             }
             pendingOutput.append(data);
-            if (pendingOutput.length() > MAX_PENDING_CHARACTERS) {
-                pendingOutput.delete(0, pendingOutput.length() - MAX_PENDING_CHARACTERS);
+            if (consumers.isEmpty()) {
+                trimDetachedOutput();
+            } else {
+                scheduleFlushLocked(FLUSH_DELAY_MILLIS);
             }
+        }
+
+        private synchronized int bufferedCharacters() {
+            return pendingOutput.length() + (inFlightOutput == null ? 0 : inFlightOutput.data().length());
+        }
+
+        private void trimDetachedOutput() {
+            int inFlightCharacters = inFlightOutput == null ? 0 : inFlightOutput.data().length();
+            int pendingLimit = Math.max(MAX_PENDING_CHARACTERS - inFlightCharacters, 0);
+            if (pendingOutput.length() > pendingLimit) {
+                pendingOutput.delete(0, pendingOutput.length() - pendingLimit);
+            }
+        }
+
+        private void scheduleFlushLocked(long delayMillis) {
+            if (closed || flushScheduled || consumers.isEmpty()) {
+                return;
+            }
+            flushScheduled = true;
+            OUTPUT_DISPATCHER.schedule(this::flushOutput, delayMillis, TimeUnit.MILLISECONDS);
+        }
+
+        private void flushOutput() {
+            OutputBatch batch = null;
+            Integer completedExitCode = null;
+            synchronized (this) {
+                flushScheduled = false;
+                if (closed || consumers.isEmpty() || inFlightOutput != null) {
+                    return;
+                }
+                if (!pendingOutput.isEmpty()) {
+                    int count = Math.min(pendingOutput.length(), MAX_BATCH_CHARACTERS);
+                    batch = new OutputBatch(++nextSequence, pendingOutput.substring(0, count));
+                    pendingOutput.delete(0, count);
+                    inFlightOutput = batch;
+                } else if (exitCode != null) {
+                    closed = true;
+                    completedExitCode = exitCode;
+                }
+            }
+            if (batch != null) {
+                publishOutputBatch(batch);
+            } else if (completedExitCode != null) {
+                SESSIONS.remove(id, this);
+                publish(id, ActionTypeEnum.TERMINAL_EXIT, Map.of("exitCode", completedExitCode));
+            }
+        }
+
+        private void publishOutputBatch(OutputBatch batch) {
+            publish(id, ActionTypeEnum.TERMINAL_OUTPUT, Map.of(
+                    "data", batch.data(),
+                    "sequence", batch.sequence()
+            ));
+        }
+
+        synchronized void finish(int completedExitCode) {
+            if (closed) {
+                return;
+            }
+            exitCode = completedExitCode;
+            scheduleFlushLocked(0);
+        }
+
+        synchronized void close() {
+            closed = true;
+            consumers.clear();
+            pendingOutput.setLength(0);
+            inFlightOutput = null;
+            notifyAll();
         }
 
         void startOutputPump() {
@@ -399,19 +569,23 @@ public final class TerminalSessionManager {
                     if (process.isAlive()) {
                         log.warn("Failed to read terminal session {}", id, exception);
                     }
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
                 } finally {
-                    int exitCode = -1;
+                    int completedExitCode = -1;
                     try {
-                        exitCode = process.waitFor();
+                        completedExitCode = process.waitFor();
                     } catch (InterruptedException exception) {
                         Thread.currentThread().interrupt();
                     }
-                    SESSIONS.remove(id);
-                    publish(id, ActionTypeEnum.TERMINAL_EXIT, Map.of("exitCode", exitCode));
+                    finish(completedExitCode);
                 }
             }, "chat2db-terminal-" + id);
             outputThread.setDaemon(true);
             outputThread.start();
+        }
+
+        private record OutputBatch(long sequence, String data) {
         }
     }
 }

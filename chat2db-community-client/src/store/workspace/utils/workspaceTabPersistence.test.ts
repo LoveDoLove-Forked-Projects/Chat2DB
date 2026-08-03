@@ -18,7 +18,7 @@ const tabs: IWorkspaceTab[] = [
       filePath: '/tmp/diagram.png',
       fileExtension: 'png',
       filePreviewMimeType: 'image/png',
-      filePreviewDataUrl: 'data:image/png;base64,large-payload',
+      filePreviewUrl: 'chat2db-resource://preview/root/image',
     },
   },
   {

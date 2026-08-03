@@ -3,6 +3,10 @@ import { WorkspaceTabType } from '@/constants/workspace';
 import type { IWorkspaceTab, IWorkspaceTabSplitLayout } from '@/typings';
 import { applyTerminalTabOpenPositions } from './terminalTabPlacement';
 
+function withoutNodeIds<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value, (key, item) => (key === 'nodeId' ? undefined : item)));
+}
+
 const editorTab: IWorkspaceTab = {
   id: 'editor-1',
   type: WorkspaceTabType.CONSOLE,
@@ -16,7 +20,8 @@ const rightTerminal: IWorkspaceTab = {
 };
 
 const rightLayout = applyTerminalTabOpenPositions(null, [editorTab, rightTerminal], rightTerminal.id);
-assert.deepEqual(rightLayout?.root, {
+assert.match(rightLayout?.root?.type === 'split' ? rightLayout.root.nodeId || '' : '', /^split_/);
+assert.deepEqual(withoutNodeIds(rightLayout?.root), {
   type: 'split',
   direction: 'vertical',
   size: '70%',

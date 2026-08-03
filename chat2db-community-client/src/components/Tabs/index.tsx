@@ -42,6 +42,7 @@ export interface ITabItem {
   canClosed?: boolean;
   styles?: React.CSSProperties;
   pinned?: boolean;
+  destroyOnHide?: boolean;
 }
 
 export interface ITabContextActions {
@@ -983,6 +984,9 @@ export default memo<IProps>((props) => {
       {!destroyInactiveTabPane ? (
         <div className={styles.tabsContent}>
           {internalTabs?.map((t) => {
+            if (t.destroyOnHide && t.key !== activeKey) {
+              return null;
+            }
             return (
               <div
                 key={t.key}
