@@ -25,10 +25,12 @@ interface FilePreviewTabProps {
 
 type MarkdownViewMode = 'source' | 'review' | 'split';
 type ScrollSyncOwner = 'source' | 'review' | null;
+type PdfPreviewState = 'loading' | 'loaded' | 'failed';
 
 const MIN_IMAGE_ZOOM = 0.25;
 const MAX_IMAGE_ZOOM = 5;
 const IMAGE_ZOOM_STEP = 0.25;
+const PDF_LOAD_TIMEOUT_MS = 8000;
 
 function MermaidDiagram({ source }: { source: string }) {
   const reactId = useId();
@@ -153,10 +155,13 @@ const FilePreviewTab = memo(({ file, boundInfo, workspaceTabId, workspaceTabsTit
   const [imageZoom, setImageZoom] = useState(1);
   const [imageNaturalSize, setImageNaturalSize] = useState({ width: 0, height: 0 });
   const [imageViewportSize, setImageViewportSize] = useState({ width: 0, height: 0 });
+  const [pdfPreviewState, setPdfPreviewState] = useState<PdfPreviewState>('loading');
   const markdownReviewRef = useRef<HTMLDivElement>(null);
   const imageViewportRef = useRef<HTMLDivElement>(null);
+  const pdfObjectRef = useRef<HTMLObjectElement>(null);
   const scrollSyncOwnerRef = useRef<ScrollSyncOwner>(null);
   const scrollSyncFrameRef = useRef<number | undefined>(undefined);
+  const pdfLoadTimeoutRef = useRef<number | undefined>(undefined);
   const editorRef = useWorkspaceStore((state) => state.editorList?.[workspaceTabId]);
   const editor = editorRef?.getInstance?.();
 
@@ -183,6 +188,59 @@ const FilePreviewTab = memo(({ file, boundInfo, workspaceTabId, workspaceTabsTit
     resizeObserver.observe(viewport);
     return () => resizeObserver.disconnect();
   }, [file.filePath, file.filePreviewMimeType]);
+
+  useEffect(() => {
+    if (pdfLoadTimeoutRef.current) {
+      window.clearTimeout(pdfLoadTimeoutRef.current);
+      pdfLoadTimeoutRef.current = undefined;
+    }
+    if (file.filePreviewMimeType !== 'application/pdf' || !file.filePreviewDataUrl) {
+      return undefined;
+    }
+
+    const pdfViewerEnabled = (navigator as Navigator & { pdfViewerEnabled?: boolean }).pdfViewerEnabled;
+    if (pdfViewerEnabled === false) {
+      setPdfPreviewState('failed');
+      return undefined;
+    }
+
+    setPdfPreviewState('loading');
+    pdfLoadTimeoutRef.current = window.setTimeout(() => {
+      setPdfPreviewState('failed');
+      pdfLoadTimeoutRef.current = undefined;
+    }, PDF_LOAD_TIMEOUT_MS);
+
+    return () => {
+      if (pdfLoadTimeoutRef.current) {
+        window.clearTimeout(pdfLoadTimeoutRef.current);
+        pdfLoadTimeoutRef.current = undefined;
+      }
+    };
+  }, [file.filePath, file.filePreviewDataUrl, file.filePreviewMimeType]);
+
+  const handlePdfLoad = () => {
+    if (pdfLoadTimeoutRef.current) {
+      window.clearTimeout(pdfLoadTimeoutRef.current);
+      pdfLoadTimeoutRef.current = undefined;
+    }
+    setPdfPreviewState('loaded');
+  };
+
+  useEffect(() => {
+    const object = pdfObjectRef.current;
+    if (!object || pdfPreviewState === 'failed') {
+      return undefined;
+    }
+    const handleError = () => {
+      if (pdfLoadTimeoutRef.current) {
+        window.clearTimeout(pdfLoadTimeoutRef.current);
+        pdfLoadTimeoutRef.current = undefined;
+      }
+      setPdfPreviewState('failed');
+    };
+    object.addEventListener('error', handleError);
+    return () => object.removeEventListener('error', handleError);
+  }, [pdfPreviewState]);
 
   useEffect(() => {
     if (
@@ -452,14 +510,30 @@ const FilePreviewTab = memo(({ file, boundInfo, workspaceTabId, workspaceTabsTit
 
   if (file.filePreviewMimeType === 'application/pdf' && file.filePreviewDataUrl) {
     return (
-      <object
-        className={styles.pdfPreview}
-        data={file.filePreviewDataUrl}
-        type="application/pdf"
-        aria-label={file.filePath || 'PDF'}
-      >
-        <div className={styles.previewFallback}>{i18n('workspace.filePreview.pdfUnsupported')}</div>
-      </object>
+      <div className={styles.pdfPreview}>
+        {pdfPreviewState !== 'failed' && (
+          <object
+            ref={pdfObjectRef}
+            className={styles.pdfObject}
+            data={file.filePreviewDataUrl}
+            type="application/pdf"
+            aria-label={file.filePath || 'PDF'}
+            onLoad={handlePdfLoad}
+          >
+            <div className={styles.previewFallback}>{i18n('workspace.filePreview.pdfUnsupported')}</div>
+          </object>
+        )}
+        {pdfPreviewState === 'loading' && (
+          <div className={styles.pdfStatus} aria-live="polite">
+            {i18n('common.text.loading')}
+          </div>
+        )}
+        {pdfPreviewState === 'failed' && (
+          <div className={styles.previewFallback} role="alert">
+            {i18n('workspace.filePreview.pdfUnsupported')}
+          </div>
+        )}
+      </div>
     );
   }
 
