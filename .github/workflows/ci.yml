@@ -69,6 +69,9 @@ jobs:
       - name: Run BI chart sorting contract
         run: yarn run test:bi-chart-sorting
 
+      - name: Run ComboAxisSelect action filter contract
+        run: yarn run test:combo-axis-actions
+
       - name: Run Redis explorer contract
         run: yarn run test:redis-explorer
 
