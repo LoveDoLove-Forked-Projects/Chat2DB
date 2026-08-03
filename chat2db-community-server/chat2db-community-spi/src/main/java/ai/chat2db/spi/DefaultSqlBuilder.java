@@ -245,8 +245,8 @@ public class DefaultSqlBuilder implements ISqlBuilder, IIdentifierSqlBuilder, ID
     @Override
     public String buildPageLimit(PageLimitRequest request) {
         String sql = request.getSql();
-        int offset = request.getOffset();
-        int pageSize = request.getPageSize();
+        int offset = Math.max(0, request.getOffset());
+        int pageSize = Math.max(1, request.getPageSize());
         StringBuilder sqlBuilder = new StringBuilder(sql.length() + 14);
         sqlBuilder.append(sql);
         if (offset == 0) {

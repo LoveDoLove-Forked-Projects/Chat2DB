@@ -44,6 +44,22 @@ class DefaultSqlBuilderSegmentTest {
     }
 
     @Test
+    void buildPageLimitClampsInvalidBounds() {
+        assertEquals("SELECT 1\n LIMIT 1",
+                builder.dql().buildPageLimit(PageLimitRequest.builder()
+                        .sql("SELECT 1")
+                        .offset(-10)
+                        .pageSize(0)
+                        .build()));
+        assertEquals("SELECT 1\n LIMIT 5,1",
+                builder.dql().buildPageLimit(PageLimitRequest.builder()
+                        .sql("SELECT 1")
+                        .offset(5)
+                        .pageSize(-10)
+                        .build()));
+    }
+
+    @Test
     void buildsDdlThroughUnifiedSegment() {
         Table table = new Table();
         table.setName("users");
