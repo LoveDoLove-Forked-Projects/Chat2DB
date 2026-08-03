@@ -1,12 +1,7 @@
 import { memo, useEffect, useId, useMemo, useRef, useState } from 'react';
-import {
-  CodeOutlined,
-  ColumnWidthOutlined,
-  EyeOutlined,
-  MinusOutlined,
-  PlusOutlined,
-} from '@ant-design/icons';
+import { MinusOutlined, PlusOutlined } from '@ant-design/icons';
 import { Button, Segmented, Tooltip } from 'antd';
+import { Code, Columns2, Eye } from 'lucide-react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import rehypeKatex from 'rehype-katex';
 import remarkGfm from 'remark-gfm';
@@ -346,7 +341,7 @@ const FilePreviewTab = memo(({ file, boundInfo, workspaceTabId, workspaceTabsTit
                 label: (
                   <Tooltip title={i18n('workspace.filePreview.source')}>
                     <span className={styles.viewModeIcon} aria-label={i18n('workspace.filePreview.source')}>
-                      <CodeOutlined />
+                      <Code size={16} />
                     </span>
                   </Tooltip>
                 ),
@@ -354,9 +349,9 @@ const FilePreviewTab = memo(({ file, boundInfo, workspaceTabId, workspaceTabsTit
               },
               {
                 label: (
-                  <Tooltip title="Review">
-                    <span className={styles.viewModeIcon} aria-label="Review">
-                      <EyeOutlined />
+                  <Tooltip title={i18n('workspace.filePreview.preview')}>
+                    <span className={styles.viewModeIcon} aria-label={i18n('workspace.filePreview.preview')}>
+                      <Eye size={16} />
                     </span>
                   </Tooltip>
                 ),
@@ -366,7 +361,7 @@ const FilePreviewTab = memo(({ file, boundInfo, workspaceTabId, workspaceTabsTit
                 label: (
                   <Tooltip title={i18n('workspace.filePreview.split')}>
                     <span className={styles.viewModeIcon} aria-label={i18n('workspace.filePreview.split')}>
-                      <ColumnWidthOutlined />
+                      <Columns2 size={16} />
                     </span>
                   </Tooltip>
                 ),
