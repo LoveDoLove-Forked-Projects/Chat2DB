@@ -5,6 +5,7 @@ import { useGlobalStore } from '@/store/global';
 import jcefApi from '@/jcef';
 import { randomLargeLong } from '@/utils';
 import { WorkspaceTabType } from '@/constants';
+import { refreshLocalFileWorkspaceTab } from '../../utils/localFileWorkspaceTab';
 
 export interface CommonAction {
   setCurrentConnectionDetails: (data: CommonState['currentConnectionDetails']) => void;
@@ -59,17 +60,10 @@ export const createCommonAction: StateCreator<WorkspaceStore, [['zustand/devtool
               filePreviewMimeType: undefined,
             }),
       };
-      if (workspaceTabList?.some((tab) => tab.uniqueData?.filePath === filePath)) {
-        const tab: any = workspaceTabList.find((_tab) => _tab.uniqueData?.filePath === filePath);
-        if (tab) {
-          tab.uniqueData = {
-            ...tab.uniqueData,
-            ...nextUniqueData,
-            fileExtension: fileExtension || tab.uniqueData?.fileExtension,
-          };
-          get().setActiveConsoleId(tab.id);
-          get().setWorkspaceTabList([...workspaceTabList]);
-        }
+      const refreshedTab = refreshLocalFileWorkspaceTab(workspaceTabList, filePath, nextUniqueData);
+      if (refreshedTab) {
+        get().setActiveConsoleId(refreshedTab.activeTabId);
+        get().setWorkspaceTabList(refreshedTab.workspaceTabList);
       } else {
         setTimeout(() => {
           get().addWorkspaceTab({
