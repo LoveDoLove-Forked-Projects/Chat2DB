@@ -6,6 +6,7 @@ import ai.chat2db.community.domain.api.config.TableBuilderConfig;
 import ai.chat2db.community.domain.api.model.metadata.Database;
 import ai.chat2db.community.domain.api.model.metadata.Schema;
 import ai.chat2db.community.domain.api.model.metadata.Table;
+import ai.chat2db.community.domain.api.model.metadata.TableColumn;
 import ai.chat2db.community.domain.api.model.result.Header;
 import ai.chat2db.community.domain.api.model.result.ResultOperation;
 import ai.chat2db.spi.model.datasource.ConnectInfo;
@@ -64,6 +65,23 @@ class DefaultSqlBuilderSegmentTest {
                 builder.ddl().table().buildDropTable(new DropTableRequest("app", "public", "users")));
         assertEquals("TRUNCATE TABLE app.public.users",
                 builder.ddl().table().buildTruncateTable(new TruncateTableRequest("app", "public", "users")));
+    }
+
+    @Test
+    void buildCreateTableEscapesCommentQuotesWithoutChangingBackslashes() {
+        TableColumn column = new TableColumn();
+        column.setName("name");
+        column.setTableName("users");
+        column.setColumnType("VARCHAR");
+        column.setNullable(1);
+        column.setComment("O'Brien\\docs");
+        Table table = new Table();
+        table.setName("users");
+        table.setColumnList(List.of(column));
+
+        String sql = builder.ddl().table().buildCreateTable(table, TableBuilderConfig.defaultConfig());
+
+        assertTrue(sql.contains("COMMENT ON COLUMN users.name IS 'O''Brien\\docs';"), "actual sql: <" + sql + ">");
     }
 
     @Test
