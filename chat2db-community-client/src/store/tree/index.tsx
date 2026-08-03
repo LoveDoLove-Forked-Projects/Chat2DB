@@ -22,6 +22,7 @@ import {
   reconcileTreeInteractionAfterRefresh,
 } from './backgroundRefresh';
 import { loadNamespaceTree } from './loadNamespaceTree';
+import { updateTreeData } from './treeDataUpdate';
 import { neatenDataSourceTreeNode, neatenDataSourcesList, neatenTreeData } from './utils';
 
 export type FocusTreeNode = {
@@ -143,35 +144,6 @@ export interface TreeAction {
 }
 
 const backgroundRefreshTracker = new LatestTreeRefreshTracker();
-
-const updateTreeData = (
-  list: TreeNodeData[],
-  key: React.Key,
-  children: TreeNodeData[],
-  childCount?: number,
-  clearChildCount = false,
-): TreeNodeData[] => {
-  return (
-    list.map((node) => {
-      if (node.key === key) {
-        return {
-          isLeaf: false,
-          ...node,
-          children: children || [],
-          ...(clearChildCount ? { childCount: undefined } : childCount === undefined ? {} : { childCount }),
-        };
-      }
-      if (node.children) {
-        return {
-          isLeaf: false,
-          ...node,
-          children: updateTreeData(node.children, key, children, childCount, clearChildCount),
-        };
-      }
-      return node;
-    }) || []
-  );
-};
 
 export type TreeStore = TreeState & TreeAction;
 
