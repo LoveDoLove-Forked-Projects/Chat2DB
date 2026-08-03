@@ -12,9 +12,10 @@ import org.locationtech.jts.io.WKTWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.io.Writer;
 import java.nio.ByteOrder;
 import java.util.Locale;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class PostgreSQLGeometryProcessor extends DefaultValueProcessor {
@@ -24,13 +25,17 @@ public class PostgreSQLGeometryProcessor extends DefaultValueProcessor {
 
     private static final Logger log = LoggerFactory.getLogger(PostgreSQLGeometryProcessor.class);
     private static final Pattern HEX_PATTERN = Pattern.compile("[0-9a-fA-F]+");
-    private static final Pattern DISPLAY_VALUE_PATTERN = Pattern.compile("^(.*)\\s+\\|\\s+(-?\\d+)\\s*$", Pattern.DOTALL);
     private static final int EWKB_Z_FLAG = 0x80000000;
     private static final int EWKB_M_FLAG = 0x40000000;
     private static final int EWKB_SRID_FLAG = 0x20000000;
     private static final int EWKB_BBOX_FLAG = 0x10000000;
     private static final int EWKB_TYPE_MASK = 0x0FFFFFFF;
     private static final int MAX_NESTED_DEPTH = 64;
+    private static final int MAX_DISPLAY_EWKB_BYTES = 512 * 1024;
+    private static final int MAX_DISPLAY_EWKB_HEX_CHARS = MAX_DISPLAY_EWKB_BYTES * 2;
+    private static final int MAX_DISPLAY_WKT_CHARS = MAX_DISPLAY_EWKB_HEX_CHARS;
+    private static final int MAX_DISPLAY_SRID_SUFFIX_CHARS = " | ".length()
+            + Integer.toString(Integer.MIN_VALUE).length();
 
     @Override
     public String convertSQLValueByType(SQLDataValue dataValue) {
@@ -40,8 +45,11 @@ public class PostgreSQLGeometryProcessor extends DefaultValueProcessor {
     @Override
     public String convertJDBCValueByType(JDBCDataValue dataValue) {
         String value = dataValue.getString();
+        if (value == null || value.length() > MAX_DISPLAY_EWKB_HEX_CHARS + 2) {
+            return value;
+        }
         String hexValue = normalizeHex(value);
-        if (hexValue == null) {
+        if (hexValue == null || hexValue.length() > MAX_DISPLAY_EWKB_HEX_CHARS) {
             return value;
         }
 
@@ -58,7 +66,13 @@ public class PostgreSQLGeometryProcessor extends DefaultValueProcessor {
             }
             WKTWriter writer = new WKTWriter(header.hasZ() ? 3 : 2);
             writer.setOutputOrdinates(header.hasZ() ? Ordinate.createXYZ() : Ordinate.createXY());
-            String displayValue = removeTypeParenthesisSpace(writer.write(geometry));
+            BoundedStringWriter output = new BoundedStringWriter(MAX_DISPLAY_WKT_CHARS);
+            try {
+                writer.write(geometry, output);
+            } catch (WktOutputLimitExceededException ignored) {
+                return value;
+            }
+            String displayValue = removeTypeParenthesisSpace(output.value());
             if (header.srid() != null) {
                 return displayValue + " | " + geometry.getSRID();
             }
@@ -102,20 +116,24 @@ public class PostgreSQLGeometryProcessor extends DefaultValueProcessor {
     }
 
     private String toEwkt(String value) {
-        Matcher matcher = DISPLAY_VALUE_PATTERN.matcher(value);
-        if (!matcher.matches()) {
-            return value.trim();
+        if (value.length() > MAX_DISPLAY_WKT_CHARS + MAX_DISPLAY_SRID_SUFFIX_CHARS) {
+            return value;
         }
-
-        String wkt = matcher.group(1).trim();
-        if (wkt.isEmpty()) {
-            return value.trim();
+        String trimmedValue = value.trim();
+        int separator = trimmedValue.lastIndexOf('|');
+        if (separator < 0) {
+            return trimmedValue;
+        }
+        String wkt = trimmedValue.substring(0, separator).trim();
+        String sridValue = trimmedValue.substring(separator + 1).trim();
+        if (wkt.isEmpty() || wkt.length() > MAX_DISPLAY_WKT_CHARS || sridValue.isEmpty()) {
+            return trimmedValue;
         }
         try {
-            int srid = Integer.parseInt(matcher.group(2));
+            int srid = Integer.parseInt(sridValue);
             return "SRID=" + srid + ";" + wkt;
         } catch (NumberFormatException ignored) {
-            return value.trim();
+            return trimmedValue;
         }
     }
 
@@ -298,6 +316,55 @@ public class PostgreSQLGeometryProcessor extends DefaultValueProcessor {
     }
 
     private record WkbHeader(int baseType, boolean hasZ, boolean hasMeasure, Integer srid) {
+    }
+
+    private static final class BoundedStringWriter extends Writer {
+
+        private final StringBuilder value = new StringBuilder();
+        private final int maxChars;
+
+        private BoundedStringWriter(int maxChars) {
+            this.maxChars = maxChars;
+        }
+
+        @Override
+        public void write(int character) throws IOException {
+            requireCapacity(1);
+            value.append((char) character);
+        }
+
+        @Override
+        public void write(char[] buffer, int offset, int length) throws IOException {
+            requireCapacity(length);
+            value.append(buffer, offset, length);
+        }
+
+        @Override
+        public void write(String text, int offset, int length) throws IOException {
+            requireCapacity(length);
+            value.append(text, offset, offset + length);
+        }
+
+        @Override
+        public void flush() {
+        }
+
+        @Override
+        public void close() {
+        }
+
+        private void requireCapacity(int additionalChars) throws WktOutputLimitExceededException {
+            if (additionalChars < 0 || additionalChars > maxChars - value.length()) {
+                throw new WktOutputLimitExceededException();
+            }
+        }
+
+        private String value() {
+            return value.toString();
+        }
+    }
+
+    private static final class WktOutputLimitExceededException extends IOException {
     }
 
     private static final class WkbCursor {

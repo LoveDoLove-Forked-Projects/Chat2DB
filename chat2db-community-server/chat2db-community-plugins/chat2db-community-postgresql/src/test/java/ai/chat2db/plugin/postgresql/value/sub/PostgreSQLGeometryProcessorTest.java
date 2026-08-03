@@ -6,15 +6,20 @@ import ai.chat2db.plugin.postgresql.value.PostgreSQLValueProcessor;
 import ai.chat2db.plugin.postgresql.value.factory.PostgreSQLValueProcessorFactory;
 import ai.chat2db.spi.model.value.JDBCDataValue;
 import org.junit.jupiter.api.Test;
+import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.io.ByteOrderValues;
 import org.locationtech.jts.io.WKBWriter;
 import org.locationtech.jts.io.WKTReader;
+
+import java.time.Duration;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTimeout;
 
 class PostgreSQLGeometryProcessorTest {
 
@@ -120,6 +125,52 @@ class PostgreSQLGeometryProcessorTest {
                 processor.convertJDBCValueByType(jdbcValue(partiallyEmptyPoint, "geometry")));
         assertEquals("0102030405", processor.convertJDBCValueByType(jdbcValue("0102030405", "geometry")));
         assertEquals("not-ewkb", processor.convertJDBCValueByType(jdbcValue("not-ewkb", "geometry")));
+    }
+
+    @Test
+    void fallsBackBeforeDecodingOversizedEwkb() {
+        String exactLimitEwkb = "00".repeat(512 * 1024);
+        String oversizedEwkb = exactLimitEwkb + "00";
+        String prefixedExactLimitEwkb = "\\x" + exactLimitEwkb;
+        String prefixedOversizedEwkb = prefixedExactLimitEwkb + "00";
+
+        assertSame(exactLimitEwkb,
+                processor.convertJDBCValueByType(jdbcValue(exactLimitEwkb, "geometry")));
+        assertSame(oversizedEwkb,
+                processor.convertJDBCValueByType(jdbcValue(oversizedEwkb, "geometry")));
+        assertSame(prefixedExactLimitEwkb,
+                processor.convertJDBCValueByType(jdbcValue(prefixedExactLimitEwkb, "geometry")));
+        assertSame(prefixedOversizedEwkb,
+                processor.convertJDBCValueByType(jdbcValue(prefixedOversizedEwkb, "geometry")));
+    }
+
+    @Test
+    void fallsBackWhenWktOutputExceedsDisplayBudget() {
+        Coordinate[] coordinates = new Coordinate[2_000];
+        for (int i = 0; i < coordinates.length; i++) {
+            coordinates[i] = new Coordinate(Double.MAX_VALUE, Double.MAX_VALUE);
+        }
+        Geometry geometry = new GeometryFactory().createLineString(coordinates);
+        geometry.setSRID(4490);
+        String ewkb = WKBWriter.toHex(new WKBWriter(2, ByteOrderValues.LITTLE_ENDIAN, true).write(geometry));
+
+        assertSame(ewkb, processor.convertJDBCValueByType(jdbcValue(ewkb, "geometry")));
+    }
+
+    @Test
+    void parsesLongEditedValuesWithoutRegexBacktracking() {
+        String whitespace = " ".repeat(64 * 1024);
+
+        assertTimeout(Duration.ofSeconds(2), () ->
+                assertEquals("''::geometry", processor.getSqlValueString(sqlValue(whitespace, "geometry"))));
+    }
+
+    @Test
+    void convertsWktAtDisplayBudgetWithLongestSridSuffix() {
+        String wkt = "P".repeat(1024 * 1024);
+
+        assertEquals("'SRID=-2147483648;" + wkt + "'::geometry",
+                processor.getSqlValueString(sqlValue(wkt + " | -2147483648", "geometry")));
     }
 
     @Test
