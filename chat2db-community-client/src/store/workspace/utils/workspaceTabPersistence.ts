@@ -1,13 +1,18 @@
-import { IWorkspaceTab } from '@/typings';
+import { WorkspaceTabType } from '@/constants/workspace';
+import { IWorkspaceTab } from '@/typings/workspace';
 
 export function getPersistableWorkspaceTabList(workspaceTabList?: IWorkspaceTab[] | null) {
   if (!workspaceTabList?.length) {
     return workspaceTabList || null;
   }
 
+  const persistableTabs = workspaceTabList.filter(
+    (tab) => tab.type !== WorkspaceTabType.Terminal && !tab.uniqueData?.filePreviewMimeType,
+  );
+
   try {
     return JSON.parse(
-      JSON.stringify(workspaceTabList, (_key, value) => {
+      JSON.stringify(persistableTabs, (_key, value) => {
         if (typeof value === 'function') {
           return undefined;
         }
@@ -15,7 +20,7 @@ export function getPersistableWorkspaceTabList(workspaceTabList?: IWorkspaceTab[
       }),
     ) as IWorkspaceTab[];
   } catch {
-    return workspaceTabList.map((tab) => ({
+    return persistableTabs.map((tab) => ({
       id: tab.id,
       type: tab.type,
       title: tab.title,

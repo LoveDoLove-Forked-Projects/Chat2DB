@@ -106,6 +106,7 @@ interface IProps {
   onExecuteSQLCallback?: (params: { databaseInfo: IDatabaseBaseInfo; data: any }) => void;
   isConsole?: boolean;
   sqlActionEnabled?: boolean;
+  onEditorChange?: (value: string) => void;
 }
 
 interface DesktopExecutionCallbackState {
@@ -186,6 +187,7 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
     onExecuteSQLCallback,
     isConsole = true,
     sqlActionEnabled = true,
+    onEditorChange,
   } = props;
   const { styles, cx } = useStyles();
   const sqlEditorRef = useRef<ISQLEditorWithOperationRef>(null);
@@ -885,6 +887,7 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
           reloadSQL={loadSQL}
           isConsole={isConsole}
           sqlActionEnabled={sqlActionEnabled}
+          onChange={onEditorChange}
         />
       </div>
       <SplitPaneUnpack onUnfold={handleUnfold} onPackUp={handlePackUp} className={styles.boxRightResult}>
