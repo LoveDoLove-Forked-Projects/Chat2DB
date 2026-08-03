@@ -66,6 +66,9 @@ jobs:
       - name: Run database object sorting contract
         run: yarn run test:database-object-sorting
 
+      - name: Run BI chart sorting contract
+        run: yarn run test:bi-chart-sorting
+
       - name: Run Redis explorer contract
         run: yarn run test:redis-explorer
 
