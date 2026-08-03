@@ -61,7 +61,8 @@
     "start:community:hot": "cross-env UMI_ENV=community cross-env APP_NAME=chat2db-community cross-env DISABLE_MFSU=true cross-env UMI_DEV_SERVER_COMPRESS=none cross-env PORT=8889 umi dev --public_path=/",
     "start:offline:hot": "cross-env UMI_ENV=offline cross-env PORT=8888 umi dev",
     "start:proxy:online": "cross-env HMR=none umi dev --webapp=true --public_path=http://localhost:8000/",
-    "ui": "yarn add @chat2db/ui"
+    "ui": "yarn add @chat2db/ui",
+    "test:create-stream-index": "tsx src/blocks/RedisAllData/CreateStream/mapDisplayedIndex.test.ts"
   },
   "dependencies": {
     "@chat2db/ui": "^1.45.3",
