@@ -1,7 +1,9 @@
 import { staticModal } from '@chat2db/ui';
 import { WorkspaceTabType } from '@/constants';
+import { isTerminalCloseConfirmationEnabled } from '@/constants/terminal';
 import i18n from '@/i18n';
 import jcefApi from '@/jcef';
+import { useGlobalStore } from '@/store/global';
 import type { IWorkspaceTab } from '@/typings';
 
 const TERMINAL_BRIDGE_TIMEOUT = 2000;
@@ -65,14 +67,16 @@ export async function confirmAndKillTerminalTabs(tabs: IWorkspaceTab[], allTabs:
     return true;
   }
 
-  const statuses = await Promise.all(
-    sessionsToKill.map((sessionId) =>
-      resolveWithin(jcefApi.getTerminalStatus({ sessionId }), { alive: true, busy: false }),
-    ),
-  );
-  const aliveStatuses = statuses.filter((status) => status.alive);
-  if (aliveStatuses.length && !(await confirmTerminalClose(aliveStatuses.some((status) => status.busy)))) {
-    return false;
+  if (isTerminalCloseConfirmationEnabled(useGlobalStore.getState().terminalSettings)) {
+    const statuses = await Promise.all(
+      sessionsToKill.map((sessionId) =>
+        resolveWithin(jcefApi.getTerminalStatus({ sessionId }), { alive: true, busy: false }),
+      ),
+    );
+    const aliveStatuses = statuses.filter((status) => status.alive);
+    if (aliveStatuses.length && !(await confirmTerminalClose(aliveStatuses.some((status) => status.busy)))) {
+      return false;
+    }
   }
 
   await Promise.all(sessionsToKill.map((sessionId) => resolveWithin(jcefApi.killTerminal({ sessionId }), undefined)));

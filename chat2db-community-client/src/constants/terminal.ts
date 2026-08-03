@@ -148,7 +148,12 @@ export const TERMINAL_THEMES: Record<TerminalThemeId, TerminalThemeConfig> = {
 export const DEFAULT_TERMINAL_SETTINGS: TerminalSettings = {
   shellId: 'system',
   themeId: 'chat2db-dark',
+  openPosition: 'tab',
+  confirmBeforeClose: true,
 };
+
+export const isTerminalCloseConfirmationEnabled = (settings?: Partial<TerminalSettings>) =>
+  settings?.confirmBeforeClose ?? DEFAULT_TERMINAL_SETTINGS.confirmBeforeClose;
 
 export const getTerminalTheme = (themeId?: TerminalThemeId) =>
   TERMINAL_THEMES[themeId || DEFAULT_TERMINAL_SETTINGS.themeId] || TERMINAL_THEMES['chat2db-dark'];

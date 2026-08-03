@@ -14,6 +14,7 @@ import { Terminal } from 'lucide-react';
 import { useGlobalStore } from '@/store/global';
 import jcefApi from '@/jcef';
 import { createQuickTerminalTab } from './quickTerminal';
+import { DEFAULT_TERMINAL_SETTINGS } from '@/constants/terminal';
 
 interface IToolbar {
   code: string;
@@ -31,6 +32,9 @@ export default (props: IProps) => {
   const { styles } = useStyles();
   const [creatingTerminal, setCreatingTerminal] = useState(false);
   const terminalShellId = useGlobalStore((state) => state.terminalSettings.shellId);
+  const terminalOpenPosition = useGlobalStore(
+    (state) => state.terminalSettings.openPosition || DEFAULT_TERMINAL_SETTINGS.openPosition,
+  );
   const { addWorkspaceTab, currentWorkspaceExtend, setCurrentWorkspaceExtend } = useWorkspaceStore((state) => {
     return {
       addWorkspaceTab: state.addWorkspaceTab,
@@ -67,7 +71,9 @@ export default (props: IProps) => {
         rows: 30,
         shellId: terminalShellId,
       });
-      addWorkspaceTab(createQuickTerminalTab(terminal, i18n('workspace.terminal.title')));
+      addWorkspaceTab(
+        createQuickTerminalTab(terminal, i18n('workspace.terminal.title'), terminalOpenPosition),
+      );
     } catch (error) {
       console.error('create terminal error', error);
       staticMessage.error(i18n('workspace.localSqlFileTree.openTerminalFailed'));

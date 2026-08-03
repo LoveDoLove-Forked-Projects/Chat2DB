@@ -2,9 +2,9 @@ import { DEFAULT_TERMINAL_SETTINGS, TERMINAL_THEMES } from '@/constants/terminal
 import i18n from '@/i18n';
 import jcefApi from '@/jcef';
 import { useGlobalStore } from '@/store/global';
-import type { TerminalShellId, TerminalThemeId } from '@/typings/settings';
-import { Alert, Select, Spin } from 'antd';
-import { Check, ChevronDown, Palette, Terminal } from 'lucide-react';
+import type { TerminalOpenPosition, TerminalShellId, TerminalThemeId } from '@/typings/settings';
+import { Alert, Segmented, Select, Spin, Switch } from 'antd';
+import { Check, ChevronDown, Palette, PanelBottom, PanelRight, PanelTop, ShieldCheck, Terminal } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useStyles } from './style';
 
@@ -61,6 +61,84 @@ export default function TerminalSetting() {
 
   return (
     <div className={styles.settingsList}>
+      <section className={styles.settingRow} data-setting-group="position" data-setting-search-id="terminal.position">
+        <div className={styles.settingMeta}>
+          <PanelTop aria-hidden="true" className={styles.settingGroupIcon} size={18} strokeWidth={1.8} />
+          <div className={styles.settingMetaContent}>
+            <div className={styles.settingTitle} data-setting-search-title="true">
+              {i18n('setting.terminal.openPosition')}
+            </div>
+            <div className={styles.settingDescription}>{i18n('setting.terminal.openPositionDescribe')}</div>
+          </div>
+        </div>
+        <div className={styles.settingControl}>
+          <Segmented
+            block
+            aria-label={i18n('setting.terminal.openPosition')}
+            className={styles.positionSegmented}
+            value={terminalSettings.openPosition}
+            options={[
+              {
+                value: 'tab',
+                label: (
+                  <span className={styles.positionOption}>
+                    <PanelTop aria-hidden="true" size={15} />
+                    {i18n('setting.terminal.openPositionTab')}
+                  </span>
+                ),
+              },
+              {
+                value: 'bottom',
+                label: (
+                  <span className={styles.positionOption}>
+                    <PanelBottom aria-hidden="true" size={15} />
+                    {i18n('setting.terminal.openPositionBottom')}
+                  </span>
+                ),
+              },
+              {
+                value: 'right',
+                label: (
+                  <span className={styles.positionOption}>
+                    <PanelRight aria-hidden="true" size={15} />
+                    {i18n('setting.terminal.openPositionRight')}
+                  </span>
+                ),
+              },
+            ]}
+            onChange={(openPosition) =>
+              updateTerminalSettings({ openPosition: openPosition as TerminalOpenPosition })
+            }
+          />
+          <div className={styles.hint}>{i18n('setting.terminal.openPositionApplyHint')}</div>
+        </div>
+      </section>
+
+      <section
+        className={styles.settingRow}
+        data-setting-group="close-confirmation"
+        data-setting-search-id="terminal.confirmBeforeClose"
+      >
+        <div className={styles.settingMeta}>
+          <ShieldCheck aria-hidden="true" className={styles.settingGroupIcon} size={18} strokeWidth={1.8} />
+          <div className={styles.settingMetaContent}>
+            <div className={styles.settingTitle} data-setting-search-title="true">
+              {i18n('setting.terminal.confirmBeforeClose')}
+            </div>
+            <div className={styles.settingDescription}>
+              {i18n('setting.terminal.confirmBeforeCloseDescribe')}
+            </div>
+          </div>
+        </div>
+        <div className={styles.switchControl}>
+          <Switch
+            aria-label={i18n('setting.terminal.confirmBeforeClose')}
+            checked={terminalSettings.confirmBeforeClose}
+            onChange={(confirmBeforeClose) => updateTerminalSettings({ confirmBeforeClose })}
+          />
+        </div>
+      </section>
+
       <section className={styles.settingRow} data-setting-group="shell" data-setting-search-id="terminal.shell">
         <div className={styles.settingMeta}>
           <Terminal aria-hidden="true" className={styles.settingGroupIcon} size={18} strokeWidth={1.8} />

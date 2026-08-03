@@ -20,6 +20,7 @@ import PortalContextMenu from '@/components/ContextMenu/PortalContextMenu';
 import type { ContextMenuAction, ContextMenuEntry, ContextMenuIntent } from '@/components/ContextMenu/core';
 import { LOCAL_SQL_FILE_SAVED_EVENT, LOCAL_SQL_SESSION_DRAG_TYPE, WorkspaceTabType } from '@/constants';
 import { runtimeEditionConfig } from '@/constants/runtimeEdition';
+import { DEFAULT_TERMINAL_SETTINGS } from '@/constants/terminal';
 import {
   getEffectiveShortcutConfigMap,
   isShortcutEventMatch,
@@ -349,6 +350,9 @@ const LocalSQLFileTree = forwardRef<LocalSQLFileTreeRef, LocalSQLFileTreeProps>(
   const selectedRowRef = React.useRef<HTMLDivElement | null>(null);
   const shortcutOverrides = useGlobalStore((state) => state.shortcutOverrides);
   const terminalShellId = useGlobalStore((state) => state.terminalSettings.shellId);
+  const terminalOpenPosition = useGlobalStore(
+    (state) => state.terminalSettings.openPosition || DEFAULT_TERMINAL_SETTINGS.openPosition,
+  );
   const shortcutConfig = useMemo(
     () => getEffectiveShortcutConfigMap(shortcutOverrides as ShortcutOverrides),
     [shortcutOverrides],
@@ -1115,6 +1119,7 @@ const LocalSQLFileTree = forwardRef<LocalSQLFileTreeRef, LocalSQLFileTreeProps>(
             terminalCwd: terminal.cwd,
             terminalShell: terminal.shell,
             terminalShellId: terminal.shellId,
+            terminalOpenPosition,
           },
         },
       ];

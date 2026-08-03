@@ -10,6 +10,7 @@ const tab = createQuickTerminalTab(
     shellId: 'zsh',
   },
   'Terminal',
+  'right',
 );
 
 assert.deepEqual(tab, {
@@ -21,6 +22,7 @@ assert.deepEqual(tab, {
     terminalCwd: '/Users/chat2db',
     terminalShell: 'Zsh',
     terminalShellId: 'zsh',
+    terminalOpenPosition: 'right',
   },
 });
 

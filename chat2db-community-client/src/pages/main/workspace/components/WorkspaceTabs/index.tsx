@@ -74,6 +74,7 @@ import {
   getWorkspaceTabEdgeDropTarget,
   WorkspaceTabDropPosition,
 } from './workspaceTabDrop';
+import { applyTerminalTabOpenPositions } from './terminalTabPlacement';
 
 const SplitPaneAny = SplitPane as any;
 const MAIN_WORKSPACE_TAB_PANE: WorkspaceTabPaneId = 'main';
@@ -524,10 +525,11 @@ function getPaneIdForTab(
 }
 
 function normalizeWorkspaceTabSplitLayout(
-  layout: IWorkspaceTabSplitLayout | null | undefined,
+  currentLayout: IWorkspaceTabSplitLayout | null | undefined,
   workspaceTabList: IWorkspaceTab[],
   activeConsoleId?: string | number | null,
 ) {
+  const layout = applyTerminalTabOpenPositions(currentLayout, workspaceTabList, activeConsoleId);
   if (!layout || !workspaceTabList.length) {
     return null;
   }

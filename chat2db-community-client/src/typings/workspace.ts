@@ -1,5 +1,6 @@
 import { CreateTabIntroType, WorkspaceTabType, DatabaseTypeCode, ConsoleStatus } from '@/constants';
 import { ITreeNode } from '@/typings';
+import type { TerminalOpenPosition } from '@/typings/settings';
 
 export interface ICreateTabIntro {
   type: CreateTabIntroType;
@@ -92,6 +93,7 @@ export interface IBoundInfo {
   terminalCwd?: string;
   terminalShell?: string;
   terminalShellId?: string;
+  terminalOpenPosition?: TerminalOpenPosition;
   viewName?: string;
   functionName?: string;
   procedureName?: string;

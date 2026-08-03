@@ -47,6 +47,12 @@ export const useStyles = createStyles(({ css, token }) => ({
   settingControl: css`
     min-width: 0;
   `,
+  switchControl: css`
+    min-width: 0;
+    min-height: 32px;
+    display: flex;
+    align-items: center;
+  `,
   controlState: css`
     width: min(280px, 100%);
     min-height: 32px;
@@ -58,6 +64,27 @@ export const useStyles = createStyles(({ css, token }) => ({
   `,
   shellSelect: css`
     width: min(280px, 100%);
+  `,
+  positionSegmented: css`
+    width: min(520px, 100%);
+
+    :global(.ant-segmented-group) {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    :global(.ant-segmented-item-label) {
+      min-width: 0;
+      padding-inline: 8px;
+    }
+  `,
+  positionOption: css`
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    white-space: nowrap;
   `,
   hint: css`
     max-width: 640px;
