@@ -388,34 +388,44 @@ public enum MysqlColumnTypeEnum implements IColumnBuilder {
         }
 
 
-        if (Arrays.asList(DECIMAL, FLOAT, DOUBLE).contains(type)) {
-            if (Arrays.asList(DECIMAL).contains(type) && column.getColumnSize() == null && column.getDecimalDigits() != null) {
+        if (DECIMAL == type) {
+            if (column.getColumnSize() == null && column.getDecimalDigits() != null) {
                 return StringUtils.join(columnType, "(", DEFAULT_DECIMAL_COLUMN_SIZE + "," + column.getDecimalDigits() + ")");
             }
-            if (column.getColumnSize() == null || column.getDecimalDigits() == null) {
+            if (column.getColumnSize() == null) {
                 return columnType;
             }
-            if (column.getColumnSize() != null && column.getDecimalDigits() == null) {
+            if (column.getDecimalDigits() == null) {
                 return StringUtils.join(columnType, "(", column.getColumnSize() + ")");
             }
-            if (column.getColumnSize() != null && column.getDecimalDigits() != null) {
-                return StringUtils.join(columnType, "(", column.getColumnSize() + "," + column.getDecimalDigits() + ")");
-            }
+            return StringUtils.join(columnType, "(", column.getColumnSize() + "," + column.getDecimalDigits() + ")");
         }
 
-        if (Arrays.asList(DECIMAL_UNSIGNED, FLOAT_UNSIGNED, DOUBLE_UNSIGNED).contains(type)) {
-            if (Arrays.asList(DECIMAL_UNSIGNED).contains(type) && column.getColumnSize() == null && column.getDecimalDigits() != null) {
-                return unsignedDataType(columnType, "(" + DEFAULT_DECIMAL_COLUMN_SIZE + "," + column.getDecimalDigits() + ")");
-            }
+        if (Arrays.asList(FLOAT, DOUBLE).contains(type)) {
             if (column.getColumnSize() == null || column.getDecimalDigits() == null) {
                 return columnType;
             }
-            if (column.getColumnSize() != null && column.getDecimalDigits() == null) {
+            return StringUtils.join(columnType, "(", column.getColumnSize() + "," + column.getDecimalDigits() + ")");
+        }
+
+        if (DECIMAL_UNSIGNED == type) {
+            if (column.getColumnSize() == null && column.getDecimalDigits() != null) {
+                return unsignedDataType(columnType, "(" + DEFAULT_DECIMAL_COLUMN_SIZE + "," + column.getDecimalDigits() + ")");
+            }
+            if (column.getColumnSize() == null) {
+                return columnType;
+            }
+            if (column.getDecimalDigits() == null) {
                 return unsignedDataType(columnType, "(" + column.getColumnSize() + ")");
             }
-            if (column.getColumnSize() != null && column.getDecimalDigits() != null) {
-                return unsignedDataType(columnType, "(" + column.getColumnSize() + "," + column.getDecimalDigits() + ")");
+            return unsignedDataType(columnType, "(" + column.getColumnSize() + "," + column.getDecimalDigits() + ")");
+        }
+
+        if (Arrays.asList(FLOAT_UNSIGNED, DOUBLE_UNSIGNED).contains(type)) {
+            if (column.getColumnSize() == null || column.getDecimalDigits() == null) {
+                return columnType;
             }
+            return unsignedDataType(columnType, "(" + column.getColumnSize() + "," + column.getDecimalDigits() + ")");
         }
 
         if (Arrays.asList(SET, ENUM).contains(type)) {
@@ -445,7 +455,7 @@ public enum MysqlColumnTypeEnum implements IColumnBuilder {
     private String unsignedDataType(String dataTypeName, String middle) {
         String[] split = dataTypeName.split(" ");
         if (split.length == 2) {
-            return StringUtils.join(split[0], middle, split[1]);
+            return StringUtils.join(split[0], middle, " ", split[1]);
         }
         return StringUtils.join(dataTypeName, middle);
     }
