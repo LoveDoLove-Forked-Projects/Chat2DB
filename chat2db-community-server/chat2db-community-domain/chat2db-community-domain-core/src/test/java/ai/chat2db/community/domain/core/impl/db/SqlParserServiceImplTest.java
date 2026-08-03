@@ -3,6 +3,7 @@ package ai.chat2db.community.domain.core.impl.db;
 import ai.chat2db.community.domain.api.model.parser.statement.insert.InsertValueMapping;
 import ai.chat2db.community.domain.api.enums.parser.InsertValueMappingStatusEnum;
 import ai.chat2db.community.domain.api.model.db.SimpleInsertValueMapping;
+import ai.chat2db.spi.DefaultSQLIdentifierProcessor;
 import org.antlr.v4.runtime.CommonToken;
 import org.antlr.v4.runtime.Token;
 import org.junit.jupiter.api.Assertions;
@@ -12,6 +13,18 @@ import java.lang.reflect.Method;
 import java.util.List;
 
 class SqlParserServiceImplTest {
+
+    @Test
+    void normalizeIdentifierTokenPreservesEmbeddedQuotes() {
+        DefaultSQLIdentifierProcessor processor = new DefaultSQLIdentifierProcessor();
+
+        Assertions.assertEquals("A\"B",
+                DbSqlParserServiceImpl.normalizeIdentifierToken(processor, "\"A\"\"B\""));
+        Assertions.assertEquals("A\"B",
+                DbSqlParserServiceImpl.normalizeIdentifierToken(processor, "A\"B"));
+        Assertions.assertEquals("Order",
+                DbSqlParserServiceImpl.normalizeIdentifierToken(processor, ".\"Order\""));
+    }
 
     @Test
     @SuppressWarnings("unchecked")

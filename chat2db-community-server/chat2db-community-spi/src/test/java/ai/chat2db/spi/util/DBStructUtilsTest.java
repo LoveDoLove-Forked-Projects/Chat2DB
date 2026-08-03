@@ -67,4 +67,17 @@ class DBStructUtilsTest {
                 \tamount DECIMAL(12)
                 );""", sql);
     }
+
+    @Test
+    void generateCreateTableSQLToleratesNullColumnType() {
+        TableColumn column = new TableColumn();
+        column.setName("expr");
+        column.setColumnType(null);
+        column.setColumnSize(10);
+
+        assertEquals("""
+                CREATE TABLE users (
+                \texpr VARCHAR(10)
+                );""", DBStructUtils.generateCreateTableSQL("users", List.of(column)));
+    }
 }

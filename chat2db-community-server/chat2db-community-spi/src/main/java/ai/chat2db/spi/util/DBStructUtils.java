@@ -57,7 +57,7 @@ public class DBStructUtils {
                 createTableSQL.append(",\n");
             }
             String columnName = column.getName();
-            String dataType = column.getColumnType();
+            String dataType = StringUtils.defaultIfBlank(column.getColumnType(), "VARCHAR");
             String nullable = Objects.equals(column.getNullable(), 0) ? " NOT NULL" : "";
             Integer columnSize = column.getColumnSize();
             Integer decimalDigits = column.getDecimalDigits();
@@ -65,9 +65,9 @@ public class DBStructUtils {
             String commentClause = (columnComment != null && !columnComment.isEmpty()) ? " COMMENT '" + columnComment + "'" : "";
             String columnDefinition = columnName + " " + dataType;
 
-            if ((dataType.equalsIgnoreCase("VARCHAR") || dataType.equalsIgnoreCase("CHAR")) && columnSize != null) {
+            if ((StringUtils.equalsIgnoreCase(dataType, "VARCHAR") || StringUtils.equalsIgnoreCase(dataType, "CHAR")) && columnSize != null) {
                 columnDefinition += "(" + columnSize + ")";
-            } else if ((dataType.equalsIgnoreCase("DECIMAL") || dataType.equalsIgnoreCase("NUMERIC")) && columnSize != null) {
+            } else if ((StringUtils.equalsIgnoreCase(dataType, "DECIMAL") || StringUtils.equalsIgnoreCase(dataType, "NUMERIC")) && columnSize != null) {
                 columnDefinition += decimalDigits == null ? "(" + columnSize + ")" : "(" + columnSize + "," + decimalDigits + ")";
             }
             columnDefinition += nullable + commentClause;
