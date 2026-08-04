@@ -43,6 +43,15 @@ class EasyStringUtilsTest {
         assertEquals("00000011", EasyStringUtils.getBitString(new byte[] {0x03}, 8));
     }
 
+    @Test
+    void getBitStringReturnsRightmostRequestedBits() {
+        byte[] bytes = {0x01, 0x02};
+        assertEquals("0", EasyStringUtils.getBitString(bytes, 1));
+        assertEquals("0000010", EasyStringUtils.getBitString(bytes, 7));
+        assertEquals("100000010", EasyStringUtils.getBitString(bytes, 9));
+        assertEquals("000000100000010", EasyStringUtils.getBitString(bytes, 15));
+    }
+
     /**
      * Regression: cutName must treat workNo as a literal prefix, not a regex
      * (previously RegExUtils.removeFirst interpreted metacharacters).
@@ -56,5 +65,10 @@ class EasyStringUtilsTest {
     @Test
     void cutNameRemovesLiteralPrefixAndTrailingZeros() {
         assertEquals("name", EasyStringUtils.cutName("WK001name00", "WK001"));
+    }
+
+    @Test
+    void cutNameDoesNotRemoveAnInternalWorkNumber() {
+        assertEquals("prefixWK001name", EasyStringUtils.cutName("prefixWK001name00", "WK001"));
     }
 }

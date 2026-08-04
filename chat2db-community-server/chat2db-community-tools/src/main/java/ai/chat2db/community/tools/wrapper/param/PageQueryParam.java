@@ -35,29 +35,28 @@ public class PageQueryParam {
         this.pageSize = 1;
     }
     public PageQueryParam orderBy(OrderBy orderBy) {
-        if (orderByList == null) {
-            orderByList = new ArrayList<>();
-        }
-        orderByList.add(orderBy);
-        return this;
+        orderByList = new ArrayList<>();
+        return andOrderBy(orderBy);
     }
     public PageQueryParam orderBy(String orderConditionName, OrderByDirectionEnum direction) {
         return orderBy(new OrderBy(orderConditionName, direction));
     }
     public PageQueryParam orderBy(IOrderCondition orderCondition) {
-        return orderBy(orderCondition.getOrderBy());
+        return orderBy(orderCondition == null ? null : orderCondition.getOrderBy());
     }
     public PageQueryParam andOrderBy(OrderBy orderBy) {
         if (orderByList == null) {
             orderByList = new ArrayList<>();
         }
-        orderByList.add(orderBy);
+        if (orderBy != null) {
+            orderByList.add(orderBy);
+        }
         return this;
     }
     public PageQueryParam andOrderBy(String orderConditionName, OrderByDirectionEnum direction) {
         return andOrderBy(new OrderBy(orderConditionName, direction));
     }
     public PageQueryParam andOrderBy(IOrderCondition orderCondition) {
-        return andOrderBy(orderCondition.getOrderBy());
+        return andOrderBy(orderCondition == null ? null : orderCondition.getOrderBy());
     }
 }

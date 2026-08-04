@@ -144,7 +144,7 @@ public class EasyStringUtils {
     }
 
     public static String getBitString(byte[] bytes, final int precision) {
-        if (bytes == null || bytes.length == 0) {
+        if (bytes == null || bytes.length == 0 || precision <= 0) {
             return "";
         }
 
@@ -153,9 +153,10 @@ public class EasyStringUtils {
             builder.append(Strings.padStart(Integer.toBinaryString(b & 0xFF), 8, '0'));
         }
         String bitString = builder.toString();
-        bitString = Strings.padStart(bitString, precision, '0');
-
-        return bitString;
+        if (bitString.length() > precision) {
+            return bitString.substring(bitString.length() - precision);
+        }
+        return Strings.padStart(bitString, precision, '0');
     }
 
 

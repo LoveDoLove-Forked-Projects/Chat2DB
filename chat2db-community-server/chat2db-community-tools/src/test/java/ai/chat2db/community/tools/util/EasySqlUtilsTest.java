@@ -29,6 +29,17 @@ class EasySqlUtilsTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void emptyFinalDottedSegmentIsNotAddedAsATable() {
+        StringBuilder error = new StringBuilder();
+        Map<String, Object> result = EasySqlUtils.parseTableSchema(
+            "SELECT * FROM srv.db.dbo.sch.``", error);
+        assertEquals(0, error.length(), "no exception should be recorded");
+        List<String> tables = (List<String>) result.get(EasySqlUtils.TABLE_NAME);
+        assertTrue(tables.isEmpty());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void threePartIdentifierStillParses() {
         StringBuilder error = new StringBuilder();
         Map<String, Object> result = EasySqlUtils.parseTableSchema("SELECT * FROM db.schema1.t2", error);
