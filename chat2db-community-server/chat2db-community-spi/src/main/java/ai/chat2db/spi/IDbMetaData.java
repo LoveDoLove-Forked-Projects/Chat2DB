@@ -14,6 +14,7 @@ import ai.chat2db.community.domain.api.model.metadata.TableIndex;
 import ai.chat2db.community.domain.api.model.metadata.TableMeta;
 import ai.chat2db.community.domain.api.model.metadata.Trigger;
 import ai.chat2db.community.domain.api.model.metadata.Type;
+import ai.chat2db.community.domain.api.model.result.ResultSetEditorMetadata;
 import ai.chat2db.community.domain.api.model.view.ModifyViewConfiguration;
 import ai.chat2db.spi.enums.UnsupportedKeyOperationsEnum;
 import ai.chat2db.spi.model.request.ColumnMetadataRequest;
@@ -89,6 +90,27 @@ public interface IDbMetaData {
 
     default String resolveResultSetEditorType(String typeName, Integer type) {
         return "TEXT";
+    }
+
+    /**
+     * Resolves editor metadata from an already-loaded table column. Dialects can override this
+     * method to expose structured editor options without adding result-set metadata queries.
+     */
+    default ResultSetEditorMetadata resolveResultSetEditorMetadata(TableColumn column) {
+        String editorType = column == null ? "TEXT"
+                : resolveResultSetEditorType(column.getColumnType(), column.getDataType());
+        return ResultSetEditorMetadata.builder()
+                .editorType(editorType)
+                .editorOptions(List.of())
+                .build();
+    }
+
+    /**
+     * Indicates that this concrete dialect implementation has verified structured result-set
+     * editor options. Compatibility dialects remain disabled until they explicitly opt in.
+     */
+    default boolean supportsResultSetEditorOptions() {
+        return false;
     }
 
     ISQLIdentifierProcessor getSQLIdentifierProcessor();

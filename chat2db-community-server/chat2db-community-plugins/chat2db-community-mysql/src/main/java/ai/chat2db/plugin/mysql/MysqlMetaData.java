@@ -260,8 +260,8 @@ public class MysqlMetaData extends DefaultMetaService implements IDbMetaData {
 
     private void setColumnSize(TableColumn column, String columnType) {
         try {
-            if (columnType.contains(SQL_NAME_SIZE_OPEN)) {
-                String size = columnType.substring(columnType.indexOf(SQL_NAME_SIZE_OPEN) + 1, columnType.indexOf(SQL_NAME_SIZE_CLOSE));
+            String size = extractColumnTypeArguments(columnType);
+            if (size != null) {
                 if (SQL_SET_TYPE.equalsIgnoreCase(column.getColumnType()) || SQL_ENUM_TYPE.equalsIgnoreCase(column.getColumnType())) {
                     column.setValue(size);
                 } else {
@@ -281,6 +281,18 @@ public class MysqlMetaData extends DefaultMetaService implements IDbMetaData {
         } catch (Exception e) {
             log.warn("parse column size failed: {}", columnType, e);
         }
+    }
+
+    static String extractColumnTypeArguments(String columnType) {
+        if (StringUtils.isBlank(columnType)) {
+            return null;
+        }
+        int openingParenthesis = columnType.indexOf(SQL_NAME_SIZE_OPEN);
+        int closingParenthesis = columnType.lastIndexOf(SQL_NAME_SIZE_CLOSE);
+        if (openingParenthesis < 0 || closingParenthesis <= openingParenthesis) {
+            return null;
+        }
+        return columnType.substring(openingParenthesis + 1, closingParenthesis);
     }
 
     @Override
@@ -394,6 +406,35 @@ public class MysqlMetaData extends DefaultMetaService implements IDbMetaData {
             return ResultSetEditorTypeEnum.TEXT.getCode();
         }
         return RESULT_SET_EDITOR_TYPE_BY_JDBC_TYPE.getOrDefault(type, ResultSetEditorTypeEnum.TEXT).getCode();
+    }
+
+    @Override
+    public ResultSetEditorMetadata resolveResultSetEditorMetadata(TableColumn column) {
+        ResultSetEditorMetadata fallback = ResultSetEditorMetadata.builder()
+                .editorType(column == null ? ResultSetEditorTypeEnum.TEXT.getCode()
+                        : resolveResultSetEditorType(column.getColumnType(), column.getDataType()))
+                .editorOptions(List.of())
+                .build();
+        if (!supportsResultSetEditorOptions() || column == null
+                || !SQL_ENUM_TYPE.equalsIgnoreCase(column.getColumnType())
+                || StringUtils.isBlank(column.getValue())) {
+            return fallback;
+        }
+        try {
+            List<ResultSetEditorOption> options = MysqlSqlGuards.parseEnumValues(column.getValue()).stream()
+                    .map(value -> new ResultSetEditorOption(value, value))
+                    .toList();
+            if (options.isEmpty()) {
+                return fallback;
+            }
+            return ResultSetEditorMetadata.builder()
+                    .editorType(ResultSetEditorTypeEnum.SELECT.getCode())
+                    .editorOptions(options)
+                    .build();
+        } catch (IllegalArgumentException e) {
+            log.warn("Parse MySQL ENUM values failed for column: {}", column.getName(), e);
+            return fallback;
+        }
     }
 
     @Override

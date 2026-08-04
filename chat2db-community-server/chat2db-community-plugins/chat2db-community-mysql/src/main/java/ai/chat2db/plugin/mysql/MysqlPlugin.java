@@ -24,7 +24,7 @@ public class MysqlPlugin extends MysqlSyntaxPlugin implements IPlugin {
 
     @Override
     public IDbMetaData getDbMetaData() {
-        return new MysqlMetaData();
+        return new NativeMysqlMetaData();
     }
 
     @Override
@@ -40,5 +40,13 @@ public class MysqlPlugin extends MysqlSyntaxPlugin implements IPlugin {
     @Override
     public IRoutineManager getRoutineManager() {
         return new MysqlRoutineManager();
+    }
+
+    private static final class NativeMysqlMetaData extends MysqlMetaData {
+
+        @Override
+        public boolean supportsResultSetEditorOptions() {
+            return true;
+        }
     }
 }
