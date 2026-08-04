@@ -226,7 +226,7 @@ export const useCreateRightClickMenu = () => {
     };
 
     const refreshAfterDelete = () => {
-      const parentNode = getParentNode(treeNodeData.key, treeData!);
+      const parentNode = getParentNode(treeNodeData.key, treeData);
       handleLoadData(parentNode || treeNodeData, {
         refresh: true,
       });
@@ -810,10 +810,12 @@ export const useCreateRightClickMenu = () => {
         icon: 'icon-trash',
         handle: () => {
           deleteTable(treeNodeData, () => {
-            const parentNode = getParentNode(treeNodeData.key, treeData!);
-            handleLoadData(parentNode, {
-              refresh: true,
-            });
+            const parentNode = getParentNode(treeNodeData.key, treeData);
+            if (parentNode) {
+              handleLoadData(parentNode, {
+                refresh: true,
+              });
+            }
           });
         },
       },
@@ -890,10 +892,12 @@ export const useCreateRightClickMenu = () => {
           handelPinTable({
             treeNodeData,
           }).then(() => {
-            const parentNode = getParentNode(treeNodeData.key, treeData!);
-            handleLoadData(parentNode, {
-              refresh: true,
-            });
+            const parentNode = getParentNode(treeNodeData.key, treeData);
+            if (parentNode) {
+              handleLoadData(parentNode, {
+                refresh: true,
+              });
+            }
           });
         },
       },
@@ -922,10 +926,12 @@ export const useCreateRightClickMenu = () => {
             uniqueData: {
               ...extraParams,
               submitCallback: () => {
-                const parentNode = getParentNode(treeNodeData.key, treeData!);
-                handleLoadData(parentNode, {
-                  refresh: true,
-                });
+                const parentNode = getParentNode(treeNodeData.key, treeData);
+                if (parentNode) {
+                  handleLoadData(parentNode, {
+                    refresh: true,
+                  });
+                }
               },
               popoverContent,
             },
@@ -1270,10 +1276,12 @@ export const useCreateRightClickMenu = () => {
                   copyData: false,
                 })
                 .then(() => {
-                  const parentNode = getParentNode(treeNodeData.key, treeData!);
-                  handleLoadData(parentNode, {
-                    refresh: true,
-                  });
+                  const parentNode = getParentNode(treeNodeData.key, treeData);
+                  if (parentNode) {
+                    handleLoadData(parentNode, {
+                      refresh: true,
+                    });
+                  }
                 });
             },
           },
@@ -1289,10 +1297,12 @@ export const useCreateRightClickMenu = () => {
                   copyData: true,
                 })
                 .then(() => {
-                  const parentNode = getParentNode(treeNodeData.key, treeData!);
-                  handleLoadData(parentNode, {
-                    refresh: true,
-                  });
+                  const parentNode = getParentNode(treeNodeData.key, treeData);
+                  if (parentNode) {
+                    handleLoadData(parentNode, {
+                      refresh: true,
+                    });
+                  }
                 });
             },
           },

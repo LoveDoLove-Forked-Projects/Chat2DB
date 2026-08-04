@@ -154,6 +154,12 @@ class XugudbIdentifierProcessorTest {
     }
 
     @Test
+    void checkClauseCannotBeSmuggledIntoFallbackColumnType() {
+        assertThrows(IllegalArgumentException.class,
+                () -> XugudbSqlGuards.requireColumnTypeExpression("VARCHAR(32) CHECK (1 = 1)"));
+    }
+
+    @Test
     void unbalancedQuoteInFunctionDefaultIsRejected() {
         TableColumn c1 = column("id", "INTEGER");
         c1.setDefaultValue("length(')");
@@ -446,6 +452,18 @@ class XugudbIdentifierProcessorTest {
         varchar.setUnit(" BYTE ");
         String varcharSql = XUGUDBColumnTypeEnum.VARCHAR.buildCreateColumnSql(varchar);
         assertTrue(varcharSql.contains("(10 BYTE)"), varcharSql);
+    }
+
+    @Test
+    void numericTypePreservesPrecisionAndScale() {
+        TableColumn decimal = column("amount", "NUMERIC");
+        decimal.setColumnSize(10);
+        decimal.setDecimalDigits(2);
+        assertTrue(XUGUDBColumnTypeEnum.NUMERIC.buildCreateColumnSql(decimal).contains("NUMERIC(10,2)"));
+
+        TableColumn precisionOnly = column("amount", "NUMERIC");
+        precisionOnly.setColumnSize(18);
+        assertTrue(XUGUDBColumnTypeEnum.NUMERIC.buildCreateColumnSql(precisionOnly).contains("NUMERIC(18)"));
     }
 
     @Test

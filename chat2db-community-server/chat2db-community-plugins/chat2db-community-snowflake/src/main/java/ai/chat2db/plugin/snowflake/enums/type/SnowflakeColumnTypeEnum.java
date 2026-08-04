@@ -160,16 +160,14 @@ public enum SnowflakeColumnTypeEnum implements IColumnBuilder {
             }
         }
 
-        if (Arrays.asList(DECIMAL, FLOAT, DOUBLE,TINYINT, INT, NUMBER, NUMERIC, INTEGER, BIGINT, SMALLINT, BYTEINT).contains(type)) {
-            if (column.getColumnSize() == null || column.getDecimalDigits() == null) {
+        if (Arrays.asList(DECIMAL, NUMBER, NUMERIC).contains(type)) {
+            if (column.getColumnSize() == null) {
                 return columnType;
             }
-            if (column.getColumnSize() != null && column.getDecimalDigits() == null) {
+            if (column.getDecimalDigits() == null) {
                 return StringUtils.join(columnType, "(", column.getColumnSize() + ")");
             }
-            if (column.getColumnSize() != null && column.getDecimalDigits() != null) {
-                return StringUtils.join(columnType, "(", column.getColumnSize() + "," + column.getDecimalDigits() + ")");
-            }
+            return StringUtils.join(columnType, "(", column.getColumnSize() + "," + column.getDecimalDigits() + ")");
         }
 
         return columnType;

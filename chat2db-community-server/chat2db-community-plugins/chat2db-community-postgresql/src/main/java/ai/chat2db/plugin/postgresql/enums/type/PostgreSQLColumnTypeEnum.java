@@ -403,14 +403,16 @@ public enum PostgreSQLColumnTypeEnum implements IColumnBuilder {
         }
 
         if (Arrays.asList(DECIMAL, NUMERIC).contains(type)) {
-            if (column.getColumnSize() == null && column.getDecimalDigits() == null) {
+            // precision is required to specify scale; without it, emit the bare type
+            // (previously a null precision with a set scale fell through and NPE'd on
+            // null Integer unboxing). Affects the PG family (GaussDB/OpenGauss/CockroachDB/Redshift).
+            if (column.getColumnSize() == null) {
                 return columnType;
             }
-            if (column.getColumnSize() != null && column.getDecimalDigits() == null) {
-                return StringUtils.join(columnType, "(", column.getColumnSize() + ")");
-            } else {
-                return StringUtils.join(columnType, "(", column.getColumnSize() + "," + column.getDecimalDigits() + ")");
+            if (column.getDecimalDigits() == null) {
+                return StringUtils.join(columnType, "(", column.getColumnSize(), ")");
             }
+            return StringUtils.join(columnType, "(", column.getColumnSize(), ",", column.getDecimalDigits(), ")");
         }
         return columnType;
     }

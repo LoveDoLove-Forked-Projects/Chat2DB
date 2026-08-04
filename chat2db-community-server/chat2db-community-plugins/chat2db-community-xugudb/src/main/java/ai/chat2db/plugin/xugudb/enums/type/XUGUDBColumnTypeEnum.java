@@ -278,6 +278,17 @@ public enum XUGUDBColumnTypeEnum implements IColumnBuilder {
             return script.toString();
         }
 
+        if (Arrays.asList(NUMERIC).contains(type)) {
+            StringBuilder script = new StringBuilder();
+            script.append(columnType);
+            if (column.getColumnSize() != null && column.getDecimalDigits() == null) {
+                script.append("(").append(column.getColumnSize()).append(")");
+            } else if (column.getColumnSize() != null && column.getDecimalDigits() != null) {
+                script.append("(").append(column.getColumnSize()).append(",").append(column.getDecimalDigits()).append(")");
+            }
+            return script.toString();
+        }
+
         return columnType;
     }
 

@@ -3,6 +3,7 @@ package ai.chat2db.plugin.oscar.identifier;
 import ai.chat2db.spi.DefaultSQLIdentifierProcessor;
 import org.apache.commons.lang3.StringUtils;
 
+import java.util.Locale;
 import java.util.Set;
 
 /**
@@ -26,7 +27,7 @@ public class OscarIdentifierProcessor extends DefaultSQLIdentifierProcessor {
 
     @Override
     public boolean isReservedKeyword(String identifier, Integer majorVersion, Integer minorVersion) {
-        return RESERVED_KEYWORDS.contains(identifier);
+        return identifier != null && RESERVED_KEYWORDS.contains(identifier.toUpperCase(Locale.ROOT));
     }
 
     @Override

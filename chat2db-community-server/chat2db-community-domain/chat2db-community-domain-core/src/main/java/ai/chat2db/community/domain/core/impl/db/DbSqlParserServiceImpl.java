@@ -325,7 +325,7 @@ public class DbSqlParserServiceImpl implements IDbSqlParserService {
                             new TablesRequest(databaseName, schemaName, null));
                     return new ArrayList<>(tables);
                 });
-                tableMap = allTables.stream().collect(Collectors.toMap(Table::getName, table -> table));
+                tableMap = toTableMap(allTables);
             }
 
             for (Statement statement : statements) {
@@ -507,6 +507,10 @@ public class DbSqlParserServiceImpl implements IDbSqlParserService {
         }
         String identifier = tokenText.startsWith(".") ? tokenText.substring(1) : tokenText;
         return processor.removeIdentifierQuote(identifier);
+    }
+
+    static Map<String, Table> toTableMap(List<Table> tables) {
+        return tables.stream().collect(Collectors.toMap(Table::getName, table -> table, (first, ignored) -> first));
     }
 
     @Override

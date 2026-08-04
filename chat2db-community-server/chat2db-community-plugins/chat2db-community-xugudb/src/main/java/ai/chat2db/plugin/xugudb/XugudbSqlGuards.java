@@ -16,7 +16,7 @@ import java.util.Set;
 public final class XugudbSqlGuards {
 
     private static final Set<String> COLUMN_CLAUSE_KEYWORDS = Set.of(
-            "COLLATE", "CONSTRAINT", "DEFAULT", "GENERATED", "IDENTITY",
+            "CHECK", "COLLATE", "CONSTRAINT", "DEFAULT", "GENERATED", "IDENTITY",
             "PRIMARY", "REFERENCES", "UNIQUE");
 
     private static final Set<String> STATEMENT_KEYWORDS = Set.of(

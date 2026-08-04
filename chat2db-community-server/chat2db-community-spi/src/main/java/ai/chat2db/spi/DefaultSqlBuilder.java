@@ -216,7 +216,11 @@ public class DefaultSqlBuilder implements ISqlBuilder, IIdentifierSqlBuilder, ID
         script.append(SQL_COMMENT_COLUMN);
         script.append(column.getTableName() + SQLConstants.DOT + column.getName());
         script.append(SQLConstants.SQL_IS_SINGLE_QUOTE);
-        script.append(column.getComment());
+        String comment = column.getComment();
+        // SQL-standard single-quote doubling; avoids breaking DDL on apostrophes
+        // (and prevents literal breakout) without doubling backslashes (which
+        // would corrupt comments on standard-conforming dialects).
+        script.append(comment == null ? "" : comment.replace("'", "''"));
         script.append(SQLConstants.SINGLE_QUOTE_SEMICOLON_LINE_SEPARATOR);
         return script.toString();
     }
@@ -241,8 +245,8 @@ public class DefaultSqlBuilder implements ISqlBuilder, IIdentifierSqlBuilder, ID
     @Override
     public String buildPageLimit(PageLimitRequest request) {
         String sql = request.getSql();
-        int offset = request.getOffset();
-        int pageSize = request.getPageSize();
+        int offset = Math.max(0, request.getOffset());
+        int pageSize = Math.max(1, request.getPageSize());
         StringBuilder sqlBuilder = new StringBuilder(sql.length() + 14);
         sqlBuilder.append(sql);
         if (offset == 0) {

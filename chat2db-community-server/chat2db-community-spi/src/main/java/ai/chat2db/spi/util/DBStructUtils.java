@@ -62,7 +62,7 @@ public class DBStructUtils {
             Integer columnSize = column.getColumnSize();
             Integer decimalDigits = column.getDecimalDigits();
             String columnComment = column.getComment();
-            String commentClause = (columnComment != null && !columnComment.isEmpty()) ? " COMMENT '" + columnComment + "'" : "";
+            String commentClause = (columnComment != null && !columnComment.isEmpty()) ? " COMMENT '" + columnComment.replace("'", "''") + "'" : "";
             String columnDefinition = columnName + " " + dataType;
 
             if ((StringUtils.equalsIgnoreCase(dataType, "VARCHAR") || StringUtils.equalsIgnoreCase(dataType, "CHAR")) && columnSize != null) {
@@ -136,13 +136,16 @@ public class DBStructUtils {
             return "ALTER TABLE " + tableColumn.getTableName() + " MODIFY COLUMN " + tableColumn.getName() + " " + tableColumn.getColumnType() + ";";
         }
         if (tableColumn.getComment() != null) {
-            return "COMMENT ON COLUMN " + tableColumn.getTableName() + "." + tableColumn.getName() + " IS '" + tableColumn.getComment() + "';";
+            return "COMMENT ON COLUMN " + tableColumn.getTableName() + "." + tableColumn.getName() + " IS '" + tableColumn.getComment().replace("'", "''") + "';";
         }
         return "";
     }
 
     private static String generateTableCommentSQL(String tableName, String comment) {
-        return "COMMENT ON TABLE " + tableName + " IS '" + comment + "';";
+        if (comment == null) {
+            return "COMMENT ON TABLE " + tableName + " IS NULL;";
+        }
+        return "COMMENT ON TABLE " + tableName + " IS '" + comment.replace("'", "''") + "';";
     }
 
 }
