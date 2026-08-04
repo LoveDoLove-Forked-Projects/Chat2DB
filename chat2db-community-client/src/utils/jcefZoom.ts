@@ -13,12 +13,14 @@ export function canHandleWebFrameZoom(): boolean {
   return isJcefApiAvailable();
 }
 
-export function handleWebFrameZoom(type: WebFrameZoomType): void {
+export async function handleWebFrameZoom(type: WebFrameZoomType): Promise<void> {
   if (!canHandleWebFrameZoom()) {
     return;
   }
 
-  void jcefApi.webFrameSetZoom({ action: ZOOM_ACTION_MAP[type] }).catch((error) => {
+  try {
+    await jcefApi.webFrameSetZoom({ action: ZOOM_ACTION_MAP[type] });
+  } catch (error) {
     console.warn('Failed to set web frame zoom:', error);
-  });
+  }
 }

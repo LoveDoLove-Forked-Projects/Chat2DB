@@ -11,7 +11,8 @@ import {
 } from '@/constants/shortcut';
 import { useAIStore } from '@/store/ai';
 import { requestCloseActiveResultTab } from '@/service/resultTabShortcut';
-import { canHandleWebFrameZoom, handleWebFrameZoom, WebFrameZoomType } from './jcefZoom';
+import { handleWebFrameZoom, WebFrameZoomType } from './jcefZoom';
+import { prepareGlobalShortcutHandling } from './shortcutDispatch';
 
 const NON_TEXT_INPUT_TYPES = new Set([
   'button',
@@ -61,7 +62,7 @@ class ShortcutManager {
   }
 
   private handleZoom(type: WebFrameZoomType): void {
-    handleWebFrameZoom(type);
+    void handleWebFrameZoom(type);
   }
 
   private handleSwitchToNav(nav: 'workspace' | 'dashboard' | 'stream' | 'setting'): void {
@@ -106,17 +107,6 @@ class ShortcutManager {
     const { setShowPanel } = useAIStore.getState();
     setShowPanel(true);
     window.dispatchEvent(new CustomEvent('stream:newChat'));
-  }
-
-  private canHandleShortcut(action: ShortcutAction): boolean {
-    switch (action) {
-      case ShortcutAction.ZoomIn:
-      case ShortcutAction.ZoomOut:
-      case ShortcutAction.ZoomReset:
-        return canHandleWebFrameZoom();
-      default:
-        return true;
-    }
   }
 
   private handleShortcut(action: ShortcutAction): void {
@@ -180,11 +170,10 @@ class ShortcutManager {
 
     const action = matchedConfig.action as ShortcutAction;
 
-    if (!this.canHandleShortcut(action)) {
+    if (!prepareGlobalShortcutHandling(e, action)) {
       return;
     }
 
-    e.preventDefault();
     this.handleShortcut(action);
   };
 
