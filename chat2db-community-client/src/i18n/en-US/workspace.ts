@@ -254,6 +254,13 @@ export default {
   'workspace.filePreview.imageFailed': 'Failed to load image',
   'workspace.filePreview.pdfUnsupported': 'This desktop runtime cannot display PDF files',
   'workspace.filePreview.unsupported': 'Preview is not available for this file',
+  'workspace.fileEncoding.label': 'File encoding',
+  'workspace.fileEncoding.autoDetect': 'Auto detect',
+  'workspace.fileEncoding.reloadFailed': 'Failed to open the file with the selected encoding',
+  'workspace.fileEncoding.unsavedTitle': 'Discard unsaved changes?',
+  'workspace.fileEncoding.unsavedContent':
+    'Changing the file encoding reloads the file from disk and discards your unsaved changes.',
+  'workspace.fileEncoding.reloadConfirm': 'Change encoding',
   'workspace.terminal.title': 'Terminal',
   'workspace.terminal.stop': 'Stop',
   'workspace.terminal.exited': 'Process exited with code',
