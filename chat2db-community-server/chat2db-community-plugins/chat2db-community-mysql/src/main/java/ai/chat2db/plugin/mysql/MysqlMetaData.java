@@ -449,6 +449,28 @@ public class MysqlMetaData extends DefaultMetaService implements IDbMetaData {
     }
 
     @Override
+    public Map<Integer, ResultSetEditorMetadata> resolveResultSetEditorMetadata(
+            Connection connection, List<TableColumn> columns) {
+        if (!supportsResultSetEditorOptions() || columns == null || columns.isEmpty()) {
+            return Map.of();
+        }
+        Map<Integer, ResultSetEditorMetadata> metadataByColumnIndex = new LinkedHashMap<>();
+        for (int index = 0; index < columns.size(); index++) {
+            TableColumn column = columns.get(index);
+            try {
+                ResultSetEditorMetadata metadata = resolveResultSetEditorMetadata(column);
+                if (metadata != null) {
+                    metadataByColumnIndex.put(index, metadata);
+                }
+            } catch (Exception e) {
+                log.warn("Resolve MySQL result-set editor metadata failed for column: {}",
+                        column == null ? null : column.getName(), e);
+            }
+        }
+        return Map.copyOf(metadataByColumnIndex);
+    }
+
+    @Override
     public TableMeta getTableMeta(String databaseName, String schemaName, String tableName) {
         return TableMeta.builder()
                 .columnTypes(MysqlColumnTypeEnum.getTypes())

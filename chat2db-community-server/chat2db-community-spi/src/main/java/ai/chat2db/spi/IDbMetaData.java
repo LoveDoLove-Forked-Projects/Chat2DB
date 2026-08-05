@@ -29,7 +29,9 @@ import ai.chat2db.spi.model.response.TablesPageResponse;
 import jakarta.validation.constraints.NotEmpty;
 
 import java.sql.Connection;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Provides dialect-specific database metadata and helper components.
@@ -103,6 +105,32 @@ public interface IDbMetaData {
                 .editorType(editorType)
                 .editorOptions(List.of())
                 .build();
+    }
+
+    /**
+     * Resolves editor metadata for an already-loaded column batch. Result keys are zero-based
+     * indexes into {@code columns}; omitted indexes keep their existing result-set editor metadata.
+     * The default adapter delegates to the single-column hook and isolates malformed columns.
+     * Implementations may override this method and use {@code connection} when one batch lookup
+     * is more efficient.
+     */
+    default Map<Integer, ResultSetEditorMetadata> resolveResultSetEditorMetadata(
+            Connection connection, List<TableColumn> columns) {
+        if (columns == null || columns.isEmpty()) {
+            return Map.of();
+        }
+        Map<Integer, ResultSetEditorMetadata> metadataByColumnIndex = new LinkedHashMap<>();
+        for (int index = 0; index < columns.size(); index++) {
+            try {
+                ResultSetEditorMetadata metadata = resolveResultSetEditorMetadata(columns.get(index));
+                if (metadata != null) {
+                    metadataByColumnIndex.put(index, metadata);
+                }
+            } catch (RuntimeException ignored) {
+                // A malformed column must not discard valid editor metadata from the same batch.
+            }
+        }
+        return Map.copyOf(metadataByColumnIndex);
     }
 
     /**

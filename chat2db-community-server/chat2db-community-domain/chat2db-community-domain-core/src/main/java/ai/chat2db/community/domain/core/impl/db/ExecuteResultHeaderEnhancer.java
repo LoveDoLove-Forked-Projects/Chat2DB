@@ -23,6 +23,7 @@ import org.springframework.stereotype.Service;
 import java.sql.Connection;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -103,6 +104,9 @@ public class ExecuteResultHeaderEnhancer implements IDbExecuteResultEnhanceServi
                     }
                 }
             }
+            boolean supportsEditorOptions = metaData.supportsResultSetEditorOptions();
+            Map<TableColumn, ResultSetEditorMetadata> editorMetadataByColumn = resolveEditorMetadata(
+                    connection, columns, metaData, supportsEditorOptions);
 
             for (Header header : headers) {
                 TableColumn tableColumn = findColumn(columnMap, caseInsensitiveColumnMap,
@@ -115,7 +119,8 @@ public class ExecuteResultHeaderEnhancer implements IDbExecuteResultEnhanceServi
                     header.setColumnSize(tableColumn.getColumnSize());
                     header.setDecimalDigits(tableColumn.getDecimalDigits());
                     header.setColumnType(tableColumn.getColumnType());
-                    enrichEditorMetadata(header, tableColumn, metaData);
+                    enrichEditorMetadata(header, tableColumn, metaData, supportsEditorOptions,
+                            editorMetadataByColumn);
                 }
             }
         } catch (Exception e) {
@@ -124,16 +129,46 @@ public class ExecuteResultHeaderEnhancer implements IDbExecuteResultEnhanceServi
         return headers;
     }
 
-    private void enrichEditorMetadata(Header header, TableColumn tableColumn, IDbMetaData metaData) {
+    private Map<TableColumn, ResultSetEditorMetadata> resolveEditorMetadata(
+            Connection connection, List<TableColumn> columns, IDbMetaData metaData,
+            boolean supportsEditorOptions) {
+        if (!supportsEditorOptions) {
+            return Map.of();
+        }
         try {
-            if (!metaData.supportsResultSetEditorOptions()) {
+            Map<Integer, ResultSetEditorMetadata> metadataByColumnIndex =
+                    metaData.resolveResultSetEditorMetadata(connection, columns);
+            if (metadataByColumnIndex == null || metadataByColumnIndex.isEmpty()) {
+                return Map.of();
+            }
+            Map<TableColumn, ResultSetEditorMetadata> metadataByColumn = new IdentityHashMap<>();
+            for (Map.Entry<Integer, ResultSetEditorMetadata> entry : metadataByColumnIndex.entrySet()) {
+                Integer columnIndex = entry.getKey();
+                if (columnIndex == null || columnIndex < 0 || columnIndex >= columns.size()
+                        || entry.getValue() == null) {
+                    continue;
+                }
+                metadataByColumn.put(columns.get(columnIndex), entry.getValue());
+            }
+            return metadataByColumn;
+        } catch (Exception e) {
+            log.warn("Resolve batched result-set editor metadata failed", e);
+            return Map.of();
+        }
+    }
+
+    private void enrichEditorMetadata(Header header, TableColumn tableColumn, IDbMetaData metaData,
+                                      boolean supportsEditorOptions,
+                                      Map<TableColumn, ResultSetEditorMetadata> editorMetadataByColumn) {
+        try {
+            if (!supportsEditorOptions) {
                 ResultSetEditorTypeEnum editorType = ResultSetEditorTypeEnum.from(metaData.resolveResultSetEditorType(
                         tableColumn.getColumnType(), tableColumn.getDataType()));
                 header.setEditorType(editorType.getCode());
                 header.setEditorOptions(null);
                 return;
             }
-            ResultSetEditorMetadata editorMetadata = metaData.resolveResultSetEditorMetadata(tableColumn);
+            ResultSetEditorMetadata editorMetadata = editorMetadataByColumn.get(tableColumn);
             if (editorMetadata == null) {
                 return;
             }

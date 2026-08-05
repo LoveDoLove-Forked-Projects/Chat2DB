@@ -10,6 +10,8 @@ import org.junit.jupiter.api.Test;
 
 import java.sql.Types;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -146,5 +148,55 @@ class MysqlResultSetEditorTypeTest {
         assertEquals(ResultSetEditorTypeEnum.TEXT.getCode(),
                 compatibilityDialect.resolveResultSetEditorMetadata(setColumn).getEditorType());
         assertEquals(List.of(), compatibilityDialect.resolveResultSetEditorMetadata(setColumn).getEditorOptions());
+
+        Map<Integer, ResultSetEditorMetadata> nativeBatch = mysqlPluginMetaData.resolveResultSetEditorMetadata(
+                null, List.of(enumColumn, setColumn));
+        assertEquals(ResultSetEditorTypeEnum.SELECT.getCode(), nativeBatch.get(0).getEditorType());
+        assertEquals(ResultSetEditorTypeEnum.MULTI_SELECT.getCode(), nativeBatch.get(1).getEditorType());
+        assertEquals(Map.of(), compatibilityDialect.resolveResultSetEditorMetadata(
+                null, List.of(enumColumn, setColumn)));
+    }
+
+    @Test
+    void batchResolverIsolatesUnexpectedColumnFailures() {
+        AtomicInteger resolverCalls = new AtomicInteger();
+        MysqlMetaData optedInMetaData = new MysqlMetaData() {
+            @Override
+            public boolean supportsResultSetEditorOptions() {
+                return true;
+            }
+
+            @Override
+            public ResultSetEditorMetadata resolveResultSetEditorMetadata(TableColumn column) {
+                resolverCalls.incrementAndGet();
+                if ("broken".equals(column.getName())) {
+                    throw new IllegalStateException("unexpected parser failure");
+                }
+                return super.resolveResultSetEditorMetadata(column);
+            }
+        };
+        TableColumn enumColumn = TableColumn.builder()
+                .name("status")
+                .columnType("ENUM")
+                .value("'one','two'")
+                .build();
+        TableColumn brokenColumn = TableColumn.builder()
+                .name("broken")
+                .columnType("ENUM")
+                .value("'one','two'")
+                .build();
+        TableColumn setColumn = TableColumn.builder()
+                .name("tags")
+                .columnType("SET")
+                .value("'red','blue'")
+                .build();
+
+        Map<Integer, ResultSetEditorMetadata> metadataByIndex = optedInMetaData.resolveResultSetEditorMetadata(
+                null, List.of(enumColumn, brokenColumn, setColumn));
+
+        assertEquals(3, resolverCalls.get());
+        assertEquals(ResultSetEditorTypeEnum.SELECT.getCode(), metadataByIndex.get(0).getEditorType());
+        assertFalse(metadataByIndex.containsKey(1));
+        assertEquals(ResultSetEditorTypeEnum.MULTI_SELECT.getCode(), metadataByIndex.get(2).getEditorType());
     }
 }

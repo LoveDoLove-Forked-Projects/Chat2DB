@@ -176,6 +176,7 @@ const ResultSetSelect = forwardRef<SelectComponentHandle, SelectComponentProps>(
   const [value, setValue] = useState<SelectComponentValue>(() => toSelectComponentValue(defaultValue, multiple));
   const [open, setOpen] = useState(true);
   const selectRef = useRef<any>(null);
+  const tabKeyDownRef = useRef(false);
   const { styles, cx } = useStyles({ theme });
   const optionValues = useMemo(() => new Set(options.map((option) => option.value)), [options]);
   const renderedOptions = useMemo(() => {
@@ -191,6 +192,11 @@ const ResultSetSelect = forwardRef<SelectComponentHandle, SelectComponentProps>(
   }));
 
   const handleChange = (nextValue: string | string[]) => {
+    // rc-select treats Tab as an option selection before the event reaches VTable.
+    // Ignore that synthetic change so Tab only commits and moves to the next cell.
+    if (tabKeyDownRef.current) {
+      return;
+    }
     const normalizedValue = multiple
       ? normalizeMultiSelectComponentValue(Array.isArray(nextValue) ? nextValue : [], options)
       : Array.isArray(nextValue)
@@ -198,8 +204,34 @@ const ResultSetSelect = forwardRef<SelectComponentHandle, SelectComponentProps>(
         : nextValue;
     setValue(normalizedValue);
     onChange(normalizedValue);
-    if (!multiple) {
+  };
+
+  const handleSelect = () => {
+    if (!multiple && !tabKeyDownRef.current) {
       onCommit();
+    }
+  };
+
+  const handleInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    if (event.key !== 'Tab') {
+      return;
+    }
+    tabKeyDownRef.current = true;
+    queueMicrotask(() => {
+      tabKeyDownRef.current = false;
+    });
+  };
+
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    handleSelectEditorKeyDown(event, onCancel);
+    if (!multiple && event.key === 'Enter') {
+      onCommit();
+    }
+    if (event.key === 'Tab') {
+      // VTable normally completes and navigates synchronously as this event bubbles.
+      // This queued completion is only used when VTable does not handle Tab, such as its last cell.
+      onCommit();
+      tabKeyDownRef.current = false;
     }
   };
 
@@ -212,10 +244,13 @@ const ResultSetSelect = forwardRef<SelectComponentHandle, SelectComponentProps>(
         mode={multiple ? 'multiple' : undefined}
         value={value}
         options={renderedOptions}
+        defaultActiveFirstOption={false}
         open={open}
-        onOpenChange={setOpen}
+        onDropdownVisibleChange={setOpen}
         onChange={handleChange}
-        onKeyDown={(event) => handleSelectEditorKeyDown(event, onCancel)}
+        onSelect={handleSelect}
+        onInputKeyDown={handleInputKeyDown}
+        onKeyDown={handleKeyDown}
         placement={placement}
         popupMatchSelectWidth={popupWidth}
         getPopupContainer={() => document.body}
@@ -311,12 +346,16 @@ export class SelectEditor implements IEditor<unknown> {
 
   private requestFinishEditing() {
     const callback = this.successCallback;
+    const container = this.container;
     if (!callback) {
       return;
     }
     queueMicrotask(() => {
       if (this.successCallback === callback) {
         callback();
+        if (container?.isConnected) {
+          container.focus();
+        }
       }
     });
   }
