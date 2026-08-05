@@ -1,5 +1,4 @@
 import { ColorProps, ThemeAppearance } from '@chat2db/ui';
-import { IAIConfig, IRemainingUse } from './ai';
 import { LangType, UpdatedStatus } from '@/constants/settings';
 import { CountryItem } from '@/typings/enterprise/user';
 
@@ -12,21 +11,6 @@ export interface GlobalBaseSettings {
   customFontSize?: number;
   defaultPageSize: number;
   enableMcp?: boolean;
-}
-
-export interface GlobalAISettings {
-  /**
-   *AI related configuration
-   */
-  aiConfig: IAIConfig;
-  /**
-   * Number of remaining uses of AI
-   */
-  remainingUse?: IRemainingUse;
-  /**
-   * Whether to join the whitelist
-   */
-  hasWhite: boolean;
 }
 
 // Server configuration

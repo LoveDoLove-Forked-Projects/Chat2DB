@@ -9,7 +9,6 @@ export default {
   'workspace.savedConsole.namePlaceholder': 'Introduzca un nombre para este SQL guardado',
   'workspace.savedConsole.untitled': 'SQL sin título',
   'workspace.title.ai': 'IA',
-  'workspace.menu.syncDataBase': 'Sincronizar base de datos',
   'workspace.menu.ViewDDL': 'Ver DDL',
   'workspace.menu.GenerateCRUD': 'Generar CRUD',
   'workspace.menu.GenerateTestData': 'Generar datos de prueba',

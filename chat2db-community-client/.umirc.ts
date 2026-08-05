@@ -237,10 +237,6 @@ export default defineConfig({
               component: MAIN_COMPONENT,
             },
             {
-              path: '/chat/share/:chatId',
-              component: MAIN_COMPONENT,
-            },
-            {
               path: '/stream/:chatId',
               component: MAIN_COMPONENT,
             },
