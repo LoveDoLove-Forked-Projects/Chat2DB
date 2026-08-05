@@ -8,8 +8,9 @@ EXTRA_JAR="${1:-}"
 TEST_ROOT=$(mktemp -d)
 MOCK_BIN="${TEST_ROOT}/bin"
 MOCK_CODESIGN_LOG="${TEST_ROOT}/codesign.log"
+MOCK_CODESIGN_FAIL_STATE="${TEST_ROOT}/codesign-failed-once"
 IDENTITY="Developer ID Application: Test Signing (TESTTEAM)"
-EXPECTED_SIGNED_COUNT=3
+EXPECTED_SIGNING_CALLS=4
 
 cleanup() {
   rm -rf "${TEST_ROOT}"
@@ -55,6 +56,19 @@ case "${1:-}" in
     printf '\nMOCK-CODESIGNED-RUNTIME\n' >> "${target_file}"
     ;;
   --verify)
+    target_file="${!#}"
+    if [ -n "${MOCK_CODESIGN_ALWAYS_FAIL_TARGET:-}" ] \
+      && [[ "${target_file}" == *"${MOCK_CODESIGN_ALWAYS_FAIL_TARGET}" ]]; then
+      echo "A timestamp was expected but was not found." >&2
+      exit 1
+    fi
+    if [ -n "${MOCK_CODESIGN_FAIL_ONCE_TARGET:-}" ] \
+      && [[ "${target_file}" == *"${MOCK_CODESIGN_FAIL_ONCE_TARGET}" ]] \
+      && [ ! -f "${MOCK_CODESIGN_FAIL_STATE}" ]; then
+      touch "${MOCK_CODESIGN_FAIL_STATE}"
+      echo "A timestamp was expected but was not found." >&2
+      exit 1
+    fi
     ;;
   --display)
     target_file="${!#}"
@@ -88,17 +102,20 @@ if [ -n "${EXTRA_JAR}" ]; then
     fail "extra JAR does not exist: ${EXTRA_JAR}"
   fi
   cp "${EXTRA_JAR}" "${TEST_ROOT}/input/lib/extra.jar"
-  EXPECTED_SIGNED_COUNT=$((EXPECTED_SIGNED_COUNT + 2))
+  EXPECTED_SIGNING_CALLS=$((EXPECTED_SIGNING_CALLS + 2))
 fi
 
 PATH="${MOCK_BIN}:${PATH}" \
 MAC_SIGNING_IDENTITY="${IDENTITY}" \
+MAC_SIGN_RETRY_DELAY_SECONDS=0 \
 MOCK_CODESIGN_LOG="${MOCK_CODESIGN_LOG}" \
+MOCK_CODESIGN_FAIL_ONCE_TARGET="libtest.dylib" \
+MOCK_CODESIGN_FAIL_STATE="${MOCK_CODESIGN_FAIL_STATE}" \
   bash "${SIGNER}" "${TEST_ROOT}/input"
 
 signed_count=$(wc -l < "${MOCK_CODESIGN_LOG}" | tr -d '[:space:]')
-if [ "${signed_count}" -ne "${EXPECTED_SIGNED_COUNT}" ]; then
-  fail "expected ${EXPECTED_SIGNED_COUNT} Mach-O signing calls, got ${signed_count}"
+if [ "${signed_count}" -ne "${EXPECTED_SIGNING_CALLS}" ]; then
+  fail "expected ${EXPECTED_SIGNING_CALLS} Mach-O signing calls, got ${signed_count}"
 fi
 for expected in libtest.dylib pty4j-unix-spawn-helper nested-helper; do
   if ! grep -F -- "${expected}" "${MOCK_CODESIGN_LOG}" >/dev/null; then
@@ -108,8 +125,11 @@ done
 if grep -F -- "readme.txt" "${MOCK_CODESIGN_LOG}" >/dev/null; then
   fail "non-Mach-O file was selected for signing"
 fi
-if [ "$(grep -F -c -- '--options runtime --timestamp' "${MOCK_CODESIGN_LOG}")" -ne "${EXPECTED_SIGNED_COUNT}" ]; then
+if [ "$(grep -F -c -- '--options runtime --timestamp' "${MOCK_CODESIGN_LOG}")" -ne "${EXPECTED_SIGNING_CALLS}" ]; then
   fail "every signing call must request hardened runtime and a timestamp"
+fi
+if [ "$(grep -F -c -- 'libtest.dylib' "${MOCK_CODESIGN_LOG}")" -ne 2 ]; then
+  fail "timestamp verification failure did not trigger exactly one retry"
 fi
 
 mkdir -p "${TEST_ROOT}/repacked" "${TEST_ROOT}/nested-repacked"
@@ -154,6 +174,34 @@ if [ -n "${EXTRA_JAR}" ]; then
   done
 fi
 
+mkdir -p "${TEST_ROOT}/exhausted/source" "${TEST_ROOT}/exhausted/input"
+make_macho "${TEST_ROOT}/exhausted/source/libalways-fail.dylib"
+(cd "${TEST_ROOT}/exhausted/source" && zip -q -r "${TEST_ROOT}/exhausted/input/fixture.jar" .)
+cp "${TEST_ROOT}/exhausted/input/fixture.jar" "${TEST_ROOT}/exhausted/original.jar"
+exhausted_log="${TEST_ROOT}/exhausted-codesign.log"
+exhausted_output="${TEST_ROOT}/exhausted-output.log"
+: > "${exhausted_log}"
+if PATH="${MOCK_BIN}:${PATH}" \
+  MAC_SIGNING_IDENTITY="${IDENTITY}" \
+  MAC_SIGN_RETRY_DELAY_SECONDS=0 \
+  MOCK_CODESIGN_LOG="${exhausted_log}" \
+  MOCK_CODESIGN_ALWAYS_FAIL_TARGET="libalways-fail.dylib" \
+  /bin/bash "${SIGNER}" "${TEST_ROOT}/exhausted/input" \
+  > "${exhausted_output}" 2>&1; then
+  fail "signer succeeded after exhausting timestamp retries"
+fi
+if [ "$(wc -l < "${exhausted_log}" | tr -d '[:space:]')" -ne 3 ]; then
+  fail "signer did not stop after exactly three failed signing attempts"
+fi
+if ! cmp -s \
+  "${TEST_ROOT}/exhausted/original.jar" \
+  "${TEST_ROOT}/exhausted/input/fixture.jar"; then
+  fail "failed signing attempt replaced the original JAR"
+fi
+if grep -F -- '[check] signed and verified' "${exhausted_output}" >/dev/null; then
+  fail "failed signing attempt reported a successful signed count"
+fi
+
 mkdir -p "${TEST_ROOT}/no-native/source" "${TEST_ROOT}/no-native/input"
 echo "plain text only" > "${TEST_ROOT}/no-native/source/readme.txt"
 (cd "${TEST_ROOT}/no-native/source" && zip -q -r "${TEST_ROOT}/no-native/input/plain.jar" .)
@@ -167,4 +215,4 @@ if [ -s "${no_native_log}" ]; then
   fail "JAR without Mach-O payloads triggered a signing call"
 fi
 
-echo "[check] recursive Mach-O selection, hardened signing, and executable modes passed"
+echo "[check] recursive Mach-O selection, retry exhaustion, hardened signing, and executable modes passed"

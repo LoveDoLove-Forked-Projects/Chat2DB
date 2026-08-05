@@ -10,6 +10,8 @@ fi
 INPUT_DIR="$1"
 SIGNING_IDENTITY="${MAC_SIGNING_IDENTITY:-}"
 SIGNED_COUNT=0
+MAX_SIGN_ATTEMPTS=3
+SIGN_RETRY_DELAY_SECONDS="${MAC_SIGN_RETRY_DELAY_SECONDS:-5}"
 WORK_COUNTER=0
 WORK_ROOT=""
 NEW_WORK_DIR=""
@@ -78,13 +80,44 @@ verify_macho_signature() {
   local native_file="$1"
   local signature_details
 
-  codesign --verify --strict --verbose=2 "${native_file}"
-  signature_details=$(codesign --display --verbose=4 "${native_file}" 2>&1)
+  if ! codesign --verify --strict --verbose=2 "${native_file}"; then
+    return 1
+  fi
+  if ! signature_details=$(codesign --display --verbose=4 "${native_file}" 2>&1); then
+    return 1
+  fi
   if ! grep -q 'flags=.*runtime' <<<"${signature_details}"; then
     echo "[error] hardened runtime is missing from signed Mach-O: ${native_file}" >&2
     echo "${signature_details}" >&2
-    exit 1
+    return 1
   fi
+}
+
+sign_and_verify_macho() {
+  local native_file="$1"
+  local relative_path="$2"
+  local attempt
+
+  echo "[sign] ${relative_path}"
+  for ((attempt = 1; attempt <= MAX_SIGN_ATTEMPTS; attempt++)); do
+    if codesign \
+      --force \
+      --sign "${SIGNING_IDENTITY}" \
+      --options runtime \
+      --timestamp \
+      "${native_file}" \
+      && verify_macho_signature "${native_file}"; then
+      return 0
+    fi
+
+    if [ "${attempt}" -lt "${MAX_SIGN_ATTEMPTS}" ]; then
+      echo "[warn] signing verification failed for ${relative_path}; retrying ($((attempt + 1))/${MAX_SIGN_ATTEMPTS})" >&2
+      sleep "${SIGN_RETRY_DELAY_SECONDS}"
+    fi
+  done
+
+  echo "[error] failed to sign and verify Mach-O after ${MAX_SIGN_ATTEMPTS} attempts: ${relative_path}" >&2
+  return 1
 }
 
 sign_macho_tree() {
@@ -96,14 +129,9 @@ sign_macho_tree() {
       continue
     fi
 
-    echo "[sign] ${native_file#"${root_dir}/"}"
-    codesign \
-      --force \
-      --sign "${SIGNING_IDENTITY}" \
-      --options runtime \
-      --timestamp \
-      "${native_file}"
-    verify_macho_signature "${native_file}"
+    sign_and_verify_macho \
+      "${native_file}" \
+      "${native_file#"${root_dir}/"}"
     SIGNED_COUNT=$((SIGNED_COUNT + 1))
   done < <(find "${root_dir}" -type f -print0)
 }
