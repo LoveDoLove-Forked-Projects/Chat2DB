@@ -26,13 +26,11 @@ import java.lang.reflect.Proxy;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -63,7 +61,7 @@ class ExecuteResultHeaderEnhancerTest {
     }
 
     @Test
-    void queriesBatchOnceAndMapsAliasedHeaderMetadataByColumnIdentity() {
+    void resolvesAliasedHeaderMetadataFromMatchedColumn() {
         AtomicInteger columnQueries = new AtomicInteger();
         AtomicReference<DbTableQueryRequest> capturedRequest = new AtomicReference<>();
         TableColumn statusColumn = TableColumn.builder()
@@ -71,28 +69,15 @@ class ExecuteResultHeaderEnhancerTest {
                 .columnType("ENUM")
                 .comment("workflow status")
                 .build();
-        TableColumn equalStatusColumn = TableColumn.builder()
-                .name("status")
-                .columnType("ENUM")
-                .comment("workflow status")
-                .build();
-        assertEquals(statusColumn, equalStatusColumn);
-        IDbTableService tableService = tableService(List.of(statusColumn, equalStatusColumn), columnQueries,
-                capturedRequest);
-        TestMetaData metaData = new TestMetaData(columns -> {
-            assertSame(statusColumn, columns.get(0));
-            assertSame(equalStatusColumn, columns.get(1));
-            return Map.of(
-                    0, ResultSetEditorMetadata.builder()
-                            .editorType(ResultSetEditorTypeEnum.SELECT.getCode())
-                            .editorOptions(List.of(
-                                    ResultSetEditorOption.builder().label("PENDING").value("PENDING").build(),
-                                    ResultSetEditorOption.builder().label("DONE").value("DONE").build()))
-                            .build(),
-                    1, ResultSetEditorMetadata.builder()
-                            .editorType(ResultSetEditorTypeEnum.DATETIME.getCode())
-                            .editorOptions(List.of())
-                            .build());
+        IDbTableService tableService = tableService(List.of(statusColumn), columnQueries, capturedRequest);
+        TestMetaData metaData = new TestMetaData(column -> {
+            assertSame(statusColumn, column);
+            return ResultSetEditorMetadata.builder()
+                    .editorType(ResultSetEditorTypeEnum.SELECT.getCode())
+                    .editorOptions(List.of(
+                            ResultSetEditorOption.builder().label("PENDING").value("PENDING").build(),
+                            ResultSetEditorOption.builder().label("DONE").value("DONE").build()))
+                    .build();
         });
         putContext(metaData);
 
@@ -105,7 +90,7 @@ class ExecuteResultHeaderEnhancerTest {
         enhance(tableService, response);
 
         assertEquals(1, columnQueries.get());
-        assertEquals(1, metaData.getBatchResolverCalls());
+        assertEquals(1, metaData.getResolverCalls());
         assertTrue(capturedRequest.get().isRefresh());
         assertEquals("orders", capturedRequest.get().getTableName());
         assertEquals("workflow status", header.getComment());
@@ -115,16 +100,21 @@ class ExecuteResultHeaderEnhancerTest {
     }
 
     @Test
-    void missingBatchEntryKeepsExistingEditorAndDoesNotStopOtherColumns() {
+    void resolverFailureKeepsExistingEditorAndDoesNotStopOtherColumns() {
         AtomicInteger columnQueries = new AtomicInteger();
         TableColumn brokenColumn = TableColumn.builder().name("broken").columnType("ENUM").build();
         TableColumn createdAtColumn = TableColumn.builder().name("created_at").columnType("DATETIME").build();
         IDbTableService tableService = tableService(List.of(brokenColumn, createdAtColumn), columnQueries,
                 new AtomicReference<>());
-        TestMetaData metaData = new TestMetaData(columns -> Map.of(1, ResultSetEditorMetadata.builder()
+        TestMetaData metaData = new TestMetaData(column -> {
+            if (column == brokenColumn) {
+                throw new IllegalArgumentException("malformed metadata");
+            }
+            return ResultSetEditorMetadata.builder()
                     .editorType(ResultSetEditorTypeEnum.DATETIME.getCode())
                     .editorOptions(List.of())
-                    .build()));
+                    .build();
+        });
         putContext(metaData);
 
         Header brokenHeader = Header.builder()
@@ -141,25 +131,29 @@ class ExecuteResultHeaderEnhancerTest {
         enhance(tableService, response);
 
         assertEquals(1, columnQueries.get());
-        assertEquals(1, metaData.getBatchResolverCalls());
+        assertEquals(2, metaData.getResolverCalls());
         assertEquals(ResultSetEditorTypeEnum.TEXT.getCode(), brokenHeader.getEditorType());
         assertNull(brokenHeader.getEditorOptions());
         assertEquals(ResultSetEditorTypeEnum.DATETIME.getCode(), createdAtHeader.getEditorType());
-        assertNull(createdAtHeader.getEditorOptions());
+        assertEquals(List.of(), createdAtHeader.getEditorOptions());
     }
 
     @Test
-    void defaultCapabilityKeepsLegacyEditorFallbackAndSkipsStructuredResolver() {
-        AtomicInteger structuredResolverCalls = new AtomicInteger();
+    void defaultMetadataKeepsLegacyEditorTypeWithEmptyOptions() {
         TableColumn column = TableColumn.builder().name("created_at").columnType("DATETIME").build();
         IDbTableService tableService = tableService(List.of(column), new AtomicInteger(), new AtomicReference<>());
-        TestMetaData metaData = new TestMetaData(columns -> {
-            structuredResolverCalls.incrementAndGet();
-            return Map.of(0, ResultSetEditorMetadata.builder()
-                            .editorType(ResultSetEditorTypeEnum.SELECT.getCode())
-                            .editorOptions(List.of(new ResultSetEditorOption("unexpected", "unexpected")))
-                            .build());
-        }, false, ResultSetEditorTypeEnum.DATETIME.getCode());
+        IDbMetaData metaData = new DefaultMetaService() {
+            @Override
+            public List<PrimaryKey> getPrimaryKeys(Connection connection,
+                                                   TableMetadataRequest tableMetadataRequest) {
+                return List.of();
+            }
+
+            @Override
+            public String resolveResultSetEditorType(String typeName, Integer type) {
+                return ResultSetEditorTypeEnum.DATETIME.getCode();
+            }
+        };
         putContext(metaData);
 
         Header header = Header.builder()
@@ -169,27 +163,8 @@ class ExecuteResultHeaderEnhancerTest {
                 .build();
         enhance(tableService, editableResponse(header));
 
-        assertEquals(0, structuredResolverCalls.get());
-        assertEquals(0, metaData.getBatchResolverCalls());
         assertEquals(ResultSetEditorTypeEnum.DATETIME.getCode(), header.getEditorType());
-        assertNull(header.getEditorOptions());
-    }
-
-    @Test
-    void defaultBatchResolverDelegatesToSingleColumnHookAndIsolatesFailures() {
-        AtomicInteger resolverCalls = new AtomicInteger();
-        IDbMetaData metaData = new SingleColumnMetaData(resolverCalls);
-        TableColumn brokenColumn = TableColumn.builder().name("broken").columnType("ENUM").build();
-        TableColumn statusColumn = TableColumn.builder().name("status").columnType("ENUM").build();
-
-        Map<Integer, ResultSetEditorMetadata> metadataByIndex = metaData.resolveResultSetEditorMetadata(
-                connection, List.of(brokenColumn, statusColumn));
-
-        assertEquals(2, resolverCalls.get());
-        assertFalse(metadataByIndex.containsKey(0));
-        assertEquals(ResultSetEditorTypeEnum.SELECT.getCode(), metadataByIndex.get(1).getEditorType());
-        assertEquals(List.of("OPEN", "CLOSED"),
-                metadataByIndex.get(1).getEditorOptions().stream().map(ResultSetEditorOption::getValue).toList());
+        assertEquals(List.of(), header.getEditorOptions());
     }
 
     private void putContext(IDbMetaData metaData) {
@@ -238,61 +213,11 @@ class ExecuteResultHeaderEnhancerTest {
 
     private static final class TestMetaData extends DefaultMetaService {
 
-        private final Function<List<TableColumn>, Map<Integer, ResultSetEditorMetadata>> batchResolver;
-        private final AtomicInteger batchResolverCalls = new AtomicInteger();
-        private final boolean supportsOptions;
-        private final String legacyEditorType;
+        private final Function<TableColumn, ResultSetEditorMetadata> resolver;
+        private final AtomicInteger resolverCalls = new AtomicInteger();
 
-        private TestMetaData(Function<List<TableColumn>, Map<Integer, ResultSetEditorMetadata>> batchResolver) {
-            this(batchResolver, true, ResultSetEditorTypeEnum.TEXT.getCode());
-        }
-
-        private TestMetaData(Function<List<TableColumn>, Map<Integer, ResultSetEditorMetadata>> batchResolver,
-                             boolean supportsOptions,
-                             String legacyEditorType) {
-            this.batchResolver = batchResolver;
-            this.supportsOptions = supportsOptions;
-            this.legacyEditorType = legacyEditorType;
-        }
-
-        @Override
-        public List<PrimaryKey> getPrimaryKeys(Connection connection, TableMetadataRequest tableMetadataRequest) {
-            return List.of();
-        }
-
-        @Override
-        public Map<Integer, ResultSetEditorMetadata> resolveResultSetEditorMetadata(
-                Connection connection, List<TableColumn> columns) {
-            batchResolverCalls.incrementAndGet();
-            return batchResolver.apply(columns);
-        }
-
-        @Override
-        public ResultSetEditorMetadata resolveResultSetEditorMetadata(TableColumn column) {
-            throw new AssertionError("Runtime must use the batched result-set editor metadata hook");
-        }
-
-        @Override
-        public boolean supportsResultSetEditorOptions() {
-            return supportsOptions;
-        }
-
-        @Override
-        public String resolveResultSetEditorType(String typeName, Integer type) {
-            return legacyEditorType;
-        }
-
-        private int getBatchResolverCalls() {
-            return batchResolverCalls.get();
-        }
-    }
-
-    private static final class SingleColumnMetaData extends DefaultMetaService {
-
-        private final AtomicInteger resolverCalls;
-
-        private SingleColumnMetaData(AtomicInteger resolverCalls) {
-            this.resolverCalls = resolverCalls;
+        private TestMetaData(Function<TableColumn, ResultSetEditorMetadata> resolver) {
+            this.resolver = resolver;
         }
 
         @Override
@@ -303,20 +228,11 @@ class ExecuteResultHeaderEnhancerTest {
         @Override
         public ResultSetEditorMetadata resolveResultSetEditorMetadata(TableColumn column) {
             resolverCalls.incrementAndGet();
-            if ("broken".equals(column.getName())) {
-                throw new IllegalArgumentException("malformed metadata");
-            }
-            return ResultSetEditorMetadata.builder()
-                    .editorType(ResultSetEditorTypeEnum.SELECT.getCode())
-                    .editorOptions(List.of(
-                            new ResultSetEditorOption("OPEN", "OPEN"),
-                            new ResultSetEditorOption("CLOSED", "CLOSED")))
-                    .build();
+            return resolver.apply(column);
         }
 
-        @Override
-        public boolean supportsResultSetEditorOptions() {
-            return true;
+        private int getResolverCalls() {
+            return resolverCalls.get();
         }
     }
 

@@ -408,14 +408,13 @@ public class MysqlMetaData extends DefaultMetaService implements IDbMetaData {
         return RESULT_SET_EDITOR_TYPE_BY_JDBC_TYPE.getOrDefault(type, ResultSetEditorTypeEnum.TEXT).getCode();
     }
 
-    @Override
-    public ResultSetEditorMetadata resolveResultSetEditorMetadata(TableColumn column) {
+    protected ResultSetEditorMetadata resolveMysqlResultSetEditorMetadata(TableColumn column) {
         ResultSetEditorMetadata fallback = ResultSetEditorMetadata.builder()
                 .editorType(column == null ? ResultSetEditorTypeEnum.TEXT.getCode()
                         : resolveResultSetEditorType(column.getColumnType(), column.getDataType()))
                 .editorOptions(List.of())
                 .build();
-        if (!supportsResultSetEditorOptions() || column == null || StringUtils.isBlank(column.getValue())) {
+        if (column == null || StringUtils.isBlank(column.getValue())) {
             return fallback;
         }
         boolean enumColumn = SQL_ENUM_TYPE.equalsIgnoreCase(column.getColumnType());
@@ -446,28 +445,6 @@ public class MysqlMetaData extends DefaultMetaService implements IDbMetaData {
             log.warn("Parse MySQL ENUM/SET values failed for column: {}", column.getName(), e);
             return fallback;
         }
-    }
-
-    @Override
-    public Map<Integer, ResultSetEditorMetadata> resolveResultSetEditorMetadata(
-            Connection connection, List<TableColumn> columns) {
-        if (!supportsResultSetEditorOptions() || columns == null || columns.isEmpty()) {
-            return Map.of();
-        }
-        Map<Integer, ResultSetEditorMetadata> metadataByColumnIndex = new LinkedHashMap<>();
-        for (int index = 0; index < columns.size(); index++) {
-            TableColumn column = columns.get(index);
-            try {
-                ResultSetEditorMetadata metadata = resolveResultSetEditorMetadata(column);
-                if (metadata != null) {
-                    metadataByColumnIndex.put(index, metadata);
-                }
-            } catch (Exception e) {
-                log.warn("Resolve MySQL result-set editor metadata failed for column: {}",
-                        column == null ? null : column.getName(), e);
-            }
-        }
-        return Map.copyOf(metadataByColumnIndex);
     }
 
     @Override

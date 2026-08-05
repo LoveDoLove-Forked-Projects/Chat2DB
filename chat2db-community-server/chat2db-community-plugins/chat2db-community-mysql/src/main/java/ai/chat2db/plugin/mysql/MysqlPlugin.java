@@ -1,6 +1,8 @@
 package ai.chat2db.plugin.mysql;
 
 import ai.chat2db.plugin.mysql.account.MysqlAccountManager;
+import ai.chat2db.community.domain.api.model.metadata.TableColumn;
+import ai.chat2db.community.domain.api.model.result.ResultSetEditorMetadata;
 import ai.chat2db.spi.IAccountManager;
 import ai.chat2db.spi.IDbManager;
 import ai.chat2db.spi.IDbMetaData;
@@ -45,8 +47,8 @@ public class MysqlPlugin extends MysqlSyntaxPlugin implements IPlugin {
     private static final class NativeMysqlMetaData extends MysqlMetaData {
 
         @Override
-        public boolean supportsResultSetEditorOptions() {
-            return true;
+        public ResultSetEditorMetadata resolveResultSetEditorMetadata(TableColumn column) {
+            return resolveMysqlResultSetEditorMetadata(column);
         }
     }
 }
