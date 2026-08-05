@@ -171,6 +171,9 @@ jobs:
       - name: Validate Community operations contracts
         run: ruby script/github/validate-community-operations.rb
 
+      - name: Test macOS native signing selection
+        run: bash script/package/tests/sign-macos-native-libraries-test.sh
+
       - name: Test Community workflow automation
         run: node --test script/github/issue-claim.test.js script/github/sync-community-project.test.js
 

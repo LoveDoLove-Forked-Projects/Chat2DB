@@ -267,8 +267,14 @@ validate_packaged_dmg() {
     done
     rm -f "${jar_index}"
 
+    if ! codesign --verify --deep --strict --verbose=2 "${app_dir}"; then
+        cleanup_mount
+        echo "Error: packaged app failed strict code-signature verification" >&2
+        exit 1
+    fi
+
     cleanup_mount
-    echo "[check] packaged DMG metadata, icon, app root, JCEF framework, and JCEF i18n resources are valid"
+    echo "[check] packaged DMG metadata, resources, and strict app signature are valid"
 }
 
 validate_resources

@@ -181,79 +181,6 @@ prepare_windows_runtime() {
   require_file "${JPACKAGE_INPUT_DIR}/runtime/win/Home/bin/java.exe"
 }
 
-resolve_macos_signing_identity() {
-  local signing_identity="${MAC_SIGNING_IDENTITY:-}"
-
-  if [ -z "${signing_identity}" ]; then
-    signing_identity=$(security find-identity -v -p codesigning \
-      | awk -F '"' '/Developer ID Application/ { print $2; exit }')
-  fi
-  if [ -z "${signing_identity}" ]; then
-    echo "[error] no Developer ID Application signing identity found" >&2
-    security find-identity -v -p codesigning || true
-    exit 1
-  fi
-  if ! security find-identity -v -p codesigning \
-    | grep -F "${signing_identity}" >/dev/null; then
-    echo "[error] macOS signing identity not found: ${signing_identity}" >&2
-    exit 1
-  fi
-
-  MAC_SIGNING_IDENTITY="${signing_identity}"
-  export MAC_SIGNING_IDENTITY
-}
-
-sign_macos_native_libraries() {
-  local jar_file
-  local jar_abs
-  local work_dir
-  local nested_jar
-  local nested_dir
-  local modified
-
-  require_command codesign
-  require_command unzip
-  require_command zip
-  resolve_macos_signing_identity
-
-  echo "[run] sign macOS native libraries inside staged JARs"
-  while IFS= read -r -d '' jar_file; do
-    jar_abs="$(cd "$(dirname "${jar_file}")" && pwd)/$(basename "${jar_file}")"
-    work_dir=$(mktemp -d)
-    modified=false
-
-    if ! unzip -q -o "${jar_abs}" -d "${work_dir}" 2>/dev/null; then
-      rm -rf "${work_dir}"
-      continue
-    fi
-
-    while IFS= read -r -d '' nested_jar; do
-      if unzip -Z1 "${nested_jar}" 2>/dev/null \
-        | grep -E '\.(dylib|jnilib)$' >/dev/null; then
-        nested_dir=$(mktemp -d)
-        unzip -q -o "${nested_jar}" -d "${nested_dir}"
-        find "${nested_dir}" -type f \( -name '*.dylib' -o -name '*.jnilib' \) \
-          -exec codesign --force --sign "${MAC_SIGNING_IDENTITY}" --timestamp {} \;
-        rm -f "${nested_jar}"
-        (cd "${nested_dir}" && zip -q -r -0 "${nested_jar}" .)
-        rm -rf "${nested_dir}"
-        modified=true
-      fi
-    done < <(find "${work_dir}" -type f -name '*.jar' -print0)
-
-    while IFS= read -r -d '' native_file; do
-      codesign --force --sign "${MAC_SIGNING_IDENTITY}" --timestamp "${native_file}"
-      modified=true
-    done < <(find "${work_dir}" -type f \( -name '*.dylib' -o -name '*.jnilib' \) -print0)
-
-    if [ "${modified}" = true ]; then
-      rm -f "${jar_abs}"
-      (cd "${work_dir}" && zip -q -r -0 "${jar_abs}" .)
-    fi
-    rm -rf "${work_dir}"
-  done < <(find "${JPACKAGE_INPUT_DIR}/mac" -type f -name '*.jar' -print0)
-}
-
 verify_jcef_i18n_resources() {
   local jcef_jar
   local jar_index
@@ -377,7 +304,8 @@ case "${TARGET}" in
     ;;
   mac)
     prepare_macos_runtime
-    sign_macos_native_libraries
+    bash "${SCRIPT_DIR}/sign-macos-native-libraries.sh" \
+      "${JPACKAGE_INPUT_DIR}/mac"
     machine_arch=$(uname -m)
     if [ "${machine_arch}" = "arm64" ] || [ "${machine_arch}" = "aarch64" ]; then
       arch_suffix="arm64"
