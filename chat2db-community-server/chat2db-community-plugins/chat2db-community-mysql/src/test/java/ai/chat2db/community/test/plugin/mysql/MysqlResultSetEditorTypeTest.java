@@ -63,12 +63,22 @@ class MysqlResultSetEditorTypeTest {
     }
 
     @Test
-    void leavesSetNonEnumAndMalformedEnumOnTheirExistingEditorType() {
+    void resolvesMysqlSetOptionsAsMultiSelect() {
         TableColumn setColumn = TableColumn.builder()
                 .columnType("SET")
                 .dataType(Types.VARCHAR)
-                .value("'one','two'")
+                .value("'one','two','can\\'t','a\\\\b'")
                 .build();
+
+        ResultSetEditorMetadata metadata = mysqlPluginMetaData.resolveResultSetEditorMetadata(setColumn);
+
+        assertEquals(ResultSetEditorTypeEnum.MULTI_SELECT.getCode(), metadata.getEditorType());
+        assertEquals(List.of("one", "two", "can't", "a\\b"),
+                metadata.getEditorOptions().stream().map(option -> option.getValue()).toList());
+    }
+
+    @Test
+    void leavesNonEnumSetAndMalformedOptionMetadataOnTheirExistingEditorType() {
         TableColumn varcharColumn = TableColumn.builder()
                 .columnType("VARCHAR")
                 .dataType(Types.VARCHAR)
@@ -79,14 +89,37 @@ class MysqlResultSetEditorTypeTest {
                 .dataType(Types.VARCHAR)
                 .value("'one','two")
                 .build();
+        TableColumn malformedSet = TableColumn.builder()
+                .name("broken_tags")
+                .columnType("SET")
+                .dataType(Types.VARCHAR)
+                .value("'one','two")
+                .build();
+        TableColumn commaSet = TableColumn.builder()
+                .name("ambiguous_comma_tags")
+                .columnType("SET")
+                .dataType(Types.VARCHAR)
+                .value("'one','two,three'")
+                .build();
+        TableColumn emptyMemberSet = TableColumn.builder()
+                .name("ambiguous_empty_tags")
+                .columnType("SET")
+                .dataType(Types.VARCHAR)
+                .value("'one',''")
+                .build();
 
-        assertEquals(ResultSetEditorTypeEnum.TEXT.getCode(),
-                mysqlPluginMetaData.resolveResultSetEditorMetadata(setColumn).getEditorType());
         assertEquals(ResultSetEditorTypeEnum.TEXT.getCode(),
                 mysqlPluginMetaData.resolveResultSetEditorMetadata(varcharColumn).getEditorType());
         ResultSetEditorMetadata malformedMetadata = mysqlPluginMetaData.resolveResultSetEditorMetadata(malformedEnum);
         assertEquals(ResultSetEditorTypeEnum.TEXT.getCode(), malformedMetadata.getEditorType());
         assertEquals(List.of(), malformedMetadata.getEditorOptions());
+        ResultSetEditorMetadata malformedSetMetadata = mysqlPluginMetaData.resolveResultSetEditorMetadata(malformedSet);
+        assertEquals(ResultSetEditorTypeEnum.TEXT.getCode(), malformedSetMetadata.getEditorType());
+        assertEquals(List.of(), malformedSetMetadata.getEditorOptions());
+        assertEquals(ResultSetEditorTypeEnum.TEXT.getCode(),
+                mysqlPluginMetaData.resolveResultSetEditorMetadata(commaSet).getEditorType());
+        assertEquals(ResultSetEditorTypeEnum.TEXT.getCode(),
+                mysqlPluginMetaData.resolveResultSetEditorMetadata(emptyMemberSet).getEditorType());
     }
 
     @Test
@@ -104,5 +137,14 @@ class MysqlResultSetEditorTypeTest {
         assertEquals(ResultSetEditorTypeEnum.TEXT.getCode(),
                 compatibilityDialect.resolveResultSetEditorMetadata(enumColumn).getEditorType());
         assertEquals(List.of(), compatibilityDialect.resolveResultSetEditorMetadata(enumColumn).getEditorOptions());
+
+        TableColumn setColumn = TableColumn.builder()
+                .columnType("SET")
+                .dataType(Types.VARCHAR)
+                .value("'one','two'")
+                .build();
+        assertEquals(ResultSetEditorTypeEnum.TEXT.getCode(),
+                compatibilityDialect.resolveResultSetEditorMetadata(setColumn).getEditorType());
+        assertEquals(List.of(), compatibilityDialect.resolveResultSetEditorMetadata(setColumn).getEditorOptions());
     }
 }

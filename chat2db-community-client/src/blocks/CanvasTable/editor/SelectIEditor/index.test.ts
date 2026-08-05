@@ -15,6 +15,8 @@ class FakeSelectElement {
   children: FakeOptionElement[] = [];
   selectedIndex = -1;
   focused = false;
+  pickerOpened = false;
+  throwOnShowPicker = false;
   private changeListener: (() => void) | null = null;
 
   set innerHTML(_value: string) {
@@ -43,6 +45,13 @@ class FakeSelectElement {
 
   focus() {
     this.focused = true;
+  }
+
+  showPicker() {
+    this.pickerOpened = true;
+    if (this.throwOnShowPicker) {
+      throw new Error('showPicker requires user activation');
+    }
   }
 
   contains(target: unknown) {
@@ -77,10 +86,13 @@ class FakeContainerElement {
   }
 }
 
+let nextSelectElement: FakeSelectElement | null = null;
 const fakeDocument = {
   createElement(tagName: string) {
     if (tagName === 'select') {
-      return new FakeSelectElement();
+      const select = nextSelectElement || new FakeSelectElement();
+      nextSelectElement = null;
+      return select;
     }
     if (tagName === 'option') {
       return new FakeOptionElement();
@@ -134,6 +146,7 @@ try {
     'database labels are assigned as text content',
   );
   assert.equal(select.focused, true, 'onStart focuses the select element');
+  assert.equal(select.pickerOpened, true, 'onStart opens the select picker immediately');
   assert.equal(select.style.top, '11px', 'onStart positions the editor inside the cell');
   assert.equal(select.style.width, '118px', 'onStart sizes the editor inside the cell');
   assert.equal(select.hasChangeListener(), true, 'onStart binds the change listener');
@@ -145,6 +158,28 @@ try {
   editor.onEnd();
   assert.equal(container.children.length, 0, 'onEnd removes the select element');
   assert.equal(select.hasChangeListener(), false, 'onEnd removes the change listener');
+
+  const rejectedPickerEditor = new SelectEditor(options, {});
+  const rejectedPickerSelect = new FakeSelectElement();
+  rejectedPickerSelect.throwOnShowPicker = true;
+  nextSelectElement = rejectedPickerSelect;
+  assert.doesNotThrow(
+    () => startEditor(rejectedPickerEditor, 'PENDING', () => undefined),
+    'a rejected showPicker call does not prevent editing',
+  );
+  assert.equal(rejectedPickerSelect.pickerOpened, true, 'onStart attempts to open the picker');
+  rejectedPickerEditor.onEnd();
+
+  const unsupportedPickerEditor = new SelectEditor(options, {});
+  const unsupportedPickerSelect = new FakeSelectElement();
+  (unsupportedPickerSelect as Partial<Pick<HTMLSelectElement, 'showPicker'>>).showPicker = undefined;
+  nextSelectElement = unsupportedPickerSelect;
+  assert.doesNotThrow(
+    () => startEditor(unsupportedPickerEditor, 'PENDING', () => undefined),
+    'a browser without showPicker still starts editing',
+  );
+  assert.equal(unsupportedPickerSelect.focused, true, 'the unsupported browser fallback still focuses the select');
+  unsupportedPickerEditor.onEnd();
 
   const unchangedValues: Array<[unknown, string]> = [
     ['NOT_IN_METADATA', 'NOT_IN_METADATA'],

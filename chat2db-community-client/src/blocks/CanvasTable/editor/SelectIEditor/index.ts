@@ -115,6 +115,17 @@ export class SelectEditor implements IEditor<unknown> {
     this.successCallback?.();
   };
 
+  private openPicker() {
+    if (!this.element || typeof this.element.showPicker !== 'function') {
+      return;
+    }
+    try {
+      this.element.showPicker();
+    } catch {
+      // Browsers can reject showPicker without transient user activation; keep the editor usable.
+    }
+  }
+
   getValue() {
     return this.changed ? this.currentValue : this.originalValue;
   }
@@ -135,6 +146,7 @@ export class SelectEditor implements IEditor<unknown> {
       this.adjustPosition(referencePosition.rect);
     }
     this.element?.focus();
+    this.openPicker();
   }
 
   private adjustPosition(rect: RectProps) {

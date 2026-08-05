@@ -59,7 +59,7 @@ export interface IResultSetEditorOption {
   value: string;
 }
 
-export type ResultSetEditorType = 'TEXT' | 'DATE' | 'TIME' | 'DATETIME' | 'TIMESTAMP' | 'SELECT';
+export type ResultSetEditorType = 'TEXT' | 'DATE' | 'TIME' | 'DATETIME' | 'TIMESTAMP' | 'SELECT' | 'MULTI_SELECT';
 
 export type LargeValueType = 'TEXT' | 'BINARY' | 'IMAGE' | 'JSON' | 'UNKNOWN';
 

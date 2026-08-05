@@ -415,9 +415,12 @@ public class MysqlMetaData extends DefaultMetaService implements IDbMetaData {
                         : resolveResultSetEditorType(column.getColumnType(), column.getDataType()))
                 .editorOptions(List.of())
                 .build();
-        if (!supportsResultSetEditorOptions() || column == null
-                || !SQL_ENUM_TYPE.equalsIgnoreCase(column.getColumnType())
-                || StringUtils.isBlank(column.getValue())) {
+        if (!supportsResultSetEditorOptions() || column == null || StringUtils.isBlank(column.getValue())) {
+            return fallback;
+        }
+        boolean enumColumn = SQL_ENUM_TYPE.equalsIgnoreCase(column.getColumnType());
+        boolean setColumn = SQL_SET_TYPE.equalsIgnoreCase(column.getColumnType());
+        if (!enumColumn && !setColumn) {
             return fallback;
         }
         try {
@@ -427,12 +430,20 @@ public class MysqlMetaData extends DefaultMetaService implements IDbMetaData {
             if (options.isEmpty()) {
                 return fallback;
             }
+            if (setColumn && options.stream()
+                    .map(ResultSetEditorOption::getValue)
+                    .anyMatch(value -> value.isEmpty() || value.contains(SQL_TYPE_SIZE_SEPARATOR))) {
+                log.warn("MySQL SET options cannot be represented safely by the multi-select editor for column: {}",
+                        column.getName());
+                return fallback;
+            }
             return ResultSetEditorMetadata.builder()
-                    .editorType(ResultSetEditorTypeEnum.SELECT.getCode())
+                    .editorType((enumColumn ? ResultSetEditorTypeEnum.SELECT
+                            : ResultSetEditorTypeEnum.MULTI_SELECT).getCode())
                     .editorOptions(options)
                     .build();
         } catch (IllegalArgumentException e) {
-            log.warn("Parse MySQL ENUM values failed for column: {}", column.getName(), e);
+            log.warn("Parse MySQL ENUM/SET values failed for column: {}", column.getName(), e);
             return fallback;
         }
     }

@@ -1,5 +1,6 @@
 import type { IResultSetEditorOption } from '@/typings/database';
 import { SelectEditor, type SelectEditorTheme } from '@/blocks/CanvasTable/editor/SelectIEditor';
+import { MultiSelectEditor } from '@/blocks/CanvasTable/editor/MultiSelectIEditor';
 
 const RESULT_SET_EDITOR_MAP: Record<string, string> = {
   DATE: 'custom-date-editor',
@@ -16,6 +17,12 @@ export const resolveResultSetEditor = (
   if (editorType === 'SELECT' && editorOptions?.length) {
     const editor = new SelectEditor(editorOptions, theme);
     if (editor.options.length) {
+      return editor;
+    }
+  }
+  if (editorType === 'MULTI_SELECT' && editorOptions?.length) {
+    const editor = new MultiSelectEditor(editorOptions, theme);
+    if (editor.options.length && editor.options.every((option) => option.value.length > 0 && !option.value.includes(','))) {
       return editor;
     }
   }
