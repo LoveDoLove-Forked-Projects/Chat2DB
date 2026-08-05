@@ -1,5 +1,4 @@
-import { AIType } from '@/typings/ai';
-import { GlobalAISettings, GlobalBaseSettings, GlobalAppConfig, DataTableSettings } from '@/typings/settings';
+import { GlobalBaseSettings, GlobalAppConfig, DataTableSettings } from '@/typings/settings';
 import { getUserComputerLanguage } from '@/utils';
 import { DEFAULT_RESULT_PAGE_SIZE } from './pagination';
 
@@ -37,14 +36,6 @@ export const DEFAULT_BASE_SETTINGS: GlobalBaseSettings = {
   customFontSize: 13,
   defaultPageSize: DEFAULT_RESULT_PAGE_SIZE,
   enableMcp: false,
-};
-
-export const DEFAULT_AI_SETTINGS: GlobalAISettings = {
-  remainingUse: undefined,
-  aiConfig: {
-    aiSqlSource: AIType.CHAT2DBAI,
-  },
-  hasWhite: false,
 };
 
 export const DEFAULT_APP_CONFIG: GlobalAppConfig = {

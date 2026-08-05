@@ -9,7 +9,6 @@ export default {
   'workspace.savedConsole.namePlaceholder': '保存する SQL の名前を入力してください',
   'workspace.savedConsole.untitled': '無題の SQL',
   'workspace.title.ai': 'AI',
-  'workspace.menu.syncDataBase': 'データベースを同期',
   'workspace.menu.ViewDDL': 'DDLを見る',
   'workspace.menu.GenerateCRUD': 'CRUDの生成',
   'workspace.menu.GenerateTestData': 'テストデータの生成',

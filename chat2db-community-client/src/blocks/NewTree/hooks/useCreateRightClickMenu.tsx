@@ -1308,22 +1308,6 @@ export const useCreateRightClickMenu = () => {
           },
         ],
       },
-
-      // Synchronize the database.
-      // [OperationColumn.SyncDataBase]: {
-      //   text: i18n('workspace.menu.syncDataBase'),
-      //   icon: 'icon-sparkles',
-      //   handle: () => {
-      //     staticModal.confirm({
-      //       title: i18n('ai.syncDBTable.title'),
-      //       content: i18n('ai.syncDBTable.desc'),
-      //       onOk: () => {
-      //         syncDataBase({ treeNodeData });
-      //       },
-      //     });
-      //   },
-      //   discard: treeNodeType === TreeNodeType.DATABASE && supportSchema,
-      // },
     };
 
     const generateChildren = (children: IOperationColumnConfigItem[], type, lastKey) => {
