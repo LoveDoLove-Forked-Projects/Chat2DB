@@ -14,13 +14,12 @@ import { isDesktop } from '@/utils/env';
 import miscService from '@/service/misc';
 import { useGlobalStore } from '@/store/global';
 import feedback from '@/utils/feedback';
+import { resolveInvoiceDestination } from './invoice';
 
 interface IProps {
   className?: string;
   hideTitle?: boolean;
 }
-
-const SUBOTIZ_INVOICE_PORTAL_URL = 'https://checkout.subotiz.com/m/2821768/portal/login';
 
 const lostQualification = [
   {
@@ -293,11 +292,14 @@ export default memo<IProps>((props) => {
         (() => {
           const hasActive = data.some((d) => d.status === 'ACTIVE' || d.status === 'TRIAL_CREATE');
           const isCancelled = data.some((d) => d.cancelled);
+          const invoiceDestination = resolveInvoiceDestination(data);
           return (
             <div className={styles.footerActions}>
-              <Button onClick={() => window.open(SUBOTIZ_INVOICE_PORTAL_URL, '_blank', 'noopener,noreferrer')}>
-                {i18n('setting.purchaseDetails.getInvoice')}
-              </Button>
+              {invoiceDestination && (
+                <Button onClick={() => window.open(invoiceDestination.url, '_blank', 'noopener,noreferrer')}>
+                  {i18n('setting.purchaseDetails.getInvoice')}
+                </Button>
+              )}
               {isCancelled && <Button disabled>{i18n('setting.purchaseDetails.alreadyCancelled')}</Button>}
               {!isCancelled && hasActive && (
                 <Button onClick={() => setShowFeedbackModal(true)}>
