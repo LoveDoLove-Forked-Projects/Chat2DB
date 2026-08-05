@@ -107,6 +107,8 @@ const GLOBAL_LAYOUT_COMPONENT = buildProfile.isCommunity
 const MAIN_COMPONENT = buildProfile.isCommunity ? '@/pages/main/CommunityMainPage' : 'main';
 
 const chainWebpack = (config: any, { webpack }: any) => {
+  // Webpack 5.88 can replace @xterm/xterm TaskQueue base classes with null.
+  config.optimization.innerGraph(false);
   config.plugin('monaco-editor').use(MonacoWebpackPlugin, [
     {
       languages: ['mysql', 'pgsql', 'sql', 'json'],
