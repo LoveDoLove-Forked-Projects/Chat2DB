@@ -9,7 +9,6 @@ export default {
   'workspace.savedConsole.namePlaceholder': '请输入保存记录名称',
   'workspace.savedConsole.untitled': '未命名 SQL',
   'workspace.title.ai': 'AI',
-  'workspace.menu.syncDataBase': '同步数据库',
   'workspace.menu.ViewDDL': '查看DDL',
   'workspace.menu.GenerateCRUD': '生成CRUD',
   'workspace.menu.GenerateTestData': '生成测试数据',

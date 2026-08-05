@@ -9,7 +9,6 @@ export default {
   'workspace.savedConsole.namePlaceholder': '저장할 SQL의 이름을 입력하세요',
   'workspace.savedConsole.untitled': '제목 없는 SQL',
   'workspace.title.ai': 'AI',
-  'workspace.menu.syncDataBase': '데이터베이스 동기화',
   'workspace.menu.ViewDDL': 'DDL 보기',
   'workspace.menu.GenerateCRUD': 'CRUD 생성',
   'workspace.menu.GenerateTestData': '테스트 데이터 생성',
