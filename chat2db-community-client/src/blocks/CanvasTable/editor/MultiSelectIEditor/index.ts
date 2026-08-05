@@ -121,7 +121,8 @@ export class MultiSelectEditor implements IEditor<unknown> {
     const width = containerWidth > 0 ? Math.min(desiredWidth, Math.max(containerWidth - 2, 0)) : desiredWidth;
     const left = containerWidth > 0 ? Math.min(rect.left + 1, Math.max(containerWidth - width - 1, 0)) : rect.left + 1;
 
-    this.element.style.top = `${openAbove ? Math.max(rect.top - estimatedHeight - 2, 0) : rect.top + rect.height + 2}px`;
+    const top = openAbove ? Math.max(rect.top - estimatedHeight - 2, 0) : rect.top + rect.height + 2;
+    this.element.style.top = `${top}px`;
     this.element.style.left = `${left}px`;
     this.element.style.width = `${width}px`;
     this.element.style.maxHeight = `${MAX_PICKER_HEIGHT}px`;
