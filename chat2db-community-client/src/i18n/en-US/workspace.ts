@@ -9,7 +9,6 @@ export default {
   'workspace.savedConsole.namePlaceholder': 'Enter a name for this saved SQL',
   'workspace.savedConsole.untitled': 'Untitled SQL',
   'workspace.title.ai': 'AI',
-  'workspace.menu.syncDataBase': 'Sync DataBase',
   'workspace.menu.ViewDDL': 'View DDL',
   'workspace.menu.GenerateCRUD': 'Generate CRUD',
   'workspace.menu.GenerateTestData': 'Generate Test Data',

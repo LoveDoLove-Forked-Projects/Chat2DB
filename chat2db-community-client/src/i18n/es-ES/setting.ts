@@ -103,13 +103,6 @@ export default {
     'Copie una configuración MCP que no esté vinculada a una fuente de datos. La IA enumerará primero todas las fuentes y decidirá cuál utilizar.',
   'setting.text.datasourceMcpConfigTip':
     'La fuente de datos, la base de datos y el esquema se pasan explícitamente como argumentos de la herramienta, no como cabeceras de configuración MCP.',
-  'setting.title.aiSource': 'Fuente de IA',
-  'setting.tab.custom': 'Personalizada',
-  'setting.tab.aiType.zhipu': 'ZhiPu AI',
-  'setting.tab.aiType.baichuan': 'BaiChuan AI',
-  'setting.tab.aiType.wenxin': 'WenXin AI',
-  'setting.tab.aiType.tongyiqianwen': 'TongYiQianWen AI',
-  'setting.tab.aiType.custom.tips': 'El formato de la API es compatible con el formato de la API de OpenAI',
   'setting.label.serviceAddress': 'Dirección del servicio',
   'setting.button.apply': 'Aplicar',
   'setting.text.currentEnv': 'Entorno actual',
@@ -126,7 +119,6 @@ export default {
   'setting.placeholder.azureOpenAIKey': 'Obtenga la credencial de clave de Azure OpenAI en Azure Portal',
   'setting.placeholder.azureEndpoint': 'Obtenga el endpoint de Azure OpenAI en Azure Portal',
   'setting.placeholder.azureDeployment': 'ID de implementación del modelo desplegado',
-  'setting.ai.tips': 'Inicie sesión y seleccione la configuración de IA',
   'setting.ai.user.hidden':
     'Póngase en contacto con el administrador para configurar la ApiKey en «Configuración -> IA personalizada»',
   'setting.button.startDownloading': 'Iniciar descarga',

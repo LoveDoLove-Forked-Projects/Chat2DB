@@ -497,15 +497,6 @@ export function truncateString(str: string | null | undefined, length: number = 
   return str.substring(0, length) + '...';
 }
 
-// Return the inclusive range between two numbers, with an optional offset.
-export function generateNumberSequence(start?: number, end?: number, offset: number = 0) {
-  // If one of the numbers does not exist, returns an empty array
-  if (start === undefined || end === undefined) {
-    return [];
-  }
-  return Array.from({ length: end - start + 1 }, (_, i) => start + i + offset);
-}
-
 // Parse JSON values and return all other values unchanged.
 export function parseJson(value: any) {
   try {
