@@ -95,6 +95,7 @@ const WORKSPACE_TAB_HORIZONTAL_RESIZE_CLASS = 'WorkspaceTabHorizontalResizing';
 const WORKSPACE_TAB_VERTICAL_RESIZE_CLASS = 'WorkspaceTabVerticalResizing';
 const WORKSPACE_TAB_RESIZE_OVERLAY_ID = 'WorkspaceTabResizeOverlay';
 const WORKSPACE_TAB_RESIZER_CLASS = 'WorkspaceTabResizer';
+const WORKSPACE_RESIZER_SELECTOR = '.Resizer';
 const WORKSPACE_TAB_RESIZE_SEQUENCE_SCALE = 1000;
 let workspaceTabResizeCursor: 'ns-resize' | 'ew-resize' | 'default' = 'default';
 let workspaceTabResizeCursorSequence = Date.now() * WORKSPACE_TAB_RESIZE_SEQUENCE_SCALE;
@@ -156,8 +157,8 @@ function setWorkspaceTabResizeCursor(direction: WorkspaceTabSplitDirection) {
   setWorkspaceTabResizeClass(direction);
 }
 
-function getWorkspaceTabResizer(target: EventTarget | null) {
-  return target instanceof Element ? target.closest(`.${WORKSPACE_TAB_RESIZER_CLASS}`) : null;
+function getWorkspaceResizer(target: EventTarget | null) {
+  return target instanceof Element ? target.closest(WORKSPACE_RESIZER_SELECTOR) : null;
 }
 
 function getWorkspaceTabPaneDroppableId(paneId: WorkspaceTabPaneId) {
@@ -725,14 +726,14 @@ const WorkspaceTabs = memo(() => {
     notifyWorkspaceTabResizeCursor('default', true);
 
     const handleResizerMouseOver = (event: MouseEvent) => {
-      const resizer = getWorkspaceTabResizer(event.target);
+      const resizer = getWorkspaceResizer(event.target);
       if (!resizer || resizer.classList.contains('disabled')) {
         return;
       }
       setWorkspaceTabResizeClass(resizer.classList.contains('horizontal') ? 'horizontal' : 'vertical');
     };
     const handleResizerMouseOut = (event: MouseEvent) => {
-      const resizer = getWorkspaceTabResizer(event.target);
+      const resizer = getWorkspaceResizer(event.target);
       const relatedTarget = event.relatedTarget;
       if (!resizer || (relatedTarget instanceof Node && resizer.contains(relatedTarget))) {
         return;
@@ -741,14 +742,30 @@ const WorkspaceTabs = memo(() => {
         clearWorkspaceTabResizeCursor();
       }
     };
+    const handleResizerMouseDown = (event: MouseEvent) => {
+      const resizer = getWorkspaceResizer(event.target);
+      if (!resizer || resizer.classList.contains('disabled')) {
+        return;
+      }
+      setWorkspaceTabResizeCursor(resizer.classList.contains('horizontal') ? 'horizontal' : 'vertical');
+    };
+    const handleResizerMouseUp = () => {
+      if (document.getElementById(WORKSPACE_TAB_RESIZE_OVERLAY_ID)) {
+        clearWorkspaceTabResizeCursor();
+      }
+    };
 
     window.addEventListener('blur', clearWorkspaceTabResizeCursor);
+    window.addEventListener('mouseup', handleResizerMouseUp);
     document.addEventListener('mouseover', handleResizerMouseOver);
     document.addEventListener('mouseout', handleResizerMouseOut);
+    document.addEventListener('mousedown', handleResizerMouseDown);
     return () => {
       window.removeEventListener('blur', clearWorkspaceTabResizeCursor);
+      window.removeEventListener('mouseup', handleResizerMouseUp);
       document.removeEventListener('mouseover', handleResizerMouseOver);
       document.removeEventListener('mouseout', handleResizerMouseOut);
+      document.removeEventListener('mousedown', handleResizerMouseDown);
       clearWorkspaceTabResizeCursor();
     };
   }, []);
