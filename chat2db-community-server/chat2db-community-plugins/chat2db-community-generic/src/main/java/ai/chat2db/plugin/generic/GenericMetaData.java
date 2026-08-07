@@ -4,6 +4,7 @@ import ai.chat2db.plugin.generic.identifier.GenericIdentifierProcessor;
 import ai.chat2db.spi.IDbMetaData;
 import ai.chat2db.community.domain.api.config.DBConfig;
 import ai.chat2db.community.domain.api.constant.DBConfigConstants;
+import ai.chat2db.spi.ConfigurableSQLIdentifierProcessor;
 import ai.chat2db.spi.DefaultMetaService;
 import ai.chat2db.spi.ISQLIdentifierProcessor;
 import ai.chat2db.community.domain.api.model.account.*;
@@ -47,13 +48,18 @@ public class GenericMetaData extends DefaultMetaService implements IDbMetaData {
         }
     }
 
+    /**
+     * A dialect that declares {@code identifierQuotes} in its configuration gets a
+     * processor built from that spec; everything else keeps the generic ANSI
+     * behaviour of {@link GenericIdentifierProcessor} (conditional double quoting
+     * plus string-literal escaping).
+     */
     @Override
-    public ai.chat2db.spi.ISQLIdentifierProcessor getSQLIdentifierProcessor() {
+    public ISQLIdentifierProcessor getSQLIdentifierProcessor() {
         DBConfig config = currentConfig();
-        ai.chat2db.spi.ConfigurableSQLIdentifierProcessor configured =
-                ai.chat2db.spi.ConfigurableSQLIdentifierProcessor.fromSpec(
-                        config == null ? null : config.getIdentifierQuotes());
-        return configured != null ? configured : super.getSQLIdentifierProcessor();
+        ConfigurableSQLIdentifierProcessor configured = ConfigurableSQLIdentifierProcessor.fromSpec(
+                config == null ? null : config.getIdentifierQuotes());
+        return configured != null ? configured : GenericIdentifierProcessor.INSTANCE;
     }
 
     /**
@@ -92,16 +98,11 @@ public class GenericMetaData extends DefaultMetaService implements IDbMetaData {
 
     @Override
     public String getMetaDataName(String... names) {
-        ai.chat2db.spi.ISQLIdentifierProcessor processor = getSQLIdentifierProcessor();
+        ISQLIdentifierProcessor processor = getSQLIdentifierProcessor();
         return java.util.Arrays.stream(names)
                 .filter(org.apache.commons.lang3.StringUtils::isNotBlank)
                 .map(processor::quoteIdentifier)
                 .collect(java.util.stream.Collectors.joining("."));
-    }
-
-    @Override
-    public ISQLIdentifierProcessor getSQLIdentifierProcessor() {
-        return GenericIdentifierProcessor.INSTANCE;
     }
 
     @Override
