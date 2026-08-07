@@ -9,6 +9,8 @@ export interface ISupportedDatabaseSummary {
   sqlDialect?: string | null;
   jdbcDriverClass?: string | null;
   urlSample?: string | null;
+  /** Inline SVG for the database's own icon; absent when the plugin ships none. */
+  icon?: string | null;
 }
 
 const listSupported = createRequest<Record<string, never>, ISupportedDatabaseSummary[]>(
