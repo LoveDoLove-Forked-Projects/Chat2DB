@@ -223,7 +223,7 @@ public class DefaultSQLExecutor implements ICommandExecutor {
     @Override
     public List<ExecuteResponse> executeSelectTable(SqlExecuteRequest command) {
         IDbMetaData metaData = Chat2DBContext.getDbMetaData();
-        String tableName = metaData.getMetaDataName(command.getDatabaseName(), command.getSchemaName(),
+        String tableName = metaData.getQualifiedTableName(command.getDatabaseName(), command.getSchemaName(),
                 command.getTableName());
         String sql = "select * from " + tableName;
         command.setScript(sql);

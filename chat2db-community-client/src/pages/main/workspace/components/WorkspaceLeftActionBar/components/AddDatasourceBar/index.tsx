@@ -1,7 +1,7 @@
 import i18n from '@/i18n';
 import { IconButton, IconfontSvg } from '@chat2db/ui';
 import { ConfigProvider, Dropdown, Input, Modal, Tooltip } from 'antd';
-import { memo, useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import { useStyles } from './style';
 
 import ConnectionEdit, { submitType } from '@/components/ConnectionEdit';
@@ -11,6 +11,7 @@ import connectionService from '@/service/connection';
 
 // ----- constants/typings -----
 import { databaseMap, databaseTypeList } from '@/constants';
+import { getDynamicDatabaseVersion, subscribeDynamicDatabases } from '@/utils/dynamicDatabaseRegistry';
 
 // ----- store -----
 import { useTreeStore } from '@/store/tree';
@@ -24,6 +25,10 @@ export default memo<IProps>(() => {
   } = useStyles();
   const [importType, setImportType] = useState<string>();
   const [databaseSearchKeyword, setDatabaseSearchKeyword] = useState('');
+  // Dynamic databases register asynchronously after mount; re-render the menu
+  // when they land so the memoized list is not a stale snapshot.
+  const [dynamicDatabaseVersion, setDynamicDatabaseVersion] = useState(getDynamicDatabaseVersion());
+  useEffect(() => subscribeDynamicDatabases(() => setDynamicDatabaseVersion(getDynamicDatabaseVersion())), []);
 
   const {
     createGroup,
@@ -154,6 +159,7 @@ export default memo<IProps>(() => {
     appearance,
     createGroup,
     databaseSearchKeyword,
+    dynamicDatabaseVersion,
     refreshTreeData,
     setConnectionDetail,
     setIsModalVisible,
