@@ -535,5 +535,137 @@
         "url": "jdbc:databend://localhost:8000/default"
       }
     ]
+  },
+  {
+    "dbType": "GREENGAGE",
+    "name": "Greengage",
+    "sqlDialect": "POSTGRESQL",
+    "supportDatabase": true,
+    "supportSchema": true,
+    "driverConfigList": [
+      {
+        "defaultDriver": true,
+        "custom": false,
+        "downloadJdbcDriverUrls": [
+          "https://cdn.chat2db-ai.com/lib/postgresql-42.5.1.jar"
+        ],
+        "jdbcDriver": "postgresql-42.5.1.jar",
+        "jdbcDriverClass": "org.postgresql.Driver",
+        "url": "jdbc:postgresql://localhost:5432/gpadmin"
+      }
+    ]
+  },
+  {
+    "dbType": "MATERIALIZE",
+    "name": "Materialize",
+    "sqlDialect": "POSTGRESQL",
+    "supportDatabase": true,
+    "supportSchema": true,
+    "driverConfigList": [
+      {
+        "defaultDriver": true,
+        "custom": false,
+        "downloadJdbcDriverUrls": [
+          "https://cdn.chat2db-ai.com/lib/postgresql-42.5.1.jar"
+        ],
+        "jdbcDriver": "postgresql-42.5.1.jar",
+        "jdbcDriverClass": "org.postgresql.Driver",
+        "url": "jdbc:postgresql://localhost:6875/materialize"
+      }
+    ]
+  },
+  {
+    "dbType": "RISINGWAVE",
+    "name": "RisingWave",
+    "sqlDialect": "POSTGRESQL",
+    "supportDatabase": true,
+    "supportSchema": true,
+    "driverConfigList": [
+      {
+        "defaultDriver": true,
+        "custom": false,
+        "downloadJdbcDriverUrls": [
+          "https://cdn.chat2db-ai.com/lib/postgresql-42.5.1.jar"
+        ],
+        "jdbcDriver": "postgresql-42.5.1.jar",
+        "jdbcDriverClass": "org.postgresql.Driver",
+        "url": "jdbc:postgresql://localhost:4566/dev"
+      }
+    ]
+  },
+  {
+    "dbType": "YELLOWBRICK",
+    "name": "Yellowbrick",
+    "sqlDialect": "POSTGRESQL",
+    "supportDatabase": true,
+    "supportSchema": true,
+    "driverConfigList": [
+      {
+        "defaultDriver": true,
+        "custom": false,
+        "downloadJdbcDriverUrls": [
+          "https://cdn.chat2db-ai.com/lib/postgresql-42.5.1.jar"
+        ],
+        "jdbcDriver": "postgresql-42.5.1.jar",
+        "jdbcDriverClass": "org.postgresql.Driver",
+        "url": "jdbc:postgresql://localhost:5432/yellowbrick"
+      }
+    ]
+  },
+  {
+    "dbType": "EDB",
+    "name": "EDB Postgres Advanced Server",
+    "sqlDialect": "POSTGRESQL",
+    "supportDatabase": true,
+    "supportSchema": true,
+    "driverConfigList": [
+      {
+        "defaultDriver": true,
+        "custom": false,
+        "downloadJdbcDriverUrls": [
+          "https://cdn.chat2db-ai.com/lib/postgresql-42.5.1.jar"
+        ],
+        "jdbcDriver": "postgresql-42.5.1.jar",
+        "jdbcDriverClass": "org.postgresql.Driver",
+        "url": "jdbc:postgresql://localhost:5444/edb"
+      }
+    ]
+  },
+  {
+    "dbType": "NDBCLUSTER",
+    "name": "MySQL NDB Cluster",
+    "sqlDialect": "MYSQL",
+    "supportDatabase": true,
+    "supportSchema": false,
+    "driverConfigList": [
+      {
+        "defaultDriver": true,
+        "custom": false,
+        "downloadJdbcDriverUrls": [
+          "https://cdn.chat2db-ai.com/lib/mysql-connector-java-8.0.30.jar"
+        ],
+        "jdbcDriver": "mysql-connector-java-8.0.30.jar",
+        "jdbcDriverClass": "com.mysql.cj.jdbc.Driver",
+        "url": "jdbc:mysql://localhost:3306/"
+      }
+    ]
+  },
+  {
+    "dbType": "AZURESQL",
+    "name": "Azure SQL Database",
+    "supportDatabase": true,
+    "supportSchema": true,
+    "driverConfigList": [
+      {
+        "defaultDriver": true,
+        "custom": false,
+        "downloadJdbcDriverUrls": [
+          "https://cdn.chat2db-ai.com/lib/mssql-jdbc-11.2.1.jre17.jar"
+        ],
+        "jdbcDriver": "mssql-jdbc-11.2.1.jre17.jar",
+        "jdbcDriverClass": "com.microsoft.sqlserver.jdbc.SQLServerDriver",
+        "url": "jdbc:sqlserver://localhost:1433;databaseName=master;encrypt=true;trustServerCertificate=false"
+      }
+    ]
   }
 ]
