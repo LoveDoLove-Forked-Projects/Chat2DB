@@ -49,12 +49,6 @@ export interface IExecuteSqlResponse {
   headerList: any[];
   dataList: any[];
 }
-export interface IConnectConsoleParams {
-  consoleId: number;
-  dataSourceId: number;
-  databaseName: string;
-}
-
 export interface IRoutineOperationParams {
   dataSourceId: number;
   databaseName?: string;
@@ -97,21 +91,12 @@ const downloadLargeCellValue = createRequest<ILargeCellDownloadRequest, string>(
   errorLevel: 'toast',
 });
 
-const connectConsole = createRequest<IConnectConsoleParams, void>('/api/connection/console/connect', { method: 'get' });
-
 //Table operations
 export interface ITableParams {
   tableName: string;
   dataSourceId: number;
   databaseName: string;
   schemaName?: string;
-}
-
-export interface IExecuteTableParams {
-  sql: string;
-  consoleId: number;
-  dataSourceId: number;
-  databaseName: string;
 }
 
 export interface IColumn {
@@ -209,7 +194,6 @@ const updateTableExample = createRequest<{ dbType: DatabaseTypeCode }, string>('
   method: 'get',
 });
 const exportCreateTableSql = createRequest<ITableParams, string>('/api/rdb/ddl/export', { method: 'get' });
-const executeTable = createRequest<IExecuteTableParams, string>('/api/rdb/ddl/execute', { method: 'post' });
 
 const getColumnList = createRequest<ITableParams, ICountedListResponse<IColumn>>('/api/rdb/ddl/column_list', {
   method: 'get',
@@ -491,8 +475,6 @@ export default {
   getViewList,
   getTableList,
   executeSql,
-  executeTable,
-  connectConsole,
   deleteTable,
   prepareDeleteDatabase,
   executeDeleteDatabase,

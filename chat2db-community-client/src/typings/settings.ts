@@ -1,5 +1,4 @@
 import { ColorProps, ThemeAppearance } from '@chat2db/ui';
-import { IAIConfig, IRemainingUse } from './ai';
 import { LangType, UpdatedStatus } from '@/constants/settings';
 import { CountryItem } from '@/typings/enterprise/user';
 
@@ -12,21 +11,6 @@ export interface GlobalBaseSettings {
   customFontSize?: number;
   defaultPageSize: number;
   enableMcp?: boolean;
-}
-
-export interface GlobalAISettings {
-  /**
-   *AI related configuration
-   */
-  aiConfig: IAIConfig;
-  /**
-   * Number of remaining uses of AI
-   */
-  remainingUse?: IRemainingUse;
-  /**
-   * Whether to join the whitelist
-   */
-  hasWhite: boolean;
 }
 
 // Server configuration
@@ -87,9 +71,26 @@ export interface IUpdateDetail {
   version?: string; // Latest version number
 }
 
+export type McpRuntimeState = 'UNKNOWN' | 'STARTING' | 'RUNNING' | 'STOPPED' | 'FAILED';
+
+export interface McpStatus {
+  operationId: string;
+  configuredEnabled: boolean;
+  appliedEnabled: boolean;
+  runtimeState: McpRuntimeState;
+  restartRequired: boolean;
+  failureMessage?: string;
+}
+
+export interface McpRestartResult {
+  operationId: string;
+  accepted: boolean;
+}
+
 export interface DataTableSettings {
-  showComment: boolean;
   selectionMetrics?: [SelectionMetricId, SelectionMetricId, SelectionMetricId];
+  showFieldType?: boolean;
+  showFieldComment?: boolean;
 }
 
 export type TerminalShellId = 'system' | 'bash' | 'zsh' | 'pwsh' | 'powershell' | 'cmd';

@@ -42,6 +42,9 @@ jobs:
       - name: Run Stylelint
         run: yarn lint:style
 
+      - name: Run shortcut contract
+        run: yarn run test:shortcut
+
       - name: Run SQL clipboard test
         run: yarn run test:sql-in-clipboard
 
@@ -50,6 +53,9 @@ jobs:
 
       - name: Run active workspace tab locator contract
         run: yarn run test:active-tab-locator
+
+      - name: Run chat metadata update contract
+        run: yarn run test:chat-info-update
 
       - name: Run local file tab title contract
         run: yarn run test:local-file-tab-title
@@ -108,6 +114,9 @@ jobs:
       - name: Run SQL execution stream contract
         run: yarn run test:sql-execution-stream
 
+      - name: Run SSE request ownership contract
+        run: yarn run test:sse-request
+
       - name: Run verification-code countdown lifecycle contract
         run: yarn run test:verification-code-countdown
 
@@ -161,6 +170,9 @@ jobs:
 
       - name: Validate Community operations contracts
         run: ruby script/github/validate-community-operations.rb
+
+      - name: Test macOS native signing selection
+        run: bash script/package/tests/sign-macos-native-libraries-test.sh
 
       - name: Test Community workflow automation
         run: node --test script/github/issue-claim.test.js script/github/sync-community-project.test.js

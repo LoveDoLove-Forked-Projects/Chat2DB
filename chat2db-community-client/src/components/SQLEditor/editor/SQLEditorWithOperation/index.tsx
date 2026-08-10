@@ -6,6 +6,7 @@ import RoutineOperationModals from './RoutineOperationModals';
 import InitialSaveNameModal from './InitialSaveNameModal';
 import { EditorSetValueType, EditorType, SQLOptType } from '../../type';
 import { staticMessage } from '@chat2db/ui';
+import { Modal } from 'antd';
 import { IConsoleReturnExecuteSql, IBoundInfo, TreeNodeData } from '@/typings';
 import { saveFileToDesktop, updateFileContent } from '@/utils/file';
 import i18n from '@/i18n';
@@ -43,6 +44,8 @@ import {
   getContentDiffOpenBlockReason,
 } from '../../helper/contentDiffGuard';
 import { normalizeSavedConsoleName, resolveInitialSavedConsoleName } from '../../helper/savedConsoleName';
+import { hasUnsavedLocalFileChanges } from '@/utils/localFileEncoding';
+import type { EditorCloseGuardRef } from '@/utils/editorCloseGuard';
 
 interface ISQLEditorWithOperationProps {
   id: string;
@@ -67,7 +70,7 @@ interface ISQLEditorWithOperationProps {
   onChange?: (value: string) => void;
 }
 
-export interface ISQLEditorWithOperationRef extends SQLEditorRef {
+export interface ISQLEditorWithOperationRef extends SQLEditorRef, EditorCloseGuardRef {
   executeSQL: () => void;
 }
 
@@ -123,6 +126,7 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
     isRoutineOperationSupportedDatabaseType(dbInfo.databaseType) &&
     [WorkspaceTabType.FUNCTION, WorkspaceTabType.PROCEDURE].includes(type as WorkspaceTabType);
   const { styles } = useStyles();
+  const [modal, modalContextHolder] = Modal.useModal();
   const [contextMenuInfo, setContextMenuInfo] = useState<IContextMenuInfo>(contextMenuDefaultConfig);
   const [contextTableIdentifier, setContextTableIdentifier] = useState<EditorTableIdentifier | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -130,6 +134,7 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
   const [initialSaveNameModalOpen, setInitialSaveNameModalOpen] = useState(false);
   const [initialSaveName, setInitialSaveName] = useState('');
   const [initialSaveLoading, setInitialSaveLoading] = useState(false);
+  const pendingCloseSaveResolveRef = useRef<((saved: boolean) => void) | null>(null);
   const handleEditorContentChange = useCallback((value: string) => {
     setHasEditorContent(!!value.trim());
   }, []);
@@ -183,6 +188,8 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
       sqlEditorRef.current?.handleQuickSQLParser(sql, _dbInfo),
     getTableIdentifierAtPosition: (position) => sqlEditorRef.current?.getTableIdentifierAtPosition(position) ?? null,
     executeSQL: handleExecuteSQL,
+    hasUnsavedChangesBeforeClose,
+    saveBeforeClose,
   }));
 
   const getInstance = useCallback(() => {
@@ -197,6 +204,51 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
     setHasEditorContent(!!value?.trim());
     sqlEditorRef.current?.setValue(value, _type);
   }, []);
+
+  const confirmDiscardUnsavedChanges = useCallback(
+    () =>
+      new Promise<boolean>((resolve) => {
+        modal.confirm({
+          title: i18n('workspace.fileEncoding.unsavedTitle'),
+          content: i18n('workspace.fileEncoding.unsavedContent'),
+          okText: i18n('workspace.fileEncoding.reloadConfirm'),
+          okButtonProps: { danger: true },
+          cancelText: i18n('common.button.cancel'),
+          onOk: () => resolve(true),
+          onCancel: () => resolve(false),
+        });
+      }),
+    [modal],
+  );
+
+  const handleFileEncodingChange = useCallback(
+    async (charset?: string) => {
+      if (!dbInfo.filePath) {
+        return;
+      }
+      const persistedContent = sqlEditorRef.current ? sqlEditorRef.current.getContentDiffBaseline() : defaultSQL || '';
+      if (hasUnsavedLocalFileChanges(getValue(), persistedContent) && !(await confirmDiscardUnsavedChanges())) {
+        return;
+      }
+      const file = await useWorkspaceStore.getState().readFile(dbInfo.filePath, dbInfo.fileExtension, {
+        rootToken: dbInfo.fileRootToken,
+        relativePath: dbInfo.fileRelativePath,
+        charset,
+        workspaceTabId: dbInfo.workspaceTabId,
+      });
+      if (!file) {
+        return;
+      }
+      setValue(file.content, 'reset');
+      setDBInfo({
+        ...dbInfo,
+        ddl: file.content,
+        fileCharset: file.charset,
+        fileBom: file.bom,
+      });
+    },
+    [confirmDiscardUnsavedChanges, dbInfo, defaultSQL, getValue, setDBInfo, setValue],
+  );
 
   useEffect(() => {
     setHasEditorContent(!!defaultSQL?.trim());
@@ -231,7 +283,7 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
     }
   }, [active]);
 
-  const { saveConsole, hasSavedSqlRecord } = useSaveEditorData({
+  const { saveConsole, hasSavedSqlRecord, hasUnsavedChanges } = useSaveEditorData({
     editorRef: sqlEditorRef,
     isActive: active,
     boundInfo: dbInfo,
@@ -866,6 +918,8 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
     try {
       await saveConsole(getValue(), { mode: 'manual', initialName: name });
       setInitialSaveNameModalOpen(false);
+      pendingCloseSaveResolveRef.current?.(true);
+      pendingCloseSaveResolveRef.current = null;
     } catch {
       // The request layer presents the error. Keep the name dialog open for retry.
     } finally {
@@ -878,21 +932,88 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
       return;
     }
     setInitialSaveNameModalOpen(false);
+    pendingCloseSaveResolveRef.current?.(false);
+    pendingCloseSaveResolveRef.current = null;
   }, [initialSaveLoading]);
 
-  const handleSaveFile = () => {
+  const handleSaveFile = async () => {
     const fileContent = sqlEditorRef.current?.getValue() ?? '';
-    updateFileContent({
-      filePath: dbInfo.filePath!,
-      fileContent,
-    });
+    try {
+      await updateFileContent({
+        filePath: dbInfo.filePath!,
+        fileContent,
+        charset: dbInfo.fileCharset,
+        bom: dbInfo.fileBom,
+      });
+    } catch (error) {
+      console.error('update local file error', error);
+      staticMessage.error(i18n('common.text.failure'));
+      return false;
+    }
     try {
       sqlEditorRef.current?.resetContentDiffBaseline(fileContent);
     } catch {
       // Content diff is only a hint and must not affect file saving.
     }
     staticMessage.success(i18n('workspace.text.changeFileSuccess'));
+    return true;
   };
+
+  function hasUnsavedChangesBeforeClose() {
+    if (isReadOnly) {
+      return false;
+    }
+    if (type === WorkspaceTabType.LocalSQLFile) {
+      return hasUnsavedLocalFileChanges(getValue(), sqlEditorRef.current?.getContentDiffBaseline() ?? defaultSQL ?? '');
+    }
+    if (type === WorkspaceTabType.CONSOLE) {
+      return hasUnsavedChanges(getValue());
+    }
+    return false;
+  }
+
+  async function saveBeforeClose() {
+    if (type === WorkspaceTabType.LocalSQLFile) {
+      return handleSaveFile();
+    }
+    if (type !== WorkspaceTabType.CONSOLE) {
+      return false;
+    }
+    if (hasSavedSqlRecord) {
+      try {
+        await saveConsole(getValue(), { mode: 'manual' });
+        return true;
+      } catch {
+        return false;
+      }
+    }
+    if (pendingCloseSaveResolveRef.current) {
+      return false;
+    }
+
+    return new Promise<boolean>((resolve) => {
+      pendingCloseSaveResolveRef.current = resolve;
+      if (!initialSaveNameModalOpen) {
+        setInitialSaveName(
+          resolveInitialSavedConsoleName({
+            workspaceTitle: workspaceTabsTitle,
+            databaseName: dbInfo.databaseName,
+            schemaName: dbInfo.schemaName,
+            fallback: i18n('workspace.savedConsole.untitled'),
+          }),
+        );
+        setInitialSaveNameModalOpen(true);
+      }
+    });
+  }
+
+  useEffect(
+    () => () => {
+      pendingCloseSaveResolveRef.current?.(false);
+      pendingCloseSaveResolveRef.current = null;
+    },
+    [],
+  );
 
   const handleSaveFileToDesktop = () => {
     const { dataSourceName, databaseName, schemaName } = dbInfo;
@@ -983,6 +1104,7 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
 
   return (
     <div className={styles.wrapper}>
+      {modalContextHolder}
       {(!isReadOnly || isSupportedRoutineEditor) && sqlActionEnabled && (
         <OperationLine
           active={active}
@@ -1008,6 +1130,7 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
           enableContentDiffHints={enableContentDiffHints}
           onContentChange={handleEditorContentChange}
           onChange={onChange}
+          onFileEncodingChange={handleFileEncodingChange}
           contextMenuInfo={contextMenuInfo}
           onTableIdentifierContextChange={setContextTableIdentifier}
           onContextMenu={isReadOnly ? undefined : handleContextMenu}

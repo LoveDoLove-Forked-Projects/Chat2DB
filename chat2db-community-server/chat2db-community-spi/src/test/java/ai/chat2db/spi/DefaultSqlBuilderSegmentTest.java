@@ -126,11 +126,33 @@ class DefaultSqlBuilderSegmentTest {
         assertEquals("WHERE name IS NULL OR name IN ('Alice')", whereSql);
     }
 
+    @Test
+    void copyWhereSqlKeepsLikeAsTheDefaultStringComparison() throws Exception {
+        DefaultMetaService stringMetaService = new DefaultMetaService() {
+            @Override
+            public IValueProcessor getValueProcessor() {
+                return new DefaultValueProcessor() {
+                    @Override
+                    public boolean isStringDataType(String dataType) {
+                        return true;
+                    }
+                };
+            }
+        };
+        String whereSql = copyWhereSql(List.of(whereOperation("Alice%")), stringMetaService);
+
+        assertEquals("WHERE name LIKE 'Alice%'", whereSql);
+    }
+
     private String copyWhereSql(List<ResultOperation> operations) throws Exception {
+        return copyWhereSql(operations, new DefaultMetaService());
+    }
+
+    private String copyWhereSql(List<ResultOperation> operations, IDbMetaData metaSchema) throws Exception {
         Method method = DefaultSqlBuilder.class.getDeclaredMethod(
                 "copyWhereSql", List.class, List.class, IDbMetaData.class, String.class);
         method.setAccessible(true);
-        return (String) method.invoke(builder, operations, List.of(nameHeader()), new DefaultMetaService(), "mysql");
+        return (String) method.invoke(builder, operations, List.of(nameHeader()), metaSchema, "mysql");
     }
 
     private static ResultOperation whereOperation(String value) {

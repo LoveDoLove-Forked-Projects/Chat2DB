@@ -36,6 +36,7 @@ export type IWorkspaceTabPaneNode =
 export interface IWorkspaceTabSplitLayout {
   direction: WorkspaceTabSplitDirection;
   activePane: WorkspaceTabPaneId;
+  lastNonTerminalActiveTabId?: number | string | null;
   paneTabIds: Record<WorkspaceTabPaneId, Array<number | string>>;
   activeTabIds: Partial<Record<WorkspaceTabPaneId, number | string | null>>;
   root?: IWorkspaceTabPaneNode;
@@ -83,9 +84,12 @@ export interface IBoundInfo {
   connectable?: boolean;
   supportDatabase?: boolean;
   supportSchema?: boolean;
+  nameCustomized?: boolean | null;
 
   filePath?: string;
   fileExtension?: string;
+  fileCharset?: string;
+  fileBom?: boolean;
   filePreviewUrl?: string;
   filePreviewMimeType?: string;
   fileRootToken?: string;

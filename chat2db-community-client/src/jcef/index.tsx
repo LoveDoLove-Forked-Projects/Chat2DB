@@ -1,7 +1,7 @@
 import createJcefApi from './base';
-import { FileConstants } from '@/constants/file';
-import { IUpdateDetail } from '@/typings/settings';
+import { IUpdateDetail, McpRestartResult, McpStatus } from '@/typings/settings';
 import { LangType } from '@/constants/settings';
+import type { LocalFileReadResult } from '@/utils/localFileEncoding';
 import { ThemeAppearance } from '@chat2db/ui';
 
 const jcefApi = {
@@ -13,7 +13,7 @@ const jcefApi = {
   handleJavaMessageIsReady: () => {
     return createJcefApi('handle-java-message-is-ready');
   },
-  // Open file in finder
+  // Reveal a file in the system file manager
   revealInExplorer: (path: string) => {
     return createJcefApi('reveal-in-explorer', { path });
   },
@@ -159,12 +159,15 @@ const jcefApi = {
     return createJcefApi('trigger-installation');
   },
   // Restart app
-  restartApp: () => {
-    return createJcefApi('restart-app');
+  restartApp: (data?: { operationId?: string }) => {
+    return createJcefApi<McpRestartResult>('restart-app', data);
   },
   // Set zoom
   webFrameSetZoom: (data: { action: 'zoomIn' | 'zoomOut' | 'zoomReset' }) => {
     return createJcefApi('web-frame-set-zoom', data);
+  },
+  setWorkspaceResizeCursor: (cursor: 'ns-resize' | 'ew-resize' | 'default', sequence: number) => {
+    return createJcefApi('set-workspace-resize-cursor', { cursor, sequence });
   },
   // Open log
   openLog: () => {
@@ -183,15 +186,15 @@ const jcefApi = {
     return createJcefApi<{ path: string; size: number } | null>('save-file', data);
   },
   // Change file content
-  updateFileContent: (data: { filePath: string; fileContent: string }) => {
-    return createJcefApi('update-file-content', data);
+  updateFileContent: (data: { filePath: string; fileContent: string; charset?: string; bom?: boolean }) => {
+    return createJcefApi<boolean>('update-file-content', data);
   },
   // Open local file
-  readFile: (path: string) => {
-    return createJcefApi<FileConstants>('read-file', { path });
+  readFile: (path: string, charset?: string) => {
+    return createJcefApi<LocalFileReadResult>('read-file', { path, charsets: charset });
   },
   // The front-end setting information is synchronized with the back-end
-  updateSettings: (data: { appearance: ThemeAppearance; language: LangType; enableMcp?: boolean }) => {
+  updateSettings: (data: { appearance: ThemeAppearance; language: LangType }) => {
     return createJcefApi('update-settings', data);
   },
   // Get clipboard information
@@ -205,6 +208,12 @@ const jcefApi = {
   // Reset MCP token
   resetMcpToken: () => {
     return createJcefApi<string>('reset-mcp-token');
+  },
+  getMcpStatus: (data: { operationId: string }) => {
+    return createJcefApi<McpStatus>('get-mcp-status', data);
+  },
+  setMcpEnabled: (data: { operationId: string; enabled: boolean }) => {
+    return createJcefApi<McpStatus>('set-mcp-enabled', data);
   },
 };
 
