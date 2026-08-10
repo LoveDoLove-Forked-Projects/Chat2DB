@@ -42,6 +42,7 @@ interface IProps {
   onInit?: (tableInstance: ITableInstance) => void;
   onCopy?: () => void;
   onPaste?: () => void;
+  onPointerDown?: React.PointerEventHandler<HTMLDivElement>;
 }
 
 export interface CanvasTableRef {
@@ -83,7 +84,18 @@ function isEditableElement(target: EventTarget | null): boolean {
 }
 
 const CanvasTable = forwardRef((props: IProps, ref: ForwardedRef<CanvasTableRef>) => {
-  const { className, records, columns, onInit, tooltip, options = null, customOptions, onCopy, onPaste } = props;
+  const {
+    className,
+    records,
+    columns,
+    onInit,
+    tooltip,
+    options = null,
+    customOptions,
+    onCopy,
+    onPaste,
+    onPointerDown,
+  } = props;
   const { styles, theme, cx } = useStyles();
   const [tableInstance, setTableInstance] = useState<ITableInstance | null>(null);
   const tableRef = useRef<HTMLDivElement>(null);
@@ -275,7 +287,11 @@ const CanvasTable = forwardRef((props: IProps, ref: ForwardedRef<CanvasTableRef>
   }));
 
   return (
-    <div className={cx(className, styles.container)} ref={containerRef}>
+    <div
+      className={cx(className, styles.container)}
+      ref={containerRef}
+      onPointerDown={onPointerDown}
+    >
       <div ref={tableRef} className={styles.table} />
       <ContextMenu ref={contextMenuRef} />
       {tooltipTongs}
