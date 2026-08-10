@@ -388,6 +388,10 @@ const ResultSetTable = forwardRef((props: IProps, ref: ForwardedRef<ResultSetTab
     interactionRevisionRef.current += 1;
   }, []);
 
+  const handleTableKeyDown = useCallback(() => {
+    interactionRevisionRef.current += 1;
+  }, []);
+
   return (
     <>
       <CanvasTable
@@ -397,6 +401,7 @@ const ResultSetTable = forwardRef((props: IProps, ref: ForwardedRef<ResultSetTab
         className={styles.canvasTable}
         onCopy={onCopy}
         onPaste={onPaste}
+        onKeyDown={handleTableKeyDown}
         onPointerDown={handleTablePointerDown}
         customOptions={{ showFrozenColumnDivider: frozenColumnFields.length > 0 }}
         options={{

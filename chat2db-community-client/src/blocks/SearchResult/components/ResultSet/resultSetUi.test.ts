@@ -155,6 +155,15 @@ test('value refresh preserves the inspector field while real table selection rep
   );
 });
 
+test('result table advances inspector interaction revisions for pointer and keyboard input', () => {
+  const resultSetTableSource = readFileSync(
+    'src/blocks/SearchResult/components/ResultSetTable/index.tsx',
+    'utf8',
+  );
+  assert.match(resultSetTableSource, /onPointerDown=\{handleTablePointerDown\}/);
+  assert.match(resultSetTableSource, /onKeyDown=\{handleTableKeyDown\}/);
+});
+
 test('column metadata contains each available name, type, and comment row', () => {
   assert.deepEqual(
     getHeaderMetadataRows({

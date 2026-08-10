@@ -42,6 +42,7 @@ interface IProps {
   onInit?: (tableInstance: ITableInstance) => void;
   onCopy?: () => void;
   onPaste?: () => void;
+  onKeyDown?: React.KeyboardEventHandler<HTMLDivElement>;
   onPointerDown?: React.PointerEventHandler<HTMLDivElement>;
 }
 
@@ -94,6 +95,7 @@ const CanvasTable = forwardRef((props: IProps, ref: ForwardedRef<CanvasTableRef>
     customOptions,
     onCopy,
     onPaste,
+    onKeyDown,
     onPointerDown,
   } = props;
   const { styles, theme, cx } = useStyles();
@@ -290,6 +292,7 @@ const CanvasTable = forwardRef((props: IProps, ref: ForwardedRef<CanvasTableRef>
     <div
       className={cx(className, styles.container)}
       ref={containerRef}
+      onKeyDown={onKeyDown}
       onPointerDown={onPointerDown}
     >
       <div ref={tableRef} className={styles.table} />
