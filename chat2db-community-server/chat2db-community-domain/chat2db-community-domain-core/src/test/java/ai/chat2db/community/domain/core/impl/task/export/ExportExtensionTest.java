@@ -41,6 +41,7 @@ import java.sql.Statement;
 import java.sql.Types;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -250,6 +251,56 @@ class ExportExtensionTest {
         assertFalse(output.exists());
     }
 
+    @Test
+    void failedExportPreservesExistingDestination() throws Exception {
+        File output = tempDir.resolve("existing.test").toFile();
+        Files.writeString(output.toPath(), "existing content");
+        ExportAsyncContext context = new ExportAsyncContext(null, null, output, "test", List.of("orders"),
+                "single", true);
+
+        assertThrows(IllegalStateException.class,
+                () -> new FailingExporter().run(context));
+        assertEquals("existing content", Files.readString(output.toPath()));
+    }
+
+    @Test
+    void cancelledExportPreservesExistingDestination() throws Exception {
+        File output = tempDir.resolve("cancelled.test").toFile();
+        Files.writeString(output.toPath(), "existing content");
+        ExportAsyncContext context = new ExportAsyncContext(null, null, output, "test", List.of("orders"),
+                "single", true);
+
+        assertThrows(CancellationException.class,
+                () -> new CancellingExporter().run(context));
+        assertEquals("existing content", Files.readString(output.toPath()));
+    }
+
+    @Test
+    void successfulExportReplacesExistingDestination() throws Exception {
+        File output = tempDir.resolve("replaced.test").toFile();
+        Files.writeString(output.toPath(), "existing content");
+        ExportAsyncContext context = new ExportAsyncContext(null, null, output, "test", List.of("orders"),
+                "single", true);
+
+        new SuccessfulExporter().run(context);
+
+        assertEquals("new content", Files.readString(output.toPath()));
+    }
+
+    @Test
+    void multiTableExportPreservesExistingSiblingFiles() throws Exception {
+        Path existingTableFile = tempDir.resolve("orders.test");
+        Files.writeString(existingTableFile, "existing table export");
+        File output = tempDir.resolve("bundle.zip").toFile();
+        ExportAsyncContext context = new ExportAsyncContext(null, null, output, "test",
+                List.of("orders", "users"), "multi", true);
+
+        new SuccessfulExporter().run(context);
+
+        assertTrue(output.isFile());
+        assertEquals("existing table export", Files.readString(existingTableFile));
+    }
+
     private static ExportCellContext cellContext() {
         return new ExportCellContext(7L, "MYSQL", "shop", null, "orders", "email", "csv");
     }
@@ -393,6 +444,44 @@ class ExportExtensionTest {
                 throws IOException {
             Files.writeString(file.toPath(), "partial raw value");
             throw new IllegalStateException("serialization failed");
+        }
+    }
+
+    private static final class CancellingExporter extends BaseExporter {
+
+        private CancellingExporter() {
+            super(new ExportCellProcessorChain(List.of()), policyManager());
+        }
+
+        @Override
+        public String type() {
+            return "test";
+        }
+
+        @Override
+        protected void singleExport(ExportAsyncContext asyncContext, String tableName, File file)
+                throws IOException {
+            Files.writeString(file.toPath(), "partial raw value");
+            throw new CancellationException("cancelled");
+        }
+    }
+
+    private static final class SuccessfulExporter extends BaseExporter {
+
+        private SuccessfulExporter() {
+            super(new ExportCellProcessorChain(List.of()), policyManager());
+            suffix = ".test";
+        }
+
+        @Override
+        public String type() {
+            return "test";
+        }
+
+        @Override
+        protected void singleExport(ExportAsyncContext asyncContext, String tableName, File file)
+                throws IOException {
+            Files.writeString(file.toPath(), "new content");
         }
     }
 }

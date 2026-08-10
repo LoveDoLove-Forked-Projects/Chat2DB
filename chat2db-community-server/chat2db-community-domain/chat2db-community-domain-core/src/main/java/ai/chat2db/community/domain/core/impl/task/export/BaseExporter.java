@@ -20,6 +20,10 @@ import org.apache.commons.lang3.StringUtils;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.ResultSetMetaData;
@@ -52,24 +56,27 @@ public abstract class BaseExporter implements IExportStrategy {
         if (CollectionUtils.isEmpty(tableNames)) {
             throw new IllegalArgumentException("tableNames should not be null or empty");
         }
+        File temporaryOutputFile = null;
         try {
-            File parent = asyncContext.getWriteFile().getParentFile();
-            if (parent != null) {
-                FileUtil.mkdir(parent);
-            }
+            File outputFile = asyncContext.getWriteFile();
+            Path outputDirectory = outputFile.toPath().toAbsolutePath().getParent();
+            Files.createDirectories(outputDirectory);
+            temporaryOutputFile = Files.createTempFile(outputDirectory, ".chat2db-export-", ".part").toFile();
             if (tableNames.size() == 1) {
                 asyncContext.setProgress(20);
-                single(asyncContext);
+                single(asyncContext, temporaryOutputFile);
             } else {
-                multi(asyncContext);
+                multi(asyncContext, temporaryOutputFile);
             }
+            replaceOutputFile(temporaryOutputFile, outputFile);
+            temporaryOutputFile = null;
         } catch (CancellationException e) {
-            deleteOutputFile(asyncContext);
+            deleteTemporaryFile(temporaryOutputFile);
             throw e;
         } catch (Exception e) {
             asyncContext.error("export data error, " + e.getMessage());
             log.error("export data error", e);
-            deleteOutputFile(asyncContext);
+            deleteTemporaryFile(temporaryOutputFile);
             if (e instanceof RuntimeException runtimeException) {
                 throw runtimeException;
             }
@@ -77,14 +84,14 @@ public abstract class BaseExporter implements IExportStrategy {
         }
     }
 
-    private void single(ExportAsyncContext asyncContext) throws IOException, SQLException {
+    private void single(ExportAsyncContext asyncContext, File outputFile) throws IOException, SQLException {
         asyncContext.info(String.format("Exporting table %s", asyncContext.getTableNames().get(0)));
-        singleExport(asyncContext, asyncContext.getTableNames().get(0), asyncContext.getWriteFile());
+        singleExport(asyncContext, asyncContext.getTableNames().get(0), outputFile);
     }
 
-    private void multi(ExportAsyncContext asyncContext) throws IOException, SQLException {
-        String path = asyncContext.getWriteFile().getParent();
-        FileUtil.mkdir(path);
+    private void multi(ExportAsyncContext asyncContext, File outputFile) throws IOException, SQLException {
+        Path temporaryDirectory = Files.createTempDirectory(outputFile.toPath().toAbsolutePath().getParent(),
+                ".chat2db-export-tables-");
         int n = asyncContext.getTableNames().size();
         String[] paths = new String[n];
         InputStream[] inputStreams = new InputStream[n];
@@ -96,7 +103,7 @@ public abstract class BaseExporter implements IExportStrategy {
                 if (StringUtils.isEmpty(tableName)) {
                     throw new IllegalArgumentException("tableName should not be null or empty");
                 }
-                File file = new File(path + File.separator + tableName + suffix);
+                File file = Files.createTempFile(temporaryDirectory, "table-" + i + "-", suffix).toFile();
                 temporaryFiles[i] = file;
                 asyncContext.info(String.format("Exporting table %s", tableName));
                 singleExport(asyncContext, tableName, file);
@@ -104,10 +111,13 @@ public abstract class BaseExporter implements IExportStrategy {
                 inputStreams[i] = FileUtil.getInputStream(file);
             }
             asyncContext.checkCancelled();
-            ZipUtil.zip(asyncContext.getWriteFile(), paths, inputStreams);
+            ZipUtil.zip(outputFile, paths, inputStreams);
         } finally {
             closeStreams(inputStreams);
             deleteFiles(temporaryFiles);
+            if (Files.exists(temporaryDirectory) && !FileUtil.del(temporaryDirectory.toFile())) {
+                log.warn("Failed to delete export temporary directory: {}", temporaryDirectory);
+            }
         }
     }
 
@@ -132,10 +142,18 @@ public abstract class BaseExporter implements IExportStrategy {
         }
     }
 
-    private void deleteOutputFile(ExportAsyncContext asyncContext) {
-        File writeFile = asyncContext.getWriteFile();
-        if (writeFile != null && writeFile.exists() && !FileUtil.del(writeFile)) {
-            log.error("Failed to delete incomplete export file: {}", writeFile.getAbsolutePath());
+    private void replaceOutputFile(File temporaryOutputFile, File outputFile) throws IOException {
+        try {
+            Files.move(temporaryOutputFile.toPath(), outputFile.toPath(), StandardCopyOption.ATOMIC_MOVE,
+                    StandardCopyOption.REPLACE_EXISTING);
+        } catch (AtomicMoveNotSupportedException e) {
+            Files.move(temporaryOutputFile.toPath(), outputFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        }
+    }
+
+    private void deleteTemporaryFile(File temporaryFile) {
+        if (temporaryFile != null && temporaryFile.exists() && !FileUtil.del(temporaryFile)) {
+            log.error("Failed to delete incomplete export file: {}", temporaryFile.getAbsolutePath());
         }
     }
     protected String getQuerySql(String tableName) {
