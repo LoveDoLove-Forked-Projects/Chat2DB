@@ -3,11 +3,12 @@ import Output from '@/components/Output';
 import GlobalExtendComponents from './GlobalExtendComponents';
 import SaveList from '../SaveList';
 import ViewDDL from '@/components/ViewDDL';
+import { Bookmark, Info, RotateCcwClock, type LucideIcon } from 'lucide-react';
 
-interface IToolbar {
+export interface IToolbar {
   code: string;
   title: string;
-  icon: string;
+  icon: string | LucideIcon;
   components: any;
 }
 
@@ -30,19 +31,19 @@ export const extendConfig: IToolbar[] = [
   {
     code: 'info',
     title: i18n('common.title.info'),
-    icon: 'icon-extend-nav-info',
+    icon: Info,
     components: GlobalExtendComponents,
   },
   {
     code: 'executiveLog',
     title: i18n('common.title.executiveLogging'),
-    icon: 'icon-clipboard',
+    icon: RotateCcwClock,
     components: globalComponents.executiveLog,
   },
   {
     code: 'saveList',
     title: i18n('workspace.title.savedConsole'),
-    icon: 'icon-clipboard-list',
+    icon: Bookmark,
     components: globalComponents.saveList,
   },
 ];

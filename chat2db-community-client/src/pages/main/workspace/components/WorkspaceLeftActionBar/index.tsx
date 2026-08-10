@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useStyles } from './style';
-import { IconButton, SearchBar } from '@chat2db/ui';
+import { IconButton } from '@chat2db/ui';
+import SearchBar, { type SearchBarRef } from '@/components/SearchBar';
 import { Button, Tooltip } from 'antd';
 import { DatabaseBackup } from 'lucide-react';
 import AddDatasourceBar from './components/AddDatasourceBar';
@@ -42,15 +43,13 @@ interface WorkspaceLeftActionBarProps {
   locateActiveTabDisabled?: boolean;
 }
 
-type SearchBarHandle = { focus: () => void; blur: () => void };
-
 const loadStorageMigrationStatus = createRequest<void, StorageMigrationStatus>('/api/system/storage-migration', {
   errorLevel: false,
 });
 
 const WorkspaceLeftActionBar = memo<WorkspaceLeftActionBarProps>(
   ({ active = true, onLocateActiveTab, locateActiveTabDisabled = false }) => {
-    const searchBarRef = useRef<SearchBarHandle>(null);
+    const searchBarRef = useRef<SearchBarRef>(null);
     const { refreshTreeData, searchBarValue, setSearchBarValue, searchResultKeys, hiddenTreeNodeIds } = useTreeStore(
       (s) => ({
         refreshTreeData: s.refreshTreeData,

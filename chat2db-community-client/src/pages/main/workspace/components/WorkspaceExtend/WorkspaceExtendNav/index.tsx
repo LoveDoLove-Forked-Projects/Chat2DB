@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import classnames from 'classnames';
 import i18n from '@/i18n';
-import { extendConfig } from '../config';
+import { extendConfig, type IToolbar } from '../config';
 import { IconButton, staticMessage } from '@chat2db/ui';
 import { useWorkspaceStore } from '@/store/workspace';
 import { useImportExportStore } from '@/store/importExport';
@@ -16,16 +16,16 @@ import jcefApi from '@/jcef';
 import { createQuickTerminalTab } from './quickTerminal';
 import { DEFAULT_TERMINAL_SETTINGS } from '@/constants/terminal';
 
-interface IToolbar {
-  code: string;
-  title: string;
-  icon: any;
-  components: any;
-}
-
 interface IProps {
   className?: any;
 }
+
+const WORKSPACE_SIDEBAR_BUTTON_SIZE = {
+  boxSize: 34,
+  iconSize: 18,
+  borderRadius: 6,
+  strokeWidth: 2,
+} as const;
 
 export default (props: IProps) => {
   const { className } = props;
@@ -93,11 +93,11 @@ export default (props: IProps) => {
         {extendConfig.map((item, index) => {
           return (
             <IconButton
-              size="lg"
+              size={WORKSPACE_SIDEBAR_BUTTON_SIZE}
               key={index}
               title={item.title}
               tooltipPlacement="left"
-              code={item.icon}
+              {...(typeof item.icon === 'string' ? { code: item.icon } : { icon: item.icon })}
               isActive={currentWorkspaceExtend === item.code}
               onClick={() => {
                 changeExtend(item);
@@ -111,7 +111,7 @@ export default (props: IProps) => {
         {isDesktop && (
           <IconButton
             type="primary"
-            size={{ boxSize: 28, iconSize: 18, borderRadius: 6, strokeWidth: 2 }}
+            size={WORKSPACE_SIDEBAR_BUTTON_SIZE}
             title={i18n('workspace.terminal.title')}
             tooltipPlacement="left"
             icon={Terminal}
@@ -121,6 +121,7 @@ export default (props: IProps) => {
           />
         )}
         <AIButton
+          size={WORKSPACE_SIDEBAR_BUTTON_SIZE}
           onClick={() => {
             setCurrentWorkspaceExtend(null);
             useAIStore.getState().togglePanel();
