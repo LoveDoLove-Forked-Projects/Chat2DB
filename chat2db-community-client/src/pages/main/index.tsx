@@ -1,4 +1,5 @@
 import { Confetti, IconButton, IconfontSvg } from '@chat2db/ui';
+import editionUiExtension from '@edition-ui';
 import { Tooltip, type InputRef } from 'antd';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -28,6 +29,7 @@ import StreamSidebar from './components/StreamSidebar';
 import Dashboard from './dashboard';
 import DashboardMenuList from './dashboard/DashboardMenuList';
 import { createCoreMainNavItems } from './navigationItems';
+import { mergeMainNavigationItems } from '@/edition-ui/merge';
 import Workspace from './workspace';
 // import KnowledgeManagement from './knowledgeManagement';
 import Stream from '../stream';
@@ -59,7 +61,7 @@ function MainPage() {
   const [navConfig, setNavConfig] = useState<INavItem[]>([]);
 
   const initNavConfig: INavItem[] = useMemo(() => {
-    return [
+    const coreItems = [
       ...createCoreMainNavItems({
         stream: { component: <Stream />, name: i18n('stream.nav.title') },
         workspace: { component: <Workspace />, name: i18n('workspace.title') },
@@ -87,6 +89,8 @@ function MainPage() {
         name: i18n('team.title'),
       },
     ];
+
+    return mergeMainNavigationItems(coreItems, editionUiExtension.mainNavigationItems ?? []);
   }, []);
 
   const showLeftContainer = useMemo(() => {

@@ -3,12 +3,15 @@ package ai.chat2db.community.domain.core.impl.task;
 import ai.chat2db.community.domain.api.enums.ExportScopeTypeEnum;
 import ai.chat2db.community.domain.api.enums.TaskTypeEnum;
 import ai.chat2db.community.domain.api.model.async.AsyncContext;
+import ai.chat2db.community.domain.api.model.runtime.ConnectionProfile;
 import ai.chat2db.community.domain.api.model.request.task.TaskFileImportRequest;
 import ai.chat2db.community.domain.api.model.request.task.TaskOtherFileExportRequest;
 import ai.chat2db.community.domain.api.model.request.task.TaskRecordCreateRequest;
 import ai.chat2db.community.domain.api.model.request.task.TaskSqlFileExportRequest;
 import ai.chat2db.community.domain.api.model.task.ExportAsyncContext;
 import ai.chat2db.community.domain.api.model.task.ImportAsyncContext;
+import ai.chat2db.community.domain.api.model.task.extension.TaskOperation;
+import ai.chat2db.community.domain.api.model.task.extension.TaskSubmissionContext;
 import ai.chat2db.community.domain.api.service.task.ITaskDataExportService;
 import ai.chat2db.community.domain.api.service.task.ITaskDataImportService;
 import ai.chat2db.community.domain.api.service.task.ITaskExecutionService;
@@ -17,7 +20,11 @@ import ai.chat2db.community.domain.api.service.task.ITaskFileService;
 import ai.chat2db.community.domain.api.service.task.ITaskRecordService;
 import ai.chat2db.community.domain.api.service.task.ITaskSchedulerService;
 import ai.chat2db.community.domain.api.service.task.ITaskTransferService;
+import ai.chat2db.community.domain.core.converter.ConnectionContextConverter;
+import ai.chat2db.community.domain.core.impl.task.extension.TaskExtensionManager;
+import ai.chat2db.community.tools.model.Context;
 import ai.chat2db.community.tools.util.ContextUtils;
+import ai.chat2db.spi.sql.Chat2DBContext;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
@@ -34,6 +41,8 @@ public class TaskTransferServiceImpl implements ITaskTransferService {
     private final ITaskRecordService taskRecordService;
     private final ITaskFileService taskFileService;
     private final ITaskSchedulerService taskSchedulerService;
+    private final ConnectionContextConverter connectionContextConverter;
+    private final TaskExtensionManager taskExtensionManager;
 
     public TaskTransferServiceImpl(ITaskExecutionService taskExecutionService,
             ITaskExportService taskExportService,
@@ -41,7 +50,9 @@ public class TaskTransferServiceImpl implements ITaskTransferService {
             ITaskDataImportService taskDataImportService,
             ITaskRecordService taskRecordService,
             ITaskFileService taskFileService,
-            ITaskSchedulerService taskSchedulerService) {
+            ITaskSchedulerService taskSchedulerService,
+            ConnectionContextConverter connectionContextConverter,
+            TaskExtensionManager taskExtensionManager) {
         this.taskExecutionService = taskExecutionService;
         this.taskExportService = taskExportService;
         this.taskDataExportService = taskDataExportService;
@@ -49,6 +60,8 @@ public class TaskTransferServiceImpl implements ITaskTransferService {
         this.taskRecordService = taskRecordService;
         this.taskFileService = taskFileService;
         this.taskSchedulerService = taskSchedulerService;
+        this.connectionContextConverter = connectionContextConverter;
+        this.taskExtensionManager = taskExtensionManager;
     }
 
     @Override
@@ -83,42 +96,54 @@ public class TaskTransferServiceImpl implements ITaskTransferService {
         if (CollectionUtils.isEmpty(request.getTableNames())) {
             throw new IllegalArgumentException("Export table names must not be empty");
         }
+        Context requestContext = ContextUtils.queryContext();
+        TaskSubmissionContext submissionContext = captureSubmission(taskId,
+                TaskTypeEnum.DOWNLOAD_TABLE_DATA, request.getDatabaseName(), request.getSchemaName(),
+                request.getTableNames(), TaskOperation.EXPORT);
         ExportAsyncContext asyncContext = taskFileService.createOtherExportContext(taskId, request.getExportPath(),
                 request.getDatabaseName(), request.getSchemaName(), request.getTableNames(), request.getExportType(),
-                request.getContainsHeader(), taskSchedulerService.asyncCall(taskId), ContextUtils.queryContext());
-        taskSchedulerService.submit(taskId, asyncContext,
-                taskExecutionService.withCurrentConnectionContext(ContextUtils.queryContext(),
-                        () -> taskDataExportService.exportOtherFile(asyncContext)));
+                request.getContainsHeader(), taskSchedulerService.asyncCall(taskId), requestContext);
+        submitTask(taskId, asyncContext, requestContext, submissionContext,
+                () -> taskDataExportService.exportOtherFile(asyncContext));
         return taskId;
     }
 
     @Override
     public Long importSqlFile(TaskFileImportRequest request) {
         Long taskId = createImportTask(request.getDatabaseName(), request.getSchemaName(), request.getTableName());
+        Context requestContext = ContextUtils.queryContext();
+        TaskSubmissionContext submissionContext = captureSubmission(taskId, TaskTypeEnum.UPLOAD_TABLE_DATA,
+                request.getDatabaseName(), request.getSchemaName(), tableNames(request.getTableName()),
+                TaskOperation.IMPORT);
         ImportAsyncContext asyncContext = createImportContext(taskId, "SQL", request);
-        taskSchedulerService.submit(taskId, asyncContext,
-                taskExecutionService.withCurrentConnectionContext(ContextUtils.queryContext(),
-                        () -> taskDataImportService.importOtherFile(asyncContext)));
+        submitTask(taskId, asyncContext, requestContext, submissionContext,
+                () -> taskDataImportService.importOtherFile(asyncContext));
         return taskId;
     }
 
     @Override
     public Long importOtherFile(TaskFileImportRequest request) {
         Long taskId = createImportTask(request.getDatabaseName(), request.getSchemaName(), request.getTableName());
+        Context requestContext = ContextUtils.queryContext();
+        TaskSubmissionContext submissionContext = captureSubmission(taskId, TaskTypeEnum.UPLOAD_TABLE_DATA,
+                request.getDatabaseName(), request.getSchemaName(), tableNames(request.getTableName()),
+                TaskOperation.IMPORT);
         ImportAsyncContext asyncContext = createImportContext(taskId, request.getImportType(), request);
-        taskSchedulerService.submit(taskId, asyncContext,
-                taskExecutionService.withCurrentConnectionContext(ContextUtils.queryContext(),
-                        () -> taskDataImportService.importOtherFile(asyncContext)));
+        submitTask(taskId, asyncContext, requestContext, submissionContext,
+                () -> taskDataImportService.importOtherFile(asyncContext));
         return taskId;
     }
 
     private void submitSqlExport(Long taskId, TaskSqlFileExportRequest request) {
+        Context requestContext = ContextUtils.queryContext();
+        TaskSubmissionContext submissionContext = captureSubmission(taskId,
+                TaskTypeEnum.DOWNLOAD_TABLE_STRUCTURE, request.getDatabaseName(), request.getSchemaName(),
+                request.getTableNames(), TaskOperation.EXPORT);
         AsyncContext asyncContext = taskFileService.createSqlExportContext(taskId, request.getExportPath(),
                 request.getDatabaseName(), request.getSchemaName(), request.getTableNames(), request.isContainData(),
-                taskSchedulerService.asyncCall(taskId), ContextUtils.queryContext());
-        taskSchedulerService.submit(taskId, asyncContext,
-                taskExecutionService.withCurrentConnectionContext(ContextUtils.queryContext(),
-                        () -> taskExportService.exportSqlFile(request, asyncContext)));
+                taskSchedulerService.asyncCall(taskId), requestContext);
+        submitTask(taskId, asyncContext, requestContext, submissionContext,
+                () -> taskExportService.exportSqlFile(request, asyncContext));
     }
 
     private ImportAsyncContext createImportContext(Long taskId, String importType, TaskFileImportRequest request) {
@@ -162,5 +187,26 @@ public class TaskTransferServiceImpl implements ITaskTransferService {
             throw new IllegalStateException("Task creation failed");
         }
         return taskId;
+    }
+
+    private TaskSubmissionContext captureSubmission(Long taskId, TaskTypeEnum taskType, String databaseName,
+            String schemaName, List<String> tableNames, TaskOperation operation) {
+        ConnectionProfile connectionProfile = connectionContextConverter
+                .connectInfo2profile(Chat2DBContext.getConnectInfo());
+        TaskSubmissionContext submissionContext = new TaskSubmissionContext(taskId, taskType, connectionProfile,
+                databaseName, schemaName, tableNames, operation);
+        taskExtensionManager.capture(submissionContext);
+        return submissionContext;
+    }
+
+    private void submitTask(Long taskId, AsyncContext asyncContext, Context requestContext,
+            TaskSubmissionContext submissionContext, Runnable runnable) {
+        taskSchedulerService.submit(taskId, asyncContext,
+                taskExecutionService.withCurrentConnectionContext(requestContext,
+                        submissionContext.toExecutionContext(), runnable));
+    }
+
+    private static List<String> tableNames(String tableName) {
+        return StringUtils.isBlank(tableName) ? List.of() : List.of(tableName);
     }
 }

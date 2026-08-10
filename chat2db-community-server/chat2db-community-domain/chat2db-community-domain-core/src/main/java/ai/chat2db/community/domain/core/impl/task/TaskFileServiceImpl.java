@@ -71,10 +71,6 @@ public class TaskFileServiceImpl implements ITaskFileService {
     }
 
     private File newFileAutoAppendNo(String path, String fileName, String suffix) {
-        File directory = new File(path);
-        if (!directory.exists()) {
-            directory.mkdirs();
-        }
         File newFile = new File(path + File.separator + fileName + "." + suffix);
         if (newFile.exists()) {
             int i = 1;

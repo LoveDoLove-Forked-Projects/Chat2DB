@@ -28,7 +28,7 @@ interface OrgState {
   isOwner: boolean;
   isAdmin: boolean;
   applyProps: any | null;
-  orgNav: OrgNavType;
+  orgNav: string;
 }
 
 const initialState: OrgState = {
@@ -59,7 +59,7 @@ export interface OrgAction {
   /** Update organization */
   updateOrg: (orgParams: IUpdateOrganizationVORequest) => void;
   setApplyProps: (props: any) => void;
-  setOrgNav: (nav: OrgNavType) => void;
+  setOrgNav: (nav: string) => void;
   clearOrgStore: () => void;
 }
 
@@ -177,7 +177,7 @@ export const createOrgAction: StateCreator<OrgStore, [['zustand/devtools', never
       applyProps: props,
     });
   },
-  setOrgNav: (nav: OrgNavType) => {
+  setOrgNav: (nav: string) => {
     set({
       orgNav: nav,
     });

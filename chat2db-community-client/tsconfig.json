@@ -3,6 +3,13 @@
   "compilerOptions": {
     "moduleResolution": "node",
     "jsx": "react-jsx",
-    "noImplicitAny": false
+    "noImplicitAny": false,
+    "paths": {
+      "@/*": ["src/*"],
+      "@@/*": ["src/.umi/*"],
+      "@edition-ui": ["src/edition-ui/community.tsx"],
+      "umi": ["node_modules/umi"],
+      "umi/typings": ["src/.umi/typings"]
+    }
   }
 }

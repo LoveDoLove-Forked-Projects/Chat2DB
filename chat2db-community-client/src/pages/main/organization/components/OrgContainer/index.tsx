@@ -1,5 +1,10 @@
 import { useStyles } from './style';
-import { OrgNavType } from '../OrgNavList';
+import { OrgNavType } from '@/constants/organization';
+import { filterVisibleOrganizationPanels } from '@/edition-ui/merge';
+import type {
+  EditionOrganizationPanelContribution,
+  EditionOrganizationPanelVisibilityContext,
+} from '@/edition-ui/types';
 import MemberManagement from '../MemberManagement';
 import OrgSettings from '../OrgSettings';
 import Approve from '../Approval';
@@ -9,10 +14,12 @@ import SQLAudit from '../SQLAudit';
 import SubscriptionList from '../SubscriptionList';
 
 interface IProps {
-  menuKey: OrgNavType;
+  extensionPanels: readonly EditionOrganizationPanelContribution[];
+  visibilityContext: EditionOrganizationPanelVisibilityContext;
+  menuKey: string;
 }
 
-const OrgContainer = ({ menuKey }: IProps) => {
+const OrgContainer = ({ extensionPanels, visibilityContext, menuKey }: IProps) => {
   const { styles } = useStyles();
 
   const renderContent = () => {
@@ -32,15 +39,14 @@ const OrgContainer = ({ menuKey }: IProps) => {
       case OrgNavType.SQLAudit:
         return <SQLAudit />;
       default:
-        return null;
+        return (
+          filterVisibleOrganizationPanels(extensionPanels, visibilityContext).find((panel) => panel.id === menuKey)
+            ?.panel || null
+        );
     }
   };
 
-  return (
-    <div className={styles.wrapper}>
-      {renderContent()}
-    </div>
-  );
+  return <div className={styles.wrapper}>{renderContent()}</div>;
 };
 
 export default OrgContainer;

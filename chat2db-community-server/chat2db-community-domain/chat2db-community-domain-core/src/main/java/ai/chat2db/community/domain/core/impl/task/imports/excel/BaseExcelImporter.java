@@ -10,7 +10,6 @@ import ai.chat2db.community.domain.api.model.metadata.TableColumn;
 import ai.chat2db.spi.sql.Chat2DBContext;
 import ai.chat2db.spi.model.datasource.ConnectInfo;
 import ai.chat2db.spi.model.request.SingleInsertSqlRequest;
-import ai.chat2db.spi.DefaultSQLExecutor;
 import com.alibaba.excel.EasyExcel;
 import com.alibaba.excel.context.AnalysisContext;
 import com.alibaba.excel.event.AnalysisEventListener;
@@ -21,7 +20,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 
-import java.sql.Connection;
 import java.util.*;
 import java.util.concurrent.CancellationException;
 
@@ -68,15 +66,12 @@ public abstract class BaseExcelImporter extends BaseImporter {
 
         private ISqlBuilder sqlBuilder;
 
-        private Connection connection;
-
         public NoModelDataListener(ImportAsyncContext context, List<TableColumn> columns) {
             this.columns = columns;
             this.context = context;
             this.valueProcessor = Chat2DBContext.getDbMetaData().getValueProcessor();
             this.connectInfo = Chat2DBContext.getConnectInfo();
             this.sqlBuilder = Chat2DBContext.getSqlBuilder();
-            this.connection = Chat2DBContext.getConnection();
         }
 
 
@@ -188,8 +183,7 @@ public abstract class BaseExcelImporter extends BaseImporter {
                 context.checkCancelled();
                 if (CollectionUtils.isNotEmpty(sqlList)) {
                     context.info(String.format("Executing batch insert: %s", sqlList.size()));
-                    DefaultSQLExecutor.getInstance().executeBatchInsert(
-                            connection, sqlList, context, context::checkCancelled);
+                    context.execute(sqlList);
                     context.checkCancelled();
                 }
             } catch (CancellationException e) {

@@ -190,6 +190,9 @@ const createHeadScripts = () => [
 
 export default defineConfig({
   title: buildProfile.title,
+  alias: {
+    '@edition-ui': path.resolve(__dirname, 'src/edition-ui/community.tsx'),
+  },
   base: '/',
   history: buildProfile.isLocalDesktop ? { type: 'hash' } : undefined,
   publicPath: buildProfile.publicPath,

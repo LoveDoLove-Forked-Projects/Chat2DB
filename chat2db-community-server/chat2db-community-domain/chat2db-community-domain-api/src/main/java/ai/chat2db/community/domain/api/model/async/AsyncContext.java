@@ -59,7 +59,6 @@ public class AsyncContext implements ISqlExecutionStatementListener {
         this.writeFile = writeFile;
         this.progress = 5;
         this.containsData = containsData;
-        createWriter();
         appendInfo(DateUtil.formatDateTime(new Date()) + ":start------");
         asyncCallBack(context);
     }
@@ -146,8 +145,9 @@ public class AsyncContext implements ISqlExecutionStatementListener {
 
     public void write(String message) {
         checkCancelled();
-        if (writer != null) {
-            writer.write(message + "\n");
+        PrintWriter currentWriter = getOrCreateWriter();
+        if (currentWriter != null) {
+            currentWriter.write(message + "\n");
         }
     }
 
@@ -157,10 +157,15 @@ public class AsyncContext implements ISqlExecutionStatementListener {
         }
     }
 
-    private void createWriter() {
-        if (writeFile != null) {
-            this.writer = FileUtil.getPrintWriter(writeFile, "UTF-8", false);
+    private synchronized PrintWriter getOrCreateWriter() {
+        if (writer == null && writeFile != null) {
+            File parent = writeFile.getParentFile();
+            if (parent != null) {
+                FileUtil.mkdir(parent);
+            }
+            writer = FileUtil.getPrintWriter(writeFile, "UTF-8", false);
         }
+        return writer;
     }
 
     private void asyncCallBack(Context context) {

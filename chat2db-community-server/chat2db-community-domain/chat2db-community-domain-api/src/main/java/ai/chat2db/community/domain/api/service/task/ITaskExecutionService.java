@@ -1,6 +1,7 @@
 package ai.chat2db.community.domain.api.service.task;
 
 import ai.chat2db.community.domain.api.model.runtime.ConnectionProfile;
+import ai.chat2db.community.domain.api.model.task.extension.TaskExecutionContext;
 import ai.chat2db.community.tools.model.Context;
 
 public interface ITaskExecutionService {
@@ -14,6 +15,11 @@ public interface ITaskExecutionService {
      */
     Runnable withCurrentConnectionContext(Context context, Runnable runnable);
 
+    default Runnable withCurrentConnectionContext(Context context, TaskExecutionContext taskContext,
+            Runnable runnable) {
+        return withCurrentConnectionContext(context, runnable);
+    }
+
     /**
      * Wraps a runnable with an explicit connection profile.
      *
@@ -23,4 +29,9 @@ public interface ITaskExecutionService {
      * @return wrapped runnable.
      */
     Runnable withConnectionProfile(Context context, ConnectionProfile profile, Runnable runnable);
+
+    default Runnable withConnectionProfile(Context context, ConnectionProfile profile,
+            TaskExecutionContext taskContext, Runnable runnable) {
+        return withConnectionProfile(context, profile, runnable);
+    }
 }

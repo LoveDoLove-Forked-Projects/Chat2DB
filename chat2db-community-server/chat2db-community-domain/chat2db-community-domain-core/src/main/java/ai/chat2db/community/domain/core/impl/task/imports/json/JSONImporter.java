@@ -11,7 +11,6 @@ import ai.chat2db.community.domain.api.model.metadata.TableColumn;
 import ai.chat2db.spi.sql.Chat2DBContext;
 import ai.chat2db.spi.model.datasource.ConnectInfo;
 import ai.chat2db.spi.model.request.SingleInsertSqlRequest;
-import ai.chat2db.spi.DefaultSQLExecutor;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -56,16 +55,14 @@ public class JSONImporter extends BaseImporter implements IImportStrategy {
                 sqlCacheList.add(sql);
                 if (sqlCacheList.size() >= BATCH_SIZE) {
                     context.info("import " + BATCH_SIZE + " records");
-                    DefaultSQLExecutor.getInstance().executeBatchInsert(
-                            Chat2DBContext.getConnection(), sqlCacheList, context, context::checkCancelled);
+                    context.execute(sqlCacheList);
                     context.checkCancelled();
                     sqlCacheList = new ArrayList<>(BATCH_SIZE);
                 }
             }
             if (sqlCacheList.size() > 0) {
                 context.checkCancelled();
-                DefaultSQLExecutor.getInstance().executeBatchInsert(
-                        Chat2DBContext.getConnection(), sqlCacheList, context, context::checkCancelled);
+                context.execute(sqlCacheList);
                 context.checkCancelled();
             }
         } catch (CancellationException e) {
