@@ -62,16 +62,29 @@ async function run() {
   Object.assign(state, createHotUpdateAction(set as any, get as any, {} as any));
 
   try {
+    let restartCount = 0;
+    jcefApi.restartApp = async () => {
+      restartCount += 1;
+      return true;
+    };
     jcefApi.triggerInstallation = async () => {
       throw new Error('bridge rejected installation');
     };
     await state.updateAndRestartApp();
     assert.equal(state.updateDetail.status, UpdatedStatus.UpdateFailed);
+    assert.equal(restartCount, 0);
 
     state.updateDetail = { status: UpdatedStatus.Updated };
     jcefApi.triggerInstallation = async () => false;
     await state.updateAndRestartApp();
     assert.equal(state.updateDetail.status, UpdatedStatus.UpdateFailed);
+    assert.equal(restartCount, 0);
+
+    state.updateDetail = { status: UpdatedStatus.Updated };
+    jcefApi.triggerInstallation = async () => true;
+    await state.updateAndRestartApp();
+    assert.equal(state.updateDetail.status, UpdatedStatus.Installing);
+    assert.equal(restartCount, 1);
 
     state.updateDetail = { status: UpdatedStatus.Default };
     jcefApi.appCheckUpdate = async () => {

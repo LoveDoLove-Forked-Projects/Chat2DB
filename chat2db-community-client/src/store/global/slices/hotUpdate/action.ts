@@ -32,16 +32,18 @@ export const createHotUpdateAction: StateCreator<GlobalStore, [['zustand/devtool
       });
       try {
         const accepted = await jcefApi.triggerInstallation();
-        if (accepted) {
+        if (!accepted) {
+          get().setUpdateDetail({
+            status: UpdatedStatus.UpdateFailed,
+          });
           return;
         }
       } catch {
-        // The failed state below is shared by rejected and refused installations.
+        get().setUpdateDetail({
+          status: UpdatedStatus.UpdateFailed,
+        });
+        return;
       }
-      get().setUpdateDetail({
-        status: UpdatedStatus.UpdateFailed,
-      });
-      return;
     }
     try {
       await jcefApi.restartApp();
