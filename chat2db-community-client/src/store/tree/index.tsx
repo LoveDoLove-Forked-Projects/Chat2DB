@@ -2,6 +2,7 @@ import { openSchemaSyncModal } from '@/blocks/NewTree/functions/schemaSync';
 import { ILoadDataOptions, normalizeTreeNodeLoadResult, treeConfig } from '@/blocks/NewTree/treeConfig';
 import { TreeNodeType, initUserConfigTree } from '@/constants';
 import { runtimeEditionConfig } from '@/constants/runtimeEdition';
+import { getRuntimeEditionCapabilities } from '@/hooks/useRuntimeEditionCapabilities';
 import { dataSourceTreeService } from '@/database';
 import aiDataCollectionService from '@/service/aiDataCollection';
 import connectionService from '@/service/connection';
@@ -300,7 +301,7 @@ export const createTreeAction: StateCreator<TreeStore, [['zustand/devtools', nev
       if (get().searchBarValue && _treeData) {
         const visibleTreeData = filterTreeNodesForDisplay(_treeData, {
           hiddenTreeNodeIds: get().hiddenTreeNodeIds,
-          aiDataCollectionEnabled: runtimeEditionConfig.aiDataCollection,
+          aiDataCollectionEnabled: getRuntimeEditionCapabilities().aiDataCollection,
         });
         const { matchedNodes, matchedKeys, parentIdsWithMatches } = searchTreeNodes(
           visibleTreeData,
@@ -315,7 +316,7 @@ export const createTreeAction: StateCreator<TreeStore, [['zustand/devtools', nev
       if (get().searchBarValue && treeData) {
         const visibleTreeData = filterTreeNodesForDisplay(treeData, {
           hiddenTreeNodeIds: get().hiddenTreeNodeIds,
-          aiDataCollectionEnabled: runtimeEditionConfig.aiDataCollection,
+          aiDataCollectionEnabled: getRuntimeEditionCapabilities().aiDataCollection,
         });
         const { matchedNodes, matchedKeys, parentIdsWithMatches } = searchTreeNodes(
           visibleTreeData,
