@@ -73,7 +73,6 @@
     "test:terminal": "tsx src/constants/terminal.test.ts && tsx src/pages/main/workspace/components/WorkspaceExtend/WorkspaceExtendNav/quickTerminal.test.ts && tsx src/pages/main/workspace/components/WorkspaceTabs/terminalTabPlacement.test.ts && tsx src/pages/main/workspace/components/WorkspaceTabs/terminalAttachmentLifecycle.test.ts && tsx src/pages/main/workspace/components/WorkspaceTabs/workspaceTabSelection.test.ts",
     "test:workspace-tab-drag": "tsx src/pages/main/workspace/components/WorkspaceTabs/workspaceTabDrop.test.ts",
     "test:verification-code-countdown": "tsx src/utils/verificationCodeCountdown.test.ts && tsx src/utils/latestRequest.test.ts",
-    "modify:package:name": "node ./scripts/modify-package-name.js",
     "start": "yarn run start:community:hot",
     "start:community:hot": "cross-env DISABLE_MFSU=true cross-env UMI_DEV_SERVER_COMPRESS=none cross-env HOST=127.0.0.1 cross-env PORT=8889 node --require ./scripts/bind-dev-server-loopback.cjs ./node_modules/umi/bin/umi.js dev --public_path=/",
     "ui": "yarn add @chat2db/ui",

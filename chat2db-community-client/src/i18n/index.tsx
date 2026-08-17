@@ -8,6 +8,7 @@ import es_ES from './es-ES';
 import ja_JP from './ja-JP';
 import ko_KR from './ko-KR';
 import zh_CN from './zh-CN';
+import { APP_CONFIG } from '@/constants/appConfig';
 
 const locale = {
   [LangType.EN_US]: en_US,
@@ -35,6 +36,10 @@ function resolveTranslation(
   return fallbackLangSet[key];
 }
 
+function resolveProductName(value: string) {
+  return value.replace(/\{PRODUCT_NAME\}/g, APP_CONFIG.displayName);
+}
+
 function i18n(key: keyof typeof en_US, ...args: any[]) {
   const currentLang: LangType = useGlobalStore.getState().baseSetting.language;
   let langSet: Record<string, string> = locale[currentLang] || locale[getUserComputerLanguage()];
@@ -48,6 +53,7 @@ function i18n(key: keyof typeof en_US, ...args: any[]) {
   if (result === undefined) {
     return `[${key}]`;
   } else {
+    result = resolveProductName(result);
     args.forEach((arg, i) => {
       result = result.replace(new RegExp(`\\{${i + 1}\\}`, 'g'), arg);
     });
@@ -70,7 +76,8 @@ function i18nElement(key: keyof typeof en_US, ...args: React.ReactNode[]) {
   if (clientRuntime.restrictChineseOutsideChina && !isCN && currentLang === LangType.ZH_CN) {
     langSet = locale[LangType.EN_US];
   }
-  const str = resolveTranslation(langSet, fallbackLangSet, currentLang, key);
+  const translation = resolveTranslation(langSet, fallbackLangSet, currentLang, key);
+  const str = translation === undefined ? undefined : resolveProductName(translation);
   if (str === undefined) {
     return `[${key}]`;
   } else {

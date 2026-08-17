@@ -5,8 +5,14 @@ const path = require('path');
 
 const root = process.cwd();
 const sourceRoot = path.join(root, 'src');
+const serverRoot = path.resolve(root, '..', 'chat2db-community-server');
 
 const commercialPaths = [
+  '.umirc.desktop.ts',
+  '.umirc.offline.ts',
+  'scripts/modify-package-name.js',
+  'src/assets/logo/pro',
+  'src/assets/logo/local',
   'src/blocks/PersonalCenter',
   'src/blocks/Setting/DeviceCer',
   'src/blocks/Setting/Invite',
@@ -64,6 +70,11 @@ const forbiddenMarkers = [
   'Commercial' + 'GlobalComponentExtras',
   'community-' + 'stubs',
   '/api/' + 'enterprise',
+  'chat2db-' + 'pro',
+  'chat2db-' + 'local',
+  'Chat2DB ' + 'Pro',
+  'Chat2DB ' + 'Local',
+  'Pro ' + 'Member',
 ];
 
 const productionFiles = [];
@@ -76,6 +87,23 @@ while (pending.length) {
       if (entry.name === '.umi' || entry.name === '.umi-production') continue;
       pending.push(entryPath);
     } else if (/\.(?:js|jsx|ts|tsx)$/.test(entry.name) && !/\.test\.[^.]+$/.test(entry.name)) {
+      productionFiles.push(entryPath);
+    }
+  }
+}
+
+const serverPending = [serverRoot];
+while (serverPending.length) {
+  const current = serverPending.pop();
+  for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+    const entryPath = path.join(current, entry.name);
+    if (entry.isDirectory()) {
+      if (entry.name === 'target') continue;
+      serverPending.push(entryPath);
+    } else if (
+      entryPath.includes(`${path.sep}src${path.sep}main${path.sep}`) &&
+      /\.(?:html|java|properties|xml|ya?ml)$/.test(entry.name)
+    ) {
       productionFiles.push(entryPath);
     }
   }

@@ -134,7 +134,7 @@ public class MainJFrame extends JFrame {
         return instance;
     }
     static {
-        appName = DesktopProductTitle.resolve(OS.isWindows(), ConfigUtils.isCommunity(), ConfigUtils.isLocalEdition());
+        appName = DesktopProductTitle.resolve();
         if (!OS.isMacintosh()) {
             JFrame.setDefaultLookAndFeelDecorated(true);
             JDialog.setDefaultLookAndFeelDecorated(true);
