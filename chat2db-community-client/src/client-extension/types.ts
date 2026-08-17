@@ -59,6 +59,19 @@ export interface KnowledgeMentionPage {
   hasNextPage: boolean;
 }
 
+export interface TableMetadataSearchRequest {
+  dataSourceId: number;
+  searchKey: string;
+  limit?: number;
+}
+
+export interface TableMetadataSearchResult {
+  databaseName?: string;
+  schemaName?: string;
+  name: string;
+  comment?: string;
+}
+
 export type PermissionDeniedInteraction = 'prompt-application' | 'notify-only';
 
 export interface ClientRequestPolicy {
@@ -93,6 +106,7 @@ export interface ClientExtension {
     request: ResourceOperationRequest,
   ) => Promise<ResourceOperationCapabilities>;
   knowledgeMentions?: (request: KnowledgeMentionRequest) => Promise<KnowledgeMentionPage>;
+  tableMetadataSearch?: (request: TableMetadataSearchRequest) => Promise<readonly TableMetadataSearchResult[]>;
   dashboardActions?: (context: DashboardActionContext) => ReactNode;
   openPermissionApplication?: (request: PermissionApplicationRequest) => void;
   connectionStoragePolicy?: (workspace: ClientWorkspaceContext | null) => ConnectionStoragePolicy | undefined;

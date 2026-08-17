@@ -14,9 +14,10 @@ import { filterTreeNodesForDisplay } from '@/utils/filterTreeNodes';
 import { hydrateTreeForSearch } from '@/utils/hydrateTreeForSearch';
 import { TreeNodeType } from '@/constants';
 import { clientRuntime } from '@client-runtime';
+import clientExtension from '@client-extension';
 import { treeConfig } from '@/blocks/NewTree/treeConfig';
 import createRequest from '@/service/base';
-import sqlService, { ITableSearchResult } from '@/service/sql';
+import type { TableMetadataSearchResult } from '@/client-extension/types';
 import type { TreeNodeData } from '@/typings';
 import { useUpdateEffect } from 'ahooks';
 import { debounce } from 'lodash';
@@ -52,7 +53,7 @@ const loadStorageMigrationStatus = createRequest<void, StorageMigrationStatus>('
   errorLevel: false,
 });
 
-function buildTableSearchTree(dataSource: TreeNodeData, matches: ITableSearchResult[]): TreeNodeData[] {
+function buildTableSearchTree(dataSource: TreeNodeData, matches: readonly TableMetadataSearchResult[]): TreeNodeData[] {
   const roots: TreeNodeData[] = [];
   const dataSourceParams = dataSource.extraParams;
 
@@ -182,12 +183,12 @@ const WorkspaceLeftActionBar = memo<WorkspaceLeftActionBarProps>(
         treeStore.setSearchResultKeys(matchedKeys);
         treeStore.setExpandedKeys([...parentIdsWithMatches, ...treeStore.expandedKeys]);
 
-        if (rawValue.length < 2 || clientRuntime.showStorageMigration === 'community') {
+        if (rawValue.length < 2 || !clientExtension.tableMetadataSearch) {
           return;
         }
 
         const hydratedTreeData = await hydrateTreeForSearch(visibleTreeData, rawValue, async (node, searchValue) => {
-          const matches = await sqlService.searchTableList({
+          const matches = await clientExtension.tableMetadataSearch!({
             dataSourceId: node.extraParams.dataSourceId!,
             searchKey: searchValue,
             limit: 100,

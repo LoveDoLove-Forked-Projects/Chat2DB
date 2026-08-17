@@ -9,6 +9,7 @@ assert.deepEqual(clientExtension.navigationItems, []);
 assert.equal(clientExtension.settings, undefined);
 assert.equal(clientExtension.resourceOperations, undefined);
 assert.equal(clientExtension.knowledgeMentions, undefined);
+assert.equal(clientExtension.tableMetadataSearch, undefined);
 assert.deepEqual(clientExtension.requestPolicy, {
   permissionDeniedInteraction: 'prompt-application',
 });
@@ -51,5 +52,8 @@ const configSource = readFileSync('.umirc.ts', 'utf8');
 assert.match(configSource, /'@client-extension':/);
 assert.match(configSource, /'@client-runtime':/);
 assert.doesNotMatch(configSource, /CHAT2DB_PRODUCT|\b(?:pro|local|enterprise|delivery)\b/i);
+
+const sqlServiceSource = readFileSync('src/service/sql.ts', 'utf8');
+assert.doesNotMatch(sqlServiceSource, /\/api\/enterprise/);
 
 console.log('Client extension contract tests passed.');

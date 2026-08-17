@@ -63,6 +63,7 @@ const forbiddenMarkers = [
   '@' + 'product-ui',
   'Commercial' + 'GlobalComponentExtras',
   'community-' + 'stubs',
+  '/api/' + 'enterprise',
 ];
 
 const productionFiles = [];

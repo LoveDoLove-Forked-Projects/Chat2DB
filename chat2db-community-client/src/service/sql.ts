@@ -29,19 +29,6 @@ export interface IGetTableListParams extends IPageParams {
   databaseType?: DatabaseTypeCode;
 }
 
-export interface ITableSearchResult {
-  databaseName?: string;
-  schemaName?: string;
-  name: string;
-  comment?: string;
-}
-
-export interface ITableSearchParams {
-  dataSourceId: number;
-  searchKey: string;
-  limit?: number;
-}
-
 interface IDmlResultRequest {
   sql?: string;
   single?: boolean;
@@ -82,11 +69,6 @@ const getTableList = createRequest<IGetTableListParams, IPageResponse<ITable>>('
   method: 'get',
   errorLevel: false,
 });
-
-const searchTableList = createRequest<ITableSearchParams, ITableSearchResult[]>(
-  '/api/enterprise/metadata/table/search',
-  { method: 'get', errorLevel: false },
-);
 
 const executeSql = createRequest<ISqlEditorExecuteRequest, IManageResultData[]>('/api/rdb/dml/execute', {
   method: 'post',
@@ -492,7 +474,6 @@ export default {
   getFunctionList,
   getViewList,
   getTableList,
-  searchTableList,
   executeSql,
   deleteTable,
   prepareDeleteDatabase,
