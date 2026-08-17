@@ -37,6 +37,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Types;
 import java.util.ArrayList;
@@ -163,6 +164,42 @@ class ExportExtensionTest {
         assertEquals(true, exporter.next(resultSet, plan, 1));
         assertEquals(false, exporter.next(resultSet, plan, 2));
         assertEquals(2, nextCalls.get());
+    }
+
+    @Test
+    void sharedExportRowCursorChecksPolicyBeforeEveryNewBatch() throws Exception {
+        AtomicInteger checkpointCalls = new AtomicInteger();
+        SqlExecutionPolicyManager policyManager = new SqlExecutionPolicyManager(List.of(new ISqlExecutionPolicy() {
+            @Override
+            public void checkpoint(SqlExecutionPlan plan) {
+                checkpointCalls.incrementAndGet();
+            }
+        }));
+        TestExporter exporter = new TestExporter(new ExportCellProcessorChain(List.of()), policyManager);
+        SqlExecutionPlan plan = policyManager.plan(new SqlExecutionContext(7L, "MYSQL", "shop", null, "orders",
+                "select * from orders", SqlExecutionOperation.EXPORT, "test"));
+        AtomicInteger nextCalls = new AtomicInteger();
+        ResultSet resultSet = alwaysHasNextResultSet(nextCalls);
+
+        assertTrue(exporter.next(resultSet, plan, 0));
+        assertTrue(exporter.next(resultSet, plan, BaseExporter.BATCH_SIZE - 1));
+        assertTrue(exporter.next(resultSet, plan, BaseExporter.BATCH_SIZE));
+        assertTrue(exporter.next(resultSet, plan, BaseExporter.BATCH_SIZE * 2));
+
+        assertEquals(2, checkpointCalls.get());
+        assertEquals(4, nextCalls.get());
+    }
+
+    @Test
+    void checkpointFailureDoesNotPublishPartialExport() {
+        File output = tempDir.resolve("revoked.test").toFile();
+        ExportAsyncContext context = new ExportAsyncContext(null, null, output, "test", List.of("orders"),
+                "single", true);
+
+        assertThrows(IllegalStateException.class,
+                () -> new CheckpointFailingExporter().run(context));
+
+        assertFalse(output.exists());
     }
 
     @Test
@@ -330,6 +367,17 @@ class ExportExtensionTest {
                 });
     }
 
+    private static ResultSet alwaysHasNextResultSet(AtomicInteger nextCalls) {
+        return (ResultSet) Proxy.newProxyInstance(ExportExtensionTest.class.getClassLoader(),
+                new Class<?>[]{ResultSet.class}, (proxy, method, args) -> {
+                    if ("next".equals(method.getName())) {
+                        nextCalls.incrementAndGet();
+                        return true;
+                    }
+                    throw new UnsupportedOperationException(method.getName());
+                });
+    }
+
     private static IPlugin plugin(String dbType) {
         DBConfig config = new DBConfig();
         config.setDbType(dbType);
@@ -463,6 +511,34 @@ class ExportExtensionTest {
                 throws IOException {
             Files.writeString(file.toPath(), "partial raw value");
             throw new CancellationException("cancelled");
+        }
+    }
+
+    private static final class CheckpointFailingExporter extends BaseExporter {
+
+        private CheckpointFailingExporter() {
+            super(new ExportCellProcessorChain(List.of()), new SqlExecutionPolicyManager(List.of(
+                    new ISqlExecutionPolicy() {
+                        @Override
+                        public void checkpoint(SqlExecutionPlan plan) {
+                            throw new IllegalStateException("permission revoked");
+                        }
+                    })));
+        }
+
+        @Override
+        public String type() {
+            return "test";
+        }
+
+        @Override
+        protected void singleExport(ExportAsyncContext asyncContext, String tableName, File file)
+                throws IOException, SQLException {
+            Files.writeString(file.toPath(), "partial raw value");
+            SqlExecutionContext executionContext = new SqlExecutionContext(7L, "MYSQL", "shop", null,
+                    tableName, "select * from " + tableName, SqlExecutionOperation.EXPORT, "test");
+            SqlExecutionPlan plan = new SqlExecutionPlan(executionContext, executionContext.getOriginalSql(), null);
+            nextRow(alwaysHasNextResultSet(new AtomicInteger()), plan, BaseExporter.BATCH_SIZE);
         }
     }
 

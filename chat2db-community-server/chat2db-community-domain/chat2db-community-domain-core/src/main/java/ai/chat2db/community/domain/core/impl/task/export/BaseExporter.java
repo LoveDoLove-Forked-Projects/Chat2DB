@@ -182,7 +182,13 @@ public abstract class BaseExporter implements IExportStrategy {
 
     protected boolean nextRow(ResultSet resultSet, SqlExecutionPlan plan, int exportedRowCount)
             throws SQLException {
-        return isRowAllowed(plan, exportedRowCount) && resultSet.next();
+        if (!isRowAllowed(plan, exportedRowCount)) {
+            return false;
+        }
+        if (exportedRowCount > 0 && exportedRowCount % BATCH_SIZE == 0) {
+            sqlExecutionPolicyManager.checkpoint(plan);
+        }
+        return resultSet.next();
     }
 
     protected ExportCell processCell(ResultSetMetaData metaData, int columnIndex, String tableName,

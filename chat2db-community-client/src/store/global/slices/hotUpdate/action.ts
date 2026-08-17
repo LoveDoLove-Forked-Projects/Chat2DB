@@ -1,4 +1,4 @@
-import { runtimeEditionConfig } from '@/constants/runtimeEdition';
+import { clientRuntime } from '@client-runtime';
 import { UpdatedStatus } from '@/constants/settings';
 import jcefApi from '@/jcef';
 import { IHotUpdateConfig } from '@/typings/settings';
@@ -21,7 +21,7 @@ export const createHotUpdateAction: StateCreator<GlobalStore, [['zustand/devtool
   get,
 ) => ({
   updateAndRestartApp: async () => {
-    if (!runtimeEditionConfig.autoUpdate) {
+    if (!clientRuntime.enableAutoUpdate) {
       return;
     }
     if (get().updateDetail.status === UpdatedStatus.Updated) {
@@ -36,7 +36,7 @@ export const createHotUpdateAction: StateCreator<GlobalStore, [['zustand/devtool
     await jcefApi?.restartApp();
   },
   handleCheckUpdate: () => {
-    if (!isDesktop || !runtimeEditionConfig.autoUpdate) {
+    if (!isDesktop || !clientRuntime.enableAutoUpdate) {
       return Promise.resolve(false);
     }
     return jcefApi.appCheckUpdate().then((res) => {

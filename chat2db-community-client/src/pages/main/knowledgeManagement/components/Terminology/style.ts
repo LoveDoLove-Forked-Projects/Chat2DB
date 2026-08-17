@@ -63,6 +63,12 @@ export const useStyles = createStyles(({ css, token }) => {
       padding: 0px 6px;
       border-radius: 0px;
     `,
+    sqlEditor: css`
+      height: 150px;
+      overflow: hidden;
+      border: 1px solid ${token.colorBorder};
+      border-radius: 4px;
+    `,
     selectInput: css`
       min-height: 30px;
       box-sizing: border-box;

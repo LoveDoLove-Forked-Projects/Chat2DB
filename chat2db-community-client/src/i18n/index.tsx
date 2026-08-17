@@ -1,4 +1,4 @@
-import { runtimeEditionConfig } from '@/constants/runtimeEdition';
+import { clientRuntime } from '@client-runtime';
 import { LangType } from '@/constants/settings';
 import { useGlobalStore } from '@/store/global';
 import { getUserComputerLanguage } from '@/utils';
@@ -41,7 +41,7 @@ function i18n(key: keyof typeof en_US, ...args: any[]) {
   const fallbackLangSet = locale[LangType.EN_US];
   const isCN = useGlobalStore.getState().appConfig.isCN;
   // Force English for users outside China.
-  if (runtimeEditionConfig.languageRegionRestricted && !isCN && currentLang === LangType.ZH_CN) {
+  if (clientRuntime.restrictChineseOutsideChina && !isCN && currentLang === LangType.ZH_CN) {
     langSet = locale[LangType.EN_US];
   }
   let result = resolveTranslation(langSet, fallbackLangSet, currentLang, key);
@@ -67,7 +67,7 @@ function i18nElement(key: keyof typeof en_US, ...args: React.ReactNode[]) {
   const fallbackLangSet = locale[LangType.EN_US];
   const isCN = useGlobalStore.getState().appConfig.isCN;
   // Force English for users outside China.
-  if (runtimeEditionConfig.languageRegionRestricted && !isCN && currentLang === LangType.ZH_CN) {
+  if (clientRuntime.restrictChineseOutsideChina && !isCN && currentLang === LangType.ZH_CN) {
     langSet = locale[LangType.EN_US];
   }
   const str = resolveTranslation(langSet, fallbackLangSet, currentLang, key);

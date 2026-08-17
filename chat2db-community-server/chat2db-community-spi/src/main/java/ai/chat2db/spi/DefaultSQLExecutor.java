@@ -150,15 +150,29 @@ public class DefaultSQLExecutor implements ICommandExecutor {
             Function<JDBCDataValue, String> valueFunction,
             boolean limitSize,
             Integer resultSetId) {
+        execute(connection, sql, headerConsumer, rowConsumer, valueFunction, limitSize, resultSetId, null);
+    }
+
+    public void execute(
+            Connection connection, String sql,
+            Consumer<List<Header>> headerConsumer,
+            Consumer<List<String>> rowConsumer,
+            Function<JDBCDataValue, String> valueFunction,
+            boolean limitSize,
+            Integer resultSetId,
+            Integer maxRows) {
         Assert.notNull(sql, "SQL must not be null");
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            if (maxRows != null && maxRows > 0) {
+                stmt.setMaxRows(maxRows);
+            }
             boolean query = stmt.execute();
             int resultCount = 0;
             while (true) {
                 if (query) {
                     resultCount++;
                     if (resultSetId == null || resultCount == resultSetId) {
-                        writeExportResultSet(stmt, headerConsumer, rowConsumer, valueFunction, limitSize);
+                        writeExportResultSet(stmt, headerConsumer, rowConsumer, valueFunction, limitSize, maxRows);
                         return;
                     }
                 } else if (stmt.getUpdateCount() == -1) {
@@ -175,7 +189,8 @@ public class DefaultSQLExecutor implements ICommandExecutor {
     private void writeExportResultSet(Statement stmt, Consumer<List<Header>> headerConsumer,
                                       Consumer<List<String>> rowConsumer,
                                       Function<JDBCDataValue, String> valueFunction,
-                                      boolean limitSize) throws SQLException {
+                                      boolean limitSize,
+                                      Integer maxRows) throws SQLException {
         ResultSet rs = null;
         try {
             rs = stmt.getResultSet();
@@ -190,7 +205,8 @@ public class DefaultSQLExecutor implements ICommandExecutor {
 
             headerConsumer.accept(headerList);
 
-            while (rs.next()) {
+            int exportedRows = 0;
+            while ((maxRows == null || exportedRows < maxRows) && rs.next()) {
                 List<String> row = new ArrayList<>();
                 for (int i = 1; i <= col; i++) {
                     if (chat2dbAutoRowIdIndex == i) {
@@ -200,6 +216,7 @@ public class DefaultSQLExecutor implements ICommandExecutor {
                     row.add(valueFunction.apply(jdbcDataValue));
                 }
                 rowConsumer.accept(row);
+                exportedRows++;
             }
         } finally {
             JdbcUtils.closeResultSet(rs);

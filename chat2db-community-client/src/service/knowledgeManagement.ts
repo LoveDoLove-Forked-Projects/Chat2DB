@@ -1,18 +1,22 @@
 import createRequest from './base';
 import { KnowledgeManagementPromptType } from '@/constants/knowledgeManagement';
 import { IPageParams, IPageResponse } from '@/typings/common';
+import type { KnowledgeManagementRecord, KnowledgeManagementSaveRequest } from '@/typings/knowledgeManagement';
 
 /** Get the knowledge management list */
-const getList = createRequest<IPageParams & { promptType: KnowledgeManagementPromptType }, IPageResponse<any>>(
+const getList = createRequest<
+  IPageParams & { promptType: KnowledgeManagementPromptType },
+  IPageResponse<KnowledgeManagementRecord>
+>(
   '/api/ai/prompt/rag/list',
   { method: 'get' },
 );
 
 /** Added knowledge management */
-const save = createRequest<any, any>('/api/ai/prompt/rag/save', { method: 'post' });
+const save = createRequest<KnowledgeManagementSaveRequest, void>('/api/ai/prompt/rag/save', { method: 'post' });
 
 /** Update knowledge management */
-const update = createRequest<any, any>('/api/ai/prompt/rag/update', { method: 'post' });
+const update = createRequest<KnowledgeManagementSaveRequest, void>('/api/ai/prompt/rag/update', { method: 'post' });
 
 /** Delete knowledge management */
 const remove = createRequest<any, any>('/api/ai/prompt/rag/delete', { method: 'post' });

@@ -17,9 +17,16 @@ import { IChartItem } from '@/typings/dashboard';
 import { ChartSchema } from '@/blocks/BI/Chart/typings';
 import { ChartType, LineType, OrderByType, OrderByRule } from '@/blocks/BI/Chart/constants';
 import { TableDataType } from '@/constants/table';
+import { QuestionType } from '@/constants/chat';
 import useSSERequest, { SSERequestStatus } from '@/hooks/useSSERequest';
 import AIChatInput, { ChatInputPropsRef, SendParams } from './components/AIChatInput';
-import aiStreamService, { IChatMessage, IChatSession, IModelOptionItem } from '@/service/aiStream';
+import aiStreamService, {
+  IChatMessage,
+  IChatSession,
+  IModelOptionItem,
+  ISelectedKnowledge,
+  KnowledgeSelectionType,
+} from '@/service/aiStream';
 import { IChatAttachment } from '@/service/aiAttachment';
 import { useAIStore } from '@/store/ai';
 import { useTreeStore } from '@/store/tree';
@@ -38,6 +45,9 @@ import AIModelConfigModal from './components/AIModelConfigModal';
 import { resolveSelectedModel } from './components/AIModelSelect/modelSelectOptions';
 import { listAvailableModelOptions, resolveModelRequestPayload } from '@/service/aiModelConfig';
 import { isDesktop } from '@/utils/env';
+import { usePermission } from '@/hooks/usePermission';
+import { clientRuntime } from '@client-runtime';
+import { toKnowledgeSelectionReferences } from './knowledgeSelection';
 
 /** detects unclosed text in flowing text ```chart block, return chart and whether there are any unfinished diagrams */
 function splitIncompleteChartBlock(text: string): { textBeforeChart: string; hasIncompleteChart: boolean } {
@@ -311,8 +321,15 @@ interface IChatItem {
   role: ChatRole;
   content: string;
   attachments?: IChatAttachment[];
+  selectedKnowledge?: ISelectedKnowledge[];
   traceEntries?: ITraceEntry[];
 }
+
+const knowledgeTypeLabel: Record<KnowledgeSelectionType, string> = {
+  KNOWLEDGE_TERM: '知识名词',
+  BUSINESS_LOGIC: '业务逻辑',
+  SQL_TEMPLATE: 'SQL 模板',
+};
 
 interface IChatRound {
   key: string;
@@ -487,6 +504,12 @@ function isLikelySameSessionFromPrefix(serverMessages: IChatItem[], snapshotMess
 export default function AI({ variant = 'page', onTableClick, onPinSql, onSessionChange }: IAIProps) {
   const isPanel = variant === 'panel';
   const { styles } = useStyles();
+  const [modal, modalContextHolder] = Modal.useModal();
+  const language = useGlobalStore((state) => state.baseSetting.language);
+  const { canAny } = usePermission();
+  const canManageCustomModels =
+    clientRuntime.usesLocalPersistence ||
+    canAny(['ai', 'model', 'create'], ['ai', 'model', 'update'], ['ai', 'model', 'delete']);
   const [modelOptions, setModelOptions] = useState<Array<{ label: string; value: string; isDefault?: boolean }>>([]);
   const [modelOptionMap, setModelOptionMap] = useState<Record<string, IModelOptionItem>>({});
   const [messages, setMessages] = useState<IChatItem[]>([]);
@@ -494,7 +517,11 @@ export default function AI({ variant = 'page', onTableClick, onPinSql, onSession
   const [streamTraceEntries, setStreamTraceEntries] = useState<ITraceEntry[]>([]);
   const [expandedTraceMap, setExpandedTraceMap] = useState<Record<string, boolean>>({});
   const [streamThoughtPulse, setStreamThoughtPulse] = useState(false);
-  const [prefillInputState, setPrefillInputState] = useState<{ text: string; token: number } | null>(null);
+  const [prefillInputState, setPrefillInputState] = useState<{
+    text: string;
+    token: number;
+    questionType?: QuestionType;
+  } | null>(null);
   const [currentRoundUserMessageId, setCurrentRoundUserMessageId] = useState<string | null>(null);
   const [messageListContentHeight, setMessageListContentHeight] = useState(0);
 
@@ -806,6 +833,7 @@ export default function AI({ variant = 'page', onTableClick, onPinSql, onSession
   const { status, request, stop } = useSSERequest<IStreamChunk>(
     {
       baseURL: '/api/v3/ai/chat/stream',
+      lang: language,
       onChunk: handleChunk,
     },
     undefined,
@@ -959,11 +987,12 @@ export default function AI({ variant = 'page', onTableClick, onPinSql, onSession
     if (!isPanel) return;
 
     const handlePrefillEvent = (e: Event) => {
-      const { input } = (e as CustomEvent<{ input: string }>).detail || {};
+      const { input, questionType } = (e as CustomEvent<{ input: string; questionType?: QuestionType }>).detail || {};
       if (!input) return;
       setPrefillInputState({
         text: input,
         token: Date.now(),
+        questionType,
       });
     };
 
@@ -1213,7 +1242,7 @@ export default function AI({ variant = 'page', onTableClick, onPinSql, onSession
 
   const confirmDeleteHistorySession = useCallback(
     (sessionId: string) => {
-      Modal.confirm({
+      modal.confirm({
         title: i18n('stream.sidebar.deleteConfirm'),
         okText: i18n('common.button.delete'),
         cancelText: i18n('common.button.cancel'),
@@ -1221,7 +1250,7 @@ export default function AI({ variant = 'page', onTableClick, onPinSql, onSession
         onOk: () => handleDeleteHistorySession(sessionId),
       });
     },
-    [handleDeleteHistorySession],
+    [handleDeleteHistorySession, modal],
   );
 
   // Load a historical conversation by session ID.
@@ -1309,6 +1338,7 @@ export default function AI({ variant = 'page', onTableClick, onPinSql, onSession
           role: m.role as ChatRole,
           content: m.content,
           attachments: m.attachments,
+          selectedKnowledge: m.selectedKnowledge,
           traceEntries: parseTraceEntries(m.reasoningContent),
         }));
         const latestInProgressSession = inProgressSessionRef.current;
@@ -1456,6 +1486,7 @@ export default function AI({ variant = 'page', onTableClick, onPinSql, onSession
             role: 'user' as const,
             content,
             attachments: params.attachments,
+            selectedKnowledge: params.selectedKnowledge,
           },
         ];
         messagesRef.current = next;
@@ -1480,7 +1511,6 @@ export default function AI({ variant = 'page', onTableClick, onPinSql, onSession
         inputPreview: content.slice(0, 200),
         sessionId: currentSessionId || undefined,
         dataSourceId: params.dataSourceId,
-        dataSourceCollectionId: params.dataSourceCollectionId,
         databaseName: params.databaseName,
         schemaName: params.schemaName,
         attachmentCount: params.attachments?.length || 0,
@@ -1501,10 +1531,13 @@ export default function AI({ variant = 'page', onTableClick, onPinSql, onSession
         history: historyPayload,
         enableTools: true,
         ...modelRequestPayload,
-        dataSourceCollectionId: params.dataSourceCollectionId,
         dataSourceId: params.dataSourceId,
         databaseName: params.databaseName,
         schemaName: params.schemaName,
+        databaseType: params.databaseType,
+        tableName: params.tableName,
+        questionType: params.questionType,
+        selectedKnowledge: toKnowledgeSelectionReferences(params.selectedKnowledge),
         attachments: params.attachments,
       });
 
@@ -1844,6 +1877,29 @@ export default function AI({ variant = 'page', onTableClick, onPinSql, onSession
                         ))}
                       </div>
                     ) : null}
+                    {round.user.selectedKnowledge?.some((knowledge) => knowledge.key) ? (
+                      <div className={styles.userKnowledgeList} aria-label="本次使用的知识点">
+                        {round.user.selectedKnowledge
+                          .filter((knowledge) => knowledge.key)
+                          .map((knowledge) => (
+                            <span
+                              key={`${knowledge.type}-${knowledge.id}`}
+                              className={cx(
+                                styles.userKnowledgeItem,
+                                knowledge.type === 'KNOWLEDGE_TERM' && styles.userKnowledgeTerm,
+                                knowledge.type === 'BUSINESS_LOGIC' && styles.userBusinessLogic,
+                                knowledge.type === 'SQL_TEMPLATE' && styles.userSqlTemplate,
+                              )}
+                              title={knowledge.value || knowledge.key}
+                            >
+                              <span className={styles.userKnowledgeType}>
+                                {knowledgeTypeLabel[knowledge.type]}：
+                              </span>
+                              <span className={styles.userKnowledgeName}>{knowledge.key}</span>
+                            </span>
+                          ))}
+                      </div>
+                    ) : null}
                     <div className={styles.userBubble}>{round.user.content}</div>
                   </div>
                 </div>
@@ -1964,6 +2020,7 @@ export default function AI({ variant = 'page', onTableClick, onPinSql, onSession
 
   return (
     <div className={styles.main}>
+      {modalContextHolder}
       {isPanel
         ? renderPanelHeader()
         : (!isEmptyState || sessionLoading) && (
@@ -2030,8 +2087,8 @@ export default function AI({ variant = 'page', onTableClick, onPinSql, onSession
                     : { minRows: 2, maxRows: 6 }
                 }
                 modelOptions={modelOptions}
-                showCustomModelEntry
-                onCustomModelClick={() => setOpenSettings(true)}
+                showCustomModelEntry={canManageCustomModels}
+                onCustomModelClick={canManageCustomModels ? () => setOpenSettings(true) : undefined}
                 customModelText={i18n('setting.modelConfig.entry')}
                 prefillInputState={prefillInputState}
                 autoFocus={isDesktop}
@@ -2040,11 +2097,13 @@ export default function AI({ variant = 'page', onTableClick, onPinSql, onSession
           </div>
         </div>
       )}
-      <AIModelConfigModal
-        open={openSettings}
-        onClose={() => setOpenSettings(false)}
-        onChanged={loadModelOptions}
-      />
+      {canManageCustomModels ? (
+        <AIModelConfigModal
+          open={openSettings}
+          onClose={() => setOpenSettings(false)}
+          onChanged={loadModelOptions}
+        />
+      ) : null}
     </div>
   );
 }

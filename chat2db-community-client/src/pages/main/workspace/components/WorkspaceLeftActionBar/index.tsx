@@ -6,13 +6,18 @@ import { DatabaseBackup } from 'lucide-react';
 import AddDatasourceBar from './components/AddDatasourceBar';
 import TreeSetting from './components/TreeSetting';
 import { useTreeStore } from '@/store/tree';
-import { useOrgStore } from '@/store/organization';
+import { useOrgStore } from '@/store/workspaceContext';
 import { useGlobalStore } from '@/store/global';
 import i18n from '@/i18n';
 import { searchTreeNodes } from '@/utils';
 import { filterTreeNodesForDisplay } from '@/utils/filterTreeNodes';
-import { runtimeEditionConfig } from '@/constants/runtimeEdition';
+import { hydrateTreeForSearch } from '@/utils/hydrateTreeForSearch';
+import { TreeNodeType } from '@/constants';
+import { clientRuntime } from '@client-runtime';
+import { treeConfig } from '@/blocks/NewTree/treeConfig';
 import createRequest from '@/service/base';
+import sqlService, { ITableSearchResult } from '@/service/sql';
+import type { TreeNodeData } from '@/typings';
 import { useUpdateEffect } from 'ahooks';
 import { debounce } from 'lodash';
 import {
@@ -47,9 +52,72 @@ const loadStorageMigrationStatus = createRequest<void, StorageMigrationStatus>('
   errorLevel: false,
 });
 
+function buildTableSearchTree(dataSource: TreeNodeData, matches: ITableSearchResult[]): TreeNodeData[] {
+  const roots: TreeNodeData[] = [];
+  const dataSourceParams = dataSource.extraParams;
+
+  const ensureNode = (
+    siblings: TreeNodeData[],
+    treeNodeType: TreeNodeType,
+    originalTitle: string,
+    extraParams: TreeNodeData['extraParams'],
+  ) => {
+    const key = treeConfig[treeNodeType].createTreeNodeKey!(extraParams);
+    let existing = siblings.find((item) => item.key === key);
+    if (!existing) {
+      existing = {
+        key,
+        originalTitle,
+        title: null,
+        treeNodeType,
+        isLeaf: false,
+        extraParams,
+        children: [],
+      };
+      siblings.push(existing);
+    }
+    return existing;
+  };
+
+  matches.forEach((match) => {
+    const extraParams = {
+      ...dataSourceParams,
+      databaseName: match.databaseName || undefined,
+      schemaName: match.schemaName || undefined,
+    };
+    let siblings = roots;
+    if (dataSourceParams.supportDatabase && match.databaseName) {
+      const database = ensureNode(siblings, TreeNodeType.DATABASE, match.databaseName, extraParams);
+      siblings = database.children as TreeNodeData[];
+    }
+    if (dataSourceParams.supportSchema && match.schemaName) {
+      const schema = ensureNode(siblings, TreeNodeType.SCHEMA, match.schemaName, extraParams);
+      siblings = schema.children as TreeNodeData[];
+    }
+    const tables = ensureNode(siblings, TreeNodeType.TABLES, i18n('common.text.tables'), extraParams);
+    const tableParams = { ...extraParams, tableName: match.name };
+    const tableKey = treeConfig[TreeNodeType.TABLE].createTreeNodeKey!(tableParams);
+    if (!(tables.children as TreeNodeData[]).some((item) => item.key === tableKey)) {
+      (tables.children as TreeNodeData[]).push({
+        key: tableKey,
+        originalTitle: match.name,
+        title: null,
+        treeNodeType: TreeNodeType.TABLE,
+        isLeaf: false,
+        describe: match.comment,
+        extraParams: tableParams,
+        decorativeParams: { comment: match.comment },
+      });
+    }
+  });
+
+  return roots;
+}
+
 const WorkspaceLeftActionBar = memo<WorkspaceLeftActionBarProps>(
   ({ active = true, onLocateActiveTab, locateActiveTabDisabled = false }) => {
     const searchBarRef = useRef<SearchBarHandle>(null);
+    const searchSequenceRef = useRef(0);
     const { refreshTreeData, searchBarValue, setSearchBarValue, searchResultKeys, hiddenTreeNodeIds } = useTreeStore(
       (s) => ({
         refreshTreeData: s.refreshTreeData,
@@ -71,7 +139,7 @@ const WorkspaceLeftActionBar = memo<WorkspaceLeftActionBarProps>(
     );
 
     const { styles } = useStyles();
-    const showStorageMigration = !isEmbedIframe && runtimeEditionConfig.settingMenuProfile !== 'community';
+    const showStorageMigration = !isEmbedIframe && clientRuntime.showStorageMigration !== 'community';
     const [migrationPending, setMigrationPending] = useState(false);
 
     const { isAdmin } = useOrgStore((s) => {
@@ -96,9 +164,11 @@ const WorkspaceLeftActionBar = memo<WorkspaceLeftActionBarProps>(
     };
 
     const debouncedSearch = useCallback(
-      debounce(() => {
+      debounce(async () => {
         const treeStore = useTreeStore.getState();
         const value = treeStore.regularSearchBarValue;
+        const rawValue = treeStore.searchBarValue.trim();
+        const searchSequence = ++searchSequenceRef.current;
         if (!value) {
           treeStore.setSearchResult(null);
           treeStore.setSearchResultKeys(null);
@@ -106,12 +176,35 @@ const WorkspaceLeftActionBar = memo<WorkspaceLeftActionBarProps>(
         }
         const visibleTreeData = filterTreeNodesForDisplay(treeStore.treeData || [], {
           hiddenTreeNodeIds: treeStore.hiddenTreeNodeIds,
-          aiDataCollectionEnabled: runtimeEditionConfig.aiDataCollection,
         });
         const { matchedNodes, matchedKeys, parentIdsWithMatches } = searchTreeNodes(visibleTreeData, value);
         treeStore.setSearchResult(matchedNodes);
         treeStore.setSearchResultKeys(matchedKeys);
         treeStore.setExpandedKeys([...parentIdsWithMatches, ...treeStore.expandedKeys]);
+
+        if (rawValue.length < 2 || clientRuntime.showStorageMigration === 'community') {
+          return;
+        }
+
+        const hydratedTreeData = await hydrateTreeForSearch(visibleTreeData, rawValue, async (node, searchValue) => {
+          const matches = await sqlService.searchTableList({
+            dataSourceId: node.extraParams.dataSourceId!,
+            searchKey: searchValue,
+            limit: 100,
+          });
+          return buildTableSearchTree(node, matches);
+        });
+        const latestTreeStore = useTreeStore.getState();
+        if (searchSequence !== searchSequenceRef.current || latestTreeStore.searchBarValue.trim() !== rawValue) {
+          return;
+        }
+        const hydratedResult = searchTreeNodes(hydratedTreeData, latestTreeStore.regularSearchBarValue);
+        latestTreeStore.setSearchResult(hydratedResult.matchedNodes);
+        latestTreeStore.setSearchResultKeys(hydratedResult.matchedKeys);
+        latestTreeStore.setExpandedKeys([
+          ...hydratedResult.parentIdsWithMatches,
+          ...latestTreeStore.expandedKeys,
+        ]);
       }, 300),
       [],
     );
@@ -209,7 +302,9 @@ const WorkspaceLeftActionBar = memo<WorkspaceLeftActionBarProps>(
             }
             return (
               <Tooltip title={item.label} mouseEnterDelay={1} key={item.key}>
-                <IconButton size="sm" onClick={item.onClick} code={item.icon} />
+                <span>
+                  <IconButton size="sm" onClick={item.onClick} code={item.icon} />
+                </span>
               </Tooltip>
             );
           })}

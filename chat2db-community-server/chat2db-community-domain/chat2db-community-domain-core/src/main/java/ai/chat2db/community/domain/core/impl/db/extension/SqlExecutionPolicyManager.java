@@ -71,6 +71,11 @@ public class SqlExecutionPolicyManager {
         policies.forEach(policy -> policy.beforeExecute(plan));
     }
 
+    public void checkpoint(SqlExecutionPlan plan) {
+        Objects.requireNonNull(plan, "plan");
+        policies.forEach(policy -> policy.checkpoint(plan));
+    }
+
     public List<ExecuteResponse> filterResultColumns(SqlExecutionPlan plan, List<ExecuteResponse> results) {
         if (CollectionUtils.isEmpty(results)) {
             return results;
@@ -126,20 +131,22 @@ public class SqlExecutionPolicyManager {
     private void filterResultColumns(SqlExecutionPlan plan, ExecuteResponse result) {
         List<Header> headers = result.getHeaderList();
         if (CollectionUtils.isEmpty(headers)) {
+            result.setCanEdit(false);
             return;
         }
         List<Integer> includedIndexes = includedColumnIndexes(plan, headers);
-        if (includedIndexes.size() == headers.size()) {
-            return;
+        boolean columnsFiltered = includedIndexes.size() != headers.size();
+        if (columnsFiltered) {
+            result.setHeaderList(select(headers, includedIndexes));
+            if (result.getDataList() != null) {
+                result.setDataList(selectRows(result.getDataList(), includedIndexes));
+            }
         }
-        result.setHeaderList(select(headers, includedIndexes));
-        if (result.getDataList() != null) {
-            result.setDataList(selectRows(result.getDataList(), includedIndexes));
-        }
-        result.setCanEdit(false);
+        result.setCanEdit(result.isCanEdit() && !columnsFiltered
+                && policiesAllowEditing(plan, headers));
     }
 
-    private List<Integer> includedColumnIndexes(SqlExecutionPlan plan, List<Header> headers) {
+    public List<Integer> includedColumnIndexes(SqlExecutionPlan plan, List<Header> headers) {
         List<Integer> includedIndexes = new ArrayList<>(headers.size());
         for (int index = 0; index < headers.size(); index++) {
             Header header = headers.get(index);
@@ -161,6 +168,22 @@ public class SqlExecutionPolicyManager {
                 header == null ? null : header.getDatabaseName(),
                 header == null ? null : header.getSchemaName(),
                 header == null ? null : header.getTableName(), synthetic);
+    }
+
+    private boolean policiesAllowEditing(SqlExecutionPlan plan, List<Header> headers) {
+        List<SqlResultColumnContext> columns = new ArrayList<>(headers.size());
+        for (int index = 0; index < headers.size(); index++) {
+            Header header = headers.get(index);
+            boolean synthetic = header != null
+                    && Objects.equals(DataTypeEnum.CHAT2DB_ROW_NUMBER.getCode(), header.getDataType());
+            columns.add(toColumnContext(plan, index + 1, header, synthetic));
+        }
+        for (ISqlExecutionPolicy policy : policies) {
+            if (!policy.canEditResult(plan, List.copyOf(columns))) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private <T> List<T> select(List<T> values, List<Integer> includedIndexes) {
@@ -217,8 +240,8 @@ public class SqlExecutionPolicyManager {
             StreamingResultState state = stateFor(result);
             if (state.columnsFiltered) {
                 result.setHeaderList(select(result.getHeaderList(), state.includedIndexes));
-                result.setCanEdit(false);
             }
+            result.setCanEdit(state.canEdit);
             delegate.resultStarted(result);
         }
 
@@ -241,8 +264,8 @@ public class SqlExecutionPolicyManager {
             limitResultRows(plan, result);
             if (state.columnsFiltered && result.getDataList() != null) {
                 result.setDataList(selectRows(result.getDataList(), state.includedIndexes));
-                result.setCanEdit(false);
             }
+            result.setCanEdit(state.canEdit);
             try {
                 delegate.resultFinished(result);
             } finally {
@@ -264,10 +287,12 @@ public class SqlExecutionPolicyManager {
             return states.computeIfAbsent(result, key -> {
                 List<Header> headers = key.getHeaderList();
                 if (CollectionUtils.isEmpty(headers)) {
-                    return new StreamingResultState(List.of(), false);
+                    return new StreamingResultState(List.of(), false, false);
                 }
                 List<Integer> includedIndexes = includedColumnIndexes(plan, headers);
-                return new StreamingResultState(includedIndexes, includedIndexes.size() != headers.size());
+                boolean columnsFiltered = includedIndexes.size() != headers.size();
+                boolean canEdit = key.isCanEdit() && !columnsFiltered && policiesAllowEditing(plan, headers);
+                return new StreamingResultState(includedIndexes, columnsFiltered, canEdit);
             });
         }
     }
@@ -276,11 +301,13 @@ public class SqlExecutionPolicyManager {
 
         private final List<Integer> includedIndexes;
         private final boolean columnsFiltered;
+        private final boolean canEdit;
         private int emittedRows;
 
-        private StreamingResultState(List<Integer> includedIndexes, boolean columnsFiltered) {
+        private StreamingResultState(List<Integer> includedIndexes, boolean columnsFiltered, boolean canEdit) {
             this.includedIndexes = includedIndexes;
             this.columnsFiltered = columnsFiltered;
+            this.canEdit = canEdit;
         }
     }
 }

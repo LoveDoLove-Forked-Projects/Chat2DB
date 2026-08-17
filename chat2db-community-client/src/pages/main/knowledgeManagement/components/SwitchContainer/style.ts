@@ -6,7 +6,7 @@ export const useStyles = createStyles(({ css }) => {
       flex: 1;
       height: 100%;
       width: 0px;
-      padding: 16px;
+      padding: 24px;
       box-sizing: border-box;
     `,
   };

@@ -9,6 +9,7 @@ import ai.chat2db.community.domain.api.model.sql.extension.SqlExecutionContext;
 import ai.chat2db.community.domain.api.model.sql.extension.SqlExecutionOperation;
 import ai.chat2db.community.domain.api.model.sql.extension.SqlExecutionPlan;
 import ai.chat2db.community.domain.api.model.sql.extension.SqlResultColumnContext;
+import ai.chat2db.community.domain.api.service.db.ISqlExecutionResultConsumer;
 import ai.chat2db.community.domain.api.service.db.extension.ISqlExecutionPolicy;
 import org.junit.jupiter.api.Test;
 
@@ -35,6 +36,29 @@ class SqlExecutionPolicyManagerTest {
         assertNotNull(first.getExecutionId());
         assertEquals(first.getExecutionId(), first.getExecutionId());
         assertNotEquals(first.getExecutionId(), second.getExecutionId());
+    }
+
+    @Test
+    void checkpointInvokesEveryPolicyInOrder() {
+        List<String> calls = new ArrayList<>();
+        ISqlExecutionPolicy first = new ISqlExecutionPolicy() {
+            @Override
+            public void checkpoint(SqlExecutionPlan plan) {
+                calls.add("first:" + plan.getExecutionId());
+            }
+        };
+        ISqlExecutionPolicy second = new ISqlExecutionPolicy() {
+            @Override
+            public void checkpoint(SqlExecutionPlan plan) {
+                calls.add("second:" + plan.getExecutionId());
+            }
+        };
+        SqlExecutionPolicyManager manager = new SqlExecutionPolicyManager(List.of(first, second));
+        SqlExecutionPlan plan = manager.plan(context(SqlExecutionOperation.EXPORT));
+
+        manager.checkpoint(plan);
+
+        assertEquals(List.of("first:" + plan.getExecutionId(), "second:" + plan.getExecutionId()), calls);
     }
 
     @Test
@@ -130,6 +154,50 @@ class SqlExecutionPolicyManagerTest {
     }
 
     @Test
+    void resultEditingRequiresEveryPolicyEvenWhenColumnsRemainVisible() {
+        ISqlExecutionPolicy policy = new ISqlExecutionPolicy() {
+            @Override
+            public boolean canEditResult(SqlExecutionPlan plan, List<SqlResultColumnContext> columns) {
+                assertEquals(List.of("id"), columns.stream()
+                        .filter(column -> !column.isSynthetic())
+                        .map(SqlResultColumnContext::getColumnName)
+                        .toList());
+                return false;
+            }
+        };
+        SqlExecutionPolicyManager manager = new SqlExecutionPolicyManager(List.of(policy));
+        SqlExecutionPlan plan = manager.plan(context(SqlExecutionOperation.EXECUTE));
+        ExecuteResponse result = editableResult();
+
+        manager.filterResultColumns(plan, List.of(result));
+
+        assertEquals(2, result.getHeaderList().size());
+        assertFalse(result.isCanEdit());
+    }
+
+    @Test
+    void streamingResultUsesTheSameEditingPolicyBeforeItReachesTheDelegate() {
+        ISqlExecutionPolicy policy = new ISqlExecutionPolicy() {
+            @Override
+            public boolean canEditResult(SqlExecutionPlan plan, List<SqlResultColumnContext> columns) {
+                return false;
+            }
+        };
+        SqlExecutionPolicyManager manager = new SqlExecutionPolicyManager(List.of(policy));
+        SqlExecutionPlan plan = manager.plan(context(SqlExecutionOperation.EXECUTE));
+        List<Boolean> observedCanEdit = new ArrayList<>();
+        ISqlExecutionResultConsumer consumer = manager.wrapStreamingConsumer(plan,
+                recordingConsumer(observedCanEdit));
+        ExecuteResponse result = editableResult();
+
+        consumer.resultStarted(result);
+        consumer.resultFinished(result);
+
+        assertEquals(List.of(false, false), observedCanEdit);
+        assertFalse(result.isCanEdit());
+    }
+
+    @Test
     void resultRowsAndCountsAreCappedEvenWhenTheExecutorIgnoresTheRequestedLimit() {
         SqlExecutionPolicyManager manager = new SqlExecutionPolicyManager(List.of(maxRowsPolicy(2)));
         SqlExecutionPlan plan = manager.plan(context(SqlExecutionOperation.EXECUTE));
@@ -189,6 +257,48 @@ class SqlExecutionPolicyManagerTest {
             @Override
             public Integer maxRows(SqlExecutionContext context, String sql) {
                 return maxRows;
+            }
+        };
+    }
+
+    private static ExecuteResponse editableResult() {
+        Header rowNumber = Header.builder().name("#")
+                .dataType(DataTypeEnum.CHAT2DB_ROW_NUMBER.getCode()).build();
+        Header id = Header.builder().name("id").columnName("id")
+                .databaseName("shop").tableName("orders").build();
+        ExecuteResponse result = new ExecuteResponse();
+        result.setCanEdit(true);
+        result.setHeaderList(new ArrayList<>(List.of(rowNumber, id)));
+        result.setDataList(new ArrayList<>());
+        return result;
+    }
+
+    private static ISqlExecutionResultConsumer recordingConsumer(List<Boolean> observedCanEdit) {
+        return new ISqlExecutionResultConsumer() {
+            @Override
+            public void statementStarted(String sql, String originalSql, String comment) {
+            }
+
+            @Override
+            public void resultStarted(ExecuteResponse result) {
+                observedCanEdit.add(result.isCanEdit());
+            }
+
+            @Override
+            public void rows(ExecuteResponse result, List<List<ResultCell>> rows) {
+            }
+
+            @Override
+            public void resultFinished(ExecuteResponse result) {
+                observedCanEdit.add(result.isCanEdit());
+            }
+
+            @Override
+            public void updateCount(ExecuteResponse result) {
+            }
+
+            @Override
+            public void statementFinished(String sql, long duration) {
             }
         };
     }

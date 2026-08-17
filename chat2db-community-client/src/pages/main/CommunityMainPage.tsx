@@ -1,5 +1,5 @@
 import { Confetti, IconButton, IconfontSvg } from '@chat2db/ui';
-import editionUiExtension from '@edition-ui';
+import clientExtension from '@client-extension';
 import { Tooltip, type InputRef } from 'antd';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -12,26 +12,24 @@ import { useUpdateEffect } from 'ahooks';
 
 import { getConnectionEnvList } from '@/store/connection';
 import { useGlobalStore } from '@/store/global';
-import { useUserStore } from '@/store/user';
+import { useUserStore } from '@/store/session';
 
 import CommunitySetting from '@/blocks/Setting/CommunitySetting';
-import OfflineAvatar from '@/blocks/PersonalCenter/components/OfflineAvatar';
 import CustomLayout from '@/components/CustomLayout';
 import StreamSidebar from './components/StreamSidebar';
 
 import Dashboard from './dashboard';
 import DashboardMenuList from './dashboard/DashboardMenuList';
-import { mergeMainNavigationItems } from '@/edition-ui/merge';
+import { mergeNavigationItems } from '@/client-extension/merge';
 import { createCoreMainNavItems } from './navigationItems';
 import Workspace from './workspace';
 import Stream from '../stream';
 
 import { useStyles } from './style';
 
-import { runtimeEditionConfig } from '@/constants/runtimeEdition';
+import { clientRuntime } from '@client-runtime';
 import { IframeType } from '@/constants';
 import aiStreamService, { IChatSession } from '@/service/aiStream';
-import { useChatStore } from '@/store/chat';
 import { useWorkspaceStore } from '@/store/workspace';
 import { isDesktop, isHashHistoryEnv } from '@/utils/env';
 import {
@@ -46,13 +44,13 @@ function CommunityMainPage() {
 
   const initNavConfig: INavItem[] = useMemo(
     () =>
-      mergeMainNavigationItems(
+      mergeNavigationItems(
         createCoreMainNavItems({
           stream: { component: <Stream />, name: i18n('stream.nav.title') },
           workspace: { component: <Workspace />, name: i18n('workspace.title') },
           dashboard: { component: <Dashboard />, name: i18n('dashboard.title') },
         }),
-        editionUiExtension.mainNavigationItems ?? [],
+        clientExtension.navigationItems ?? [],
       ),
     [],
   );
@@ -60,18 +58,18 @@ function CommunityMainPage() {
   const showLeftContainer = useMemo(() => checkIsSharePage(), []);
 
   const [sidebarExpanded, setSidebarExpanded] = useState(() => {
-    return localStorage.getItem(runtimeEditionConfig.sidebarExpandedStorageKey) === 'true';
+    return localStorage.getItem(clientRuntime.sidebarExpandedStorageKey) === 'true';
   });
   const toggleSidebar = useCallback(() => {
     setSidebarExpanded((prev) => {
       const next = !prev;
-      localStorage.setItem(runtimeEditionConfig.sidebarExpandedStorageKey, String(next));
+      localStorage.setItem(clientRuntime.sidebarExpandedStorageKey, String(next));
       return next;
     });
   }, []);
   const collapseSidebar = useCallback(() => {
     setSidebarExpanded(false);
-    localStorage.setItem(runtimeEditionConfig.sidebarExpandedStorageKey, 'false');
+    localStorage.setItem(clientRuntime.sidebarExpandedStorageKey, 'false');
   }, []);
 
   const [sidebarSessions, setSidebarSessions] = useState<IChatSession[]>([]);
@@ -102,11 +100,6 @@ function CommunityMainPage() {
     setSettingPageActiveTab: state.setSettingPageActiveTab,
     triggerConfetti: state.triggerConfetti,
     isEmbedIframe: state.isEmbedIframe,
-  }));
-
-  const { currentChat, setCurrentChat } = useChatStore((state) => ({
-    setCurrentChat: state.setCurrentChat,
-    currentChat: state.currentChat,
   }));
 
   const [activeSessionId, setActiveSessionId] = useState<string | null>(() => {
@@ -182,7 +175,7 @@ function CommunityMainPage() {
   const handleInitPage = useCallback(() => {
     let nextNavConfig = [...initNavConfig];
 
-    if (!runtimeEditionConfig.dashboardEntry) {
+    if (!clientRuntime.showDashboard) {
       nextNavConfig = nextNavConfig.filter((item) => item.key !== 'dashboard');
     }
 
@@ -202,7 +195,7 @@ function CommunityMainPage() {
       if (isDesktop) {
         let persistedPage: string | undefined;
         try {
-          persistedPage = readPersistedMainPageActiveTab(localStorage.getItem(runtimeEditionConfig.globalStoreName));
+          persistedPage = readPersistedMainPageActiveTab(localStorage.getItem(clientRuntime.globalStoreName));
         } catch {
           persistedPage = undefined;
         }
@@ -373,13 +366,6 @@ function CommunityMainPage() {
     }
   }, [mainPageActiveTab]);
 
-  useEffect(() => {
-    setCurrentChat({
-      ...currentChat,
-      [mainPageActiveTab]: currentChat[mainPageActiveTab],
-    });
-  }, [mainPageActiveTab]);
-
   const handleNavItemClick = useCallback(
     (item: INavItem) => {
       if (item.key === 'stream') {
@@ -465,7 +451,7 @@ function CommunityMainPage() {
           })}
         </div>
 
-        {runtimeEditionConfig.dashboardEntry && mainPageActiveTab === 'dashboard' && (
+        {clientRuntime.showDashboard && mainPageActiveTab === 'dashboard' && (
           <div className={styles.sessionSection}>
             <DashboardMenuList />
           </div>
@@ -479,7 +465,13 @@ function CommunityMainPage() {
                 <span className={styles.navItemLabel}>{i18n('setting.title.setting')}</span>
               </div>
             ) : (
-              <OfflineAvatar logoSize={24} triggerSize={34} />
+              <div
+                className={styles.navItem}
+                title={i18n('setting.title.setting')}
+                onClick={() => setSettingPageActiveTab('basic')}
+              >
+                <IconfontSvg code="icon-adjustments" className={styles.navItemIcon} size={18} />
+              </div>
             )}
           </div>
         )}

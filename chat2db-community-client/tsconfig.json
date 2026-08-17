@@ -7,7 +7,8 @@
     "paths": {
       "@/*": ["src/*"],
       "@@/*": ["src/.umi/*"],
-      "@edition-ui": ["src/edition-ui/community.tsx"],
+      "@client-extension": ["src/client-extension/community.tsx"],
+      "@client-runtime": ["src/client-runtime/index.ts"],
       "umi": ["node_modules/umi"],
       "umi/typings": ["src/.umi/typings"]
     }

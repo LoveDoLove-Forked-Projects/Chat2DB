@@ -55,6 +55,8 @@ public class TaskExecutionServiceImpl implements ITaskExecutionService {
             TaskExecutionContext taskContext, Runnable runnable) {
         ConnectInfo snapshot = connectInfo == null ? null : connectInfo.copy();
         return () -> {
+            Context previousContext = ContextUtils.queryContext();
+            ConnectInfo previousConnectInfo = Chat2DBContext.getConnectInfo();
             try {
                 ContextUtils.setContext(context);
                 if (snapshot != null) {
@@ -66,9 +68,25 @@ public class TaskExecutionServiceImpl implements ITaskExecutionService {
                     taskExtensionManager.runGuarded(taskContext, runnable);
                 }
             } finally {
-                ContextUtils.removeContext();
-                Chat2DBContext.removeContext();
+                restoreContext(previousContext);
+                restoreConnectionContext(previousConnectInfo);
             }
         };
+    }
+
+    private static void restoreContext(Context previousContext) {
+        if (previousContext == null) {
+            ContextUtils.removeContext();
+        } else {
+            ContextUtils.setContext(previousContext);
+        }
+    }
+
+    private static void restoreConnectionContext(ConnectInfo previousConnectInfo) {
+        if (previousConnectInfo == null) {
+            Chat2DBContext.removeContext();
+        } else {
+            Chat2DBContext.putContext(previousConnectInfo);
+        }
     }
 }

@@ -1,9 +1,8 @@
 import { openSchemaSyncModal } from '@/blocks/NewTree/functions/schemaSync';
 import { ILoadDataOptions, normalizeTreeNodeLoadResult, treeConfig } from '@/blocks/NewTree/treeConfig';
 import { TreeNodeType, initUserConfigTree } from '@/constants';
-import { runtimeEditionConfig } from '@/constants/runtimeEdition';
+import { clientRuntime } from '@client-runtime';
 import { dataSourceTreeService } from '@/database';
-import aiDataCollectionService from '@/service/aiDataCollection';
 import connectionService from '@/service/connection';
 import { IConnectionDetails, IUserConfigTree, TreeNodeData } from '@/typings';
 import { GetTreeNodeKeyParams, UpdatePositionInTree } from '@/typings/tree';
@@ -14,7 +13,6 @@ import { PersistOptions, devtools, persist } from 'zustand/middleware';
 import { shallow } from 'zustand/shallow';
 import { createWithEqualityFn } from 'zustand/traditional';
 import { StateCreator } from 'zustand/vanilla';
-import { useAIStore } from '../ai';
 import {
   applyExistingTreeNodeRefresh,
   LatestTreeRefreshTracker,
@@ -118,9 +116,6 @@ export interface TreeAction {
   setCurrentLoadingTreeNode: (currentLoadingTreeNode: TreeNodeData | null) => void;
   getDataSourceList: (props?: { refresh?: boolean }) => void;
   generateDataSourceList: (data: TreeNodeData[]) => void;
-  deleteAiDataCollection: (treeNodeData: TreeNodeData, handleLoad: any) => Promise<void>;
-  deleteAiDataCollectionElement: (treeNodeData: TreeNodeData, handleLoadData: any) => Promise<void>;
-  refreshAiDataCollection: (dataSourceId: number) => void;
   changeUserConfigTree: (type: string, value: any) => void;
   // Update node data through key
   updateTreeNodeDataByKey: (key: React.Key, getTreeNodeKeyParams?: GetTreeNodeKeyParams) => void;
@@ -300,7 +295,6 @@ export const createTreeAction: StateCreator<TreeStore, [['zustand/devtools', nev
       if (get().searchBarValue && _treeData) {
         const visibleTreeData = filterTreeNodesForDisplay(_treeData, {
           hiddenTreeNodeIds: get().hiddenTreeNodeIds,
-          aiDataCollectionEnabled: runtimeEditionConfig.aiDataCollection,
         });
         const { matchedNodes, matchedKeys, parentIdsWithMatches } = searchTreeNodes(
           visibleTreeData,
@@ -315,7 +309,6 @@ export const createTreeAction: StateCreator<TreeStore, [['zustand/devtools', nev
       if (get().searchBarValue && treeData) {
         const visibleTreeData = filterTreeNodesForDisplay(treeData, {
           hiddenTreeNodeIds: get().hiddenTreeNodeIds,
-          aiDataCollectionEnabled: runtimeEditionConfig.aiDataCollection,
         });
         const { matchedNodes, matchedKeys, parentIdsWithMatches } = searchTreeNodes(
           visibleTreeData,
@@ -353,11 +346,7 @@ export const createTreeAction: StateCreator<TreeStore, [['zustand/devtools', nev
     // Select the new data source
     get().setSelectedKeys([newDataSource.key]);
     get().setScrollTargetKey(newDataSource.key);
-    // If the connection succeeds, show the new AI dataset prompt.
     get().handleLoadData(newDataSource);
-    // .then(() => {
-    //   createAiDataCollectionTips(newDataSource.extraParams);
-    // });
   },
   deleteDataSource: (dataSource) => {
     return new Promise<void>((resolve, reject) => {
@@ -485,71 +474,6 @@ export const createTreeAction: StateCreator<TreeStore, [['zustand/devtools', nev
     });
 
     set({ dataSourceList });
-  },
-  deleteAiDataCollection: (treeNodeData, handleLoad) => {
-    return aiDataCollectionService.deleteAiDataCollection({ id: treeNodeData.id! }).then(() => {
-      const parentNode = getParentNode(treeNodeData.key, get().treeData);
-      if (parentNode) {
-        handleLoad(parentNode, {
-          refresh: true,
-        });
-      } else {
-        get().getTreeData();
-      }
-
-      useAIStore.getState().getDataCollectionList();
-    });
-  },
-  deleteAiDataCollectionElement: (treeNodeData, handleLoad) => {
-    const elements = [
-      {
-        id: treeNodeData.id!,
-        dataSourceId: treeNodeData.extraParams.dataSourceId!,
-        schemaName: treeNodeData.extraParams.schemaName,
-        databaseName: treeNodeData.extraParams.databaseName,
-        tableName: treeNodeData.originalTitle,
-      },
-    ];
-    return aiDataCollectionService
-      .deleteAiDataCollectionElement({
-        id: treeNodeData.extraParams.aiDataCollectionId!,
-        dataSourceId: treeNodeData.extraParams.dataSourceId!,
-        elements,
-      })
-      .then(() => {
-        const parentNode = getParentNode(treeNodeData.key, get().treeData);
-        if (parentNode) {
-          handleLoad(parentNode, {
-            refresh: true,
-          });
-        } else {
-          get().getTreeData();
-        }
-      });
-  },
-  refreshAiDataCollection: (dataSourceId) => {
-    // Find the corresponding data source node through dataSourceId
-    let dataSourceNode: any = null;
-    get().treeData?.forEach((item) => {
-      if (item.treeNodeType === TreeNodeType.DATA_SOURCE && item.extraParams.dataSourceId === dataSourceId) {
-        dataSourceNode = item;
-      }
-      if (item.children && item.treeNodeType === TreeNodeType.GROUP) {
-        item.children.forEach((child) => {
-          if (child.treeNodeType === TreeNodeType.DATA_SOURCE && child.extraParams.dataSourceId === dataSourceId) {
-            dataSourceNode = child;
-          }
-        });
-      }
-    });
-    // Find the AI dataset below the data source node and refresh it.
-    dataSourceNode?.children?.forEach((item: TreeNodeData) => {
-      if (item.treeNodeType === TreeNodeType.AI_DATA_COLLECTIONS) {
-        get().handleLoadData(item, {
-          refresh: true,
-        });
-      }
-    });
   },
   changeUserConfigTree: (type, value) => {
     set((state) => {
@@ -726,7 +650,7 @@ type GlobalPersist = Pick<TreeStore, 'userConfigTree'>;
 
 // local-storage Options
 const persistOptions: PersistOptions<TreeStore, GlobalPersist> = {
-  name: runtimeEditionConfig.treeStoreName,
+  name: clientRuntime.treeStoreName,
   partialize: (state) => ({
     userConfigTree: state.userConfigTree,
   }),
@@ -735,7 +659,7 @@ const persistOptions: PersistOptions<TreeStore, GlobalPersist> = {
 export const useTreeStore = createWithEqualityFn<TreeStore>()(
   persist(
     devtools(createStore, {
-      name: runtimeEditionConfig.treeStoreName,
+      name: clientRuntime.treeStoreName,
     }),
     persistOptions,
   ),

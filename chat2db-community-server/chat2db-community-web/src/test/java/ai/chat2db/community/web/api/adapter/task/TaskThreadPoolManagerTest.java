@@ -1,6 +1,8 @@
 package ai.chat2db.community.web.api.adapter.task;
 
 import ai.chat2db.community.domain.api.model.async.AsyncContext;
+import ai.chat2db.community.tools.model.Context;
+import ai.chat2db.community.tools.util.ContextUtils;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
@@ -9,13 +11,37 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TaskThreadPoolManagerTest {
+
+    @Test
+    void taskContextIsAvailableDuringWorkAndTerminalUpdateThenCleared() {
+        Context taskContext = Context.builder().organizationId(34L).build();
+        AtomicReference<Context> workContext = new AtomicReference<>();
+        AtomicReference<Context> terminalContext = new AtomicReference<>();
+        AsyncContext asyncContext = new AsyncContext(null, null, null, false) {
+            @Override
+            public void finish() {
+                terminalContext.set(ContextUtils.queryContext());
+                super.finish();
+            }
+        };
+        TaskThread task = new TaskThread(taskContext, asyncContext, 990000L,
+                () -> workContext.set(ContextUtils.queryContext()));
+
+        task.run();
+
+        assertSame(taskContext, workContext.get());
+        assertSame(taskContext, terminalContext.get());
+        assertNull(ContextUtils.queryContext());
+    }
 
     @Test
     @SuppressWarnings("unchecked")

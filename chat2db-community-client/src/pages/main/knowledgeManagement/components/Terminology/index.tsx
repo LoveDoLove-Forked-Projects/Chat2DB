@@ -4,7 +4,7 @@ import { useStyles } from './style';
 import PageTitle from '@/components/PageTitle';
 import i18n from '@/i18n';
 import Description from '@/components/Description';
-import { Button, Flex, Input, Form, Popconfirm, Dropdown, Select } from 'antd';
+import { Button, Flex, Input, Form, Popconfirm, Dropdown } from 'antd';
 import AntdTable from '@/components/AntdTable';
 import { v4 as uuidv4 } from 'uuid';
 import { IconfontSvg, staticMessage, Modal } from '@chat2db/ui';
@@ -12,13 +12,16 @@ import knowledgeManagementServices from '@/service/knowledgeManagement';
 import { KnowledgeManagementPromptType } from '@/constants/knowledgeManagement';
 import { downloadFile } from '@/utils/file';
 import UploadLocalFile from '@/components/UploadLocalFile';
-import { useTreeStore } from '@/store/tree';
-import { databaseMap } from '@/constants';
 import { isDesktop } from '@/utils/env';
-import { useOrgStore } from '@/store/organization';
-import { useUserStore } from '@/store/user';
+import { useOrgStore } from '@/store/workspaceContext';
+import { useUserStore } from '@/store/session';
 import { useGlobalStore } from '@/store/global';
 import jcefApi from '@/jcef';
+import ResourceScopeSelector from '@/components/ResourceScopeSelector';
+import FormMonacoEditor from '@/components/FormMonacoEditor';
+import type { KnowledgeManagementRecord, KnowledgeResourceScope } from '@/typings/knowledgeManagement';
+import { usePermission } from '@/hooks/usePermission';
+import { clientRuntime } from '@client-runtime';
 
 const { Search } = Input;
 
@@ -34,7 +37,7 @@ const initPagination = {
   total: 0,
 };
 
-const configs = {
+const createConfigs = () => ({
   [KnowledgeManagementPromptType.KNOWLEDGE_TERM]: {
     title: i18n('knowledgeManagement.nav.terminology'),
     description: i18n('knowledgeManagement.terminology.description'),
@@ -62,28 +65,31 @@ const configs = {
     tips: i18n('knowledgeManagement.caseOptimization.tips'),
     batchImportApi: knowledgeManagementServices.batchImportSqlTemplate,
   },
-};
+});
 
 export default memo<IProps>((props) => {
   const { className, promptType } = props;
   const { styles, cx } = useStyles();
   const [form] = Form.useForm();
   const [editingRowId, setEditingRowId] = useState<{ id: string; isDraft?: boolean } | null>(null);
-  const [dataSource, setDataSource] = useState<any[]>([]);
+  const [dataSource, setDataSource] = useState<KnowledgeManagementRecord[]>([]);
   const [pagination, setPagination] = useState(initPagination);
   const [loading, setLoading] = useState(false);
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
-  const config = configs[promptType];
+  const language = useGlobalStore((s) => s.baseSetting.language);
+  const isCN = useGlobalStore((s) => s.appConfig.isCN);
+  const config = useMemo(() => createConfigs()[promptType], [promptType, language, isCN]);
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [importFile, setImportFile] = useState<any>(null);
   const [batchImportLoading, setBatchImportLoading] = useState(false);
-  const { dataSourceList, getDataSourceList } = useTreeStore((s) => {
-    return {
-      dataSourceList: s.dataSourceList,
-      getDataSourceList: s.getDataSourceList,
-    };
-  });
-
+  const { can } = usePermission();
+  const canCreateKnowledge = clientRuntime.usesLocalPersistence || can('ai', 'knowledge', 'create');
+  const canUpdateKnowledge = clientRuntime.usesLocalPersistence || can('ai', 'knowledge', 'update');
+  const canDeleteKnowledge = clientRuntime.usesLocalPersistence || can('ai', 'knowledge', 'delete');
+  const canImportKnowledge = clientRuntime.usesLocalPersistence || can('ai', 'knowledge', 'import');
+  const canExportKnowledge = clientRuntime.usesLocalPersistence || can('ai', 'knowledge', 'export');
+  const canSelectKnowledge = canDeleteKnowledge || canExportKnowledge;
+  const hasBatchOperations = canDeleteKnowledge || canImportKnowledge || canExportKnowledge;
   const { isPersonal } = useOrgStore((s) => {
     return {
       isPersonal: s.isPersonal,
@@ -138,25 +144,6 @@ export default memo<IProps>((props) => {
       });
   };
 
-  const dataSourceListOptions = useMemo(() => {
-    return dataSourceList?.map((item) => {
-      let icon = '';
-      if (item.extraParams.databaseType) {
-        icon = databaseMap[item.extraParams.databaseType]?.icon;
-      }
-      return {
-        label: (
-          <div className={styles.dataSourceLabel}>
-            <IconfontSvg code={icon} />
-            {item.originalTitle}
-          </div>
-        ),
-        title: item.originalTitle,
-        value: item.id,
-      };
-    });
-  }, [dataSourceList]);
-
   const columns = [
     {
       title: config.promptName,
@@ -180,7 +167,11 @@ export default memo<IProps>((props) => {
         if (editingRowId?.id === record.id) {
           return (
             <Form.Item name="promptContent" className={styles.formItem}>
-              <Input value={value} className={styles.input} />
+              {promptType === KnowledgeManagementPromptType.SQL_TEMPLATE ? (
+                <FormMonacoEditor className={styles.sqlEditor} lineNumbers="off" />
+              ) : (
+                <Input value={value} className={styles.input} />
+              )}
             </Form.Item>
           );
         }
@@ -188,41 +179,18 @@ export default memo<IProps>((props) => {
       },
     },
     {
-      title: i18n('knowledgeManagement.label.boundDataSource'),
-      dataIndex: 'dataSourceIds',
-      width: '200px',
-      render: (value: any[], record: any) => {
+      title: i18n('knowledgeManagement.label.resourceScope'),
+      dataIndex: 'resourceScopes',
+      width: '360px',
+      render: (value: KnowledgeResourceScope[], record: KnowledgeManagementRecord) => {
         if (editingRowId?.id === record.id) {
           return (
-            <Form.Item name="dataSourceIds" className={styles.formItem}>
-              <Select
-                onDropdownVisibleChange={(open) => {
-                  if (open) {
-                    getDataSourceList();
-                  }
-                }}
-                optionFilterProp="title"
-                mode="multiple"
-                value={value}
-                options={dataSourceListOptions}
-                className={styles.selectInput}
-              />
+            <Form.Item name="resourceScopes" className={styles.formItem}>
+              <ResourceScopeSelector />
             </Form.Item>
           );
         }
-        return (
-          <div className={cx(styles.cellPreview, styles.dataSourceLabelListView)}>
-            {record.dataSourceInfos?.map((item) => {
-              const icon = databaseMap[item.dataSourceType]?.icon;
-              return (
-                <div className={styles.dataSourceLabelView} key={item.dataSourceId}>
-                  <IconfontSvg code={icon} />
-                  {item.dataSourceAlias}
-                </div>
-              );
-            })}
-          </div>
-        );
+        return <ResourceScopeSelector value={value || []} readOnly />;
       },
     },
     {
@@ -239,6 +207,7 @@ export default memo<IProps>((props) => {
       dataIndex: 'action',
       width: '120px',
       fixed: 'right',
+      hidden: !canUpdateKnowledge && !canDeleteKnowledge,
       render: (value: string, record: any) => (
         <Flex>
           {editingRowId?.id === record.id ? (
@@ -254,16 +223,22 @@ export default memo<IProps>((props) => {
             <>
               {isCurrentUserOrAdmin(record.createUserId) && (
                 <>
-                  <div className={styles.actionButton} onClick={() => handleEdit(record)}>
-                    {i18n('common.button.edit')}
-                  </div>
-                  <Popconfirm
-                    title={i18n('common.text.deleteConfirmTitle')}
-                    icon={false}
-                    onConfirm={() => handleDelete(record)}
-                  >
-                    <div className={cx(styles.actionButton, styles.deleteButton)}>{i18n('common.button.delete')}</div>
-                  </Popconfirm>
+                  {canUpdateKnowledge ? (
+                    <div className={styles.actionButton} onClick={() => handleEdit(record)}>
+                      {i18n('common.button.edit')}
+                    </div>
+                  ) : null}
+                  {canDeleteKnowledge ? (
+                    <Popconfirm
+                      title={i18n('common.text.deleteConfirmTitle')}
+                      icon={false}
+                      onConfirm={() => handleDelete(record)}
+                    >
+                      <div className={cx(styles.actionButton, styles.deleteButton)}>
+                        {i18n('common.button.delete')}
+                      </div>
+                    </Popconfirm>
+                  ) : null}
                 </>
               )}
             </>
@@ -274,9 +249,20 @@ export default memo<IProps>((props) => {
   ].filter((item) => !item.hidden);
 
   const handleSave = (record: any) => {
-    const values = form.getFieldsValue();
+    if (editingRowId?.isDraft ? !canCreateKnowledge : !canUpdateKnowledge) {
+      return;
+    }
+    const values = form.getFieldsValue() as {
+      promptName?: string;
+      promptContent?: string;
+      resourceScopes?: KnowledgeResourceScope[];
+    };
     if (!values.promptName || !values.promptContent) {
       staticMessage.warning(i18n('knowledgeManagement.tips.incomplete'));
+      return;
+    }
+    if (values.resourceScopes?.some((scope) => !scope.dataSourceId)) {
+      staticMessage.warning(i18n('knowledgeManagement.tips.incompleteScope'));
       return;
     }
     const api = !editingRowId?.isDraft ? knowledgeManagementServices.update : knowledgeManagementServices.save;
@@ -285,7 +271,9 @@ export default memo<IProps>((props) => {
       promptId: record.id,
       promptName: values.promptName,
       promptContent: values.promptContent,
-      dataSourceIds: values.dataSourceIds,
+      resourceScopes: (values.resourceScopes || []).map((scope) => ({
+        dataSourceId: scope.dataSourceId!,
+      })),
     };
     api(params).then(() => {
       getList();
@@ -302,27 +290,39 @@ export default memo<IProps>((props) => {
   };
 
   const handleEdit = (record: any) => {
+    if (!canUpdateKnowledge) {
+      return;
+    }
     form.setFieldsValue({
       promptName: record.promptName,
       promptContent: record.promptContent,
-      dataSourceIds: record.dataSourceInfos?.map((item) => item.dataSourceId),
+      resourceScopes: record.resourceScopes || [],
     });
     setEditingRowId({ id: record.id });
   };
 
   const handleDelete = (record: any) => {
+    if (!canDeleteKnowledge) {
+      return;
+    }
     knowledgeManagementServices.remove({ promptId: record.id }).then(() => {
       getList();
     });
   };
 
   const handleAdd = () => {
+    if (!canCreateKnowledge) {
+      return;
+    }
     if (editingRowId) {
       staticMessage.warning(i18n('knowledgeManagement.tips.save'));
       return;
     }
     const id = uuidv4();
-    let newDataSource = [{ id, promptName: '', promptContent: '' }, ...dataSource];
+    let newDataSource = [
+      { id, promptType, promptName: '', promptContent: '', resourceScopes: [] },
+      ...dataSource,
+    ] as KnowledgeManagementRecord[];
       // Keep newDataSource at no more than 10 items.
     newDataSource = newDataSource.slice(0, 10);
     setDataSource(newDataSource);
@@ -445,6 +445,7 @@ export default memo<IProps>((props) => {
         getList();
         staticMessage.success(i18n('knowledgeManagement.tips.importSuccess', res));
       })
+      .catch(() => undefined)
       .finally(() => {
         setBatchImportLoading(false);
       });
@@ -452,6 +453,7 @@ export default memo<IProps>((props) => {
 
   const handleFileUrlListChange = (fileUrlList: any[]) => {
     if (fileUrlList.length === 0) {
+      setImportFile(null);
       return;
     }
     setImportFile(isDesktop ? [fileUrlList[0].filePath] : fileUrlList[0].file);
@@ -478,85 +480,101 @@ export default memo<IProps>((props) => {
           />
         </div>
         <div className={styles.searchButton}>
-          <Dropdown
-            trigger={['click']}
-            overlayClassName={styles.dropdown}
-            menu={{
-              items: [
-                { label: i18n('knowledgeManagement.label.batchExportAll'), key: 'batchExportAll' },
-                { label: i18n('knowledgeManagement.label.batchExport'), key: 'batchExport' },
-                { label: i18n('knowledgeManagement.label.batchImport'), key: 'batchImport' },
-                { label: i18n('knowledgeManagement.label.batchDelete'), key: 'batchDelete' },
-              ],
-              onClick: ({ key }) => {
-                switch (key) {
-                  case 'batchExportAll':
-                    handleBatchExportAll();
-                    break;
-                  case 'batchExport':
-                    handleBatchExport();
-                    break;
-                  case 'batchImport':
-                    handleBatchImport();
-                    break;
-                  case 'batchDelete':
-                    handleBatchDelete();
-                    break;
-                  default:
-                    break;
-                }
-              },
-            }}
-          >
-            <Button>
-              {i18n('knowledgeManagement.label.batchOperation')}
-              <ChevronDown size={14} />
+          {hasBatchOperations ? (
+            <Dropdown
+              trigger={['click']}
+              overlayClassName={styles.dropdown}
+              menu={{
+                items: [
+                  ...(canExportKnowledge
+                    ? [
+                        { label: i18n('knowledgeManagement.label.batchExportAll'), key: 'batchExportAll' },
+                        { label: i18n('knowledgeManagement.label.batchExport'), key: 'batchExport' },
+                      ]
+                    : []),
+                  ...(canImportKnowledge
+                    ? [{ label: i18n('knowledgeManagement.label.batchImport'), key: 'batchImport' }]
+                    : []),
+                  ...(canDeleteKnowledge
+                    ? [{ label: i18n('knowledgeManagement.label.batchDelete'), key: 'batchDelete' }]
+                    : []),
+                ],
+                onClick: ({ key }) => {
+                  switch (key) {
+                    case 'batchExportAll':
+                      handleBatchExportAll();
+                      break;
+                    case 'batchExport':
+                      handleBatchExport();
+                      break;
+                    case 'batchImport':
+                      handleBatchImport();
+                      break;
+                    case 'batchDelete':
+                      handleBatchDelete();
+                      break;
+                    default:
+                      break;
+                  }
+                },
+              }}
+            >
+              <Button>
+                {i18n('knowledgeManagement.label.batchOperation')}
+                <ChevronDown size={14} />
+              </Button>
+            </Dropdown>
+          ) : null}
+          {canCreateKnowledge ? (
+            <Button type="primary" onClick={handleAdd}>
+              {i18n('common.button.addNew')}
             </Button>
-          </Dropdown>
-          <Button type="primary" onClick={handleAdd}>
-            {i18n('common.button.addNew')}
-          </Button>
+          ) : null}
         </div>
       </div>
       <Form form={form} component={false}>
         <AntdTable
-          rowSelection={{
-            selectedRowKeys,
-            onSelect: (record, selected) => {
-              const _selectedRowKeys = new Set(selectedRowKeys);
-              if (selected) {
-                _selectedRowKeys.add(record.id);
-              } else {
-                _selectedRowKeys.delete(record.id);
-              }
-              setSelectedRowKeys(Array.from(_selectedRowKeys));
-            },
-            onSelectAll: (selected, selectedRows, changeRows) => {
-              const _selectedRowKeys = new Set(selectedRowKeys);
-              if (selected) {
-                changeRows.forEach((item) => {
-              // item may be undefined when changing pagination selections.
-                  if (!item?.id) {
-                    return;
-                  }
-                  _selectedRowKeys.add(item.id);
-                });
-              } else {
-                changeRows.forEach((item) => {
-                  if (!item?.id) {
-                    return;
-                  }
-                  _selectedRowKeys.delete(item.id);
-                });
-              }
-              setSelectedRowKeys(Array.from(_selectedRowKeys));
-            },
-            getCheckboxProps: (record) => {
-              return {
-                disabled: editingRowId?.id === record.id || !isCurrentUserOrAdmin(record.createUserId),
-              };
-            },
-          }}
+          rowSelection={
+            canSelectKnowledge
+              ? {
+                  selectedRowKeys,
+                  onSelect: (record, selected) => {
+                    const _selectedRowKeys = new Set(selectedRowKeys);
+                    if (selected) {
+                      _selectedRowKeys.add(record.id);
+                    } else {
+                      _selectedRowKeys.delete(record.id);
+                    }
+                    setSelectedRowKeys(Array.from(_selectedRowKeys));
+                  },
+                  onSelectAll: (selected, selectedRows, changeRows) => {
+                    const _selectedRowKeys = new Set(selectedRowKeys);
+                    if (selected) {
+                      changeRows.forEach((item) => {
+                        // item may be undefined when changing pagination selections.
+                        if (!item?.id) {
+                          return;
+                        }
+                        _selectedRowKeys.add(item.id);
+                      });
+                    } else {
+                      changeRows.forEach((item) => {
+                        if (!item?.id) {
+                          return;
+                        }
+                        _selectedRowKeys.delete(item.id);
+                      });
+                    }
+                    setSelectedRowKeys(Array.from(_selectedRowKeys));
+                  },
+                  getCheckboxProps: (record) => {
+                    return {
+                      disabled: editingRowId?.id === record.id || !isCurrentUserOrAdmin(record.createUserId),
+                    };
+                  },
+                }
+              : undefined
+          }
           size="small"
           pagination={pagination}
           bordered

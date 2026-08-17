@@ -2,6 +2,7 @@ package ai.chat2db.community.web.api.adapter.task;
 
 import ai.chat2db.community.domain.api.model.async.AsyncContext;
 import ai.chat2db.community.tools.model.Context;
+import ai.chat2db.community.tools.util.ContextUtils;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.concurrent.CancellationException;
@@ -36,6 +37,9 @@ public class TaskThread extends Thread {
     @Override
     public void run() {
         try {
+            if (context != null) {
+                ContextUtils.setContext(context);
+            }
             runnable.run();
         } catch (CancellationException e) {
             log.debug("task cancelled: {}", taskId);
@@ -48,7 +52,11 @@ public class TaskThread extends Thread {
             try {
                 asyncContext.finish();
             } finally {
-                TaskThreadPoolManager.remove(taskId, this);
+                try {
+                    TaskThreadPoolManager.remove(taskId, this);
+                } finally {
+                    ContextUtils.removeContext();
+                }
             }
         }
     }

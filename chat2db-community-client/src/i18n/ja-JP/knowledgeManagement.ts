@@ -14,6 +14,10 @@ export default {
   'knowledgeManagement.label.knowledgeName': '名詞名称',
   'knowledgeManagement.label.knowledgeContent': '名詞内容',
   'knowledgeManagement.label.boundDataSource': 'データソースのバインド',
+  'knowledgeManagement.label.resourceScope': '適用範囲',
+  'knowledgeManagement.label.globalScope': 'グローバル',
+  'knowledgeManagement.label.addScope': '範囲を追加',
+  'knowledgeManagement.tips.incompleteScope': '完全なデータソース範囲を選択してください',
   'knowledgeManagement.label.businessLogicName': 'ビジネスロジック名称',
   'knowledgeManagement.label.businessLogicContent': 'ビジネスロジック内容',
   'knowledgeManagement.label.caseOptimizationName': 'ケース最適化名称',
@@ -32,4 +36,3 @@ export default {
   'knowledgeManagement.tips.exportSuccess': 'エクスポート成功 {1} 件',
   'knowledgeManagement.tips.deleteSuccess': '削除成功 {1} 件',
 };
-

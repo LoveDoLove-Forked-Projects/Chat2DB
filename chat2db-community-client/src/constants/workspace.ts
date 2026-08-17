@@ -31,7 +31,6 @@ export enum WorkspaceTabType {
   ViewAllTable = 'viewAllTable',
   ViewAllView = 'viewAllView',
   ViewERModal = 'viewERModal',
-  ChangeAiTableInfo = 'changeAiTableInfo',
   RedisAllData = 'redisAllData',
   AccountPrivileges = 'accountPrivileges',
   ContentDiff = 'contentDiff',
@@ -82,9 +81,6 @@ export const workspaceTabConfig: {
   },
   [WorkspaceTabType.ViewAllView]: {
     icon: 'icon-table-all',
-  },
-  [WorkspaceTabType.ChangeAiTableInfo]: {
-    icon: 'icon-ai-table',
   },
   [WorkspaceTabType.RedisAllData]: {
     icon: 'icon-table-view',

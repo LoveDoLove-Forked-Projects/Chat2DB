@@ -1,5 +1,5 @@
 import { ErrorCodesWithoutToast } from '@/constants/request';
-import { runtimeEditionConfig } from '@/constants/runtimeEdition';
+import { clientRuntime } from '@client-runtime';
 import { useGlobalStore } from '@/store/global';
 import { isDesktop } from '@/utils/env';
 import { staticMessage } from '@chat2db/ui';
@@ -63,7 +63,7 @@ request.interceptors.response.use(async (response, _options) => {
     if (isDesktop) {
       const Chat2db = response.headers.get('Chat2db') || '';
       if (Chat2db) {
-        localStorage.setItem(runtimeEditionConfig.desktopResponseHeaderStorageKey, Chat2db);
+        localStorage.setItem(clientRuntime.desktopResponseHeaderStorageKey, Chat2db);
       }
     }
   } catch (error) {

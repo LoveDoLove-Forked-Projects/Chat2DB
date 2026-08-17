@@ -1,6 +1,6 @@
 import EditorChartModal, { EditChartModalRef } from '@/blocks/BI/ChartCardBox/EditorChartModal';
 import { chartDetailNormalization } from '@/blocks/BI/utils/dataTreating';
-import { runtimeEditionConfig } from '@/constants/runtimeEdition';
+import clientExtension from '@client-extension';
 import i18n from '@/i18n';
 import { createChart } from '@/service/dashboard';
 import { useDashboardStore } from '@/store/dashboard/store';
@@ -9,15 +9,13 @@ import { EditText, Empty, EmptyImage, Icon, IconButton } from '@chat2db/ui';
 import { useFullscreen } from 'ahooks';
 import { Flex } from 'antd';
 import { LayoutDashboard, Plus } from 'lucide-react';
-import { lazy, memo, Suspense, useMemo, useRef, useState } from 'react';
+import { memo, useMemo, useRef, useState } from 'react';
 import ChartCardList, { ChartCardListRef } from '../ChartCardList';
 import { useStyles } from './style';
 
 interface IProps {
   isShare?: boolean;
 }
-
-const DashboardCommercialActions = lazy(() => import('./DashboardCommercialActions'));
 
 export default memo<IProps>((props) => {
   const { isShare = false } = props;
@@ -90,8 +88,10 @@ export default memo<IProps>((props) => {
     setSettingDashboard(currentDashboard);
   };
 
-  const showCommercialDashboardActions =
-    isEditPermission && (runtimeEditionConfig.dashboardShare || runtimeEditionConfig.dashboardHostedAiGenerate);
+  const dashboardActions =
+    isEditPermission && currentDashboard.id
+      ? clientExtension.dashboardActions?.({ dashboardId: currentDashboard.id })
+      : null;
 
   if (!currentDashboard) {
     return (
@@ -151,11 +151,7 @@ export default memo<IProps>((props) => {
                 onClick={openSettingModal}
               />
             )}
-            {showCommercialDashboardActions && (
-              <Suspense fallback={null}>
-                <DashboardCommercialActions dashboardId={currentDashboard.id} />
-              </Suspense>
-            )}
+            {dashboardActions}
             {isFullscreen ? (
               <IconButton
                 code="icon-exit-full-screen"

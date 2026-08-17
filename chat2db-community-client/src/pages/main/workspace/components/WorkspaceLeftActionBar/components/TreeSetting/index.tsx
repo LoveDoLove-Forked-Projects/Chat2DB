@@ -113,7 +113,9 @@ export default memo(() => {
       trigger={['click']}
     >
       {/* <Tooltip title={i18n('workspace.tips.createDatabase')} mouseEnterDelay={0.6}> */}
-      <IconButton size="sm" key="create-datasource" code="icon-more-dot" />
+      <span>
+        <IconButton size="sm" key="create-datasource" code="icon-more-dot" />
+      </span>
       {/* </Tooltip> */}
     </Dropdown>
   );

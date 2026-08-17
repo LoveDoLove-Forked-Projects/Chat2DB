@@ -3,6 +3,7 @@ import { useStyles } from './style';
 import { Menu, MenuProps } from 'antd';
 import i18n from '@/i18n';
 import { KnowledgeManagementPromptType } from '@/constants/knowledgeManagement';
+import { useGlobalStore } from '@/store/global';
 
 interface IProps {
   menuKey: NavType;
@@ -24,6 +25,8 @@ export enum NavType {
 
 const OrgNavTypeList = ({ menuKey, onClickMenu }: IProps) => {
   const { styles } = useStyles();
+  const language = useGlobalStore((s) => s.baseSetting.language);
+  const isCN = useGlobalStore((s) => s.appConfig.isCN);
 
   const items: MenuItem[] = useMemo(
     () => [
@@ -44,7 +47,7 @@ const OrgNavTypeList = ({ menuKey, onClickMenu }: IProps) => {
       //   label: i18n('knowledgeManagement.nav.annotationTable'),
       // },
     ],
-    [],
+    [language, isCN],
   );
 
   return (
