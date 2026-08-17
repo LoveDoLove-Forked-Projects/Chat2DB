@@ -7,7 +7,6 @@ import { useWorkspaceStore } from '@/store/workspace';
 import { useImportExportStore } from '@/store/importExport';
 import { useStyles } from './style';
 import { canImportExport, isDesktop } from '@/utils/env';
-import { Divider } from 'antd';
 import { useAIStore } from '@/store/ai';
 import AIButton from '@/blocks/AI/components/AIButton';
 import { Terminal } from 'lucide-react';
@@ -15,21 +14,17 @@ import { useGlobalStore } from '@/store/global';
 import jcefApi from '@/jcef';
 import { createQuickTerminalTab } from './quickTerminal';
 import { DEFAULT_TERMINAL_SETTINGS } from '@/constants/terminal';
+import { COMMUNITY_TITLE_BAR_BUTTON_SIZE } from '@/constants/mainLayout';
 
 interface IProps {
-  className?: any;
+  className?: string;
+  orientation?: 'vertical' | 'horizontal';
 }
 
-const WORKSPACE_SIDEBAR_BUTTON_SIZE = {
-  boxSize: 34,
-  iconSize: 18,
-  borderRadius: 6,
-  strokeWidth: 2,
-} as const;
-
 export default (props: IProps) => {
-  const { className } = props;
-  const { styles } = useStyles();
+  const { className, orientation = 'vertical' } = props;
+  const { styles } = useStyles({ orientation });
+  const tooltipPlacement = orientation === 'horizontal' ? 'bottom' : 'left';
   const [creatingTerminal, setCreatingTerminal] = useState(false);
   const terminalShellId = useGlobalStore((state) => state.terminalSettings.shellId);
   const terminalOpenPosition = useGlobalStore(
@@ -93,10 +88,11 @@ export default (props: IProps) => {
         {extendConfig.map((item, index) => {
           return (
             <IconButton
-              size={WORKSPACE_SIDEBAR_BUTTON_SIZE}
+              type="primary"
+              size={COMMUNITY_TITLE_BAR_BUTTON_SIZE}
               key={index}
               title={item.title}
-              tooltipPlacement="left"
+              tooltipPlacement={tooltipPlacement}
               {...(typeof item.icon === 'string' ? { code: item.icon } : { icon: item.icon })}
               isActive={currentWorkspaceExtend === item.code}
               onClick={() => {
@@ -106,14 +102,12 @@ export default (props: IProps) => {
             />
           );
         })}
-        <Divider style={{ margin: '8px 0px' }} />
-
         {isDesktop && (
           <IconButton
             type="primary"
-            size={WORKSPACE_SIDEBAR_BUTTON_SIZE}
+            size={COMMUNITY_TITLE_BAR_BUTTON_SIZE}
             title={i18n('workspace.terminal.title')}
-            tooltipPlacement="left"
+            tooltipPlacement={tooltipPlacement}
             icon={Terminal}
             spin={creatingTerminal}
             disabled={creatingTerminal}
@@ -121,7 +115,7 @@ export default (props: IProps) => {
           />
         )}
         <AIButton
-          size={WORKSPACE_SIDEBAR_BUTTON_SIZE}
+          size={COMMUNITY_TITLE_BAR_BUTTON_SIZE}
           onClick={() => {
             setCurrentWorkspaceExtend(null);
             useAIStore.getState().togglePanel();

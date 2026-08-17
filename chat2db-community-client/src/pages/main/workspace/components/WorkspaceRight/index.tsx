@@ -9,7 +9,7 @@ import {
 } from '@/store/workspace/utils/resultInspector';
 import SplitPane from 'react-split-pane';
 import ExportProgressBar from '@/blocks/ImportAndExport/components/ExportProgressBar';
-import { canImportExport } from '@/utils/env';
+import { canImportExport, isCommunityEnv } from '@/utils/env';
 // import DragFileToApp from '@/components/DragFileToApp';
 
 // ----- components -----
@@ -84,7 +84,7 @@ const WorkspaceRight = memo(() => {
           <Fragment>{panelRight && <WorkspaceExtendBody />}</Fragment>
         </SplitPane>
       </div>
-      <WorkspaceExtendNav />
+      {!isCommunityEnv && <WorkspaceExtendNav />}
     </div>
   );
 });
