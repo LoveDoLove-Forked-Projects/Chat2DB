@@ -2,11 +2,11 @@ import assert from 'node:assert/strict';
 import { appendClientSettingMenuItems } from './settingMenus';
 
 const shared = [{ code: 'basic' }, { code: 'terminal' }];
-const extension = [{ code: 'storageMigration' }];
+const extension = [{ code: 'advancedExtension' }];
 
 assert.deepEqual(
   appendClientSettingMenuItems(shared as never, extension as never).map((item) => item.code),
-  ['basic', 'terminal', 'storageMigration'],
+  ['basic', 'terminal', 'advancedExtension'],
   'client settings append to the complete shared menu',
 );
 assert.throws(

@@ -183,8 +183,6 @@ export default {
   'workspace.menu.copyDataSource': 'Copiar fuente de datos',
   'workspace.explorer.title': 'Archivos',
   'workspace.explorer.dataSources': 'Fuentes de datos',
-  'workspace.action.storageMigration': 'Migracion de almacenamiento',
-  'workspace.action.storageMigrationPending': 'Migrar datos locales ahora',
   'workspace.openSessions.title': 'Sesiones abiertas',
   'workspace.openSessions.empty': 'No hay sesiones SQL abiertas',
   'workspace.openSessions.untitled': 'SQL sin título',

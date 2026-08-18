@@ -54,11 +54,9 @@ import accountAdminService, { AccountActionType, formatAccountExecuteMessage } f
 import CreateAccountContent, { CreateAccountValues } from '../components/CreateAccountContent';
 import DeleteDatabaseSchemaConfirmContent from '../components/DeleteDatabaseSchemaConfirmContent';
 import { emitSavedConsoleUpdated } from '@/utils/savedConsoleEvents';
+import { buildWorkspaceObjectTabTitle } from '@/utils/workspaceObjectTabTitle';
 import { allowsResourceOperations } from '@/client-extension/resourceOperationCapabilities';
-import type {
-  ResourceOperation,
-  ResourceOperationCapabilities,
-} from '@/client-extension/types';
+import type { ResourceOperation, ResourceOperationCapabilities } from '@/client-extension/types';
 import clientExtension from '@client-extension';
 
 // Some operations are not supported by the database and need to be excluded.
@@ -175,14 +173,7 @@ export const useCreateRightClickMenu = () => {
 
     if (!treeNodeData) return [];
     const { treeNodeType, extraParams, decorativeParams } = treeNodeData;
-    const {
-      databaseType,
-      dataSourceId,
-      dataSourceName,
-      databaseName,
-      schemaName,
-      tableName,
-    } = extraParams;
+    const { databaseType, dataSourceId, dataSourceName, databaseName, schemaName, tableName } = extraParams;
     const { hasPermission, isAdmin: isDataSourceAdmin } = resolveDataSourceAuthorization(
       extraParams,
       clientRuntime.usesFixedIdentity,
@@ -750,9 +741,12 @@ export const useCreateRightClickMenu = () => {
         icon: 'icon-table-edit',
         shortcutAction: ShortcutAction.DatabaseTreeEditTable,
         handle: () => {
-          const title = [tableName].filter(Boolean).join('.') + `[${dataSourceName}]`;
-          const popoverContent =
-            [databaseName, schemaName, tableName].filter(Boolean).join('.') + `[${dataSourceName}]`;
+          const title = buildWorkspaceObjectTabTitle({
+            dataSourceName,
+            databaseName,
+            schemaName,
+            objectName: tableName!,
+          });
 
           const id =
             treeConfig?.[TreeNodeType.TABLE]?.createTreeNodeKey?.({
@@ -775,7 +769,7 @@ export const useCreateRightClickMenu = () => {
                   });
                 }
               },
-              popoverContent,
+              popoverContent: title,
             },
           });
         },
@@ -807,9 +801,12 @@ export const useCreateRightClickMenu = () => {
         doubleClickTrigger: true,
         handle: () => {
           const _tableName = compatibleDataBaseName(tableName!, databaseType!);
-          const title = [tableName].filter(Boolean).join('.') + `[${dataSourceName}]`;
-          const popoverContent =
-            [databaseName, schemaName, tableName].filter(Boolean).join('.') + `[${dataSourceName}]`;
+          const title = buildWorkspaceObjectTabTitle({
+            dataSourceName,
+            databaseName,
+            schemaName,
+            objectName: tableName!,
+          });
 
           const id =
             treeConfig?.[TreeNodeType.TABLE]?.createTreeNodeKey?.({
@@ -825,7 +822,7 @@ export const useCreateRightClickMenu = () => {
             uniqueData: {
               ...extraParams,
               sql: 'select * from ' + _tableName,
-              popoverContent,
+              popoverContent: title,
             },
           });
         },
@@ -1161,10 +1158,7 @@ export const useCreateRightClickMenu = () => {
       if (!children.length) return undefined;
       const finalList: IRightClickMenu[] = [];
       children?.forEach((t, i) => {
-        if (
-          !t.discard &&
-          allowsResourceOperations(operationCapabilities, t.requiredOperations)
-        ) {
+        if (!t.discard && allowsResourceOperations(operationCapabilities, t.requiredOperations)) {
           finalList.push({
             key: `${lastKey}-${i}`,
             onClick: t.handle,

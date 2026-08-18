@@ -28,7 +28,6 @@ export interface ClientRuntime {
   enableHostedDashboardGeneration: boolean;
   showFeedback: boolean;
   restrictChineseOutsideChina: boolean;
-  showStorageMigration: boolean;
   globalStoreName: string;
   userStoreName: string;
   orgStoreName: string;
@@ -85,7 +84,6 @@ export const clientRuntime: ClientRuntime = {
   enableHostedDashboardGeneration: false,
   showFeedback: false,
   restrictChineseOutsideChina: false,
-  showStorageMigration: false,
   globalStoreName: 'Chat2DB_Community_Global_Store',
   userStoreName: 'Chat2DB_Community_User_Store',
   orgStoreName: 'Chat2DB_Community_Org_Store',

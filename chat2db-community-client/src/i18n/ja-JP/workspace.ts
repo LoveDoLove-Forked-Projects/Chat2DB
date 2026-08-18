@@ -180,8 +180,6 @@ export default {
   'workspace.menu.copyDataSource': 'データソースをコピー',
   'workspace.explorer.title': 'ファイル',
   'workspace.explorer.dataSources': 'データソース',
-  'workspace.action.storageMigration': 'ストレージ移行',
-  'workspace.action.storageMigrationPending': 'ローカルデータを早めに移行',
   'workspace.openSessions.title': '開いているセッション',
   'workspace.openSessions.empty': '開いているSQLセッションはありません',
   'workspace.openSessions.untitled': '無題 SQL',

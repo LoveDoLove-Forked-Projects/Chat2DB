@@ -44,6 +44,7 @@ import {
 import { normalizeSavedConsoleName, resolveInitialSavedConsoleName } from '../../helper/savedConsoleName';
 import { hasUnsavedLocalFileChanges } from '@/utils/localFileEncoding';
 import type { EditorCloseGuardRef } from '@/utils/editorCloseGuard';
+import { buildWorkspaceObjectTabTitle } from '@/utils/workspaceObjectTabTitle';
 
 interface ISQLEditorWithOperationProps {
   id: string;
@@ -573,10 +574,12 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
       return;
     }
 
-    const title = [tableIdentifier.tableName].filter(Boolean).join('.') + `[${tableIdentifier.dataSourceName || ''}]`;
-    const popoverContent =
-      [tableIdentifier.databaseName, tableIdentifier.schemaName, tableIdentifier.tableName].filter(Boolean).join('.') +
-      `[${tableIdentifier.dataSourceName || ''}]`;
+    const title = buildWorkspaceObjectTabTitle({
+      dataSourceName: tableIdentifier.dataSourceName,
+      databaseName: tableIdentifier.databaseName,
+      schemaName: tableIdentifier.schemaName,
+      objectName: tableIdentifier.tableName,
+    });
     const tabId =
       treeConfig?.[TreeNodeType.TABLE]?.createTreeNodeKey?.({
         dataSourceId: tableIdentifier.dataSourceId,
@@ -596,7 +599,7 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
         databaseName: tableIdentifier.databaseName,
         schemaName: tableIdentifier.schemaName,
         tableName: tableIdentifier.tableName,
-        popoverContent,
+        popoverContent: title,
       },
     });
   };
@@ -639,19 +642,23 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
     if (!scenario) return;
 
     useAIStore.getState().setShowPanel(true);
-    window.setTimeout(() => window.dispatchEvent(
-      new CustomEvent('stream:sendMessage', {
-        detail: {
-          ...scenario,
-          source: ChatSourceType.DATASOURCE_CHAT,
-          dataSourceId,
-          databaseName,
-          schemaName,
-          databaseType,
-          sql: selectSQL,
-        },
-      }),
-    ), 0);
+    window.setTimeout(
+      () =>
+        window.dispatchEvent(
+          new CustomEvent('stream:sendMessage', {
+            detail: {
+              ...scenario,
+              source: ChatSourceType.DATASOURCE_CHAT,
+              dataSourceId,
+              databaseName,
+              schemaName,
+              databaseType,
+              sql: selectSQL,
+            },
+          }),
+        ),
+      0,
+    );
   };
 
   const handleCopy = useCallback(() => {
