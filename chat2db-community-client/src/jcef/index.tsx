@@ -139,7 +139,7 @@ const jcefApi = {
   },
   // Double-click the AppBar
   handleDoubleClickAppBar: () => {
-    return createJcefApi('double-click-app-bar');
+    return createJcefApi<boolean>('double-click-app-bar');
   },
   // close window
   closeWindow: () => {
@@ -147,7 +147,11 @@ const jcefApi = {
   },
   // Is it maximizing
   isWindowMaximized: () => {
-    return createJcefApi('is-window-maximized');
+    return createJcefApi<boolean>('is-window-maximized');
+  },
+  // Is the macOS window in native full screen mode?
+  isWindowFullScreen: () => {
+    return createJcefApi<boolean>('is-window-full-screen');
   },
   // Check for updates
   appCheckUpdate: () => {
