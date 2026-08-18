@@ -3,7 +3,8 @@ import { PANEL_TOOLBAR_BUTTON_SIZE } from '@/components/PanelToolbar';
 
 import { useWorkspaceStore } from '@/store/workspace';
 
-import { workspaceRecordConfig } from '../config';
+import { GlobalComponents, workspaceRecordConfig } from '../config';
+import TaskCenterStatusBadge from '../TaskCenterStatusBadge';
 import { useStyles } from './style';
 
 const WorkspaceRecordSwitcher = () => {
@@ -28,7 +29,9 @@ const WorkspaceRecordSwitcher = () => {
           />
         );
 
-        return (
+        return item.code === GlobalComponents.task_center ? (
+          <TaskCenterStatusBadge key={item.code}>{button}</TaskCenterStatusBadge>
+        ) : (
           <span key={item.code} className={styles.buttonSlot}>
             {button}
           </span>
