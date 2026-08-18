@@ -1,6 +1,6 @@
 package ai.chat2db.community.domain.api.model.task.extension;
 
-import ai.chat2db.community.domain.api.enums.TaskTypeEnum;
+import ai.chat2db.community.domain.api.model.task.TaskType;
 import ai.chat2db.community.domain.api.model.runtime.ConnectionProfile;
 
 import java.nio.charset.StandardCharsets;
@@ -38,7 +38,7 @@ public final class TaskStatementContext {
         return taskContext.getTaskId();
     }
 
-    public TaskTypeEnum getTaskType() {
+    public TaskType getTaskType() {
         return taskContext.getTaskType();
     }
 

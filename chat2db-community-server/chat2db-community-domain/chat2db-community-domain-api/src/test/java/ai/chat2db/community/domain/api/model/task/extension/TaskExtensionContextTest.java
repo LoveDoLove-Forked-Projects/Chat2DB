@@ -1,6 +1,6 @@
 package ai.chat2db.community.domain.api.model.task.extension;
 
-import ai.chat2db.community.domain.api.enums.TaskTypeEnum;
+import ai.chat2db.community.domain.api.model.task.TaskType;
 import ai.chat2db.community.domain.api.model.runtime.ConnectionProfile;
 import org.junit.jupiter.api.Test;
 
@@ -27,7 +27,7 @@ class TaskExtensionContextTest {
         List<String> tables = new ArrayList<>(List.of("orders"));
 
         TaskSubmissionContext submission = new TaskSubmissionContext(42L,
-                TaskTypeEnum.DOWNLOAD_TABLE_DATA, profile, "shop", null, tables, TaskOperation.EXPORT);
+                TaskType.TABLE_DATA_EXPORT, profile, "shop", null, tables, TaskOperation.EXPORT);
         profile.setDataSourceId(9L);
         tables.add("users");
 
@@ -46,7 +46,7 @@ class TaskExtensionContextTest {
 
     @Test
     void statementContextUsesStableSha256Digest() {
-        TaskExecutionContext execution = new TaskExecutionContext(42L, TaskTypeEnum.UPLOAD_TABLE_DATA,
+        TaskExecutionContext execution = new TaskExecutionContext(42L, TaskType.DATA_FILE_IMPORT,
                 null, "shop", null, List.of("orders"), TaskOperation.IMPORT);
 
         TaskStatementContext statement = new TaskStatementContext(execution, "select 1");

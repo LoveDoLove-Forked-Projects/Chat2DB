@@ -1,6 +1,6 @@
 package ai.chat2db.community.domain.api.model.task.extension;
 
-import ai.chat2db.community.domain.api.enums.TaskTypeEnum;
+import ai.chat2db.community.domain.api.model.task.TaskType;
 import ai.chat2db.community.domain.api.model.runtime.ConnectionProfile;
 
 import java.util.List;
@@ -9,14 +9,14 @@ import java.util.Objects;
 public final class TaskSubmissionContext {
 
     private final Long taskId;
-    private final TaskTypeEnum taskType;
+    private final TaskType taskType;
     private final ConnectionProfile connectionProfile;
     private final String databaseName;
     private final String schemaName;
     private final List<String> tableNames;
     private final TaskOperation operation;
 
-    public TaskSubmissionContext(Long taskId, TaskTypeEnum taskType, ConnectionProfile connectionProfile,
+    public TaskSubmissionContext(Long taskId, TaskType taskType, ConnectionProfile connectionProfile,
             String databaseName, String schemaName, List<String> tableNames, TaskOperation operation) {
         this.taskId = Objects.requireNonNull(taskId, "taskId");
         this.taskType = Objects.requireNonNull(taskType, "taskType");
@@ -31,7 +31,7 @@ public final class TaskSubmissionContext {
         return taskId;
     }
 
-    public TaskTypeEnum getTaskType() {
+    public TaskType getTaskType() {
         return taskType;
     }
 

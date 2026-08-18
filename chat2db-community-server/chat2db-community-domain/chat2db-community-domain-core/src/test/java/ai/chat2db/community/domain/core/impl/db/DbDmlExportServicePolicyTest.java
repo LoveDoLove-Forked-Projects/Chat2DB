@@ -166,7 +166,7 @@ class DbDmlExportServicePolicyTest {
         DbDmlExportPlan plan = service.prepareExport(request);
         assertEquals(ORIGINAL_SQL, plan.getExportRequest().getSql());
         ByteArrayOutputStream output = new ByteArrayOutputStream();
-        service.export(plan.getExportRequest(), output);
+        service.export(plan.getExportRequest(), output, null, () -> {}, ignored -> {}, () -> {});
         return output;
     }
 

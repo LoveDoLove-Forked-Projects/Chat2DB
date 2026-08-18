@@ -103,6 +103,7 @@ public class MainJFrame extends JFrame {
     private CefBrowser browser_;
     private Component browserUI_;
     private JCefAppConfig jcefAppConfig_;
+    private volatile boolean windowFullScreen = false;
     private static final ObjectMapper objectMapper = new ObjectMapper();
     private final Map<Pair<String, String>, IJcefActionHandler> actionHandlers = new HashMap<>();
     private static final String appName;
@@ -200,6 +201,10 @@ public class MainJFrame extends JFrame {
                         frame.revalidate();
                         frame.repaint();
                     });
+                } else if ("windowEnteredFullScreen".equals(methodName)) {
+                    updateWindowFullScreen(true);
+                } else if ("windowExitedFullScreen".equals(methodName)) {
+                    updateWindowFullScreen(false);
                 }
                 return null;
             };
@@ -213,6 +218,19 @@ public class MainJFrame extends JFrame {
         } catch (Exception e) {
             log.error("Failed to set up macOS full screen listener via reflection. This is expected on non-Apple JDKs or newer macOS versions where this API is deprecated.");
         }
+    }
+    public boolean isWindowFullScreen() {
+        return windowFullScreen;
+    }
+    private void updateWindowFullScreen(boolean fullScreen) {
+        windowFullScreen = fullScreen;
+        if (browser_ == null) {
+            return;
+        }
+        ConsoleResult consoleResult = new ConsoleResult();
+        consoleResult.setActionType(ActionTypeEnum.WINDOW_FULL_SCREEN_CHANGED.getName());
+        consoleResult.setMessage(Map.of("data", fullScreen));
+        CallJsFunctionUtil.callHandleJavaMessage(browser_, JSON.toJSONString(consoleResult));
     }
     public void processUri(URI uri) {
         String query = uri.getQuery();
@@ -275,6 +293,12 @@ public class MainJFrame extends JFrame {
         Desktop desktop = Desktop.getDesktop();
         if (desktop.isSupported(Desktop.Action.APP_QUIT_HANDLER)) {
             desktop.setQuitHandler((e, response) -> {
+                if (ConfigUtils.isCommunity()) {
+                    log.info("Quit handler triggered. Waiting for active task confirmation.");
+                    response.cancelQuit();
+                    ApplicationExitCoordinator.request(ApplicationExitCoordinator.ExitAction.CLOSE.name());
+                    return;
+                }
                 log.info("Quit handler triggered. Preparing for graceful shutdown.");
                 SystemSettingsUtil.saveWindowsInfo();
                 JcefContext.getInstance().getFrame_().dispose();
@@ -359,6 +383,9 @@ public class MainJFrame extends JFrame {
     private void setupGenericPlatformSpecifics(Image appIcon) {
         this.setTitle(appName);
         this.setIconImage(appIcon);
+        if (WindowsCommunityWindowChrome.isEnabled(OS.isWindows(), ConfigUtils.isCommunity())) {
+            WindowsCommunityWindowChrome.configureRootPane(getRootPane());
+        }
         applyTheme(ThemeEnum.DARK);
     }
     private static Image buildAppLogoImage() {
@@ -739,6 +766,10 @@ public class MainJFrame extends JFrame {
         }
         this.browser_ = this.client_.createBrowser(indexHtmlFile, CefRendering.DEFAULT, false);
         this.browserUI_ = browser_.getUIComponent();
+        if (WindowsCommunityWindowChrome.isEnabled(OS.isWindows(), ConfigUtils.isCommunity())) {
+            WindowsCommunityWindowChrome.configureBrowserComponent(browserUI_);
+            WindowsCommunityWindowChrome.installWindowDragging(this, browserUI_);
+        }
         this.browserUI_.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseEntered(MouseEvent e) {
@@ -798,9 +829,8 @@ public class MainJFrame extends JFrame {
                     log.info("macOS 'X' button clicked. Hiding window.");
                     setVisible(false);
                 } else {
-                    log.info("Non-macOS 'X' button clicked. Disposing window and exiting application.");
-                    JFrame frameToClose = (JFrame) e.getSource();
-                    OSOperateUtil.closeWindows(frameToClose);
+                    log.info("Non-macOS 'X' button clicked. Requesting application exit.");
+                    ApplicationExitCoordinator.request(ApplicationExitCoordinator.ExitAction.CLOSE.name());
                 }
             }
         });

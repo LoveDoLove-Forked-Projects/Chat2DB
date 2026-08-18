@@ -147,7 +147,7 @@ const SelectBoundInfo = memo(
       if (dataSourceList === null) {
         getTreeData();
       }
-    }, [dataSourceList]);
+    }, [dataSourceList, getTreeData]);
 
     const dataSourceOptions = useMemo(() => {
       return generateOptions(dataSourceList, allowEmpty && !requireDataSource, styles);

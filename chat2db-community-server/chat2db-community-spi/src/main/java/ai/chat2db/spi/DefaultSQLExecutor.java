@@ -150,7 +150,7 @@ public class DefaultSQLExecutor implements ICommandExecutor {
             Function<JDBCDataValue, String> valueFunction,
             boolean limitSize,
             Integer resultSetId) {
-        execute(connection, sql, headerConsumer, rowConsumer, valueFunction, limitSize, resultSetId, null);
+        execute(connection, sql, headerConsumer, rowConsumer, valueFunction, limitSize, resultSetId, null, null);
     }
 
     public void execute(
@@ -161,28 +161,68 @@ public class DefaultSQLExecutor implements ICommandExecutor {
             boolean limitSize,
             Integer resultSetId,
             Integer maxRows) {
+        execute(connection, sql, headerConsumer, rowConsumer, valueFunction, limitSize, resultSetId,
+                null, null, maxRows);
+    }
+
+    public void execute(
+            Connection connection, String sql,
+            Consumer<List<Header>> headerConsumer,
+            Consumer<List<String>> rowConsumer,
+            Function<JDBCDataValue, String> valueFunction,
+            boolean limitSize,
+            Integer resultSetId,
+            ISqlExecutionStatementListener statementListener,
+            Runnable cancellationChecker) {
+        execute(connection, sql, headerConsumer, rowConsumer, valueFunction, limitSize, resultSetId,
+                statementListener, cancellationChecker, null);
+    }
+
+    public void execute(
+            Connection connection, String sql,
+            Consumer<List<Header>> headerConsumer,
+            Consumer<List<String>> rowConsumer,
+            Function<JDBCDataValue, String> valueFunction,
+            boolean limitSize,
+            Integer resultSetId,
+            ISqlExecutionStatementListener statementListener,
+            Runnable cancellationChecker,
+            Integer maxRows) {
         Assert.notNull(sql, "SQL must not be null");
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            if (maxRows != null && maxRows > 0) {
-                stmt.setMaxRows(maxRows);
-            }
-            boolean query = stmt.execute();
-            int resultCount = 0;
-            while (true) {
-                if (query) {
-                    resultCount++;
-                    if (resultSetId == null || resultCount == resultSetId) {
-                        writeExportResultSet(stmt, headerConsumer, rowConsumer, valueFunction, limitSize, maxRows);
+        checkTaskCancellation(cancellationChecker);
+        PreparedStatement stmt = null;
+        try {
+            PreparedStatement preparedStatement = connection.prepareStatement(sql);
+            stmt = preparedStatement;
+            notifyStatementCreated(statementListener, preparedStatement);
+            try (preparedStatement) {
+                checkTaskCancellation(cancellationChecker);
+                if (maxRows != null && maxRows > 0) {
+                    preparedStatement.setMaxRows(maxRows);
+                }
+                boolean query = preparedStatement.execute();
+                int resultCount = 0;
+                while (true) {
+                    checkTaskCancellation(cancellationChecker);
+                    if (query) {
+                        resultCount++;
+                        if (resultSetId == null || resultCount == resultSetId) {
+                            writeExportResultSet(preparedStatement, headerConsumer, rowConsumer, valueFunction,
+                                    limitSize, cancellationChecker, maxRows);
+                            return;
+                        }
+                    } else if (preparedStatement.getUpdateCount() == -1) {
                         return;
                     }
-                } else if (stmt.getUpdateCount() == -1) {
-                    return;
+                    query = preparedStatement.getMoreResults();
                 }
-                query = stmt.getMoreResults();
             }
         } catch (SQLException e) {
+            checkTaskCancellation(cancellationChecker);
             log.error("execute:{}", sql, e);
             throw new RuntimeException(e);
+        } finally {
+            notifyStatementClosed(statementListener, stmt);
         }
     }
 
@@ -190,6 +230,7 @@ public class DefaultSQLExecutor implements ICommandExecutor {
                                       Consumer<List<String>> rowConsumer,
                                       Function<JDBCDataValue, String> valueFunction,
                                       boolean limitSize,
+                                      Runnable cancellationChecker,
                                       Integer maxRows) throws SQLException {
         ResultSet rs = null;
         try {
@@ -206,7 +247,8 @@ public class DefaultSQLExecutor implements ICommandExecutor {
             headerConsumer.accept(headerList);
 
             int exportedRows = 0;
-            while ((maxRows == null || exportedRows < maxRows) && rs.next()) {
+            while ((maxRows == null || maxRows < 1 || exportedRows < maxRows) && rs.next()) {
+                checkTaskCancellation(cancellationChecker);
                 List<String> row = new ArrayList<>();
                 for (int i = 1; i <= col; i++) {
                     if (chat2dbAutoRowIdIndex == i) {

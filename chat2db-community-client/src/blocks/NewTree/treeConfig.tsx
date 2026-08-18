@@ -18,6 +18,13 @@ export interface ILoadDataOptions {
   refresh?: boolean;
   // Turn off the expansion of tree nodes
   closeExpandTreeNode?: boolean;
+  // Refresh children without changing the current selection or collapsing descendants.
+  preserveInteraction?: boolean;
+}
+
+export interface ILoadDataResult {
+  children: TreeNodeData[];
+  committed: boolean;
 }
 
 export const switchIcon: Partial<{

@@ -69,6 +69,10 @@ export interface IHotUpdateConfig {
    * Whether to install automatically
    */
   autoInstall: boolean;
+  /**
+   * Whether prerelease versions participate in update checks
+   */
+  receiveBeta: boolean;
 }
 
 export type { ShortcutOverride, ShortcutOverrides } from '@/constants/shortcut';
@@ -77,6 +81,17 @@ export interface IUpdateDetail {
   status?: UpdatedStatus; // update status
   progress?: number; // update progress
   version?: string; // Latest version number
+}
+
+export interface IUpdatePreferences {
+  saved: boolean;
+  receiveBeta: boolean;
+}
+
+export interface IUpdateRecoveryStatus {
+  failed: boolean;
+  fromVersion: string;
+  toVersion: string;
 }
 
 export type McpRuntimeState = 'UNKNOWN' | 'STARTING' | 'RUNNING' | 'STOPPED' | 'FAILED';

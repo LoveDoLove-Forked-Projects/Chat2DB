@@ -1,6 +1,6 @@
 package ai.chat2db.community.domain.core.impl.task.extension;
 
-import ai.chat2db.community.domain.api.enums.TaskTypeEnum;
+import ai.chat2db.community.domain.api.model.task.TaskType;
 import ai.chat2db.community.domain.api.model.task.extension.TaskExecutionContext;
 import ai.chat2db.community.domain.api.model.task.extension.TaskOperation;
 import ai.chat2db.community.domain.api.model.task.extension.TaskStatementContext;
@@ -75,7 +75,7 @@ class TaskExtensionManagerTest {
     }
 
     private static TaskSubmissionContext submissionContext() {
-        return new TaskSubmissionContext(42L, TaskTypeEnum.UPLOAD_TABLE_DATA, null,
+        return new TaskSubmissionContext(42L, TaskType.DATA_FILE_IMPORT, null,
                 "shop", null, List.of("orders"), TaskOperation.IMPORT);
     }
 }
