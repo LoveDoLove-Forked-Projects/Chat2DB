@@ -1,20 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import classnames from 'classnames';
-import i18n from '@/i18n';
-import { extendConfig, type IToolbar } from '../config';
-import { IconButton, staticMessage } from '@chat2db/ui';
+import { isWorkspaceRecordCode, standaloneExtendConfig, workspaceRecordEntryConfig } from '../config';
+import { IconButton } from '@chat2db/ui';
 import { useWorkspaceStore } from '@/store/workspace';
-import { useImportExportStore } from '@/store/importExport';
 import { useStyles } from './style';
-import { canImportExport, isDesktop } from '@/utils/env';
+import { isDesktop } from '@/utils/env';
 import { useAIStore } from '@/store/ai';
 import AIButton from '@/blocks/AI/components/AIButton';
-import { Terminal } from 'lucide-react';
-import { useGlobalStore } from '@/store/global';
-import jcefApi from '@/jcef';
-import { createQuickTerminalTab } from './quickTerminal';
-import { DEFAULT_TERMINAL_SETTINGS } from '@/constants/terminal';
 import { COMMUNITY_TITLE_BAR_BUTTON_SIZE } from '@/constants/mainLayout';
+import QuickTerminalButton from './QuickTerminalButton';
 
 interface IProps {
   className?: string;
@@ -25,57 +19,23 @@ export default (props: IProps) => {
   const { className, orientation = 'vertical' } = props;
   const { styles } = useStyles({ orientation });
   const tooltipPlacement = orientation === 'horizontal' ? 'bottom' : 'left';
-  const [creatingTerminal, setCreatingTerminal] = useState(false);
-  const terminalShellId = useGlobalStore((state) => state.terminalSettings.shellId);
-  const terminalOpenPosition = useGlobalStore(
-    (state) => state.terminalSettings.openPosition || DEFAULT_TERMINAL_SETTINGS.openPosition,
-  );
-  const { addWorkspaceTab, currentWorkspaceExtend, setCurrentWorkspaceExtend } = useWorkspaceStore((state) => {
+  const { currentWorkspaceExtend, setCurrentWorkspaceExtend } = useWorkspaceStore((state) => {
     return {
-      addWorkspaceTab: state.addWorkspaceTab,
       currentWorkspaceExtend: state.currentWorkspaceExtend,
       setCurrentWorkspaceExtend: state.setCurrentWorkspaceExtend,
-    };
-  });
-  const { showExportToolbar, setShowExportToolbar } = useImportExportStore((state) => {
-    return {
-      showExportToolbar: state.showExportToolbar,
-      setShowExportToolbar: state.setShowExportToolbar,
     };
   });
   const { showPanel: showAIPanel } = useAIStore((state) => ({
     showPanel: state.showPanel,
   }));
+  const recordPanelActive = isWorkspaceRecordCode(currentWorkspaceExtend);
 
-  const changeExtend = (item: IToolbar) => {
-    if (currentWorkspaceExtend === item.code) {
+  const changeExtend = (code: string) => {
+    if (currentWorkspaceExtend === code) {
       setCurrentWorkspaceExtend(null);
       return;
     }
-    setCurrentWorkspaceExtend(item.code);
-  };
-
-  const createTerminal = async () => {
-    if (creatingTerminal) {
-      return;
-    }
-    setCreatingTerminal(true);
-    try {
-      const terminal = await jcefApi.createTerminal({
-        columns: 100,
-        rows: 30,
-        shellId: terminalShellId,
-      });
-      addWorkspaceTab(
-        createQuickTerminalTab(terminal, i18n('workspace.terminal.title'), terminalOpenPosition),
-        { activate: terminalOpenPosition === 'tab' },
-      );
-    } catch (error) {
-      console.error('create terminal error', error);
-      staticMessage.error(i18n('workspace.localSqlFileTree.openTerminalFailed'));
-    } finally {
-      setCreatingTerminal(false);
-    }
+    setCurrentWorkspaceExtend(code);
   };
 
   useEffect(() => {
@@ -85,34 +45,37 @@ export default (props: IProps) => {
   return (
     <div className={classnames(className, styles.workspaceExtendNav)}>
       <div className={styles.topBox}>
-        {extendConfig.map((item, index) => {
-          return (
-            <IconButton
-              type="primary"
-              size={COMMUNITY_TITLE_BAR_BUTTON_SIZE}
-              key={index}
-              title={item.title}
-              tooltipPlacement={tooltipPlacement}
-              {...(typeof item.icon === 'string' ? { code: item.icon } : { icon: item.icon })}
-              isActive={currentWorkspaceExtend === item.code}
-              onClick={() => {
-                changeExtend(item);
-                useAIStore.getState().setShowPanel(false);
-              }}
-            />
-          );
-        })}
-        {isDesktop && (
+        {standaloneExtendConfig.map((item) => (
           <IconButton
+            key={item.code}
             type="primary"
             size={COMMUNITY_TITLE_BAR_BUTTON_SIZE}
-            title={i18n('workspace.terminal.title')}
+            title={item.title}
             tooltipPlacement={tooltipPlacement}
-            icon={Terminal}
-            spin={creatingTerminal}
-            disabled={creatingTerminal}
-            onClick={createTerminal}
+            {...(typeof item.icon === 'string' ? { code: item.icon } : { icon: item.icon })}
+            isActive={currentWorkspaceExtend === item.code}
+            onClick={() => {
+              changeExtend(item.code);
+              useAIStore.getState().setShowPanel(false);
+            }}
           />
+        ))}
+        <IconButton
+          type="primary"
+          size={COMMUNITY_TITLE_BAR_BUTTON_SIZE}
+          title={workspaceRecordEntryConfig.title}
+          tooltipPlacement={tooltipPlacement}
+          {...(typeof workspaceRecordEntryConfig.icon === 'string'
+            ? { code: workspaceRecordEntryConfig.icon }
+            : { icon: workspaceRecordEntryConfig.icon })}
+          isActive={recordPanelActive}
+          onClick={() => {
+            setCurrentWorkspaceExtend(recordPanelActive ? null : workspaceRecordEntryConfig.code);
+            useAIStore.getState().setShowPanel(false);
+          }}
+        />
+        {isDesktop && orientation === 'vertical' && (
+          <QuickTerminalButton size={COMMUNITY_TITLE_BAR_BUTTON_SIZE} tooltipPlacement={tooltipPlacement} />
         )}
         <AIButton
           size={COMMUNITY_TITLE_BAR_BUTTON_SIZE}
@@ -121,21 +84,6 @@ export default (props: IProps) => {
             useAIStore.getState().togglePanel();
           }}
         />
-      </div>
-      <div className={styles.bottomBox}>
-        {canImportExport && (
-          <IconButton
-            size="lg"
-            title={i18n('workspace.title.exportProgressBar')}
-            tooltipPlacement="left"
-            code="icon-export-details"
-            isActive={showExportToolbar}
-            onClick={() => setShowExportToolbar(!showExportToolbar)}
-          />
-        )}
-
-        {/* <Tooltip title={i18n('workspace.title.ai')} placement="left">
-        </Tooltip> */}
       </div>
     </div>
   );
