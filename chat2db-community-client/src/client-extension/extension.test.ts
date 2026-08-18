@@ -6,6 +6,9 @@ import { mergeNavigationItems } from './merge';
 import type { ClientNavigationContribution } from './types';
 
 assert.deepEqual(clientExtension.navigationItems, []);
+assert.deepEqual(clientExtension.mainPage.useNavigationItems([]), []);
+assert.equal(clientExtension.mainPage.resolveNavigationPage, undefined);
+assert.equal(clientExtension.mainPage.actionBarExtras, undefined);
 assert.equal(clientExtension.settings, undefined);
 assert.equal(clientExtension.resourceOperations, undefined);
 assert.equal(clientExtension.knowledgeMentions, undefined);

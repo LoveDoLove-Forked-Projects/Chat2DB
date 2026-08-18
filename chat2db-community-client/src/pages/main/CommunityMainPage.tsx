@@ -47,7 +47,7 @@ import { checkIsSharePage } from '@/utils/url';
 function CommunityMainPage() {
   const [navConfig, setNavConfig] = useState<INavItem[]>([]);
 
-  const initNavConfig: INavItem[] = useMemo(
+  const allNavItems: INavItem[] = useMemo(
     () =>
       mergeNavigationItems(
         createCoreMainNavItems({
@@ -59,6 +59,7 @@ function CommunityMainPage() {
       ),
     [],
   );
+  const initNavConfig = clientExtension.mainPage.useNavigationItems(allNavItems);
 
   const showLeftContainer = useMemo(() => checkIsSharePage(), []);
 
@@ -199,13 +200,24 @@ function CommunityMainPage() {
       pathName = '/workspace';
     }
 
+    const resolvedPage =
+      clientExtension.mainPage.resolveNavigationPage?.({
+        requestedPage: page,
+        allItems: allNavItems,
+        visibleItems: nextNavConfig,
+      }) ?? page;
+    if (resolvedPage !== page) {
+      page = resolvedPage;
+      pathName = `/${resolvedPage}`;
+    }
+
     handleChangePageTab({
       page,
       pathName,
       navConfigTmp: nextNavConfig,
       isFirst: true,
     });
-  }, [handleChangePageTab, initNavConfig, mainPageActiveTab, networkAbandoned]);
+  }, [allNavItems, handleChangePageTab, initNavConfig, mainPageActiveTab, networkAbandoned]);
 
   useEffect(() => {
     if (mainPageActiveTab === 'stream') {
@@ -424,6 +436,7 @@ function CommunityMainPage() {
           activePage={mainPageActiveTab}
           settingsActive={settingPageActiveTab !== false}
           hideSettings={Boolean(isEmbedIframe)}
+          extras={clientExtension.mainPage.actionBarExtras}
           onNavigate={handleNavItemClick}
           onOpenSettings={handleOpenSettings}
         />

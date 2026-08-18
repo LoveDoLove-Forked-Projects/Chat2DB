@@ -13,6 +13,19 @@ export type ClientNavigationContribution = Omit<INavItem, 'key'> & {
   id: string;
 };
 
+export interface ClientNavigationResolutionContext {
+  requestedPage: string;
+  allItems: readonly INavItem[];
+  visibleItems: readonly INavItem[];
+}
+
+export interface ClientMainPageExtension {
+  /** React hook used by a product layer to derive its visible navigation items. */
+  useNavigationItems: (items: readonly INavItem[]) => readonly INavItem[];
+  resolveNavigationPage?: (context: ClientNavigationResolutionContext) => string;
+  actionBarExtras?: ReactNode;
+}
+
 export type ResourceOperation =
   | 'SELECT'
   | 'INSERT'
@@ -97,6 +110,7 @@ export interface DashboardActionContext {
 
 export interface ClientExtension {
   globalComponents?: ReactNode;
+  mainPage: ClientMainPageExtension;
   settings?: {
     items?: (context: ClientSettingContext) => readonly SettingMenuItem[];
     about?: ReactNode;
