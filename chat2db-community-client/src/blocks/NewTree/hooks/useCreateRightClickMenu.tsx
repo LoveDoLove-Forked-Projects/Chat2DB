@@ -166,16 +166,16 @@ export const useCreateRightClickMenu = () => {
     };
   });
 
-  const { setImportExportDataBoundInfo, setRunSqlBoundInfo, getTaskList, openLogModal, setShowExportToolbar } =
-    useImportExportStore((state) => {
+  const { setImportExportDataBoundInfo, setRunSqlBoundInfo, getTaskList, openLogModal } = useImportExportStore(
+    (state) => {
       return {
         setImportExportDataBoundInfo: state.setImportExportDataBoundInfo,
         setRunSqlBoundInfo: state.setRunSqlBoundInfo,
         getTaskList: state.getTaskList,
         openLogModal: state.openLogModal,
-        setShowExportToolbar: state.setShowExportToolbar,
       };
-    });
+    },
+  );
 
   const { openUnifiedConfirmationModal, setMainPageActiveTab } = useGlobalStore((state) => {
     return {
@@ -1148,7 +1148,6 @@ export const useCreateRightClickMenu = () => {
                 scope: 'SCHEMA',
                 getTaskList,
                 openLogModal,
-                setShowExportToolbar,
               });
             },
           },
@@ -1163,7 +1162,6 @@ export const useCreateRightClickMenu = () => {
                 scope: 'TABLE',
                 getTaskList,
                 openLogModal,
-                setShowExportToolbar,
               });
             },
           },
@@ -1178,7 +1176,6 @@ export const useCreateRightClickMenu = () => {
                 scope: 'ALL',
                 getTaskList,
                 openLogModal,
-                setShowExportToolbar,
               });
             },
           },
