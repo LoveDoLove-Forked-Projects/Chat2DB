@@ -95,6 +95,7 @@ public class MainJFrame extends JFrame {
     private static final String MAC_OS_14_1_VERSION_PREFIX = "14.1";
     private static final String WEB_FRONTEND_PROPERTY = "chat2db.jcef.web-frontend";
     private static final String WEB_FRONTEND_URL = "http://127.0.0.1:8889/";
+    private static final String DESKTOP_READY_FILE_PROPERTY = "chat2db.jcef.ready-file";
     private JSplitPane splitPane;
     private DevToolsPanel devToolsPanel;
     private boolean isDevToolsVisible = false;
@@ -839,7 +840,25 @@ public class MainJFrame extends JFrame {
             }
         });
         this.setVisible(true);
+        writeDesktopReadyMarker();
         log.info("5. JFrame initialization completed.");
+    }
+    private void writeDesktopReadyMarker() {
+        String readyFile = System.getProperty(DESKTOP_READY_FILE_PROPERTY);
+        if (StringUtils.isBlank(readyFile)) {
+            return;
+        }
+        Path readyPath = Paths.get(readyFile).toAbsolutePath().normalize();
+        try {
+            Path parent = readyPath.getParent();
+            if (parent != null) {
+                Files.createDirectories(parent);
+            }
+            Files.writeString(readyPath, "ready\n", StandardCharsets.UTF_8);
+            log.info("JCEF desktop ready marker written: {}", readyPath);
+        } catch (IOException | RuntimeException exception) {
+            log.error("Failed to write JCEF desktop ready marker: {}", readyPath, exception);
+        }
     }
     private void initAppWindowSize() {
         Boolean isMaxWindow = (Boolean) SystemSettingsUtil.getProperty(SystemSettingConstant.IS_MAX_WINDOW);
