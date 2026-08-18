@@ -1,6 +1,6 @@
 import { memo, useState, useRef, useMemo, useEffect, useReducer, useCallback } from 'react';
 import { Button, Segmented, Tooltip } from 'antd';
-import { List, ListTree, RefreshCw, X } from 'lucide-react';
+import { List, ListTree, RotateCw, X } from 'lucide-react';
 import i18n from '@/i18n';
 import { useStyles } from './style';
 import { RedisDataItem } from '@/typings/redis';
@@ -667,7 +667,7 @@ const RedisAllData = (props) => {
             ) : detailLoadStatus === 'failed' ? (
               <div className={styles.detailFailure}>
                 <span>{i18n('redis.editData.loadFailed')}</span>
-                <Button size="small" icon={<RefreshCw size={14} />} onClick={retryRedisDataItemDetail}>
+                <Button size="small" icon={<RotateCw size={14} />} onClick={retryRedisDataItemDetail}>
                   {i18n('redis.button.retry')}
                 </Button>
               </div>
