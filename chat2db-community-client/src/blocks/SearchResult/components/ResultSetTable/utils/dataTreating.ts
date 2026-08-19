@@ -46,7 +46,10 @@ const handleDataDisplay = (params: {
       ],
     },
     showSort: false,
-    editor: canEdit && !readOnlyFields?.has(field) ? resolveResultSetEditor(data.editorType) : undefined,
+    editor:
+      canEdit && !readOnlyFields?.has(field)
+        ? resolveResultSetEditor(data.editorType, data.editorOptions, theme)
+        : undefined,
     headerIcon: ['filter', 'sort'],
     sort: (a, b, _order): 0 | 1 | -1 => {
       if (a === null || a === undefined) return _order === 'asc' ? -1 : 1;
