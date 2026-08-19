@@ -20,6 +20,7 @@ import {
 
 // ----- constants -----
 import { ConsoleOpenedStatus, WorkspaceTabType, workspaceTabConfig } from '@/constants';
+import { DEFAULT_TERMINAL_SETTINGS } from '@/constants/terminal';
 import {
   IWorkspaceTab,
   IWorkspaceTabPaneNode,
@@ -46,6 +47,7 @@ import TerminalTab from './TerminalTab';
 
 // ---- store -----
 import { useWorkspaceStore } from '@/store/workspace';
+import { useGlobalStore } from '@/store/global';
 import { isWorkspaceResultInspectorCode } from '@/store/workspace/utils/resultInspector';
 import { isConsoleTabNameCustomized } from '@/store/workspace/utils/consoleTabName';
 import { useTreeStore } from '@/store/tree';
@@ -56,6 +58,7 @@ import sqlService from '@/service/sql';
 import jcefApi from '@/jcef';
 
 import { copyToClipboard, getTemporaryId, isTemporaryId } from '@/utils';
+import { resolveDataSourceIdentityColor } from '@/utils/dataSourceIdentity';
 
 import { useIndexDBStore } from '@/store/indexDB';
 import { getDatabaseSupport } from '@/utils/database';
@@ -65,7 +68,8 @@ import {
   getLocalTextFileTabPresentation,
   SQL_FILE_EXTENSION_NAME,
 } from '../../utils/localTextFile';
-import { confirmAndKillTerminalTabs } from '@/utils/terminalSession';
+import { confirmWorkspaceTabsClose } from '@/utils/editorCloseConfirmation';
+import { resolveEditorDataSourceConnectable, resolveEditorDataSourceState } from '@/utils/editorDataSourceLifecycle';
 import { EditorType } from '@/components/SQLEditor';
 import { ShortcutAction } from '@/constants/shortcut';
 import {
@@ -75,7 +79,13 @@ import {
   getWorkspaceTabEdgeDropTarget,
   WorkspaceTabDropPosition,
 } from './workspaceTabDrop';
-import { applyTerminalTabOpenPositions } from './terminalTabPlacement';
+import {
+  applyTerminalTabOpenPositions,
+  isTerminalDockPaneId,
+  prepareTerminalTabLayout,
+  resolveLastNonTerminalActiveTabId,
+} from './terminalTabPlacement';
+import { getNextActiveWorkspaceTabIdAfterClose } from './workspaceTabSelection';
 import {
   areWorkspaceTabSplitLayoutsEqual,
   collectWorkspaceTabPaneIds,
@@ -572,7 +582,7 @@ function normalizeWorkspaceTabSplitLayout(
 
   const validPaneIds = new Set(
     paneIds.filter((paneId) => {
-      return !!nextPaneTabIds[paneId]?.length;
+      return !!nextPaneTabIds[paneId]?.length || isTerminalDockPaneId(paneId);
     }),
   );
   const normalizedRoot = pruneWorkspaceTabPaneNode(root, validPaneIds);
@@ -607,11 +617,17 @@ function normalizeWorkspaceTabSplitLayout(
           {} as Partial<Record<WorkspaceTabPaneId, number | string | null>>,
         )
       : layout.activeTabIds || {};
+  const lastNonTerminalActiveTabId = resolveLastNonTerminalActiveTabId(
+    workspaceTabList,
+    activeConsoleId,
+    layout.lastNonTerminalActiveTabId,
+  );
 
   return {
     direction: normalizedRoot.direction,
     root: normalizedRoot,
     activePane: normalizedActivePane,
+    lastNonTerminalActiveTabId,
     paneTabIds: normalizedPaneTabIds,
     activeTabIds: normalizedPaneIds.reduce(
       (result, paneId) => {
@@ -658,46 +674,6 @@ function orderSplitLayoutPaneIdsByPinned(layout: IWorkspaceTabSplitLayout | null
 function getWorkspaceTabIdsByLayout(layout: IWorkspaceTabSplitLayout) {
   const paneIds = collectWorkspaceTabPaneIds(layout.root || createDefaultSplitRoot(layout.direction || 'vertical'));
   return paneIds.flatMap((paneId) => layout.paneTabIds[paneId] || []);
-}
-
-function getNextActiveWorkspaceTabIdAfterClose(params: {
-  activeConsoleId?: string | number | null;
-  closeTabIds: Set<string | number>;
-  layout: IWorkspaceTabSplitLayout | null | undefined;
-  orderedNextWorkspaceTabList: IWorkspaceTab[];
-}) {
-  const { activeConsoleId, closeTabIds, layout, orderedNextWorkspaceTabList } = params;
-  if (activeConsoleId === undefined || activeConsoleId === null || !closeTabIds.has(activeConsoleId)) {
-    return activeConsoleId ?? null;
-  }
-
-  if (!orderedNextWorkspaceTabList.length) {
-    return null;
-  }
-
-  const workspaceTabMap = getWorkspaceTabMap(orderedNextWorkspaceTabList);
-  if (layout) {
-    const activePaneId = getPaneIdForTab(layout, activeConsoleId);
-    const paneTabIds = layout.paneTabIds[activePaneId] || [];
-    const activeIndex = paneTabIds.findIndex((id) => id === activeConsoleId);
-    const isAvailableTabId = (id: string | number) => !closeTabIds.has(id) && workspaceTabMap.has(id);
-    const previousTabId = paneTabIds.slice(0, Math.max(activeIndex, 0)).reverse()
-.find(isAvailableTabId);
-    const nextTabId = paneTabIds.slice(activeIndex + 1).find(isAvailableTabId);
-    const fallbackPaneTabId = paneTabIds.find(isAvailableTabId);
-
-    if (previousTabId !== undefined) {
-      return previousTabId;
-    }
-    if (nextTabId !== undefined) {
-      return nextTabId;
-    }
-    if (fallbackPaneTabId !== undefined) {
-      return fallbackPaneTabId;
-    }
-  }
-
-  return orderedNextWorkspaceTabList[orderedNextWorkspaceTabList.length - 1]?.id ?? null;
 }
 
 function getWorkspaceTabIdFromDndId(id: string, workspaceTabList: IWorkspaceTab[]) {
@@ -774,7 +750,7 @@ const WorkspaceTabs = memo(() => {
     activeConsoleId,
     consoleList,
     workspaceTabList,
-    workspaceTabSplitLayout,
+    workspaceTabSplitLayout: storedWorkspaceTabSplitLayout,
     recentlyClosedWorkspaceTabs,
     editorList,
     getOpenConsoleList,
@@ -795,6 +771,18 @@ const WorkspaceTabs = memo(() => {
       createConsole: state.createConsole,
     };
   });
+  const terminalOpenPosition = useGlobalStore(
+    (state) => state.terminalSettings.openPosition || DEFAULT_TERMINAL_SETTINGS.openPosition,
+  );
+  const workspaceTabSplitLayout = useMemo(() => {
+    const preparedLayout = prepareTerminalTabLayout(
+      storedWorkspaceTabSplitLayout,
+      workspaceTabList || [],
+      activeConsoleId,
+      terminalOpenPosition,
+    );
+    return normalizeWorkspaceTabSplitLayout(preparedLayout, workspaceTabList || [], activeConsoleId);
+  }, [storedWorkspaceTabSplitLayout, workspaceTabList, activeConsoleId, terminalOpenPosition]);
 
   // Get the currently selected data source.
   const { zoerBoundInfo } = useZoerStore((state) => {
@@ -803,10 +791,11 @@ const WorkspaceTabs = memo(() => {
     };
   });
 
-  const { currentTreeNode, dataSourceList } = useTreeStore((state) => {
+  const { currentTreeNode, dataSourceList, runtimeAvailabilityByDataSourceId } = useTreeStore((state) => {
     return {
       currentTreeNode: state.currentTreeNode,
       dataSourceList: state.dataSourceList,
+      runtimeAvailabilityByDataSourceId: state.runtimeAvailabilityByDataSourceId,
     };
   });
 
@@ -859,17 +848,12 @@ const WorkspaceTabs = memo(() => {
   };
 
   useEffect(() => {
-    const normalizedLayout = normalizeWorkspaceTabSplitLayout(
-      workspaceTabSplitLayout,
-      workspaceTabList || [],
-      activeConsoleId,
-    );
-    if (!areWorkspaceTabSplitLayoutsEqual(workspaceTabSplitLayout, normalizedLayout)) {
+    if (!areWorkspaceTabSplitLayoutsEqual(storedWorkspaceTabSplitLayout, workspaceTabSplitLayout)) {
       useWorkspaceStore.setState({
-        workspaceTabSplitLayout: normalizedLayout,
+        workspaceTabSplitLayout,
       });
     }
-  }, [workspaceTabList, workspaceTabSplitLayout, activeConsoleId]);
+  }, [storedWorkspaceTabSplitLayout, workspaceTabSplitLayout]);
 
   useEffect(() => {
     const workspaceStore = useWorkspaceStore.getState();
@@ -1020,15 +1004,22 @@ const WorkspaceTabs = memo(() => {
 
   const confirmWorkspaceTabItemsClose = (tabs: ITabItem[]) => {
     const closeKeySet = new Set(tabs.map((tab) => tab.key));
-    return confirmAndKillTerminalTabs(
+    return confirmWorkspaceTabsClose(
       (workspaceTabList || []).filter((tab) => closeKeySet.has(tab.id)),
       workspaceTabList || [],
+      useWorkspaceStore.getState().editorList || {},
     );
   };
 
   const requestCloseWorkspaceTabs = async (tabs: IWorkspaceTab[]) => {
     const closableTabs = tabs.filter((item) => !item.pinned);
-    if (await confirmAndKillTerminalTabs(closableTabs, workspaceTabList || [])) {
+    if (
+      await confirmWorkspaceTabsClose(
+        closableTabs,
+        workspaceTabList || [],
+        useWorkspaceStore.getState().editorList || {},
+      )
+    ) {
       closeWorkspaceTabs(closableTabs);
     }
   };
@@ -1063,6 +1054,8 @@ const WorkspaceTabs = memo(() => {
       const param = {
         dataSourceId: currentTreeNode.extraParams.dataSourceId,
         dataSourceName: currentTreeNode.extraParams.dataSourceName!,
+        environmentId: currentTreeNode.extraParams.environmentId,
+        environment: currentTreeNode.extraParams.environment,
         databaseType: currentTreeNode.extraParams.databaseType!,
         databaseName: currentTreeNode.extraParams.databaseName,
         schemaName: currentTreeNode.extraParams.schemaName,
@@ -1072,6 +1065,8 @@ const WorkspaceTabs = memo(() => {
       const param: any = {
         dataSourceId: dataSourceList[0].extraParams.dataSourceId,
         dataSourceName: dataSourceList[0].extraParams.dataSourceName,
+        environmentId: dataSourceList[0].extraParams.environmentId,
+        environment: dataSourceList[0].extraParams.environment,
         databaseType: dataSourceList[0].extraParams.databaseType,
       };
       createConsole(param).then(appendNewConsoleToActivePane);
@@ -1098,10 +1093,18 @@ const WorkspaceTabs = memo(() => {
     if (!key) {
       return;
     }
+    const selectedTab = (workspaceTabList || []).find((tab) => tab.id === key);
+    const currentActiveTab = (workspaceTabList || []).find((tab) => tab.id === activeConsoleId);
+    const lastNonTerminalActiveTabId =
+      selectedTab && selectedTab.type !== WorkspaceTabType.Terminal
+        ? key
+        : workspaceTabSplitLayout?.lastNonTerminalActiveTabId ??
+          (currentActiveTab && currentActiveTab.type !== WorkspaceTabType.Terminal ? activeConsoleId : null);
     const nextLayout = workspaceTabSplitLayout
       ? {
           ...workspaceTabSplitLayout,
           activePane: paneId,
+          lastNonTerminalActiveTabId,
           activeTabIds: {
             ...workspaceTabSplitLayout.activeTabIds,
             [paneId]: key,
@@ -1609,10 +1612,36 @@ const WorkspaceTabs = memo(() => {
 
   // Render the SQL executor.
   const renderSQLExecute = (item: IWorkspaceTab) => {
-    const uniqueData = rebuildSqlExecuteTabData(item);
-    if (!uniqueData) {
+    const storedUniqueData = rebuildSqlExecuteTabData(item);
+    if (!storedUniqueData) {
       return;
     }
+    const currentDataSource = dataSourceList?.find(
+      (dataSource) => dataSource.extraParams.dataSourceId === storedUniqueData.dataSourceId,
+    )?.extraParams;
+    const dataSourceState = resolveEditorDataSourceState(
+      storedUniqueData.dataSourceId,
+      dataSourceList,
+      runtimeAvailabilityByDataSourceId,
+    );
+    const connectable = resolveEditorDataSourceConnectable(dataSourceState, storedUniqueData.connectable);
+    const uniqueData = currentDataSource
+      ? {
+          ...storedUniqueData,
+          dataSourceName: currentDataSource.dataSourceName ?? storedUniqueData.dataSourceName,
+          environmentId: currentDataSource.environmentId ?? currentDataSource.environment?.id ?? null,
+          environment: currentDataSource.environment ?? null,
+          identityColor: currentDataSource.identityColor ?? null,
+          watermarkEnabled: currentDataSource.watermarkEnabled ?? null,
+          watermarkContent: currentDataSource.watermarkContent ?? null,
+          connectable,
+        }
+      : {
+          ...storedUniqueData,
+          identityColor: dataSourceState === 'deleted' ? null : storedUniqueData.identityColor,
+          watermarkEnabled: dataSourceState === 'deleted' ? false : storedUniqueData.watermarkEnabled,
+          connectable,
+        };
 
     const { ddl = '', loadSQL } = uniqueData;
     const sqlActionEnabled =
@@ -1653,6 +1682,7 @@ const WorkspaceTabs = memo(() => {
         initDDL={ddl}
         loadSQL={loadSQL}
         sqlActionEnabled={sqlActionEnabled}
+        dataSourceState={dataSourceState}
       />
     );
   };
@@ -1806,17 +1836,39 @@ const WorkspaceTabs = memo(() => {
           ? getLocalTextFileTabPresentation(item.uniqueData?.filePath, item.title)
           : undefined;
       const popoverContent = localFileTabPresentation?.popover || item.uniqueData?.popoverContent;
+      const workspaceTabIcon =
+        item.type === WorkspaceTabType.LocalSQLFile
+          ? getLocalTextFileIcon(item.uniqueData?.fileExtension)
+          : workspaceTabConfig[item.type]?.icon;
+      const dataSourceId = item.uniqueData?.dataSourceId;
+      const dataSourceIdentityColor = dataSourceId
+        ? resolveDataSourceIdentityColor(
+            dataSourceList?.find((dataSource) => dataSource.extraParams.dataSourceId === dataSourceId)?.extraParams,
+          )
+        : undefined;
       return {
-        prefixIcon:
-          item.type === WorkspaceTabType.LocalSQLFile
-            ? getLocalTextFileIcon(item.uniqueData?.fileExtension)
-            : workspaceTabConfig[item.type]?.icon,
+        prefixIcon: dataSourceId ? (
+          <span
+            className={styles.workspaceTabIdentityIcon}
+            aria-label={item.uniqueData?.dataSourceName}
+            title={item.uniqueData?.dataSourceName}
+          >
+            {typeof workspaceTabIcon === 'string' ? (
+              <IconfontSvg size={16} code={workspaceTabIcon} />
+            ) : (
+              workspaceTabIcon
+            )}
+          </span>
+        ) : (
+          workspaceTabIcon
+        ),
         label: localFileTabPresentation?.label ?? item.title,
         popover: popoverContent ? <div style={{ padding: '4px 6px' }}>{popoverContent}</div> : undefined,
         key: item.id,
         editableName:
           item.type === WorkspaceTabType.CONSOLE || item.type === WorkspaceTabType.Terminal,
         pinned: item.pinned,
+        accentColor: dataSourceId ? dataSourceIdentityColor : undefined,
         destroyOnHide: !!item.uniqueData?.filePreviewMimeType,
         styles: {
           width: WORKSPACE_TAB_WIDTH,
@@ -1832,7 +1884,7 @@ const WorkspaceTabs = memo(() => {
   // Tab list.
   const workspaceTabItems = useMemo(() => {
     return getWorkspaceTabItems(workspaceTabList || []);
-  }, [workspaceTabList, activeConsoleId]);
+  }, [workspaceTabList, activeConsoleId, dataSourceList]);
 
   function renderCreateConsoleButton() {
     if (!canCreateConsole) {
@@ -1977,16 +2029,30 @@ const WorkspaceTabs = memo(() => {
       return renderWorkspaceTabPane(node.id, styles.splitPaneItem);
     }
 
+    const firstPaneHidden =
+      node.first.type === 'pane' &&
+      isTerminalDockPaneId(node.first.id) &&
+      !workspaceTabSplitLayout?.paneTabIds[node.first.id]?.length;
+    const secondPaneHidden =
+      node.second.type === 'pane' &&
+      isTerminalDockPaneId(node.second.id) &&
+      !workspaceTabSplitLayout?.paneTabIds[node.second.id]?.length;
+    const hasHiddenTerminalDock = firstPaneHidden || secondPaneHidden;
+
     return (
       <SplitPaneAny
         key={node.nodeId}
         className={styles.splitPane}
         split={node.direction}
         primary="first"
-        size={node.size ?? '50%'}
-        minSize={180}
+        size={firstPaneHidden ? 0 : secondPaneHidden ? '100%' : node.size ?? '50%'}
+        minSize={hasHiddenTerminalDock ? 0 : 180}
+        allowResize={!hasHiddenTerminalDock}
         paneClassName={styles.splitPaneInner}
+        pane1Style={firstPaneHidden ? { display: 'none' } : undefined}
+        pane2Style={secondPaneHidden ? { display: 'none' } : undefined}
         resizerClassName={WORKSPACE_TAB_RESIZER_CLASS}
+        resizerStyle={hasHiddenTerminalDock ? { display: 'none' } : undefined}
         onDragStarted={() => setWorkspaceTabResizeCursor(node.direction)}
         onDragFinished={(size: number | string) => {
           clearWorkspaceTabResizeCursor();

@@ -4,12 +4,17 @@ import { readFileSync } from 'node:fs';
 const settingLayoutSource = readFileSync('src/blocks/Setting/SettingLayout.tsx', 'utf8');
 const communitySettingSource = readFileSync('src/blocks/Setting/CommunitySetting.tsx', 'utf8');
 const settingSource = readFileSync('src/blocks/Setting/index.tsx', 'utf8');
+const editionUiSource = readFileSync('src/edition-ui/index.ts', 'utf8');
 const baseSettingSource = readFileSync('src/blocks/Setting/BaseSetting/index.tsx', 'utf8');
 const editorSettingSource = readFileSync('src/blocks/Setting/EditorSetting/index.tsx', 'utf8');
 const terminalSettingSource = readFileSync('src/blocks/Setting/TerminalSetting/index.tsx', 'utf8');
 const mcpSettingSource = readFileSync('src/blocks/Setting/McpSetting/index.tsx', 'utf8');
 const networkProxySettingSource = readFileSync('src/blocks/Setting/NetworkProxySetting/index.tsx', 'utf8');
 const shortcutSettingSource = readFileSync('src/blocks/Setting/ShortcutSetting/index.tsx', 'utf8');
+const personalSettingSource = readFileSync('src/blocks/Setting/Personal/index.tsx', 'utf8');
+const inviteSettingSource = readFileSync('src/blocks/Setting/Invite/index.tsx', 'utf8');
+const deviceCertificateSettingSource = readFileSync('src/blocks/Setting/DeviceCer/index.tsx', 'utf8');
+const purchaseDetailsSource = readFileSync('src/components/PurchaseDetails/index.tsx', 'utf8');
 const searchCatalogSource = readFileSync('src/blocks/Setting/searchCatalog.ts', 'utf8');
 const searchTargetLabelSource = readFileSync('src/blocks/Setting/SearchTargetLabel.tsx', 'utf8');
 const searchModelSource = readFileSync('src/blocks/Setting/search.ts', 'utf8');
@@ -23,6 +28,7 @@ const typographyGroupIndex = baseSettingSource.indexOf('data-setting-group="typo
 const editorAppearanceGroupIndex = editorSettingSource.indexOf('data-editor-setting-group="appearance"');
 const editorDisplayGroupIndex = editorSettingSource.indexOf('data-editor-setting-group="display"');
 const editorCompletionGroupIndex = editorSettingSource.indexOf('data-editor-setting-group="completion"');
+const editorBehaviorGroupIndex = editorSettingSource.indexOf('data-editor-setting-group="behavior"');
 const editorExecutionGroupIndex = editorSettingSource.indexOf('data-editor-setting-group="execution"');
 const editorTooltipKeys = [
   'monaco.lineHeight.tooltip',
@@ -35,6 +41,7 @@ const editorTooltipKeys = [
   'monaco.completionAcceptKey.tooltip',
   'monaco.completion.all.tooltip',
   'monaco.tableDDLTriggerMode.tooltip',
+  'monaco.confirmBeforeClose.tooltip',
   'monaco.errorContinue.tooltip',
 ];
 const settingSearchTargetIds = [
@@ -56,6 +63,7 @@ const settingSearchTargetIds = [
   'editor.completionAcceptKey',
   'editor.completion',
   'editor.tableDDLTriggerMode',
+  'editor.confirmBeforeClose',
   'editor.errorContinue',
   'terminal.position',
   'terminal.confirmBeforeClose',
@@ -70,6 +78,17 @@ const settingSearchTargetIds = [
   'mcp.token',
   'networkProxy.mode',
   'networkProxy.test',
+  'personal.profile',
+  'personal.email',
+  'personal.password',
+  'invite.code',
+  'invite.balance',
+  'invite.list',
+  'purchase.orders',
+  'deviceCer.license',
+  'deviceCer.name',
+  'deviceCer.os',
+  'deviceCer.id',
 ];
 const searchableSettingSources = [
   baseSettingSource,
@@ -78,6 +97,10 @@ const searchableSettingSources = [
   mcpSettingSource,
   networkProxySettingSource,
   shortcutSettingSource,
+  personalSettingSource,
+  inviteSettingSource,
+  deviceCertificateSettingSource,
+  purchaseDetailsSource,
 ].join('\n');
 const hiddenNetworkProxyTargetIds = [
   'networkProxy.type',
@@ -122,14 +145,22 @@ assert.match(
   'field search targets render on a real label element',
 );
 assert.match(settingLayoutSource, /aria-current=\{isActive \? 'page'/, 'the active settings destination is announced');
-assert.match(communitySettingSource, /<SettingLayout\b/, 'the Community entry uses the shared settings shell');
+assert.match(
+  communitySettingSource,
+  /export \{ default \} from '\.\/index'/,
+  'the Community entry reuses the complete shared settings implementation',
+);
 assert.match(settingLayoutSource, /<IconfontSvg\b/, 'settings navigation supports retained product icons');
-assert.match(communitySettingSource, /iconCode: 'icon-mcp'/, 'Community MCP retains its product icon');
-assert.match(settingSource, /iconCode: 'icon-mcp'/, 'other editions retain the MCP product icon');
-assert.match(communitySettingSource, /iconCode: 'icon-wangluo'/, 'Community proxy retains its product icon');
-assert.match(settingSource, /iconCode: 'icon-wangluo'/, 'other editions retain the proxy product icon');
-assert.match(communitySettingSource, /icon: ClipboardPen/, 'Community editor settings use ClipboardPen');
-assert.match(settingSource, /icon: ClipboardPen/, 'other editions use ClipboardPen for editor settings');
+assert.match(settingSource, /iconCode: 'icon-mcp'/, 'all editions retain the MCP product icon');
+assert.match(settingSource, /iconCode: 'icon-wangluo'/, 'all editions retain the proxy product icon');
+assert.match(settingSource, /icon: ClipboardPen/, 'all editions use ClipboardPen for editor settings');
+assert.match(settingSource, /body: <TerminalSetting \/>/, 'desktop editions inherit the shared terminal settings page');
+assert.match(
+  settingSource,
+  /editionUiExtension\.settingMenuItems/,
+  'edition-specific settings use the append-only extension',
+);
+assert.match(editionUiSource, /EditionUiExtension = \{\}/, 'Community has no private setting additions');
 assert.match(baseSettingSource, /<Palette\b/, 'the appearance group uses the Lucide palette icon');
 assert.match(baseSettingSource, /<Globe\b/, 'the language group uses the Lucide globe icon');
 assert.match(baseSettingSource, /<button[\s\S]*?aria-pressed=\{isActive\}/, 'theme choices are native buttons');
@@ -141,11 +172,18 @@ assert.ok(typographyGroupIndex > languageGroupIndex, 'interface typography follo
 assert.ok(editorAppearanceGroupIndex >= 0, 'editor settings expose an appearance group');
 assert.ok(editorDisplayGroupIndex > editorAppearanceGroupIndex, 'editor display follows appearance');
 assert.ok(editorCompletionGroupIndex > editorDisplayGroupIndex, 'completion follows editor display');
-assert.ok(editorExecutionGroupIndex > editorCompletionGroupIndex, 'SQL execution follows completion');
+assert.ok(editorBehaviorGroupIndex > editorCompletionGroupIndex, 'editor behavior follows completion');
+assert.ok(editorExecutionGroupIndex > editorBehaviorGroupIndex, 'SQL execution follows editor behavior');
 assert.match(editorSettingSource, /<Palette\b/, 'editor appearance uses a Lucide icon');
 assert.match(editorSettingSource, /<Monitor\b/, 'editor display uses a Lucide icon');
 assert.match(editorSettingSource, /<Braces\b/, 'editor completion uses a Lucide icon');
+assert.match(editorSettingSource, /<ShieldCheck\b/, 'editor close behavior uses a Lucide icon');
 assert.match(editorSettingSource, /<Play\b/, 'editor execution uses a Lucide icon');
+assert.match(
+  editorSettingSource,
+  /name="confirmBeforeClose"[\s\S]*?valuePropName="checked"[\s\S]*?<Switch\b/,
+  'editor close confirmation uses a persisted binary switch',
+);
 assert.match(terminalSettingSource, /<Switch\b/, 'terminal close confirmation uses a binary switch');
 assert.match(
   terminalSettingSource,
@@ -199,14 +237,19 @@ assert.match(
   'shortcut search results can expand collapsed groups',
 );
 assert.match(
-  communitySettingSource,
-  /hidePageHeader: true,[\s\S]*?body: <About \/>/,
-  'Community About renders its product information without a duplicate shared header',
-);
-assert.match(
   settingSource,
   /hidePageHeader: true,[\s\S]*?body: <About \/>/,
-  'other editions render About without a duplicate shared header',
+  'all editions render About without a duplicate shared header',
+);
+assert.doesNotMatch(
+  inviteSettingSource,
+  /invite\.setting\.title'\)/,
+  'the shared settings page header owns the invitation page title',
+);
+assert.match(
+  inviteSettingSource,
+  /data-setting-search-id="invite\.code"/,
+  'invitation actions expose an exact search destination',
 );
 
 console.log('Settings layout contract tests passed.');

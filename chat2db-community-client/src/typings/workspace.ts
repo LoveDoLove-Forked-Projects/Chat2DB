@@ -1,6 +1,7 @@
 import { CreateTabIntroType, WorkspaceTabType, DatabaseTypeCode, ConsoleStatus } from '@/constants';
 import { ITreeNode } from '@/typings';
 import type { TerminalOpenPosition } from '@/typings/settings';
+import type { IConnectionEnv } from './connection';
 
 export interface ICreateTabIntro {
   type: CreateTabIntroType;
@@ -36,6 +37,7 @@ export type IWorkspaceTabPaneNode =
 export interface IWorkspaceTabSplitLayout {
   direction: WorkspaceTabSplitDirection;
   activePane: WorkspaceTabPaneId;
+  lastNonTerminalActiveTabId?: number | string | null;
   paneTabIds: Record<WorkspaceTabPaneId, Array<number | string>>;
   activeTabIds: Partial<Record<WorkspaceTabPaneId, number | string | null>>;
   root?: IWorkspaceTabPaneNode;
@@ -76,6 +78,11 @@ export interface IBoundInfo {
   workspaceTabId?: number | string;
   dataSourceId?: number;
   dataSourceName?: string;
+  environmentId?: number | null;
+  environment?: IConnectionEnv | null;
+  identityColor?: string | null;
+  watermarkEnabled?: boolean | null;
+  watermarkContent?: string | null;
   databaseType?: DatabaseTypeCode;
   databaseName?: string;
   schemaName?: string;

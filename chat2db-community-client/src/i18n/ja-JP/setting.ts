@@ -73,6 +73,9 @@ export default {
     'このトークンはデスクトップ版 MCP 認証に使います。リセットするとアクセス資格情報を即時ローテーションします。',
   'setting.text.mcpTokenResetConfirm': 'MCPトークンを今リセットしますか？',
   'setting.text.mcpTokenResetSuccess': 'MCPトークンをリセットしました。',
+  'setting.mcp.tokenLoadFailed': 'MCP トークンを読み込めませんでした。',
+  'setting.mcp.restartAlreadyInProgress': 'アプリはすでに再起動中です。',
+  'setting.mcp.operationFailed': 'MCP 操作に失敗しました',
   'setting.title.networkProxy': 'ネットワークプロキシ',
   'setting.text.networkProxyDescribe':
     'Chat2DB が外部ネットワークへアクセスするときに使うアプリケーションプロキシを設定します。',
@@ -200,6 +203,11 @@ export default {
   'setting.text.alertNewVersion': '新しいバージョンが見つかったら警告してください',
   'setting.text.downloadNewVersion': '新しいバージョンが見つかったら自動的にダウンロードします',
   'setting.text.autoInstallNewVersion': '新しいバージョンが自動的にインストールされます',
+  'setting.text.receiveBetaVersion': 'Beta バージョンを受け取る',
+  'setting.text.updateRecoveryFailedTitle': 'アップデートの起動に失敗しました',
+  'setting.text.updateRecoveryFailed':
+    '{1} へのアップデートに失敗し、{2} に自動的に復元されました。Chat2DB サポート（support@chat2db.ai）に更新ログを添えてお問い合わせください。',
+  'setting.button.openUpdateLog': '更新ログを表示',
   'setting.text.updateLog': '更新ログ',
   'setting.nav.editorFontSize': 'エディタのフォントサイズ',
   'setting.nav.editorFontSizeDescribe': 'SQLエディタ内のフォントサイズを設定します',

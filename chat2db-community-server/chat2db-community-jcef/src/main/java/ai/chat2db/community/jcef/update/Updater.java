@@ -5,6 +5,7 @@ import ai.chat2db.community.jcef.enums.ActionTypeEnum;
 import ai.chat2db.community.jcef.enums.UpdatedStatus;
 import ai.chat2db.community.jcef.enums.update.UpdateActionType;
 import ai.chat2db.community.jcef.listener.IProgressListener;
+import ai.chat2db.community.jcef.utils.ApplicationExitCoordinator;
 import ai.chat2db.community.jcef.utils.CallJsFunctionUtil;
 import ai.chat2db.community.jcef.utils.OSOperateUtil;
 import ai.chat2db.community.tools.exception.BusinessException;
@@ -54,6 +55,7 @@ public class Updater {
     private static volatile Updater instance;
     private static final Map<String, Path> downloadedFilesMap = new HashMap<>();
     private static CheckResult checkResult = new CheckResult();
+    private final RestartCoordinator restartCoordinator = new RestartCoordinator();
 
     public static Updater getInstance() {
         if (instance == null) {
@@ -142,18 +144,41 @@ public class Updater {
     }
 
     public void restartApp() throws IOException {
-        if (OS.isWindows()) {
-            return;
+        ApplicationExitCoordinator.request(ApplicationExitCoordinator.ExitAction.RESTART.name());
+    }
+
+    public void restartAppNow() throws IOException {
+        if (prepareRestart()) {
+            System.exit(0);
         }
+    }
+
+    public boolean prepareRestart() throws IOException {
         ProcessHandle currentProcess = ProcessHandle.current();
         ProcessHandle.Info info = currentProcess.info();
         String launcherPath = info.command().orElseThrow(() -> new IllegalStateException("Cannot find launcher path"));
         String[] appArgs = info.arguments().orElse(new String[0]);
-        ArrayList<String> command = new ArrayList<>();
-        command.add(launcherPath);
-        command.addAll(List.of(appArgs));
-        new ProcessBuilder(command).start();
-        System.exit(0);
+        List<String> command = RestartCommandFactory.build(
+                OS.isWindows(),
+                OS.isMacintosh(),
+                currentProcess.pid(),
+                launcherPath,
+                appArgs
+        );
+        return restartCoordinator.prepare(() -> new ProcessBuilder(command).start());
+    }
+
+    public void exitCurrentProcessAfterResponse() {
+        Thread exitThread = new Thread(() -> {
+            try {
+                Thread.sleep(150L);
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+            }
+            System.exit(0);
+        }, "chat2db-restart-exit");
+        exitThread.setDaemon(false);
+        exitThread.start();
     }
 
 
@@ -773,6 +798,10 @@ public class Updater {
         }
     }
     public void triggerInstallationWithAuxiliaryProcess() {
+        ApplicationExitCoordinator.request(ApplicationExitCoordinator.ExitAction.INSTALL_UPDATE.name());
+    }
+
+    public void triggerInstallationWithAuxiliaryProcessNow() {
         progressDialog.appendLog("Preparing for update via auxiliary process...");
         try {
             UpdatePlan plan = new UpdatePlan();

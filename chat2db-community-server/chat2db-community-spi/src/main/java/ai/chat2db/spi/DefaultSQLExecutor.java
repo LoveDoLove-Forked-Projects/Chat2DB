@@ -33,7 +33,6 @@ import ai.chat2db.spi.sql.Chat2DBContext;
 import ai.chat2db.spi.util.JdbcUtils;
 import ai.chat2db.spi.util.ResultSetUtils;
 import ai.chat2db.spi.util.SqlUtils;
-import cn.hutool.core.date.TimeInterval;
 import com.alibaba.druid.DbType;
 import com.alibaba.druid.sql.SQLUtils;
 import com.alibaba.druid.sql.ast.SQLStatement;
@@ -151,32 +150,59 @@ public class DefaultSQLExecutor implements ICommandExecutor {
             Function<JDBCDataValue, String> valueFunction,
             boolean limitSize,
             Integer resultSetId) {
+        execute(connection, sql, headerConsumer, rowConsumer, valueFunction, limitSize, resultSetId, null, null);
+    }
+
+    public void execute(
+            Connection connection, String sql,
+            Consumer<List<Header>> headerConsumer,
+            Consumer<List<String>> rowConsumer,
+            Function<JDBCDataValue, String> valueFunction,
+            boolean limitSize,
+            Integer resultSetId,
+            ISqlExecutionStatementListener statementListener,
+            Runnable cancellationChecker) {
         Assert.notNull(sql, "SQL must not be null");
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            boolean query = stmt.execute();
-            int resultCount = 0;
-            while (true) {
-                if (query) {
-                    resultCount++;
-                    if (resultSetId == null || resultCount == resultSetId) {
-                        writeExportResultSet(stmt, headerConsumer, rowConsumer, valueFunction, limitSize);
+        checkTaskCancellation(cancellationChecker);
+        PreparedStatement stmt = null;
+        try {
+            PreparedStatement preparedStatement = connection.prepareStatement(sql);
+            stmt = preparedStatement;
+            notifyStatementCreated(statementListener, preparedStatement);
+            try (preparedStatement) {
+                checkTaskCancellation(cancellationChecker);
+                boolean query = preparedStatement.execute();
+                int resultCount = 0;
+                while (true) {
+                    checkTaskCancellation(cancellationChecker);
+                    if (query) {
+                        resultCount++;
+                        if (resultSetId == null || resultCount == resultSetId) {
+                            writeExportResultSet(preparedStatement, headerConsumer, rowConsumer, valueFunction,
+                                    limitSize,
+                                    cancellationChecker);
+                            return;
+                        }
+                    } else if (preparedStatement.getUpdateCount() == -1) {
                         return;
                     }
-                } else if (stmt.getUpdateCount() == -1) {
-                    return;
+                    query = preparedStatement.getMoreResults();
                 }
-                query = stmt.getMoreResults();
             }
         } catch (SQLException e) {
+            checkTaskCancellation(cancellationChecker);
             log.error("execute:{}", sql, e);
             throw new RuntimeException(e);
+        } finally {
+            notifyStatementClosed(statementListener, stmt);
         }
     }
 
     private void writeExportResultSet(Statement stmt, Consumer<List<Header>> headerConsumer,
                                       Consumer<List<String>> rowConsumer,
                                       Function<JDBCDataValue, String> valueFunction,
-                                      boolean limitSize) throws SQLException {
+                                      boolean limitSize,
+                                      Runnable cancellationChecker) throws SQLException {
         ResultSet rs = null;
         try {
             rs = stmt.getResultSet();
@@ -192,6 +218,7 @@ public class DefaultSQLExecutor implements ICommandExecutor {
             headerConsumer.accept(headerList);
 
             while (rs.next()) {
+                checkTaskCancellation(cancellationChecker);
                 List<String> row = new ArrayList<>();
                 for (int i = 1; i <= col; i++) {
                     if (chat2dbAutoRowIdIndex == i) {
@@ -224,7 +251,7 @@ public class DefaultSQLExecutor implements ICommandExecutor {
     @Override
     public List<ExecuteResponse> executeSelectTable(SqlExecuteRequest command) {
         IDbMetaData metaData = Chat2DBContext.getDbMetaData();
-        String tableName = metaData.getMetaDataName(command.getDatabaseName(), command.getSchemaName(),
+        String tableName = metaData.getQualifiedTableName(command.getDatabaseName(), command.getSchemaName(),
                 command.getTableName());
         String sql = "select * from " + tableName;
         command.setScript(sql);
@@ -258,7 +285,6 @@ public class DefaultSQLExecutor implements ICommandExecutor {
                     }
                 }
                 long startedAtEpochMs = System.currentTimeMillis();
-                TimeInterval timeInterval = new TimeInterval();
                 ExecutionContext executionContext = JdbcExecutionContext.capture(connection);
                 long executeStartedNanos = System.nanoTime();
                 boolean query = stmt.execute();
@@ -274,7 +300,6 @@ public class DefaultSQLExecutor implements ICommandExecutor {
                 } else {
                     executeResult.setUpdateCount(stmt.getUpdateCount());
                 }
-                executeResult.setDuration(timeInterval.interval());
                 executeResult.setStatementSequence(1);
                 executeResult.setExecutionContext(executionContext);
                 executeResult.setExecutionMetrics(ExecutionTiming.complete(
@@ -1004,7 +1029,7 @@ public class DefaultSQLExecutor implements ICommandExecutor {
             executeResult.setOriginalSql(originalSql);
         }
         consumer.statementFinished(originalSql,
-                maximumStatementDuration(executeResults));
+                totalStatementDuration(executeResults));
         return executeResults;
     }
 
@@ -1053,7 +1078,6 @@ public class DefaultSQLExecutor implements ICommandExecutor {
                     }
                 }
             }
-            TimeInterval timeInterval = new TimeInterval();
             long startedAtEpochMs = System.currentTimeMillis();
             long executeStartedNanos = System.nanoTime();
             boolean query = stmt.execute();
@@ -1075,7 +1099,6 @@ public class DefaultSQLExecutor implements ICommandExecutor {
                 } else {
                     executeResult.setUpdateCount(stmt.getUpdateCount());
                 }
-                executeResult.setDuration(timeInterval.interval());
                 executeResult.setExecutionContext(executionContext);
                 executeResult.setExecutionMetrics(ExecutionTiming.complete(
                         ExecutionTiming.started(startedAtEpochMs), executeDurationNanos, fetchDurationNanos,
@@ -1135,7 +1158,6 @@ public class DefaultSQLExecutor implements ICommandExecutor {
                     }
                 }
             }
-            TimeInterval timeInterval = new TimeInterval();
             checkCanceled(cancellation);
             long startedAtEpochMs = System.currentTimeMillis();
             long executeStartedNanos = System.nanoTime();
@@ -1170,7 +1192,6 @@ public class DefaultSQLExecutor implements ICommandExecutor {
                     executeResult.setPageSize(CollectionUtils.size(executeResult.getDataList()));
                     executeResult.setHasNextPage(Boolean.FALSE);
                     executeResult.setFuzzyTotal("0");
-                    executeResult.setDuration(timeInterval.interval());
                     executeResult.setExecutionMetrics(ExecutionTiming.complete(
                             ExecutionTiming.started(startedAtEpochMs), executeDurationNanos, 0L,
                             CollectionUtils.size(executeResult.getDataList())));
@@ -1183,7 +1204,6 @@ public class DefaultSQLExecutor implements ICommandExecutor {
                             ExecutionTiming.started(startedAtEpochMs), executeDurationNanos, 0L,
                             CollectionUtils.size(executeResult.getDataList())));
                 }
-                executeResult.setDuration(timeInterval.interval());
                 executeResults.add(executeResult);
                 long nextStartedAtEpochMs = System.currentTimeMillis();
                 long nextExecuteStartedNanos = System.nanoTime();
@@ -1359,18 +1379,19 @@ public class DefaultSQLExecutor implements ICommandExecutor {
                 .sql(sql)
                 .success(Boolean.FALSE)
                 .message(exception.getMessage())
-                .duration(executionMetrics.getTotalDurationMs())
                 .executionMetrics(executionMetrics)
                 .executionContext(executionContext)
                 .build();
     }
 
-    protected static long maximumStatementDuration(List<ExecuteResponse> executeResults) {
+    protected static long totalStatementDuration(List<ExecuteResponse> executeResults) {
         return executeResults.stream()
-                .map(ExecuteResponse::getDuration)
+                .map(ExecuteResponse::getExecutionMetrics)
                 .filter(Objects::nonNull)
-                .max(Long::compareTo)
-                .orElse(0L);
+                .map(ExecutionMetrics::getTotalDurationMs)
+                .filter(Objects::nonNull)
+                .mapToLong(Long::longValue)
+                .sum();
     }
 
     private void attachMessages(List<ExecuteResponse> executeResults, List<Map<String, Object>> messages) {

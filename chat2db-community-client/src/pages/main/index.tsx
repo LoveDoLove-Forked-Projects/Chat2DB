@@ -27,6 +27,7 @@ import StreamSidebar from './components/StreamSidebar';
 // ----- block -----
 import Dashboard from './dashboard';
 import DashboardMenuList from './dashboard/DashboardMenuList';
+import { createCoreMainNavItems } from './navigationItems';
 import Workspace from './workspace';
 // import KnowledgeManagement from './knowledgeManagement';
 import Stream from '../stream';
@@ -36,7 +37,11 @@ import { useStyles } from './style';
 
 import { runtimeEditionConfig } from '@/constants/runtimeEdition';
 import { isDesktop, isHashHistoryEnv, isOfflineEnv, isWebEnv } from '@/utils/env';
-import { resolveInitialMainPage } from '@/utils/mainPageNavigation';
+import {
+  readPersistedMainPageActiveTab,
+  resolveDesktopInitialMainPage,
+  resolveInitialMainPage,
+} from '@/utils/mainPageNavigation';
 import { checkIsSharePage } from '@/utils/url';
 // import { refreshPage } from '@/utils';
 import { SubscriptionType } from '@/constants/subscriptionType';
@@ -55,27 +60,11 @@ function MainPage() {
 
   const initNavConfig: INavItem[] = useMemo(() => {
     return [
-      {
-        key: 'stream',
-        icon: 'icon-chat-alt-21',
-        isLoad: false,
-        component: <Stream />,
-        name: i18n('stream.nav.title'),
-      },
-      {
-        key: 'workspace',
-        icon: 'icon-gongxiang-',
-        isLoad: false,
-        component: <Workspace />,
-        name: i18n('workspace.title'),
-      },
-      {
-        key: 'dashboard',
-        icon: 'icon-chart-square-bar',
-        isLoad: false,
-        component: <Dashboard />,
-        name: i18n('dashboard.title'),
-      },
+      ...createCoreMainNavItems({
+        stream: { component: <Stream />, name: i18n('stream.nav.title') },
+        workspace: { component: <Workspace />, name: i18n('workspace.title') },
+        dashboard: { component: <Dashboard />, name: i18n('dashboard.title') },
+      }),
       // {
       //   key: 'knowledge-management',
       //   icon: 'icon-knowledge-management',
@@ -130,8 +119,7 @@ function MainPage() {
   const { curOrg } = useOrgStore((state) => ({
     curOrg: state.curOrg,
   }));
-  const { networkAbandoned, setPricingModalStatus, setSubscriptType, curUser } = useUserStore((state) => ({
-    networkAbandoned: state.networkAbandoned,
+  const { setPricingModalStatus, setSubscriptType, curUser } = useUserStore((state) => ({
     setPricingModalStatus: state.setPricingModalStatus,
     setSubscriptType: state.setSubscriptType,
     curUser: state.curUser,
@@ -271,12 +259,6 @@ function MainPage() {
       _initNavConfig = _initNavConfig.filter((item) => item.key !== 'knowledge-management');
     }
 
-    if (networkAbandoned) {
-      // plugin || knowledge-management || stream || chat || team || dashboard
-      const filterKeys = ['plugin', 'knowledge-management', 'stream', 'chat', 'team', 'dashboard'];
-      _initNavConfig = _initNavConfig.filter((item) => !filterKeys.includes(item.key));
-    }
-
     setNavConfig(_initNavConfig);
 
     let page = '';
@@ -286,8 +268,24 @@ function MainPage() {
       const hashPath = window.location.hash.replace(/^#/, '');
       const normalizedHashPath = hashPath.startsWith('/') ? hashPath : `/${hashPath}`;
       const hashPage = normalizedHashPath.split('/')[1];
-      page = resolveInitialMainPage(hashPage, mainPageActiveTab);
-      pathName = hashPage ? normalizedHashPath : '';
+      if (isDesktop) {
+        const availablePages = _initNavConfig.map((item) => `${item.key}`);
+        let persistedPage: string | undefined;
+        try {
+          persistedPage = readPersistedMainPageActiveTab(
+            localStorage.getItem(runtimeEditionConfig.globalStoreName),
+            availablePages,
+          );
+        } catch {
+          persistedPage = undefined;
+        }
+        const initialLocation = resolveDesktopInitialMainPage(normalizedHashPath, persistedPage, availablePages);
+        page = initialLocation.page;
+        pathName = initialLocation.pathName;
+      } else {
+        page = resolveInitialMainPage(hashPage, mainPageActiveTab);
+        pathName = hashPage ? normalizedHashPath : '';
+      }
     } else {
       page = resolveInitialMainPage(window.location.pathname.split('/')[1], mainPageActiveTab);
       pathName = window.location.pathname;
@@ -304,7 +302,7 @@ function MainPage() {
       navConfigTmp: _initNavConfig,
       isFirst: true,
     });
-  }, [curOrg?.type, handleChangePageTab, initNavConfig, isCN, mainPageActiveTab, networkAbandoned]);
+  }, [curOrg?.type, handleChangePageTab, initNavConfig, isCN, mainPageActiveTab]);
 
   // Load sessions when the chat entry is active.
   useEffect(() => {
@@ -523,6 +521,7 @@ function MainPage() {
               return null;
             }
             const isActive = item.key === mainPageActiveTab && settingPageActiveTab === false;
+            const NavIcon = typeof item.icon === 'string' ? null : item.icon;
 
             if (!sidebarExpanded) {
               return (
@@ -532,10 +531,11 @@ function MainPage() {
                   key={item.key}
                   size={{
                     boxSize: 34,
-                    iconSize: 22,
+                    iconSize: NavIcon ? 18 : 22,
                   }}
                   title={item.name}
-                  code={item.icon}
+                  code={NavIcon ? undefined : item.icon}
+                  icon={NavIcon || undefined}
                   tooltipPlacement="right"
                   onClick={() => handleNavItemClick(item)}
                 />
@@ -548,7 +548,11 @@ function MainPage() {
                 className={cx(styles.navItem, isActive && styles.navItemActive)}
                 onClick={() => handleNavItemClick(item)}
               >
-                <IconfontSvg code={item.icon} className={styles.navItemIcon} size={20} />
+                {NavIcon ? (
+                  <NavIcon className={styles.navItemIcon} size={18} />
+                ) : (
+                  <IconfontSvg code={item.icon} className={styles.navItemIcon} size={20} />
+                )}
                 <span className={styles.navItemLabel}>{item.name}</span>
               </div>
             );

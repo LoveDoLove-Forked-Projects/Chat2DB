@@ -61,6 +61,10 @@ export interface IHotUpdateConfig {
    * Whether to install automatically
    */
   autoInstall: boolean;
+  /**
+   * Whether prerelease versions participate in update checks
+   */
+  receiveBeta: boolean;
 }
 
 export type { ShortcutOverride, ShortcutOverrides } from '@/constants/shortcut';
@@ -71,9 +75,37 @@ export interface IUpdateDetail {
   version?: string; // Latest version number
 }
 
+export interface IUpdatePreferences {
+  saved: boolean;
+  receiveBeta: boolean;
+}
+
+export interface IUpdateRecoveryStatus {
+  failed: boolean;
+  fromVersion: string;
+  toVersion: string;
+}
+
+export type McpRuntimeState = 'UNKNOWN' | 'STARTING' | 'RUNNING' | 'STOPPED' | 'FAILED';
+
+export interface McpStatus {
+  operationId: string;
+  configuredEnabled: boolean;
+  appliedEnabled: boolean;
+  runtimeState: McpRuntimeState;
+  restartRequired: boolean;
+  failureMessage?: string;
+}
+
+export interface McpRestartResult {
+  operationId: string;
+  accepted: boolean;
+}
+
 export interface DataTableSettings {
-  showComment: boolean;
   selectionMetrics?: [SelectionMetricId, SelectionMetricId, SelectionMetricId];
+  showFieldType?: boolean;
+  showFieldComment?: boolean;
 }
 
 export type TerminalShellId = 'system' | 'bash' | 'zsh' | 'pwsh' | 'powershell' | 'cmd';
