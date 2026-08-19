@@ -1,4 +1,5 @@
 import React, { forwardRef, useImperativeHandle, useRef, useCallback, useState, useEffect, CSSProperties } from 'react';
+import { useSize } from 'ahooks';
 import { useStyles } from './style';
 import { OperationLine, MonacoEditorErrorTips } from '../../components';
 import SQLEditor, { SQLEditorRef } from '../SQLEditor';
@@ -45,6 +46,20 @@ import { normalizeSavedConsoleName, resolveInitialSavedConsoleName } from '../..
 import { hasUnsavedLocalFileChanges } from '@/utils/localFileEncoding';
 import type { EditorCloseGuardRef } from '@/utils/editorCloseGuard';
 import { buildWorkspaceObjectTabTitle } from '@/utils/workspaceObjectTabTitle';
+import { getDataSourceWatermarkContent, getDataSourceWatermarkLayout } from '@/utils/dataSourceWatermark';
+import { withIdentityColorAlpha } from '@/utils/dataSourceIdentity';
+import { useDataSourceIdentityColor } from '@/components/DataSourceIdentityMark';
+import type { EditorDataSourceState } from '@/utils/editorDataSourceLifecycle';
+import {
+  createDataSourceExecutionBoundInfo,
+  createDataSourceExecutionSnapshot,
+  type DataSourceExecutionSnapshot,
+} from '@/service/dataSourceExecutionSnapshot';
+
+export interface SQLExecutionInvocation extends IConsoleReturnExecuteSql {
+  executionTarget: DataSourceExecutionSnapshot;
+  dataSourceState: EditorDataSourceState;
+}
 
 interface ISQLEditorWithOperationProps {
   id: string;
@@ -63,9 +78,10 @@ interface ISQLEditorWithOperationProps {
   isConsole?: boolean;
 
   sqlActionEnabled?: boolean;
+  dataSourceState?: EditorDataSourceState;
   reloadSQL?: () => Promise<string>;
 
-  onExecuteSQL: (props: IConsoleReturnExecuteSql) => Promise<any>;
+  onExecuteSQL: (props: SQLExecutionInvocation) => Promise<any>;
   onChange?: (value: string) => void;
 }
 
@@ -117,6 +133,7 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
     workspaceTabsTitle,
     isConsole = true,
     sqlActionEnabled = true,
+    dataSourceState = 'available',
     reloadSQL,
     onChange,
   } = props;
@@ -156,6 +173,8 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
     loading: false,
   });
   const sqlEditorRef = useRef<SQLEditorRef>(null);
+  const editorViewportRef = useRef<HTMLDivElement>(null);
+  const editorViewportSize = useSize(editorViewportRef);
   const routineExecutionEditorRef = useRef<SQLEditorRef>(null);
   // Preserve the previous edit position.
   const lastPositionRef = useRef<{
@@ -198,6 +217,15 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
   const getValue = useCallback(() => {
     return sqlEditorRef.current?.getValue() ?? '';
   }, []);
+
+  const createExecutionInvocation = useCallback(
+    (params: IConsoleReturnExecuteSql): SQLExecutionInvocation => ({
+      ...params,
+      executionTarget: createDataSourceExecutionSnapshot(dbInfo),
+      dataSourceState,
+    }),
+    [dbInfo, dataSourceState],
+  );
 
   const setValue = useCallback((value: string, _type?: EditorSetValueType) => {
     setHasEditorContent(!!value?.trim());
@@ -458,7 +486,7 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
     }
 
     props
-      ?.onExecuteSQL({ sql: executionSql, single: false })
+      ?.onExecuteSQL(createExecutionInvocation({ sql: executionSql, single: false }))
       .then(() => {
         setErrorMessage(null);
       })
@@ -822,7 +850,7 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
     };
 
     props
-      ?.onExecuteSQL(executeSqlParams)
+      ?.onExecuteSQL(createExecutionInvocation(executeSqlParams))
       .then(() => {
         setErrorMessage(null);
       })
@@ -849,7 +877,7 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
     };
 
     props
-      ?.onExecuteSQL(executeSqlParams)
+      ?.onExecuteSQL(createExecutionInvocation(executeSqlParams))
       .then(() => {
         setErrorMessage(null);
       })
@@ -862,7 +890,13 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
    * Execute SQL via shortcut.
    */
   const handleShortCutExecuteSQL = useCallback(async () => {
-    await sqlEditorRef.current?.handleQuickSQLParser(sqlEditorRef.current?.getValue() || '', dbInfo);
+    const executionBoundInfo = createDataSourceExecutionBoundInfo(dbInfo);
+    const executionTarget = createDataSourceExecutionSnapshot(executionBoundInfo);
+    const executionDataSourceState = dataSourceState;
+    await sqlEditorRef.current?.handleQuickSQLParser(
+      sqlEditorRef.current?.getValue() || '',
+      executionBoundInfo,
+    );
     // await sqlEditorRef.current?.handleSQLParser(sqlEditorRef.current?.getValue() || '', dbInfo);
 
     const selectSQL = sqlEditorRef.current?.getSelectedContent() || '';
@@ -875,14 +909,19 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
     }
 
     props
-      ?.onExecuteSQL({ sql, single: isSingle })
+      ?.onExecuteSQL({
+        sql,
+        single: isSingle,
+        executionTarget,
+        dataSourceState: executionDataSourceState,
+      })
       .then(() => {
         setErrorMessage(null);
       })
       .catch((error) => {
         setErrorMessage(error.errorMessage || '');
       });
-  }, [props?.onExecuteSQL, dbInfo]);
+  }, [props?.onExecuteSQL, dbInfo, dataSourceState]);
 
   /** Save current editor data. */
   const handleSave = useCallback(() => {
@@ -1110,6 +1149,14 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
     });
   };
 
+  const identityColor = useDataSourceIdentityColor(dbInfo.dataSourceId);
+  const watermarkContent =
+    isConsole && type === WorkspaceTabType.CONSOLE && dbInfo.dataSourceId
+      ? getDataSourceWatermarkContent(dbInfo, dataSourceState)
+      : undefined;
+  const watermarkColor = identityColor ? withIdentityColorAlpha(identityColor, 0.4) : undefined;
+  const watermarkLayout = getDataSourceWatermarkLayout(editorViewportSize?.width, editorViewportSize?.height);
+
   return (
     <div className={styles.wrapper}>
       {modalContextHolder}
@@ -1125,7 +1172,32 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
           action={handleAction}
         />
       )}
-      <div style={{ position: 'relative', flex: 1, height: '0px', width: '100%' }}>
+      <div ref={editorViewportRef} style={{ position: 'relative', flex: 1, height: '0px', width: '100%' }}>
+        {watermarkContent && watermarkColor && (
+          <div
+            className={styles.watermarkLayer}
+            style={{
+              color: watermarkColor,
+              gridTemplateColumns: `repeat(${watermarkLayout.columns}, minmax(0, 1fr))`,
+              gridTemplateRows: `repeat(${watermarkLayout.rows}, minmax(0, 1fr))`,
+            }}
+            aria-hidden="true"
+          >
+            {Array.from({ length: watermarkLayout.itemCount }, (_, index) => (
+              <div className={styles.watermarkItem} key={index}>
+                <div className={styles.watermarkTitle}>{watermarkContent.title}</div>
+                {watermarkContent.subtitle && (
+                  <div className={styles.watermarkSubtitle}>{watermarkContent.subtitle}</div>
+                )}
+                {watermarkContent.connectionUnavailable && (
+                  <div className={styles.watermarkStatus}>
+                    {i18n('workspace.dataSourceLifecycle.connectionUnavailable')}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
         <SQLEditor
           className={styles.sqlEditor}
           id={id}

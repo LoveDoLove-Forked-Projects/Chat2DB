@@ -10,6 +10,8 @@ import ShortcutMenuLabel from '@/components/ShortcutMenuLabel';
 import { loadResourceOperationCapabilities } from '@/client-extension/resourceOperationCapabilities';
 import type { ResourceOperationCapabilities } from '@/client-extension/types';
 
+const INTERACTIVE_MENU_ITEM_CLASS_NAME = 'chat2db-interactive-menu-item';
+
 interface IProps {
   className?: string;
   specialHandleLoadData?: any;
@@ -17,6 +19,8 @@ interface IProps {
 
 export interface TreeDropdownRef {
   setCurrentNode: (info: { event: React.MouseEvent; node: TreeNodeData } | null) => Promise<void>;
+  openMenu: (info: { event: React.MouseEvent; node: TreeNodeData }) => void;
+  closeMenu: () => void;
   // Returns true when this component handles the double-click.
   handleDoubleClick: (node: TreeNodeData) => Promise<boolean>;
   handleShortcut: (node: TreeNodeData, action: ShortcutAction) => Promise<boolean>;
@@ -34,6 +38,31 @@ const TreeDropdown = (props: IProps, ref) => {
     };
   } | null>(null);
   const authorizationSequence = useRef(0);
+  const keepMenuOpenRef = useRef(false);
+  const interactiveItemFocusRef = useRef<(() => void) | null>(null);
+
+  const closeMenu = () => {
+    keepMenuOpenRef.current = false;
+    interactiveItemFocusRef.current = null;
+    setCurrentNode(null);
+  };
+
+  const setInteractionOpen = (open: boolean) => {
+    keepMenuOpenRef.current = open;
+  };
+
+  const openMenuForNode = (info: { event: React.MouseEvent; node: TreeNodeData }) => {
+    void setAuthorizedCurrentNode(info);
+  };
+
+  const registerFocusTarget = (focus: () => void) => {
+    interactiveItemFocusRef.current = focus;
+    return () => {
+      if (interactiveItemFocusRef.current === focus) {
+        interactiveItemFocusRef.current = null;
+      }
+    };
+  };
 
   const { createRightClickMenu } = useCreateRightClickMenu();
 
@@ -47,6 +76,7 @@ const TreeDropdown = (props: IProps, ref) => {
       const capabilities = await loadResourceOperationCapabilities(node);
       const menu = createRightClickMenu(node, specialHandleLoadData || handleLoadData, capabilities);
       let handled = false;
+      useTreeStore.getState().setCurrentTreeNode(node);
       menu.forEach((item) => {
         if (item.doubleClickTrigger) {
           item.onClick?.();
@@ -74,9 +104,10 @@ const TreeDropdown = (props: IProps, ref) => {
   const handleShortcut = async (node: TreeNodeData, action: ShortcutAction) => {
     const capabilities = await loadResourceOperationCapabilities(node);
     const menu = createRightClickMenu(node, specialHandleLoadData || handleLoadData, capabilities);
+    useTreeStore.getState().setCurrentTreeNode(node);
     const executed = executeShortcut(menu, action);
     if (executed) {
-      setCurrentNode(null);
+      closeMenu();
     }
     return executed;
   };
@@ -89,11 +120,30 @@ const TreeDropdown = (props: IProps, ref) => {
       }
       return {
         key: t.key,
-        onClick: () => {
+        className: t.keepOpen ? INTERACTIVE_MENU_ITEM_CLASS_NAME : undefined,
+        role: t.keepOpen ? 'presentation' : undefined,
+        onClick: ({ domEvent }) => {
+          if (t.keepOpen) {
+            domEvent.preventDefault();
+            domEvent.stopPropagation();
+            keepMenuOpenRef.current = true;
+            interactiveItemFocusRef.current?.();
+            return;
+          }
           t.onClick?.();
         },
-        icon: t.labelProps.icon && <IconfontSvg code={t.labelProps.icon} size="lg" />,
-        label: <ShortcutMenuLabel label={t.labelProps.label} shortcutAction={t.shortcutAction} />,
+        danger: t.danger || undefined,
+        icon:
+          typeof t.labelProps.icon === 'string' ? (
+            <IconfontSvg code={t.labelProps.icon} size="lg" />
+          ) : (
+            t.labelProps.icon
+          ),
+        label: t.labelProps.renderLabel ? (
+          t.labelProps.renderLabel({ closeMenu, setInteractionOpen, registerFocusTarget })
+        ) : (
+          <ShortcutMenuLabel label={t.labelProps.label} shortcutAction={t.shortcutAction} />
+        ),
         children: renderChildren(t.children),
       };
     });
@@ -109,6 +159,21 @@ const TreeDropdown = (props: IProps, ref) => {
     return {
       items: dropdownsItems,
       style: dropdownsItems?.length ? {} : { display: 'none' as const }, // is only displayed if there are menu items
+      onKeyDown: (event: React.KeyboardEvent<HTMLElement>) => {
+        const target = event.target as HTMLElement;
+        const interactiveMenuItem = target.closest(`.${INTERACTIVE_MENU_ITEM_CLASS_NAME}`);
+        if (
+          !interactiveMenuItem ||
+          target.closest('[role="toolbar"]') ||
+          !['Enter', ' ', 'Spacebar'].includes(event.key)
+        ) {
+          return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        keepMenuOpenRef.current = true;
+        interactiveItemFocusRef.current?.();
+      },
     };
   };
 
@@ -130,6 +195,8 @@ const TreeDropdown = (props: IProps, ref) => {
 
   useImperativeHandle(ref, () => ({
     setCurrentNode: setAuthorizedCurrentNode,
+    openMenu: openMenuForNode,
+    closeMenu,
     createRightClickMenu,
     handleDoubleClick,
     handleShortcut,
@@ -142,8 +209,8 @@ const TreeDropdown = (props: IProps, ref) => {
       open={!!currentNode}
       destroyPopupOnHide={true}
       onOpenChange={(next) => {
-        if (!next) {
-          setCurrentNode(null);
+        if (!next && !keepMenuOpenRef.current) {
+          closeMenu();
         }
       }}
     >

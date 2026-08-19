@@ -59,6 +59,8 @@ export enum OperationColumn {
 
   RemoveDataSource = 'removeDataSource', // Remove data source
   EditSource = 'editSource', // Edit data source
+  SetDataSourceColor = 'setDataSourceColor', // Set the shared data source identity color
+  ClearDataSourceColor = 'clearDataSourceColor', // Clear the custom data source identity color
   CopyDataSource = 'copyDataSource', // Copy data source
   CreateTable = 'createTable', //Create table
   DeleteTable = 'deleteTable', // Delete table
@@ -80,7 +82,14 @@ export enum OperationColumn {
   ViewAllView = 'viewAllView', // View all views
   ViewERModal = 'viewERModal', // View ER diagram
   GenerateCRUD = 'generateCRUD', // Generate CRUD
-  GenerateTestData = 'generateTestData', // Generate test data
+  // Neutral menu capability slots retained for cross-product menu contracts.
+  // Community does not provide AI data-collection implementations.
+  CreateAiDataCollection = 'createAiDataCollection',
+  RemoveAiDataCollection = 'removeAiDataCollection',
+  RemoveAiDataCollectionElement = 'removeAiDataCollectionElement',
+  SyncAiDataCollection = 'syncAiDataCollection',
+  ChangeAiTableInfo = 'changeAiTableInfo',
+  ChangeAiTableInfoNodataCollection = 'changeAiTableInfoNodataCollection',
   OpenConsole = 'openConsole', // open console
   RemoveConsole = 'removeConsole',
   // Run sql file

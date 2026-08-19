@@ -11,6 +11,12 @@ import {
   useImperativeHandle,
 } from 'react';
 import { beginLatestRequest, invalidateLatestRequest, isLatestRequest } from '@/utils/latestRequest';
+import {
+  getDataSourceRuntimeAvailabilityGeneration,
+  getSqlExecutionBlockReason,
+  mergeLiveDataSourceContext,
+  type EditorDataSourceState,
+} from '@/utils/editorDataSourceLifecycle';
 import SearchResult from '@/blocks/SearchResult';
 import {
   createExecutionConsoleKeepHistoryStorageKey,
@@ -27,6 +33,7 @@ import {
   subscribeResultTabKeepHistory,
 } from '@/blocks/SearchResult/resultTabPreferences';
 import { useWorkspaceStore } from '@/store/workspace';
+import { useTreeStore } from '@/store/tree';
 import {
   IConsoleReturnExecuteSql,
   IBoundInfo,
@@ -41,7 +48,10 @@ import SplitPane from 'react-split-pane';
 import useRefreshTree from '@/blocks/SearchResult/hooks/useRefreshTree';
 import { getDatabaseSupport, processResultDataList } from '@/utils/database';
 import { EditorType, SQLEditorWithOperation } from '@/components/SQLEditor';
-import { ISQLEditorWithOperationRef } from '@/components/SQLEditor/editor/SQLEditorWithOperation';
+import {
+  ISQLEditorWithOperationRef,
+  type SQLExecutionInvocation,
+} from '@/components/SQLEditor/editor/SQLEditorWithOperation';
 import SplitPaneUnpack from '@/components/SplitPaneUnpack';
 import useSqlExecutor from '@/hooks/useSqlExecutor';
 import i18n from '@/i18n';
@@ -69,6 +79,15 @@ import {
   shouldAcceptExecutionResult,
 } from '@/service/sqlExecutionBatch';
 import { planSqlExecutionRetention, type SqlExecutionRetentionPreferences } from '@/service/sqlExecutionRetention';
+import {
+  attachDataSourceExecutionId,
+  createDataSourceExecutionSnapshot,
+  createDataSourceExecutionSnapshotRegistry,
+  getDataSourceExecutionSnapshot,
+  registerDataSourceExecutionSnapshot,
+  releaseDataSourceExecutionSnapshot,
+  type DataSourceExecutionSnapshot,
+} from '@/service/dataSourceExecutionSnapshot';
 import {
   beginWebSqlExecution,
   clearSqlExecutionLog,
@@ -103,6 +122,7 @@ interface IProps {
   onExecuteSQLCallback?: (params: { databaseInfo: IDatabaseBaseInfo; data: any }) => void;
   isConsole?: boolean;
   sqlActionEnabled?: boolean;
+  dataSourceState?: EditorDataSourceState;
   onEditorChange?: (value: string) => void;
 }
 
@@ -164,7 +184,7 @@ function getEventResultSequence(event: SqlExecutionEvent, result?: IManageResult
   return fallback;
 }
 
-function getExecutionLogContext(boundInfo: IBoundInfo): SqlExecutionLogContext {
+function getExecutionLogContext(boundInfo: IBoundInfo | DataSourceExecutionSnapshot): SqlExecutionLogContext {
   return {
     dataSourceId: boundInfo.dataSourceId,
     dataSourceName: boundInfo.dataSourceName,
@@ -184,6 +204,7 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
     onExecuteSQLCallback,
     isConsole = true,
     sqlActionEnabled = true,
+    dataSourceState = 'available',
     onEditorChange,
   } = props;
   const { styles, cx } = useStyles();
@@ -199,12 +220,15 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
   const pendingDesktopExecutionSequenceRef = useRef<number>();
   const executionSequenceByIdRef = useRef<Record<string, number>>({});
   const executionSequenceByRequestRef = useRef<Record<number, number>>({});
+  const executionSnapshotRegistryRef = useRef(createDataSourceExecutionSnapshotRegistry());
+  const availabilityGenerationByExecutionSequenceRef = useRef(new Map<number, number>());
   const keepExistingOutputByExecutionSequenceRef = useRef<Record<number, boolean>>({});
   const desktopExecutionCallbackBySequenceRef = useRef<Record<number, DesktopExecutionCallbackState>>({});
   const currentStatementSequenceByExecutionIdRef = useRef<Record<string, number>>({});
   const [resultBatchKey, setResultBatchKey] = useState(0);
   const [forceOutputTab, setForceOutputTab] = useState(false);
   const requestGenerationRef = useRef(0);
+  const restoreDataSourceRuntimeAvailability = useTreeStore((state) => state.restoreDataSourceRuntimeAvailability);
   const { activeConsoleId, setEditorToList, deleteEditor, updateWorkspaceTabBoundInfo } = useWorkspaceStore(
     (state) => ({
       activeConsoleId: state.activeConsoleId,
@@ -318,6 +342,11 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
     }
     delete executionSequenceByRequestRef.current[requestSequence];
     if (executionSequence !== undefined) {
+      availabilityGenerationByExecutionSequenceRef.current.delete(executionSequence);
+      releaseDataSourceExecutionSnapshot(executionSnapshotRegistryRef.current, {
+        executionSequence,
+        executionId,
+      });
       delete keepExistingOutputByExecutionSequenceRef.current[executionSequence];
       delete resultDisplayBatchSequenceByExecutionRef.current[executionSequence];
       delete desktopExecutionCallbackBySequenceRef.current[executionSequence];
@@ -340,12 +369,19 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
     (error: unknown, requestSequence: number, params: IExecuteSqlParams) => {
       const executionSequence = executionSequenceByRequestRef.current[requestSequence];
       if (executionSequence !== undefined) {
+        const executionSnapshot = getDataSourceExecutionSnapshot(executionSnapshotRegistryRef.current, {
+          executionSequence,
+        });
+        if (!executionSnapshot) {
+          cleanupDesktopExecutionRequest(requestSequence);
+          return;
+        }
         setSqlExecutionLogState((state) =>
           failWebSqlExecution(state, {
             executionId: `desktop-start-${requestSequence}`,
             executionSequence,
             sql: params.sql,
-            context: getExecutionLogContext(boundInfoRef.current),
+            context: getExecutionLogContext(executionSnapshot),
             error,
           }),
         );
@@ -367,18 +403,35 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
         cleanupDesktopExecutionRequest(requestSequence, event.executionId);
       };
       const executionSequence = getExecutionSequence(event.executionId, requestExecutionSequence);
+      const executionSnapshot = attachDataSourceExecutionId(
+        executionSnapshotRegistryRef.current,
+        executionSequence,
+        event.executionId,
+      );
+      if (!executionSnapshot) {
+        cleanupTerminalExecution();
+        return;
+      }
       const keepExistingOutput =
         keepExistingOutputByExecutionSequenceRef.current[executionSequence] ?? keepExecutionLogHistory;
       setSqlExecutionLogState((state) =>
         reduceDesktopSqlExecutionEventWithHistoryPreference(
           state,
           event,
-          getExecutionLogContext(boundInfoRef.current),
+          getExecutionLogContext(executionSnapshot),
           keepExistingOutput,
           requestSequence,
           executionSequence,
         ),
       );
+      const availabilityGeneration = availabilityGenerationByExecutionSequenceRef.current.get(executionSequence);
+      if (
+        event.eventType === 'finished' &&
+        executionSnapshot.dataSourceId !== undefined &&
+        availabilityGeneration !== undefined
+      ) {
+        restoreDataSourceRuntimeAvailability(executionSnapshot.dataSourceId, availabilityGeneration);
+      }
       if (!shouldAcceptExecutionResult(executionSequence, latestResultReplacementExecutionSequenceRef.current)) {
         cleanupTerminalExecution();
         return;
@@ -397,10 +450,11 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
         const statementSequence =
           getEventStatementSequence(event, currentStatementSequenceByExecutionIdRef.current[event.executionId]) || 1;
         const result = processResultDataList([event.message], {
-          databaseType: boundInfoRef.current.databaseType,
-          dataSourceId: boundInfoRef.current.dataSourceId,
-          databaseName: boundInfoRef.current.databaseName,
-          schemaName: boundInfoRef.current.schemaName,
+          databaseType: executionSnapshot.databaseType,
+          dataSourceId: executionSnapshot.dataSourceId,
+          dataSourceName: executionSnapshot.dataSourceName,
+          databaseName: executionSnapshot.databaseName,
+          schemaName: executionSnapshot.schemaName,
           sql: event.message?.originalSql,
         })[0];
         const resultWithIdentity = attachExecutionIdentity(result, event.executionId, statementSequence);
@@ -416,6 +470,7 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
             extra: {
               ...(resultWithIdentity.extra || {}),
               executionSequence,
+              executionTarget: executionSnapshot,
               resultKey,
               resultSequence,
             },
@@ -439,10 +494,11 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
         const statementSequence =
           getEventStatementSequence(event, currentStatementSequenceByExecutionIdRef.current[event.executionId]) || 1;
         const chunk = processResultDataList([event.message], {
-          databaseType: boundInfoRef.current.databaseType,
-          dataSourceId: boundInfoRef.current.dataSourceId,
-          databaseName: boundInfoRef.current.databaseName,
-          schemaName: boundInfoRef.current.schemaName,
+          databaseType: executionSnapshot.databaseType,
+          dataSourceId: executionSnapshot.dataSourceId,
+          dataSourceName: executionSnapshot.dataSourceName,
+          databaseName: executionSnapshot.databaseName,
+          schemaName: executionSnapshot.schemaName,
           sql: event.message?.originalSql,
         })[0];
         const chunkWithIdentity = attachExecutionIdentity(chunk, event.executionId, statementSequence);
@@ -464,6 +520,7 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
             extra: {
               ...(chunkWithIdentity.extra || {}),
               executionSequence,
+              executionTarget: executionSnapshot,
               resultKey,
               resultSequence,
             },
@@ -483,10 +540,11 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
         const statementSequence =
           getEventStatementSequence(event, currentStatementSequenceByExecutionIdRef.current[event.executionId]) || 1;
         const result = processResultDataList([event.message], {
-          databaseType: boundInfoRef.current.databaseType,
-          dataSourceId: boundInfoRef.current.dataSourceId,
-          databaseName: boundInfoRef.current.databaseName,
-          schemaName: boundInfoRef.current.schemaName,
+          databaseType: executionSnapshot.databaseType,
+          dataSourceId: executionSnapshot.dataSourceId,
+          dataSourceName: executionSnapshot.dataSourceName,
+          databaseName: executionSnapshot.databaseName,
+          schemaName: executionSnapshot.schemaName,
           sql: event.message?.originalSql,
         })[0];
         const resultWithIdentity = attachExecutionIdentity(result, event.executionId, statementSequence);
@@ -506,6 +564,7 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
               extra: {
                 ...(resultWithIdentity.extra || {}),
                 executionSequence,
+                executionTarget: executionSnapshot,
                 resultKey,
                 resultSequence,
               },
@@ -518,8 +577,8 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
             return sortedResultDataList;
           });
         }
-        if (event.eventType === 'resultFinished' && boundInfoRef.current.databaseType) {
-          handleRefreshTreeByExecuteSQL([result], boundInfoRef.current.databaseType);
+        if (event.eventType === 'resultFinished' && executionSnapshot.databaseType) {
+          handleRefreshTreeByExecuteSQL([result], executionSnapshot.databaseType);
         }
         return;
       }
@@ -544,6 +603,7 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
       handleRefreshTreeByExecuteSQL,
       keepExecutionLogHistory,
       onExecuteSQLCallback,
+      restoreDataSourceRuntimeAvailability,
     ],
   );
   const { executing, canExecuteSQL, executeSQL, stopExecuteSQL } = useSqlExecutor({
@@ -583,6 +643,19 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
     boundInfoRef.current = boundInfo;
     updateWorkspaceTabBoundInfo(boundInfo);
   }, [boundInfo]);
+
+  useUpdateEffect(() => {
+    setBoundInfo((currentBoundInfo) => mergeLiveDataSourceContext(currentBoundInfo, _boundInfo));
+  }, [
+    _boundInfo.dataSourceId,
+    _boundInfo.dataSourceName,
+    _boundInfo.environmentId,
+    _boundInfo.environment,
+    _boundInfo.identityColor,
+    _boundInfo.watermarkEnabled,
+    _boundInfo.watermarkContent,
+    _boundInfo.connectable,
+  ]);
 
   useEffect(() => {
     const requestGeneration = beginLatestRequest(requestGenerationRef);
@@ -629,17 +702,30 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
 
   const handleChangeDBInfo = (newBoundInfo: IBoundInfo) => {
     const { databaseType } = newBoundInfo;
-    setBoundInfo({
-      ...boundInfo,
+    setBoundInfo((currentBoundInfo) => ({
+      ...currentBoundInfo,
       ...newBoundInfo,
       ...getDatabaseSupport(databaseType),
-    });
+    }));
   };
 
-  const handleExecuteSQL = (params: IConsoleReturnExecuteSql): Promise<any> => {
-    // Do not execute without a selected dataSourceId.
-    if (!boundInfo.dataSourceId) {
+  const handleExecuteSQL = (params: IConsoleReturnExecuteSql | SQLExecutionInvocation): Promise<any> => {
+    const {
+      executionTarget: invocationTarget,
+      dataSourceState: invocationDataSourceState,
+      ...requestParams
+    } = params as SQLExecutionInvocation;
+    const executionTarget = invocationTarget || createDataSourceExecutionSnapshot(boundInfo);
+    const executionBlockReason = getSqlExecutionBlockReason(
+      executionTarget.dataSourceId,
+      invocationDataSourceState || dataSourceState,
+    );
+    if (executionBlockReason === 'missingDataSource') {
       staticMessage.warning(i18n('workspace.text.pleaseSelectDataSource'));
+      return Promise.resolve();
+    }
+    if (executionBlockReason === 'deletedDataSource') {
+      staticMessage.warning(i18n('workspace.dataSourceLifecycle.deleted'));
       return Promise.resolve();
     }
     if (!canExecuteSQL()) {
@@ -655,37 +741,58 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
       keepResultHistory,
       resetResultSession: resetResultSessionOnNextExecution,
     });
+    const executionSnapshot = registerDataSourceExecutionSnapshot(
+      executionSnapshotRegistryRef.current,
+      executionSequence,
+      executionTarget,
+    );
+    const availabilityGeneration =
+      executionSnapshot.dataSourceId === undefined
+        ? undefined
+        : getDataSourceRuntimeAvailabilityGeneration(
+            useTreeStore.getState().runtimeAvailabilityGenerationByDataSourceId,
+            executionSnapshot.dataSourceId,
+          );
+    if (availabilityGeneration !== undefined) {
+      availabilityGenerationByExecutionSequenceRef.current.set(executionSequence, availabilityGeneration);
+    }
     if (isDesktop) {
       pendingDesktopExecutionSequenceRef.current = executionSequence;
     }
 
     const executeSqlParams = {
-      ...params,
-      databaseType: boundInfo.databaseType,
-      dataSourceId: boundInfo.dataSourceId,
-      dataSourceName: boundInfo.dataSourceName,
-      databaseName: boundInfo.databaseName,
-      schemaName: boundInfo.schemaName,
+      ...requestParams,
+      databaseType: executionSnapshot.databaseType,
+      dataSourceId: executionSnapshot.dataSourceId,
+      dataSourceName: executionSnapshot.dataSourceName,
+      databaseName: executionSnapshot.databaseName,
+      schemaName: executionSnapshot.schemaName,
     };
 
     const webExecutionId = isDesktop ? undefined : uuidv4();
-    const executionLogContext = getExecutionLogContext(boundInfo);
+    const executionLogContext = getExecutionLogContext(executionSnapshot);
     if (isDesktop && onExecuteSQLCallback) {
       desktopExecutionCallbackBySequenceRef.current[executionSequence] = {
         databaseInfo: {
-          ...boundInfo,
-          ...params,
+          ...requestParams,
+          dataSourceId: executionSnapshot.dataSourceId,
+          dataSourceName: executionSnapshot.dataSourceName,
+          databaseType: executionSnapshot.databaseType,
+          databaseName: executionSnapshot.databaseName,
+          schemaName: executionSnapshot.schemaName,
+          connectable: executionSnapshot.connectable,
         },
         data: [],
       };
     }
     if (webExecutionId) {
       executionSequenceByIdRef.current[webExecutionId] = executionSequence;
+      attachDataSourceExecutionId(executionSnapshotRegistryRef.current, executionSequence, webExecutionId);
       setSqlExecutionLogState((state) =>
         beginWebSqlExecution(prepareSqlExecutionLogForExecution(state, webExecutionId, keepExistingOutput), {
           executionId: webExecutionId,
           executionSequence,
-          sql: params.sql,
+          sql: requestParams.sql,
           context: executionLogContext,
         }),
       );
@@ -693,13 +800,16 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
 
     return executeSQL(executeSqlParams)
       .then((res) => {
+        if (!isDesktop && executionSnapshot.dataSourceId !== undefined && availabilityGeneration !== undefined) {
+          restoreDataSourceRuntimeAvailability(executionSnapshot.dataSourceId, availabilityGeneration);
+        }
         if (!res?.length) {
           if (webExecutionId) {
             setSqlExecutionLogState((state) =>
               completeWebSqlExecution(state, {
                 executionId: webExecutionId,
                 executionSequence,
-                sql: params.sql,
+                sql: requestParams.sql,
                 context: executionLogContext,
                 results: [],
               }),
@@ -708,7 +818,7 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
           return;
         }
         const _resultDataList = processResultDataList(res, executeSqlParams).map((item, index) => {
-          const sql = item.originalSql || params.sql;
+          const sql = item.originalSql || requestParams.sql;
           const statementSequence = item.statementSequence ?? (Number(item.extra?.statementSequence) || index + 1);
           const resultSequence = Number(item.extra?.streamResultId) || index + 1;
           const executionId = webExecutionId || `legacy-${executionSequence}`;
@@ -718,6 +828,7 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
             extra: {
               ...(itemWithIdentity.extra || {}),
               executionSequence,
+              executionTarget: executionSnapshot,
               statementSequence,
               resultKey: buildResultKey(executionId, statementSequence, resultSequence),
               resultSequence,
@@ -731,9 +842,9 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
           };
         });
 
-        if (boundInfo.databaseType) {
+        if (executionSnapshot.databaseType) {
           // Refresh the tree; only relational databases are supported.
-          handleRefreshTreeByExecuteSQL(_resultDataList, boundInfo.databaseType);
+          handleRefreshTreeByExecuteSQL(_resultDataList, executionSnapshot.databaseType);
         }
 
         if (shouldAcceptExecutionResult(executionSequence, latestResultReplacementExecutionSequenceRef.current)) {
@@ -754,7 +865,7 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
             completeWebSqlExecution(state, {
               executionId: webExecutionId,
               executionSequence,
-              sql: params.sql,
+              sql: requestParams.sql,
               context: executionLogContext,
               results: _resultDataList,
             }),
@@ -765,8 +876,13 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
 
         onExecuteSQLCallback?.({
           databaseInfo: {
-            ...boundInfo,
-            ...params,
+            ...requestParams,
+            dataSourceId: executionSnapshot.dataSourceId,
+            dataSourceName: executionSnapshot.dataSourceName,
+            databaseType: executionSnapshot.databaseType,
+            databaseName: executionSnapshot.databaseName,
+            schemaName: executionSnapshot.schemaName,
+            connectable: executionSnapshot.connectable,
           },
           data,
         });
@@ -780,7 +896,7 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
             failWebSqlExecution(state, {
               executionId: webExecutionId,
               executionSequence,
-              sql: params.sql,
+              sql: requestParams.sql,
               context: executionLogContext,
               error,
             }),
@@ -789,6 +905,11 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
         rethrowNonCancellationSqlExecutionError(error);
       })
       .finally(() => {
+        availabilityGenerationByExecutionSequenceRef.current.delete(executionSequence);
+        releaseDataSourceExecutionSnapshot(executionSnapshotRegistryRef.current, {
+          executionSequence,
+          executionId: webExecutionId,
+        });
         if (webExecutionId) {
           delete executionSequenceByIdRef.current[webExecutionId];
         }
@@ -844,6 +965,7 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
           reloadSQL={loadSQL}
           isConsole={isConsole}
           sqlActionEnabled={sqlActionEnabled}
+          dataSourceState={dataSourceState}
           onChange={onEditorChange}
         />
       </div>
