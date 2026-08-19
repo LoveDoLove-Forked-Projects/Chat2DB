@@ -1,4 +1,5 @@
 import { isMac } from '@/utils/env';
+import { getFileManagerLabelKey } from '@/utils/fileManagerLabel';
 
 export enum ShortcutScope {
   Global = 'global',
@@ -86,13 +87,14 @@ export interface EffectiveShortcutConfig extends ShortcutDefinition {
 
 const modifierKey = isMac ? '⌘' : 'Ctrl';
 const deleteKey = isMac ? 'Backspace' : 'Delete';
+const localSqlFileTreeRevealLabel = getFileManagerLabelKey('shortcut');
 
 export const DEFAULT_SHORTCUT_CONFIG: Record<ShortcutAction, ShortcutDefinition> = {
   [ShortcutAction.OpenSetting]: {
     key: ShortcutAction.OpenSetting,
     label: 'setting.shortcut.openSetting',
     action: ShortcutAction.OpenSetting,
-    defaultBinding: `${modifierKey} + ,`,
+    defaultBinding: `${modifierKey} + 4`,
     scope: ShortcutScope.Global,
     allowInEditable: true,
     canModify: true,
@@ -128,7 +130,7 @@ export const DEFAULT_SHORTCUT_CONFIG: Record<ShortcutAction, ShortcutDefinition>
     key: ShortcutAction.SwitchToWorkspace,
     label: 'setting.shortcut.switchWorkspace',
     action: ShortcutAction.SwitchToWorkspace,
-    defaultBinding: `${modifierKey} + 1`,
+    defaultBinding: `${modifierKey} + 2`,
     scope: ShortcutScope.Global,
     allowInEditable: true,
     canModify: true,
@@ -137,7 +139,7 @@ export const DEFAULT_SHORTCUT_CONFIG: Record<ShortcutAction, ShortcutDefinition>
     key: ShortcutAction.SwitchToDashboard,
     label: 'setting.shortcut.switchDashboard',
     action: ShortcutAction.SwitchToDashboard,
-    defaultBinding: `${modifierKey} + 2`,
+    defaultBinding: `${modifierKey} + 3`,
     scope: ShortcutScope.Global,
     allowInEditable: true,
     canModify: true,
@@ -146,7 +148,7 @@ export const DEFAULT_SHORTCUT_CONFIG: Record<ShortcutAction, ShortcutDefinition>
     key: ShortcutAction.SwitchToChat,
     label: 'setting.shortcut.switchChat',
     action: ShortcutAction.SwitchToChat,
-    defaultBinding: `${modifierKey} + 3`,
+    defaultBinding: `${modifierKey} + 1`,
     scope: ShortcutScope.Global,
     allowInEditable: true,
     canModify: true,
@@ -308,7 +310,7 @@ export const DEFAULT_SHORTCUT_CONFIG: Record<ShortcutAction, ShortcutDefinition>
   },
   [ShortcutAction.LocalSqlFileTreeRevealInFinder]: {
     key: ShortcutAction.LocalSqlFileTreeRevealInFinder,
-    label: 'setting.shortcut.localSqlFileTreeRevealInFinder',
+    label: localSqlFileTreeRevealLabel,
     action: ShortcutAction.LocalSqlFileTreeRevealInFinder,
     defaultBinding: `${modifierKey} + Alt + R`,
     scope: ShortcutScope.LocalSqlFileTree,

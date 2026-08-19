@@ -6,12 +6,11 @@ import { ChatVO } from '@/typings/chat';
 import i18n from '@/i18n';
 import { staticMessage } from '@chat2db/ui';
 import { useGlobalStore } from '@/store/global';
+import { applyChatInfoUpdate, type ChatPage } from './chatInfoUpdate';
 
 export interface CommonAction {
   /** Create fake/empty new chat conversation */
   createFakeNewChat: () => void;
-  /** Create new chat */
-  createNewChat: (chatInfo: ChatVO) => Promise<any>;
   updateInitChatInfo: (chatInfo: ChatVO) => void;
   /** Update basic information of Chat */
   updateChatInfo: (chatInfo: ChatVO) => void;
@@ -23,8 +22,6 @@ export interface CommonAction {
   nextChatList: (lastQuestionId: number) => Promise<boolean>;
   /** Set session list */
   setChatList: (chatList: CommonState['chatList']) => void;
-  /** Chat to request sharing */
-  queryShareChat: (id: string, type: 'view' | 'edit') => void;
   /** Delete Chat */
   deleteChat: (id: number) => Promise<void>;
   /** setHandleSend */
@@ -45,32 +42,6 @@ export const createCommonAction: StateCreator<ChatStore, [['zustand/devtools', n
       [page]: null,
     });
   },
-  createNewChat: (chatInfo) => {
-    const page = useGlobalStore.getState().mainPageActiveTab;
-    const currentChat = get().currentChat;
-
-    return new Promise((resolve, reject) => {
-      chatService
-        .createNewChat(chatInfo)
-        .then((res) => {
-          if (res) {
-            const chatList = get().chatList;
-            get().setChatList([res, ...chatList]);
-            get()
-              .setCurrentChat({
-                ...currentChat,
-                [page]: res,
-              })
-              .then((chatWithDetails) => {
-                get().setOpenSettingModal(false);
-                resolve(chatWithDetails || res);
-              })
-              .catch(reject);
-          }
-        })
-        .catch(reject);
-    });
-  },
   updateInitChatInfo: async (chatBasicInfo) => {
     const page = useGlobalStore.getState().mainPageActiveTab;
 
@@ -83,16 +54,9 @@ export const createCommonAction: StateCreator<ChatStore, [['zustand/devtools', n
     });
   },
   updateChatInfo: async (chatBasicInfo) => {
+    const page = useGlobalStore.getState().mainPageActiveTab as ChatPage;
     chatService.updateChatInfo(chatBasicInfo).then(() => {
-      const chatList = get().chatList;
-      const index = chatList.findIndex((item) => item.id === chatBasicInfo.id);
-      if (index === -1) return;
-      chatList[index] = {
-        ...chatList[index],
-        ...chatBasicInfo,
-      };
-
-      set({ chatList: chatList, currentChat: { ...get().currentChat, ...chatBasicInfo } });
+      set((state) => applyChatInfoUpdate(state, page, chatBasicInfo));
     });
   },
   queryChatList: async () => {
@@ -129,16 +93,6 @@ export const createCommonAction: StateCreator<ChatStore, [['zustand/devtools', n
         });
       });
   },
-  queryShareChat: async (id, type) => {
-    let res;
-    if (type === 'view') {
-      res = await chatService.getChatShareViewDetail({ viewShareId: id });
-    } else {
-      res = await chatService.getChatShareEditDetail({ editShareId: id });
-    }
-    get().setCurrentChat(res);
-  },
-
   setChatList: (chatList) => {
     set({ chatList: chatList });
   },

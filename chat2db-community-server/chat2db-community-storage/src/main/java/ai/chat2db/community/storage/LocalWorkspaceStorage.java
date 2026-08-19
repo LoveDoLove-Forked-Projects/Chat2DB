@@ -3,6 +3,7 @@ package ai.chat2db.community.storage;
 import ai.chat2db.community.domain.api.model.PageResponse;
 import ai.chat2db.community.domain.api.enums.StorageTypeEnum;
 import ai.chat2db.community.domain.api.model.datasource.DataSource;
+import ai.chat2db.community.domain.api.model.datasource.DataSourceIdentityColorUtils;
 import ai.chat2db.community.domain.api.model.datasource.DataSourceNamespace;
 import ai.chat2db.community.domain.api.model.er.ERPosition;
 import ai.chat2db.community.domain.api.model.workspace.Namespace;
@@ -10,11 +11,7 @@ import ai.chat2db.community.domain.api.model.workspace.Node;
 import ai.chat2db.community.domain.api.model.operation.Operation;
 import ai.chat2db.community.domain.api.model.operation.OperationLog;
 import ai.chat2db.community.domain.api.model.pin.PinTable;
-import ai.chat2db.community.domain.api.model.task.Task;
 import ai.chat2db.community.domain.api.model.request.pin.DbTablePinRequest;
-import ai.chat2db.community.domain.api.model.request.task.TaskRecordCreateRequest;
-import ai.chat2db.community.domain.api.model.request.task.TaskRecordPageRequest;
-import ai.chat2db.community.domain.api.model.request.task.TaskRecordUpdateRequest;
 import ai.chat2db.community.domain.api.model.request.datasource.DbDataSourcePageQueryRequest;
 import ai.chat2db.community.domain.api.model.request.datasource.DbDataSourcePositionUpdateRequest;
 import ai.chat2db.community.domain.api.model.request.operation.OpsOperationLogPageQueryRequest;
@@ -25,9 +22,9 @@ import ai.chat2db.community.domain.api.model.storage.WorkspaceDataSourceNamespac
 import ai.chat2db.community.storage.converter.StorageConverter;
 import ai.chat2db.community.storage.large.ConsoleStorage;
 import ai.chat2db.community.storage.large.OperationLogStorage;
-import ai.chat2db.community.storage.large.TaskStorage;
 import ai.chat2db.community.storage.small.*;
 import ai.chat2db.community.tools.security.AesGcmUtil;
+import ai.chat2db.community.tools.exception.DataNotFoundException;
 import ai.chat2db.community.tools.wrapper.result.DataResult;
 import cn.hutool.core.date.DatePattern;
 import cn.hutool.core.date.DateUtil;
@@ -61,6 +58,7 @@ public class LocalWorkspaceStorage implements IWorkspaceStorage {
 
     @Override
     public Long createDataSource(WorkspaceDataSource dataSource) {
+        dataSource.setIdentityColor(DataSourceIdentityColorUtils.normalize(dataSource.getIdentityColor()));
         dataSource.setStorageType(StorageTypeEnum.LOCAL.name());
         dataSource.setPassword(encryptString(dataSource.getPassword()));
         dataSource.setId(DataSourceStorage.INSTANCE.generateId());
@@ -78,15 +76,24 @@ public class LocalWorkspaceStorage implements IWorkspaceStorage {
 
     @Override
     public Long updateDataSource(WorkspaceDataSource dataSource) {
+        dataSource.setIdentityColor(DataSourceIdentityColorUtils.normalize(dataSource.getIdentityColor()));
         dataSource.setStorageType(StorageTypeEnum.LOCAL.name());
         if (dataSource.getPassword() != null && !dataSource.getPassword().isEmpty()) {
             dataSource.setPassword(encryptString(dataSource.getPassword()));
         } else {
-            DataSource oldDataSource = DataSourceStorage.INSTANCE.getById(dataSource.getId());
-            dataSource.setPassword(oldDataSource == null ? null : oldDataSource.getPassword());
+            dataSource.setPassword(null);
         }
         DataSourceStorage.INSTANCE.update(storageConverter.workspace2dataSource(dataSource));
         return dataSource.getId();
+    }
+
+    @Override
+    public Long updateDataSourceIdentityColor(Long id, String identityColor) {
+        String normalizedIdentityColor = DataSourceIdentityColorUtils.normalize(identityColor);
+        if (!DataSourceStorage.INSTANCE.updateIdentityColor(id, normalizedIdentityColor)) {
+            throw new DataNotFoundException();
+        }
+        return id;
     }
 
     @Override
@@ -94,8 +101,7 @@ public class LocalWorkspaceStorage implements IWorkspaceStorage {
         List<DataSource> dataSources = DataSourceStorage.INSTANCE.getDataList();
         List<WorkspaceDataSource> result = storageConverter.dataSource2workspace(dataSources);
         result.forEach(dataSource -> dataSource.setStorageType(StorageTypeEnum.LOCAL.name()));
-        return PageResponse.of(result, (long) result.size(), dataSourcePageQueryRequest.getPageNo(),
-                dataSourcePageQueryRequest.getPageSize());
+        return page(result, dataSourcePageQueryRequest.getPageNo(), dataSourcePageQueryRequest.getPageSize());
     }
 
     @Override
@@ -152,34 +158,6 @@ public class LocalWorkspaceStorage implements IWorkspaceStorage {
     }
 
     @Override
-    public PageResponse<Task> taskList(TaskRecordPageRequest taskPageRequest) {
-        List<Task> tasks = TaskStorage.INSTANCE.getDataList();
-        return PageResponse.of(tasks, (long) tasks.size(), taskPageRequest.getPageNo(), taskPageRequest.getPageSize());
-    }
-
-    @Override
-    public Task getTask(Long id) {
-        return TaskStorage.INSTANCE.getById(id);
-    }
-
-    @Override
-    public Long createTask(TaskRecordCreateRequest taskCreateRequest) {
-        Task task = storageConverter.taskCreateParam2model(taskCreateRequest);
-        task.setId(TaskStorage.INSTANCE.generateId());
-        task.setGmtCreate(new Date());
-        task.setGmtModified(new Date());
-        TaskStorage.INSTANCE.save(task);
-        return task.getId();
-    }
-
-    @Override
-    public void updateTask(TaskRecordUpdateRequest taskUpdateRequest) {
-        Task task = storageConverter.taskUpdateParam2model(taskUpdateRequest);
-        task.setGmtModified(new Date());
-        TaskStorage.INSTANCE.update(task);
-    }
-
-    @Override
     public Long createOperationLog(OperationLog request) {
         request.setGmtCreate(DateUtil.format(new Date(), DatePattern.NORM_DATETIME_PATTERN));
         request.setGmtModified(DateUtil.format(new Date(), DatePattern.NORM_DATETIME_PATTERN));
@@ -189,8 +167,7 @@ public class LocalWorkspaceStorage implements IWorkspaceStorage {
     @Override
     public PageResponse<OperationLog> operationLogList(OpsOperationLogPageQueryRequest operationLogPageQueryRequest) {
         List<OperationLog> logs = OperationLogStorage.INSTANCE.getDataList();
-        return PageResponse.of(logs, (long) logs.size(), operationLogPageQueryRequest.getPageNo(),
-                operationLogPageQueryRequest.getPageSize());
+        return page(logs, operationLogPageQueryRequest.getPageNo(), operationLogPageQueryRequest.getPageSize());
     }
 
     @Override
@@ -201,10 +178,8 @@ public class LocalWorkspaceStorage implements IWorkspaceStorage {
     @Override
     public PageResponse<Operation> consoleList(OpsOperationPageQueryRequest operationPageQueryRequest) {
         Operation operation = storageConverter.operationPageParam2model(operationPageQueryRequest);
-        List<Operation> consoles = ConsoleStorage.INSTANCE.getDataList(operation, operationPageQueryRequest.getPageNo(),
-                operationPageQueryRequest.getPageSize());
-        return PageResponse.of(consoles, (long) consoles.size(), operationPageQueryRequest.getPageNo(),
-                operationPageQueryRequest.getPageSize());
+        List<Operation> allConsoles = ConsoleStorage.INSTANCE.getDataList(operation, 1, Integer.MAX_VALUE);
+        return page(allConsoles, operationPageQueryRequest.getPageNo(), operationPageQueryRequest.getPageSize());
     }
 
     @Override
@@ -242,5 +217,26 @@ public class LocalWorkspaceStorage implements IWorkspaceStorage {
             return password;
         }
         return AesGcmUtil.configured().encrypt(password);
+    }
+
+    private int normalizePageNo(Integer pageNo) {
+        return Math.max(1, pageNo == null ? 1 : pageNo);
+    }
+
+    private int normalizePageSize(Integer pageSize) {
+        return Math.max(1, pageSize == null ? 100 : pageSize);
+    }
+
+    private <T> PageResponse<T> page(List<T> data, Integer requestedPageNo, Integer requestedPageSize) {
+        int pageNo = normalizePageNo(requestedPageNo);
+        int pageSize = normalizePageSize(requestedPageSize);
+        long total = data.size();
+        long offset = ((long) pageNo - 1L) * pageSize;
+        if (offset >= total) {
+            return PageResponse.of(List.of(), total, pageNo, pageSize);
+        }
+        int fromIndex = (int) offset;
+        int toIndex = (int) Math.min(offset + (long) pageSize, total);
+        return PageResponse.of(data.subList(fromIndex, toIndex), total, pageNo, pageSize);
     }
 }

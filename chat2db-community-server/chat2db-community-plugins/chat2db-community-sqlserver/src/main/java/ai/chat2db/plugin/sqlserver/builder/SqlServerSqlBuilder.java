@@ -12,7 +12,6 @@ import ai.chat2db.spi.model.request.PageLimitRequest;
 import ai.chat2db.spi.model.request.UpdateSqlRequest;
 import ai.chat2db.community.domain.api.enums.plugin.DmlTypeEnum;
 import ai.chat2db.community.domain.api.model.account.*;
-import ai.chat2db.community.domain.api.model.async.*;
 import ai.chat2db.community.domain.api.config.*;
 import ai.chat2db.spi.model.datasource.*;
 import ai.chat2db.community.domain.api.model.form.*;
@@ -46,6 +45,22 @@ public class SqlServerSqlBuilder extends DefaultSqlBuilder {
                 .filter(StringUtils::isNotBlank)
                 .map(SqlServerIdentifierProcessor.INSTANCE::quoteIdentifierAlways)
                 .collect(Collectors.joining(SQLConstants.DOT));
+    }
+
+    @Override
+    protected boolean useLikeForCopyWhere() {
+        return false;
+    }
+
+    @Override
+    protected String copyWhereColumnExpression(String columnName, String dataTypeName) {
+        if (SqlServerColumnTypeEnum.TEXT.name().equalsIgnoreCase(dataTypeName)) {
+            return "CAST(" + columnName + " AS VARCHAR(MAX))";
+        }
+        if (SqlServerColumnTypeEnum.NTEXT.name().equalsIgnoreCase(dataTypeName)) {
+            return "CAST(" + columnName + " AS NVARCHAR(MAX))";
+        }
+        return columnName;
     }
 
 

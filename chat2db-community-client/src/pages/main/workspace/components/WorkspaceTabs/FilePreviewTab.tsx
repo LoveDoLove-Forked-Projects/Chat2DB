@@ -1,6 +1,6 @@
-import { memo, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { MinusOutlined, PlusOutlined } from '@ant-design/icons';
-import { Button, Segmented, Tooltip } from 'antd';
+import { Button, Modal, Segmented, Tooltip } from 'antd';
 import { staticMessage } from '@chat2db/ui';
 import { Code, Columns2, Eye } from 'lucide-react';
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
@@ -15,6 +15,9 @@ import { updateFileContent } from '@/utils/file';
 import 'katex/dist/katex.min.css';
 import styles from './FilePreviewTab.less';
 import { getSqlDirectoryPreviewUrl } from '@/utils/previewResource';
+import LocalFileEncodingSelect from '@/components/LocalFileEncodingSelect';
+import { useWorkspaceStore } from '@/store/workspace';
+import { hasUnsavedLocalFileChanges } from '@/utils/localFileEncoding';
 
 interface FilePreviewTabProps {
   file: IBoundInfo;
@@ -118,13 +121,21 @@ function MermaidDiagram({ source }: { source: string }) {
 function MarkdownSourceEditor({
   source,
   filePath,
+  fileCharset,
+  fileBom,
   onChange,
+  onSave,
   onEditorChange,
+  onCursorPositionChange,
 }: {
   source: string;
   filePath?: string;
+  fileCharset?: string;
+  fileBom?: boolean;
   onChange: (value: string) => void;
+  onSave: (value: string) => void;
   onEditorChange: (editor?: IEditorIns) => void;
+  onCursorPositionChange: (position: monaco.IPosition) => void;
 }) {
   const reactId = useId();
   const editorId = useMemo(() => `markdown-${reactId.replace(/[^a-zA-Z0-9_-]/g, '')}`, [reactId]);
@@ -153,11 +164,29 @@ function MarkdownSourceEditor({
       }}
       didMount={(editor) => {
         onEditorChange(editor);
+        const initialPosition = editor.getPosition();
+        if (initialPosition) {
+          onCursorPositionChange(initialPosition);
+        }
+        editor.onDidChangeCursorPosition(({ position }) => onCursorPositionChange(position));
         editor.onDidChangeModelContent(() => onChange(editor.getValue()));
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
           if (filePath) {
-            updateFileContent({ filePath, fileContent: editor.getValue() });
-            staticMessage.success(i18n('workspace.text.changeFileSuccess'));
+            const fileContent = editor.getValue();
+            void updateFileContent({
+              filePath,
+              fileContent,
+              charset: fileCharset,
+              bom: fileBom,
+            })
+              .then(() => {
+                onSave(fileContent);
+                staticMessage.success(i18n('workspace.text.changeFileSuccess'));
+              })
+              .catch((error) => {
+                console.error('update local file error', error);
+                staticMessage.error(i18n('common.text.failure'));
+              });
           }
         });
       }}
@@ -211,6 +240,7 @@ const FilePreviewTab = memo(({ file, workspaceTabId }: FilePreviewTabProps) => {
   const [markdownViewMode, setMarkdownViewMode] = useState<MarkdownViewMode>('review');
   const [markdownContent, setMarkdownContent] = useState(file.ddl || '');
   const [markdownPreviewContent, setMarkdownPreviewContent] = useState(file.ddl || '');
+  const [markdownPersistedContent, setMarkdownPersistedContent] = useState(file.ddl || '');
   const [editor, setEditor] = useState<IEditorIns>();
   const [imageZoom, setImageZoom] = useState(1);
   const [imageNaturalSize, setImageNaturalSize] = useState({ width: 0, height: 0 });
@@ -222,10 +252,71 @@ const FilePreviewTab = memo(({ file, workspaceTabId }: FilePreviewTabProps) => {
   const scrollSyncOwnerRef = useRef<ScrollSyncOwner>(null);
   const scrollSyncFrameRef = useRef<number | undefined>(undefined);
   const pdfLoadTimeoutRef = useRef<number | undefined>(undefined);
+  const markdownCursorPositionRef = useRef<HTMLSpanElement>(null);
+  const [modal, modalContextHolder] = Modal.useModal();
+
+  const confirmDiscardUnsavedChanges = useCallback(
+    () =>
+      new Promise<boolean>((resolve) => {
+        modal.confirm({
+          title: i18n('workspace.fileEncoding.unsavedTitle'),
+          content: i18n('workspace.fileEncoding.unsavedContent'),
+          okText: i18n('workspace.fileEncoding.reloadConfirm'),
+          okButtonProps: { danger: true },
+          cancelText: i18n('common.button.cancel'),
+          onOk: () => resolve(true),
+          onCancel: () => resolve(false),
+        });
+      }),
+    [modal],
+  );
+
+  const handleFileEncodingChange = useCallback(
+    async (charset?: string) => {
+      if (!file.filePath) {
+        return;
+      }
+      if (
+        hasUnsavedLocalFileChanges(markdownContent, markdownPersistedContent) &&
+        !(await confirmDiscardUnsavedChanges())
+      ) {
+        return;
+      }
+      const reloadedFile = await useWorkspaceStore.getState().readFile(file.filePath, file.fileExtension, {
+        rootToken: file.fileRootToken,
+        relativePath: file.fileRelativePath,
+        charset,
+        workspaceTabId,
+      });
+      if (!reloadedFile) {
+        return;
+      }
+      setMarkdownContent(reloadedFile.content);
+      setMarkdownPreviewContent(reloadedFile.content);
+      setMarkdownPersistedContent(reloadedFile.content);
+    },
+    [
+      confirmDiscardUnsavedChanges,
+      file.fileExtension,
+      file.filePath,
+      file.fileRelativePath,
+      file.fileRootToken,
+      markdownContent,
+      markdownPersistedContent,
+      workspaceTabId,
+    ],
+  );
+
+  const handleMarkdownCursorPositionChange = useCallback((position: monaco.IPosition) => {
+    if (markdownCursorPositionRef.current) {
+      markdownCursorPositionRef.current.textContent = `Ln ${position.lineNumber}, Col ${position.column}`;
+    }
+  }, []);
 
   useEffect(() => {
     setMarkdownContent(file.ddl || '');
     setMarkdownPreviewContent(file.ddl || '');
+    setMarkdownPersistedContent(file.ddl || '');
     setMarkdownViewMode('review');
     setImageZoom(1);
     setImageNaturalSize({ width: 0, height: 0 });
@@ -445,16 +536,21 @@ const FilePreviewTab = memo(({ file, workspaceTabId }: FilePreviewTabProps) => {
     );
     const source = (
       <MarkdownSourceEditor
-        key={`${workspaceTabId}:${file.filePath || ''}`}
+        key={`${workspaceTabId}:${file.filePath || ''}:${file.fileCharset || ''}:${String(file.fileBom)}`}
         source={markdownContent}
         filePath={file.filePath}
+        fileCharset={file.fileCharset}
+        fileBom={file.fileBom}
         onChange={setMarkdownContent}
+        onSave={setMarkdownPersistedContent}
         onEditorChange={setEditor}
+        onCursorPositionChange={handleMarkdownCursorPositionChange}
       />
     );
 
     return (
       <div className={styles.markdownWorkspace}>
+        {modalContextHolder}
         <div className={styles.markdownToolbar}>
           <Segmented
             size="small"
@@ -502,6 +598,18 @@ const FilePreviewTab = memo(({ file, workspaceTabId }: FilePreviewTabProps) => {
               <div className={styles.sourcePane}>{source}</div>
               <div className={styles.reviewPane}>{review}</div>
             </div>
+          )}
+        </div>
+        <div className={styles.markdownStatus}>
+          <LocalFileEncodingSelect
+            charset={file.fileCharset}
+            bom={file.fileBom}
+            onEncodingChange={handleFileEncodingChange}
+          />
+          {markdownViewMode !== 'review' && (
+            <span ref={markdownCursorPositionRef} className={styles.markdownCursorPosition}>
+              Ln 1, Col 1
+            </span>
           )}
         </div>
       </div>

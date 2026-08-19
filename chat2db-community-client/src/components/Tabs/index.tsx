@@ -1,6 +1,6 @@
 import React, { memo, useEffect, useState, useRef } from 'react';
-import { ChevronDown } from 'lucide-react';
 import Iconfont from '@/components/Iconfont';
+import DropdownChevronTrigger from '@/components/DropdownChevronTrigger';
 import { IconButton, IconfontSvg } from '@chat2db/ui';
 import { Popover, Dropdown } from 'antd';
 import PortalContextMenu from '@/components/ContextMenu/PortalContextMenu';
@@ -41,6 +41,7 @@ export interface ITabItem {
   editableName?: boolean;
   canClosed?: boolean;
   styles?: React.CSSProperties;
+  accentColor?: string | null;
   pinned?: boolean;
   destroyOnHide?: boolean;
 }
@@ -704,6 +705,12 @@ export default memo<IProps>((props) => {
       });
     }
 
+    const tabStyle = {
+      ...t.styles,
+      ...(t.accentColor !== undefined
+        ? ({ '--chat2db-tab-accent-color': t.accentColor || 'transparent' } as React.CSSProperties)
+        : {}),
+    };
     const tabNode = enableReorder ? (
       <SortableTabItem
         disabled={false}
@@ -718,7 +725,7 @@ export default memo<IProps>((props) => {
             deleteTab(t);
           }
         }}
-        style={t.styles}
+        style={tabStyle}
         className={cx(styles.tabItem, {
           [styles.activeTab]: t.key === activeKey,
           [styles.draggingTab]: String(t.key) === draggingTabKey,
@@ -738,7 +745,7 @@ export default memo<IProps>((props) => {
             deleteTab(t);
           }
         }}
-        style={t.styles}
+        style={tabStyle}
         className={cx(styles.tabItem, {
           [styles.activeTab]: t.key === activeKey,
         })}
@@ -941,17 +948,7 @@ export default memo<IProps>((props) => {
               placement="bottomRight"
               trigger={['click']}
             >
-              <button
-                type="button"
-                className={styles.iconButtonTrigger}
-                aria-label={i18n('common.text.moreTabs')}
-              >
-                <IconButton
-                  aria-hidden
-                  icon={ChevronDown}
-                  size={{ boxSize: 24, iconSize: 14, borderRadius: 4 }}
-                />
-              </button>
+              <DropdownChevronTrigger aria-label={i18n('common.text.moreTabs')} />
             </Dropdown>
           </div>
       </>

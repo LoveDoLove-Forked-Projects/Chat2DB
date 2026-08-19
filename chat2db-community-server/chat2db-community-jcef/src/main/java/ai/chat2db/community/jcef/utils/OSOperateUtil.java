@@ -30,6 +30,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.*;
 import java.util.Timer;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 import java.util.prefs.Preferences;
 
 
@@ -47,7 +48,7 @@ public class OSOperateUtil {
             if (os.contains("win")) {
                 Runtime.getRuntime().exec("explorer /select," + file.getAbsolutePath());
             } else if (os.contains("mac")) {
-                Runtime.getRuntime().exec(new String[]{"open", "-R", file.getAbsolutePath()});
+                revealInFinder(file);
             } else if (os.contains("nix") || os.contains("nux") || os.contains("aix")) {
                 try {
                     Runtime.getRuntime().exec(new String[]{"xdg-open", file.getParent()});
@@ -61,6 +62,19 @@ public class OSOperateUtil {
         } catch (IOException e) {
             log.error(e.getMessage(), e);
         }
+    }
+
+    private static void revealInFinder(File file) throws IOException {
+        Process revealProcess = new ProcessBuilder("open", "-R", file.getAbsolutePath()).start();
+        try {
+            if (revealProcess.waitFor() != 0) {
+                throw new IOException("Finder could not reveal file: " + file.getAbsolutePath());
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("Interrupted while revealing file in Finder", e);
+        }
+        new ProcessBuilder("open", "-a", "Finder").start();
     }
 
     public static void openTerminal(String directoryPath) throws IOException {
@@ -106,13 +120,29 @@ public class OSOperateUtil {
     }
 
 
-    public static void windowsMax(Frame frame) {
-        frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
+    public static void windowsMax(Frame frame) throws InvocationTargetException, InterruptedException {
+        onEventDispatchThread(() -> {
+            frame.setExtendedState(frame.getExtendedState() | Frame.MAXIMIZED_BOTH);
+            return null;
+        });
     }
 
 
-    public static void windowsMin(Frame frame) {
-        frame.setExtendedState(JFrame.ICONIFIED);
+    public static void windowsMin(Frame frame) throws InvocationTargetException, InterruptedException {
+        onEventDispatchThread(() -> {
+            frame.setExtendedState(frame.getExtendedState() | Frame.ICONIFIED);
+            return null;
+        });
+    }
+
+
+    public static boolean windowsToggleMaximized(Frame frame) throws InvocationTargetException, InterruptedException {
+        return onEventDispatchThread(() -> {
+            int state = frame.getExtendedState();
+            int nextState = toggleMaximizedState(state);
+            frame.setExtendedState(nextState);
+            return isMaximizedState(nextState);
+        });
     }
 
 
@@ -135,8 +165,32 @@ public class OSOperateUtil {
     }
 
 
-    public static boolean isWindowMaximized(Frame frame) {
-        return Frame.MAXIMIZED_BOTH == frame.getExtendedState();
+    public static boolean isWindowMaximized(Frame frame) throws InvocationTargetException, InterruptedException {
+        return onEventDispatchThread(() -> isMaximizedState(frame.getExtendedState()));
+    }
+
+
+    static boolean isMaximizedState(int state) {
+        return (state & Frame.MAXIMIZED_BOTH) == Frame.MAXIMIZED_BOTH;
+    }
+
+
+    static int toggleMaximizedState(int state) {
+        if ((state & Frame.ICONIFIED) != 0) {
+            return state & ~Frame.ICONIFIED;
+        }
+        return isMaximizedState(state) ? state & ~Frame.MAXIMIZED_BOTH : state | Frame.MAXIMIZED_BOTH;
+    }
+
+
+    private static <T> T onEventDispatchThread(Supplier<T> operation)
+            throws InvocationTargetException, InterruptedException {
+        if (SwingUtilities.isEventDispatchThread()) {
+            return operation.get();
+        }
+        AtomicReference<T> result = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() -> result.set(operation.get()));
+        return result.get();
     }
 
 
@@ -231,6 +285,16 @@ public class OSOperateUtil {
 
 
     public static Map<String, Object> updateFileContent(String filePath, String fileContent) throws IOException {
+        return updateFileContent(filePath, fileContent, null, null);
+    }
+
+
+    public static Map<String, Object> updateFileContent(
+            String filePath,
+            String fileContent,
+            Charset charset,
+            Boolean bom
+    ) throws IOException {
         if (filePath == null || fileContent == null) {
             throw new IllegalArgumentException("File path and content must not be empty");
         }
@@ -239,14 +303,14 @@ public class OSOperateUtil {
         if (!Files.exists(path)) {
             throw new FileNotFoundException("File not found: " + filePath);
         }
-        Path tempPath = Files.createTempFile("update", ".tmp");
-        try (BufferedWriter writer = Files.newBufferedWriter(tempPath, StandardCharsets.UTF_8)) {
-            for (int i = 0; i < fileContent.length(); i += CHUNK_SIZE) {
-                int end = Math.min(fileContent.length(), i + CHUNK_SIZE);
-                writer.write(fileContent.substring(i, end));
-            }
+
+        LocalTextFileCodec.DecodedText existingFile = null;
+        if (charset == null || bom == null) {
+            existingFile = LocalTextFileCodec.read(path, charset);
         }
-        Files.move(tempPath, path, StandardCopyOption.REPLACE_EXISTING);
+        Charset targetCharset = charset != null ? charset : Charset.forName(existingFile.charset());
+        boolean includeBom = bom != null ? bom : existingFile.bom();
+        LocalTextFileCodec.write(path, fileContent, targetCharset, includeBom);
 
         Map<String, Object> result = new HashMap<>();
         result.put("path", path.toAbsolutePath().toString());
@@ -264,18 +328,13 @@ public class OSOperateUtil {
         if (!Files.exists(filePath)) {
             throw new FileNotFoundException("File not found: " + path);
         }
-        StringBuilder contentBuilder = new StringBuilder();
-        try (BufferedReader reader = Files.newBufferedReader(filePath, Objects.nonNull(charsets) ? charsets : StandardCharsets.UTF_8)) {
-            char[] buffer = new char[8192];
-            int bytesRead;
-            while ((bytesRead = reader.read(buffer)) != -1) {
-                contentBuilder.append(buffer, 0, bytesRead);
-            }
-        }
+        LocalTextFileCodec.DecodedText decodedText = LocalTextFileCodec.read(filePath, charsets);
 
         Map<String, Object> result = new HashMap<>();
         result.put("path", filePath.toAbsolutePath().toString());
-        result.put("content", contentBuilder.toString());
+        result.put("content", decodedText.content());
+        result.put("charset", decodedText.charset());
+        result.put("bom", decodedText.bom());
         result.put("size", Files.size(filePath));
         return result;
     }

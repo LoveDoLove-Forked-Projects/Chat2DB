@@ -10,7 +10,8 @@ import { useIndexDBStore } from '@/store/indexDB';
 import { useZoerStore } from '@/store/zoer';
 import { getPersistableActiveConsoleId } from '../../utils/workspaceTabPersistence';
 import { executeSavedConsoleRemoval, resolveSavedConsoleRemoval } from '../../utils/savedConsoleLifecycle';
-import { confirmAndKillTerminalTabs } from '@/utils/terminalSession';
+import { confirmWorkspaceTabsClose } from '@/utils/editorCloseConfirmation';
+import { applyWorkspaceTabBoundInfo, buildConsoleDefaultTabName } from '../../utils/consoleTabName';
 
 const RECENTLY_CLOSED_WORKSPACE_TAB_LIMIT = 20;
 
@@ -74,9 +75,14 @@ export interface ConsoleAction {
   setActiveConsoleId: (data: ConsoleState['activeConsoleId']) => void;
   setWorkspaceTabList: (data: ConsoleState['workspaceTabList']) => void;
   updateWorkspaceTabBoundInfo: (data: IBoundInfo) => void;
-  markWorkspaceTabConsoleSaved: (data: { workspaceTabId?: number | string; consoleId: number; name?: string }) => void;
+  markWorkspaceTabConsoleSaved: (data: {
+    workspaceTabId?: number | string;
+    consoleId: number;
+    name?: string;
+    nameCustomized?: boolean;
+  }) => void;
   createConsole: (params: ICreateConsoleParams) => Promise<any>;
-  addWorkspaceTab: (params: any) => void;
+  addWorkspaceTab: (params: any, options?: { activate?: boolean }) => void;
   setEditorToList: (id: number | string, editorIns: any) => void;
   deleteEditor: (id: number | string) => void;
   appendConsole: (params: { id: number | string; content: string; type?: EditorSetValueType; space?: boolean }) => void;
@@ -145,13 +151,12 @@ export const createConsoleAction: StateCreator<WorkspaceStore, [['zustand/devtoo
   createConsole: (params) => {
     const workspaceTabList = get().workspaceTabList;
     const currentConnectionDetails = get().currentConnectionDetails;
-    let name = params.name || `${[params.databaseName || params.schemaName].filter(Boolean).join('-')}`;
-    if (params.dataSourceName) {
-      name = name + `[${params.dataSourceName}]`;
-    }
+    const nameCustomized = Boolean(params.name);
+    const name = params.name || buildConsoleDefaultTabName(params);
     const newConsole = {
       ...params,
       name,
+      nameCustomized,
       ddl: params.ddl || '',
       status: ConsoleStatus.DRAFT,
       operationType: params.operationType || WorkspaceTabType.CONSOLE,
@@ -191,16 +196,21 @@ export const createConsoleAction: StateCreator<WorkspaceStore, [['zustand/devtoo
         });
     });
   },
-  addWorkspaceTab: (params) => {
+  addWorkspaceTab: (params, options) => {
     const workspaceTabList = get().workspaceTabList;
+    const activate = options?.activate ?? true;
     if (workspaceTabList?.length && workspaceTabList.findIndex((item) => item?.id === params?.id) !== -1) {
-      get().setActiveConsoleId(params.id);
+      if (activate) {
+        get().setActiveConsoleId(params.id);
+      }
       return;
     }
 
     const newList = [...(workspaceTabList || []), params];
     get().setWorkspaceTabList(newList);
-    get().setActiveConsoleId(params.id);
+    if (activate) {
+      get().setActiveConsoleId(params.id);
+    }
   },
   setEditorToList: (id, editorIns) => {
     const editorList = get().editorList;
@@ -252,20 +262,14 @@ export const createConsoleAction: StateCreator<WorkspaceStore, [['zustand/devtoo
         targetConsoleId !== undefined &&
         (item.uniqueData?.consoleId === targetConsoleId || item.id === targetConsoleId);
       if (matchedByWorkspaceTabId || matchedByConsoleId) {
-        return {
-          ...item,
-          uniqueData: {
-            ...item.uniqueData,
-            ...data,
-          },
-        };
+        return applyWorkspaceTabBoundInfo(item, data);
       }
       return item;
     });
 
     get().setWorkspaceTabList(newList);
   },
-  markWorkspaceTabConsoleSaved: ({ workspaceTabId, consoleId, name }) => {
+  markWorkspaceTabConsoleSaved: ({ workspaceTabId, consoleId, name, nameCustomized }) => {
     const workspaceTabList = get().workspaceTabList;
     if (!workspaceTabList) {
       return;
@@ -284,6 +288,7 @@ export const createConsoleAction: StateCreator<WorkspaceStore, [['zustand/devtoo
           ...item.uniqueData,
           consoleId,
           status: ConsoleStatus.RELEASE,
+          nameCustomized: nameCustomized ?? item.uniqueData?.nameCustomized,
         },
       };
     });
@@ -302,7 +307,7 @@ export const createConsoleAction: StateCreator<WorkspaceStore, [['zustand/devtoo
     }
     if (
       activeWorkspaceTab &&
-      !(await confirmAndKillTerminalTabs([activeWorkspaceTab], workspaceTabList))
+      !(await confirmWorkspaceTabsClose([activeWorkspaceTab], workspaceTabList, editorList || {}))
     ) {
       return;
     }

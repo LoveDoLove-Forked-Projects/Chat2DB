@@ -1,4 +1,5 @@
 import React, { forwardRef, useImperativeHandle, useRef, useCallback, useState, useEffect, CSSProperties } from 'react';
+import { useSize } from 'ahooks';
 import { useStyles } from './style';
 import { OperationLine, MonacoEditorErrorTips } from '../../components';
 import SQLEditor, { SQLEditorRef } from '../SQLEditor';
@@ -6,6 +7,7 @@ import RoutineOperationModals from './RoutineOperationModals';
 import InitialSaveNameModal from './InitialSaveNameModal';
 import { EditorSetValueType, EditorType, SQLOptType } from '../../type';
 import { staticMessage } from '@chat2db/ui';
+import { Modal } from 'antd';
 import { IConsoleReturnExecuteSql, IBoundInfo, TreeNodeData } from '@/typings';
 import { saveFileToDesktop, updateFileContent } from '@/utils/file';
 import i18n from '@/i18n';
@@ -43,6 +45,22 @@ import {
   getContentDiffOpenBlockReason,
 } from '../../helper/contentDiffGuard';
 import { normalizeSavedConsoleName, resolveInitialSavedConsoleName } from '../../helper/savedConsoleName';
+import { hasUnsavedLocalFileChanges } from '@/utils/localFileEncoding';
+import type { EditorCloseGuardRef } from '@/utils/editorCloseGuard';
+import { getDataSourceWatermarkContent, getDataSourceWatermarkLayout } from '@/utils/dataSourceWatermark';
+import { withIdentityColorAlpha } from '@/utils/dataSourceIdentity';
+import { useDataSourceIdentityColor } from '@/components/DataSourceIdentityMark';
+import type { EditorDataSourceState } from '@/utils/editorDataSourceLifecycle';
+import {
+  createDataSourceExecutionBoundInfo,
+  createDataSourceExecutionSnapshot,
+  type DataSourceExecutionSnapshot,
+} from '@/service/dataSourceExecutionSnapshot';
+
+export interface SQLExecutionInvocation extends IConsoleReturnExecuteSql {
+  executionTarget: DataSourceExecutionSnapshot;
+  dataSourceState: EditorDataSourceState;
+}
 
 interface ISQLEditorWithOperationProps {
   id: string;
@@ -61,13 +79,14 @@ interface ISQLEditorWithOperationProps {
   isConsole?: boolean;
 
   sqlActionEnabled?: boolean;
+  dataSourceState?: EditorDataSourceState;
   reloadSQL?: () => Promise<string>;
 
-  onExecuteSQL: (props: IConsoleReturnExecuteSql) => Promise<any>;
+  onExecuteSQL: (props: SQLExecutionInvocation) => Promise<any>;
   onChange?: (value: string) => void;
 }
 
-export interface ISQLEditorWithOperationRef extends SQLEditorRef {
+export interface ISQLEditorWithOperationRef extends SQLEditorRef, EditorCloseGuardRef {
   executeSQL: () => void;
 }
 
@@ -115,6 +134,7 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
     workspaceTabsTitle,
     isConsole = true,
     sqlActionEnabled = true,
+    dataSourceState = 'available',
     reloadSQL,
     onChange,
   } = props;
@@ -123,6 +143,7 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
     isRoutineOperationSupportedDatabaseType(dbInfo.databaseType) &&
     [WorkspaceTabType.FUNCTION, WorkspaceTabType.PROCEDURE].includes(type as WorkspaceTabType);
   const { styles } = useStyles();
+  const [modal, modalContextHolder] = Modal.useModal();
   const [contextMenuInfo, setContextMenuInfo] = useState<IContextMenuInfo>(contextMenuDefaultConfig);
   const [contextTableIdentifier, setContextTableIdentifier] = useState<EditorTableIdentifier | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -130,6 +151,7 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
   const [initialSaveNameModalOpen, setInitialSaveNameModalOpen] = useState(false);
   const [initialSaveName, setInitialSaveName] = useState('');
   const [initialSaveLoading, setInitialSaveLoading] = useState(false);
+  const pendingCloseSaveResolveRef = useRef<((saved: boolean) => void) | null>(null);
   const handleEditorContentChange = useCallback((value: string) => {
     setHasEditorContent(!!value.trim());
   }, []);
@@ -152,6 +174,8 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
     loading: false,
   });
   const sqlEditorRef = useRef<SQLEditorRef>(null);
+  const editorViewportRef = useRef<HTMLDivElement>(null);
+  const editorViewportSize = useSize(editorViewportRef);
   const routineExecutionEditorRef = useRef<SQLEditorRef>(null);
   // Preserve the previous edit position.
   const lastPositionRef = useRef<{
@@ -183,6 +207,8 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
       sqlEditorRef.current?.handleQuickSQLParser(sql, _dbInfo),
     getTableIdentifierAtPosition: (position) => sqlEditorRef.current?.getTableIdentifierAtPosition(position) ?? null,
     executeSQL: handleExecuteSQL,
+    hasUnsavedChangesBeforeClose,
+    saveBeforeClose,
   }));
 
   const getInstance = useCallback(() => {
@@ -193,10 +219,64 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
     return sqlEditorRef.current?.getValue() ?? '';
   }, []);
 
+  const createExecutionInvocation = useCallback(
+    (params: IConsoleReturnExecuteSql): SQLExecutionInvocation => ({
+      ...params,
+      executionTarget: createDataSourceExecutionSnapshot(dbInfo),
+      dataSourceState,
+    }),
+    [dbInfo, dataSourceState],
+  );
+
   const setValue = useCallback((value: string, _type?: EditorSetValueType) => {
     setHasEditorContent(!!value?.trim());
     sqlEditorRef.current?.setValue(value, _type);
   }, []);
+
+  const confirmDiscardUnsavedChanges = useCallback(
+    () =>
+      new Promise<boolean>((resolve) => {
+        modal.confirm({
+          title: i18n('workspace.fileEncoding.unsavedTitle'),
+          content: i18n('workspace.fileEncoding.unsavedContent'),
+          okText: i18n('workspace.fileEncoding.reloadConfirm'),
+          okButtonProps: { danger: true },
+          cancelText: i18n('common.button.cancel'),
+          onOk: () => resolve(true),
+          onCancel: () => resolve(false),
+        });
+      }),
+    [modal],
+  );
+
+  const handleFileEncodingChange = useCallback(
+    async (charset?: string) => {
+      if (!dbInfo.filePath) {
+        return;
+      }
+      const persistedContent = sqlEditorRef.current ? sqlEditorRef.current.getContentDiffBaseline() : defaultSQL || '';
+      if (hasUnsavedLocalFileChanges(getValue(), persistedContent) && !(await confirmDiscardUnsavedChanges())) {
+        return;
+      }
+      const file = await useWorkspaceStore.getState().readFile(dbInfo.filePath, dbInfo.fileExtension, {
+        rootToken: dbInfo.fileRootToken,
+        relativePath: dbInfo.fileRelativePath,
+        charset,
+        workspaceTabId: dbInfo.workspaceTabId,
+      });
+      if (!file) {
+        return;
+      }
+      setValue(file.content, 'reset');
+      setDBInfo({
+        ...dbInfo,
+        ddl: file.content,
+        fileCharset: file.charset,
+        fileBom: file.bom,
+      });
+    },
+    [confirmDiscardUnsavedChanges, dbInfo, defaultSQL, getValue, setDBInfo, setValue],
+  );
 
   useEffect(() => {
     setHasEditorContent(!!defaultSQL?.trim());
@@ -231,7 +311,7 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
     }
   }, [active]);
 
-  const { saveConsole, hasSavedSqlRecord } = useSaveEditorData({
+  const { saveConsole, hasSavedSqlRecord, hasUnsavedChanges } = useSaveEditorData({
     editorRef: sqlEditorRef,
     isActive: active,
     boundInfo: dbInfo,
@@ -407,7 +487,7 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
     }
 
     props
-      ?.onExecuteSQL({ sql: executionSql, single: false })
+      ?.onExecuteSQL(createExecutionInvocation({ sql: executionSql, single: false }))
       .then(() => {
         setErrorMessage(null);
       })
@@ -762,7 +842,7 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
     };
 
     props
-      ?.onExecuteSQL(executeSqlParams)
+      ?.onExecuteSQL(createExecutionInvocation(executeSqlParams))
       .then(() => {
         setErrorMessage(null);
       })
@@ -789,7 +869,7 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
     };
 
     props
-      ?.onExecuteSQL(executeSqlParams)
+      ?.onExecuteSQL(createExecutionInvocation(executeSqlParams))
       .then(() => {
         setErrorMessage(null);
       })
@@ -802,7 +882,13 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
    * Execute SQL via shortcut.
    */
   const handleShortCutExecuteSQL = useCallback(async () => {
-    await sqlEditorRef.current?.handleQuickSQLParser(sqlEditorRef.current?.getValue() || '', dbInfo);
+    const executionBoundInfo = createDataSourceExecutionBoundInfo(dbInfo);
+    const executionTarget = createDataSourceExecutionSnapshot(executionBoundInfo);
+    const executionDataSourceState = dataSourceState;
+    await sqlEditorRef.current?.handleQuickSQLParser(
+      sqlEditorRef.current?.getValue() || '',
+      executionBoundInfo,
+    );
     // await sqlEditorRef.current?.handleSQLParser(sqlEditorRef.current?.getValue() || '', dbInfo);
 
     const selectSQL = sqlEditorRef.current?.getSelectedContent() || '';
@@ -815,14 +901,19 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
     }
 
     props
-      ?.onExecuteSQL({ sql, single: isSingle })
+      ?.onExecuteSQL({
+        sql,
+        single: isSingle,
+        executionTarget,
+        dataSourceState: executionDataSourceState,
+      })
       .then(() => {
         setErrorMessage(null);
       })
       .catch((error) => {
         setErrorMessage(error.errorMessage || '');
       });
-  }, [props?.onExecuteSQL, dbInfo]);
+  }, [props?.onExecuteSQL, dbInfo, dataSourceState]);
 
   /** Save current editor data. */
   const handleSave = useCallback(() => {
@@ -866,6 +957,8 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
     try {
       await saveConsole(getValue(), { mode: 'manual', initialName: name });
       setInitialSaveNameModalOpen(false);
+      pendingCloseSaveResolveRef.current?.(true);
+      pendingCloseSaveResolveRef.current = null;
     } catch {
       // The request layer presents the error. Keep the name dialog open for retry.
     } finally {
@@ -878,21 +971,88 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
       return;
     }
     setInitialSaveNameModalOpen(false);
+    pendingCloseSaveResolveRef.current?.(false);
+    pendingCloseSaveResolveRef.current = null;
   }, [initialSaveLoading]);
 
-  const handleSaveFile = () => {
+  const handleSaveFile = async () => {
     const fileContent = sqlEditorRef.current?.getValue() ?? '';
-    updateFileContent({
-      filePath: dbInfo.filePath!,
-      fileContent,
-    });
+    try {
+      await updateFileContent({
+        filePath: dbInfo.filePath!,
+        fileContent,
+        charset: dbInfo.fileCharset,
+        bom: dbInfo.fileBom,
+      });
+    } catch (error) {
+      console.error('update local file error', error);
+      staticMessage.error(i18n('common.text.failure'));
+      return false;
+    }
     try {
       sqlEditorRef.current?.resetContentDiffBaseline(fileContent);
     } catch {
       // Content diff is only a hint and must not affect file saving.
     }
     staticMessage.success(i18n('workspace.text.changeFileSuccess'));
+    return true;
   };
+
+  function hasUnsavedChangesBeforeClose() {
+    if (isReadOnly) {
+      return false;
+    }
+    if (type === WorkspaceTabType.LocalSQLFile) {
+      return hasUnsavedLocalFileChanges(getValue(), sqlEditorRef.current?.getContentDiffBaseline() ?? defaultSQL ?? '');
+    }
+    if (type === WorkspaceTabType.CONSOLE) {
+      return hasUnsavedChanges(getValue());
+    }
+    return false;
+  }
+
+  async function saveBeforeClose() {
+    if (type === WorkspaceTabType.LocalSQLFile) {
+      return handleSaveFile();
+    }
+    if (type !== WorkspaceTabType.CONSOLE) {
+      return false;
+    }
+    if (hasSavedSqlRecord) {
+      try {
+        await saveConsole(getValue(), { mode: 'manual' });
+        return true;
+      } catch {
+        return false;
+      }
+    }
+    if (pendingCloseSaveResolveRef.current) {
+      return false;
+    }
+
+    return new Promise<boolean>((resolve) => {
+      pendingCloseSaveResolveRef.current = resolve;
+      if (!initialSaveNameModalOpen) {
+        setInitialSaveName(
+          resolveInitialSavedConsoleName({
+            workspaceTitle: workspaceTabsTitle,
+            databaseName: dbInfo.databaseName,
+            schemaName: dbInfo.schemaName,
+            fallback: i18n('workspace.savedConsole.untitled'),
+          }),
+        );
+        setInitialSaveNameModalOpen(true);
+      }
+    });
+  }
+
+  useEffect(
+    () => () => {
+      pendingCloseSaveResolveRef.current?.(false);
+      pendingCloseSaveResolveRef.current = null;
+    },
+    [],
+  );
 
   const handleSaveFileToDesktop = () => {
     const { dataSourceName, databaseName, schemaName } = dbInfo;
@@ -981,8 +1141,17 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
     });
   };
 
+  const identityColor = useDataSourceIdentityColor(dbInfo.dataSourceId);
+  const watermarkContent =
+    isConsole && type === WorkspaceTabType.CONSOLE && dbInfo.dataSourceId
+      ? getDataSourceWatermarkContent(dbInfo, dataSourceState)
+      : undefined;
+  const watermarkColor = identityColor ? withIdentityColorAlpha(identityColor, 0.4) : undefined;
+  const watermarkLayout = getDataSourceWatermarkLayout(editorViewportSize?.width, editorViewportSize?.height);
+
   return (
     <div className={styles.wrapper}>
+      {modalContextHolder}
       {(!isReadOnly || isSupportedRoutineEditor) && sqlActionEnabled && (
         <OperationLine
           active={active}
@@ -995,7 +1164,32 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
           action={handleAction}
         />
       )}
-      <div style={{ position: 'relative', flex: 1, height: '0px', width: '100%' }}>
+      <div ref={editorViewportRef} style={{ position: 'relative', flex: 1, height: '0px', width: '100%' }}>
+        {watermarkContent && watermarkColor && (
+          <div
+            className={styles.watermarkLayer}
+            style={{
+              color: watermarkColor,
+              gridTemplateColumns: `repeat(${watermarkLayout.columns}, minmax(0, 1fr))`,
+              gridTemplateRows: `repeat(${watermarkLayout.rows}, minmax(0, 1fr))`,
+            }}
+            aria-hidden="true"
+          >
+            {Array.from({ length: watermarkLayout.itemCount }, (_, index) => (
+              <div className={styles.watermarkItem} key={index}>
+                <div className={styles.watermarkTitle}>{watermarkContent.title}</div>
+                {watermarkContent.subtitle && (
+                  <div className={styles.watermarkSubtitle}>{watermarkContent.subtitle}</div>
+                )}
+                {watermarkContent.connectionUnavailable && (
+                  <div className={styles.watermarkStatus}>
+                    {i18n('workspace.dataSourceLifecycle.connectionUnavailable')}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
         <SQLEditor
           className={styles.sqlEditor}
           id={id}
@@ -1008,6 +1202,7 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
           enableContentDiffHints={enableContentDiffHints}
           onContentChange={handleEditorContentChange}
           onChange={onChange}
+          onFileEncodingChange={handleFileEncodingChange}
           contextMenuInfo={contextMenuInfo}
           onTableIdentifierContextChange={setContextTableIdentifier}
           onContextMenu={isReadOnly ? undefined : handleContextMenu}
@@ -1104,11 +1299,6 @@ const selectTableTreeNode = async (tableNode: TreeNodeData) => {
   const candidateTreeNodeTypes = getCandidateTreeNodeTypes(tableNode.treeNodeType);
   const loadedPathKeys: React.Key[] = [];
   let loadedTableNode: TreeNodeData | null = null;
-  const treeStore = useTreeStore.getState();
-  const previousCurrentTreeNode = treeStore.currentTreeNode;
-  const previousSelectedKeys = treeStore.selectedKeys;
-  const previousScrollTargetKey = treeStore.scrollTargetKey;
-  const previousExpandedKeys = treeStore.expandedKeys;
 
   for (const treeNodeType of candidateTreeNodeTypes) {
     const loadedCandidatePathKeys = await loadDatabaseObjectTreePath({
@@ -1133,15 +1323,12 @@ const selectTableTreeNode = async (tableNode: TreeNodeData) => {
   }
 
   if (!loadedTableNode) {
-    treeStore.setCurrentTreeNode(previousCurrentTreeNode);
-    treeStore.setSelectedKeys(previousSelectedKeys);
-    treeStore.setScrollTargetKey(previousScrollTargetKey);
-    treeStore.setExpandedKeys(previousExpandedKeys);
     return false;
   }
 
   const selectedNode = loadedTableNode;
   ensureWorkspaceLeftPanelVisible();
+  const treeStore = useTreeStore.getState();
   const expandedKeys = Array.from(new Set([...treeStore.expandedKeys, ...loadedPathKeys]));
 
   treeStore.setExpandedKeys(expandedKeys);
@@ -1175,17 +1362,17 @@ const loadDatabaseObjectTreePath = async (params: {
       continue;
     }
 
-    loadedPathKeys.push(key);
     const treeStore = useTreeStore.getState();
-    const previousCurrentTreeNode = treeStore.currentTreeNode;
-    const previousSelectedKeys = treeStore.selectedKeys;
     try {
-      await treeStore.handleLoadData(node);
-      treeStore.setCurrentTreeNode(previousCurrentTreeNode);
-      treeStore.setSelectedKeys(previousSelectedKeys);
+      const loadResult = await treeStore.handleLoadData(node, {
+        closeExpandTreeNode: true,
+        preserveInteraction: true,
+      });
+      if (!loadResult.committed) {
+        break;
+      }
+      loadedPathKeys.push(key);
     } catch {
-      treeStore.setCurrentTreeNode(previousCurrentTreeNode);
-      treeStore.setSelectedKeys(previousSelectedKeys);
       break;
     }
   }

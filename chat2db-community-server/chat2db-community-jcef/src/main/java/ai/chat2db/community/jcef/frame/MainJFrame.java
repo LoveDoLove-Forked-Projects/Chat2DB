@@ -93,6 +93,9 @@ public class MainJFrame extends JFrame {
     private static final String CHAT2DB_IPC_RESPONSE_SERVICE_STATUS_SUCCESS =
             ConsoleCodec.CHAT2DB_IPC_RESPONSE_SERVICE_STATUS_SUCCESS;
     private static final String MAC_OS_14_1_VERSION_PREFIX = "14.1";
+    private static final String WEB_FRONTEND_PROPERTY = "chat2db.jcef.web-frontend";
+    private static final String WEB_FRONTEND_URL = "http://127.0.0.1:8889/";
+    private static final String DESKTOP_READY_FILE_PROPERTY = "chat2db.jcef.ready-file";
     private JSplitPane splitPane;
     private DevToolsPanel devToolsPanel;
     private boolean isDevToolsVisible = false;
@@ -101,6 +104,7 @@ public class MainJFrame extends JFrame {
     private CefBrowser browser_;
     private Component browserUI_;
     private JCefAppConfig jcefAppConfig_;
+    private volatile boolean windowFullScreen = false;
     private static final ObjectMapper objectMapper = new ObjectMapper();
     private final Map<Pair<String, String>, IJcefActionHandler> actionHandlers = new HashMap<>();
     private static final String appName;
@@ -198,6 +202,10 @@ public class MainJFrame extends JFrame {
                         frame.revalidate();
                         frame.repaint();
                     });
+                } else if ("windowEnteredFullScreen".equals(methodName)) {
+                    updateWindowFullScreen(true);
+                } else if ("windowExitedFullScreen".equals(methodName)) {
+                    updateWindowFullScreen(false);
                 }
                 return null;
             };
@@ -211,6 +219,19 @@ public class MainJFrame extends JFrame {
         } catch (Exception e) {
             log.error("Failed to set up macOS full screen listener via reflection. This is expected on non-Apple JDKs or newer macOS versions where this API is deprecated.");
         }
+    }
+    public boolean isWindowFullScreen() {
+        return windowFullScreen;
+    }
+    private void updateWindowFullScreen(boolean fullScreen) {
+        windowFullScreen = fullScreen;
+        if (browser_ == null) {
+            return;
+        }
+        ConsoleResult consoleResult = new ConsoleResult();
+        consoleResult.setActionType(ActionTypeEnum.WINDOW_FULL_SCREEN_CHANGED.getName());
+        consoleResult.setMessage(Map.of("data", fullScreen));
+        CallJsFunctionUtil.callHandleJavaMessage(browser_, JSON.toJSONString(consoleResult));
     }
     public void processUri(URI uri) {
         String query = uri.getQuery();
@@ -273,6 +294,12 @@ public class MainJFrame extends JFrame {
         Desktop desktop = Desktop.getDesktop();
         if (desktop.isSupported(Desktop.Action.APP_QUIT_HANDLER)) {
             desktop.setQuitHandler((e, response) -> {
+                if (ConfigUtils.isCommunity()) {
+                    log.info("Quit handler triggered. Waiting for active task confirmation.");
+                    response.cancelQuit();
+                    ApplicationExitCoordinator.request(ApplicationExitCoordinator.ExitAction.CLOSE.name());
+                    return;
+                }
                 log.info("Quit handler triggered. Preparing for graceful shutdown.");
                 SystemSettingsUtil.saveWindowsInfo();
                 JcefContext.getInstance().getFrame_().dispose();
@@ -357,6 +384,9 @@ public class MainJFrame extends JFrame {
     private void setupGenericPlatformSpecifics(Image appIcon) {
         this.setTitle(appName);
         this.setIconImage(appIcon);
+        if (WindowsCommunityWindowChrome.isEnabled(OS.isWindows(), ConfigUtils.isCommunity())) {
+            WindowsCommunityWindowChrome.configureRootPane(getRootPane());
+        }
         applyTheme(ThemeEnum.DARK);
     }
     private static Image buildAppLogoImage() {
@@ -716,22 +746,31 @@ public class MainJFrame extends JFrame {
     }
     private void initializeBrowserAndUI() {
         log.info("4. Starting CefBrowser and UI component creation...");
-        String currentJarPath = OSOperateUtil.getCurrentJarPath();
         String indexHtmlFile;
-        try {
-            Path indexHtmlPath = Paths.get(currentJarPath, "dist", "index.html").toAbsolutePath().normalize();
-            if (!Files.isRegularFile(indexHtmlPath)) {
-                log.error("JCEF index file not found: {}", indexHtmlPath);
+        if (Boolean.getBoolean(WEB_FRONTEND_PROPERTY)) {
+            indexHtmlFile = WEB_FRONTEND_URL;
+            log.info("Using Community Web frontend for JCEF development: {}", indexHtmlFile);
+        } else {
+            String currentJarPath = OSOperateUtil.getCurrentJarPath();
+            try {
+                Path indexHtmlPath = Paths.get(currentJarPath, "dist", "index.html").toAbsolutePath().normalize();
+                if (!Files.isRegularFile(indexHtmlPath)) {
+                    log.error("JCEF index file not found: {}", indexHtmlPath);
+                    throw new BusinessException("Failed to load frontend files");
+                }
+                indexHtmlFile = indexHtmlPath.toUri().toURL().toString();
+                log.info("Resolved JCEF index file: {}", indexHtmlFile);
+            } catch (MalformedURLException e) {
+                log.error(e.getMessage(), e);
                 throw new BusinessException("Failed to load frontend files");
             }
-            indexHtmlFile = indexHtmlPath.toUri().toURL().toString();
-            log.info("Resolved JCEF index file: {}", indexHtmlFile);
-        } catch (MalformedURLException e) {
-            log.error(e.getMessage(), e);
-            throw new BusinessException("Failed to load frontend files");
         }
         this.browser_ = this.client_.createBrowser(indexHtmlFile, CefRendering.DEFAULT, false);
         this.browserUI_ = browser_.getUIComponent();
+        if (WindowsCommunityWindowChrome.isEnabled(OS.isWindows(), ConfigUtils.isCommunity())) {
+            WindowsCommunityWindowChrome.configureBrowserComponent(browserUI_);
+            WindowsCommunityWindowChrome.installWindowDragging(this, browserUI_);
+        }
         this.browserUI_.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseEntered(MouseEvent e) {
@@ -791,9 +830,8 @@ public class MainJFrame extends JFrame {
                     log.info("macOS 'X' button clicked. Hiding window.");
                     setVisible(false);
                 } else {
-                    log.info("Non-macOS 'X' button clicked. Disposing window and exiting application.");
-                    JFrame frameToClose = (JFrame) e.getSource();
-                    OSOperateUtil.closeWindows(frameToClose);
+                    log.info("Non-macOS 'X' button clicked. Requesting application exit.");
+                    ApplicationExitCoordinator.request(ApplicationExitCoordinator.ExitAction.CLOSE.name());
                 }
             }
         });
@@ -807,7 +845,25 @@ public class MainJFrame extends JFrame {
             }
         });
         this.setVisible(true);
+        writeDesktopReadyMarker();
         log.info("5. JFrame initialization completed.");
+    }
+    private void writeDesktopReadyMarker() {
+        String readyFile = System.getProperty(DESKTOP_READY_FILE_PROPERTY);
+        if (StringUtils.isBlank(readyFile)) {
+            return;
+        }
+        Path readyPath = Paths.get(readyFile).toAbsolutePath().normalize();
+        try {
+            Path parent = readyPath.getParent();
+            if (parent != null) {
+                Files.createDirectories(parent);
+            }
+            Files.writeString(readyPath, "ready\n", StandardCharsets.UTF_8);
+            log.info("JCEF desktop ready marker written: {}", readyPath);
+        } catch (IOException | RuntimeException exception) {
+            log.error("Failed to write JCEF desktop ready marker: {}", readyPath, exception);
+        }
     }
     private void initAppWindowSize() {
         Boolean isMaxWindow = (Boolean) SystemSettingsUtil.getProperty(SystemSettingConstant.IS_MAX_WINDOW);

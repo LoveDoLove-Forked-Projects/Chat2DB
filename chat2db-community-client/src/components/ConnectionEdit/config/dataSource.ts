@@ -213,7 +213,7 @@ export const sshConfig: IConnectionConfig['ssh'] = {
   ],
 };
 
-const envItem = {
+export const envItem = {
   defaultValue: 2,
   inputType: InputType.SELECT,
   labelName: {
@@ -225,11 +225,15 @@ const envItem = {
   required: true,
   selects: [
     {
-      label: 'RELEASE',
+      label: 'TEST',
       value: 1,
     },
     {
-      label: 'TEST',
+      label: 'DEV',
+      value: 3,
+    },
+    {
+      label: 'RELEASE',
       value: 2,
     },
   ],
@@ -238,7 +242,7 @@ const envItem = {
   },
 };
 
-const storageItem = {
+export const storageItem = {
   defaultValue: DataSourceStorageType.CLOUD,
   inputType: InputType.SELECT,
   labelName: {
@@ -270,7 +274,7 @@ const storageItem = {
   hidden: runtimeEditionConfig.localPersistence,
 };
 
-const portItem: any = {
+export const portItem: any = {
   inputType: InputType.INPUT,
   labelName: {
     [LangType.EN_US]: 'Port',

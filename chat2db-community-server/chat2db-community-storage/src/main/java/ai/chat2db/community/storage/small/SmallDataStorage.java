@@ -102,6 +102,9 @@ public class SmallDataStorage<T> implements IWorkspaceLocalStorage<T> {
                 return;
             }
             T before = dataMap.get(id);
+            if (before == null) {
+                return;
+            }
             before = getAfterSave(before, data);
             dataMap.put(id, before);
             saveDataList();
@@ -118,7 +121,10 @@ public class SmallDataStorage<T> implements IWorkspaceLocalStorage<T> {
     }
 
     protected synchronized void saveDataList() {
-        List<T> dataList = getDataList();
+        saveDataList(getDataList());
+    }
+
+    protected synchronized void saveDataList(List<T> dataList) {
         StringBuilder content = new StringBuilder();
         for (T data : dataList) {
             content.append(JSON.toJSONString(data)).append('\n');

@@ -50,12 +50,6 @@ const generateCRUD = createRequest<TextToSQLParams, GetChatTokenResponse>(`${pre
   errorLevel: false,
 });
 
-/** Generate test data. */
-const generateTestData = createRequest<TextToSQLParams, GetChatTokenResponse>(`${prefix}/data_insert`, {
-  method: 'post',
-  errorLevel: false,
-});
-
 // SQL prompt
 const queryPrompt = createRequest<
   {
@@ -136,12 +130,6 @@ const text2Chart = createRequest<TextToSQLParams, GetChatTokenResponse & { chart
   },
 );
 
-// Get similar questions
-const getRecommendList = createRequest<TextToSQLParams, any>(`/api/ai/slash_magic/recommend/list`, {
-  method: 'post',
-  errorLevel: false,
-});
-
 export default {
   text2SQL,
   sqlGenerateNLP,
@@ -149,7 +137,6 @@ export default {
   optimizeSQL,
   convertSQL,
   generateCRUD,
-  generateTestData,
   queryPrompt,
   parseSQL,
   textToCreateTable,
@@ -158,5 +145,4 @@ export default {
   text2Chart,
   excelChat,
   streamQA,
-  getRecommendList,
 };

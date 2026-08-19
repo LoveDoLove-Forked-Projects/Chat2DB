@@ -83,6 +83,8 @@ export enum OperationColumn {
 
   RemoveDataSource = 'removeDataSource', // Remove data source
   EditSource = 'editSource', // Edit data source
+  SetDataSourceColor = 'setDataSourceColor', // Set the shared data source identity color
+  ClearDataSourceColor = 'clearDataSourceColor', // Clear the custom data source identity color
   CopyDataSource = 'copyDataSource', // Copy data source
   CreateTable = 'createTable', //Create table
   DeleteTable = 'deleteTable', // Delete table
@@ -103,9 +105,7 @@ export enum OperationColumn {
   ViewAllTable = 'viewAllTable', // View all tables
   ViewAllView = 'viewAllView', // View all views
   ViewERModal = 'viewERModal', // View ER diagram
-  SyncDataBase = 'syncDataBase', // Sync database
   GenerateCRUD = 'generateCRUD', // Generate CRUD
-  GenerateTestData = 'generateTestData', // Generate test data
   OpenConsole = 'openConsole', // open console
   RemoveConsole = 'removeConsole',
   // Run sql file
