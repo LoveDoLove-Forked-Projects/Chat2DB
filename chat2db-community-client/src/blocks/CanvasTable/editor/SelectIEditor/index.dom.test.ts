@@ -216,6 +216,17 @@ async function main() {
   assert.equal(document.activeElement, cancelled.container, 'Escape restores VTable keyboard focus');
   cancelled.cleanup();
 
+  const committedByEnter = await mountEditor(new MultiSelectEditor(options, {}), 'ALPHA,BETA');
+  await act(async () => {
+    committedByEnter.input.focus();
+    dispatchKey(committedByEnter.input, 'Enter');
+    await nextTask();
+  });
+  assert.equal(committedByEnter.getCommittedValue(), 'ALPHA,BETA', 'Enter commits the unchanged SET value');
+  assert.equal(committedByEnter.getEndCount(), 1, 'Enter ends SET editing exactly once');
+  assert.equal(document.activeElement, committedByEnter.container, 'Enter restores VTable keyboard focus');
+  committedByEnter.cleanup();
+
   const lastCell = await mountEditor(new MultiSelectEditor(options, {}), 'ALPHA', false);
   await act(async () => {
     dispatchKey(lastCell.input, 'Tab');

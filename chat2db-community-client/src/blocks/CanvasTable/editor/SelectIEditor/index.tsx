@@ -224,7 +224,7 @@ const ResultSetSelect = forwardRef<SelectComponentHandle, SelectComponentProps>(
 
   const handleKeyDown = (event: React.KeyboardEvent) => {
     handleSelectEditorKeyDown(event, onCancel);
-    if (!multiple && event.key === 'Enter') {
+    if (event.key === 'Enter') {
       onCommit();
     }
     if (event.key === 'Tab') {
