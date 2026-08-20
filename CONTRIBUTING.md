@@ -178,9 +178,10 @@ repository administrators to help review and land changes. The role is granted
 through the `@OtterMind/chat2db-community-contributors` team and is scoped to
 this repository. It is not a Maintainer or Release Owner appointment.
 
-The current Trusted Contributor is:
+The current Trusted Contributors are:
 
 - [@auenger](https://github.com/auenger)
+- [@Aias00](https://github.com/Aias00)
 
 The repository administrator, Code Owner, and Release Owner is
 [@openai0229](https://github.com/openai0229). This is a separate role with
