@@ -178,9 +178,10 @@ repository administrators to help review and land changes. The role is granted
 through the `@OtterMind/chat2db-community-contributors` team and is scoped to
 this repository. It is not a Maintainer or Release Owner appointment.
 
-The current Trusted Contributor is:
+The current Trusted Contributors are:
 
 - [@auenger](https://github.com/auenger)
+- [@Aias00](https://github.com/Aias00)
 
 The repository administrator, Code Owner, and Release Owner is
 [@openai0229](https://github.com/openai0229). This is a separate role with
@@ -193,6 +194,19 @@ Pull request authors and maintainers may request a review from
 Contributor. Use the GitHub reviewer selector when it is available; otherwise,
 mention the team or reviewer in a pull request comment.
 
+Use these focus areas to choose the first reviewer for an Issue or pull
+request:
+
+| Reviewer | Primary focus |
+| --- | --- |
+| [@auenger](https://github.com/auenger) | AI UI, model configuration, chat streams, prompts, knowledge management, and Community AI backend behavior |
+| [@Aias00](https://github.com/Aias00) | Database connections, plugins and SPI, metadata and object management, SQL execution, SQL editing, and result handling |
+| [@openai0229](https://github.com/openai0229) | Any area, especially cross-cutting changes, repository governance, security, packaging, and releases |
+
+These focus areas are routing guidance, not exclusive ownership. Any Issue or
+pull request may request `@openai0229`, including work initially reviewed by a
+Trusted Contributor.
+
 Trusted Contributors may comment, approve, or request changes. For general
 repository paths, a valid approval from a Trusted Contributor can satisfy the
 required approval and Code Owner review. The approval must be from someone
@@ -200,10 +214,17 @@ other than the author and the person who made the latest push.
 
 Pull requests that change the AI frontend, model configuration, chat stream,
 or Community AI backend paths listed in [`CODEOWNERS`](.github/CODEOWNERS)
-should request [@auenger](https://github.com/auenger) directly. His approval
+should request [@auenger](https://github.com/auenger) directly. Their approval
 can satisfy the Code Owner requirement for those paths. `@openai0229` remains
 the backup Code Owner when `@auenger` authored or made the latest push to the
 pull request.
+
+Pull requests that change database connections, database plugins or SPI,
+metadata and object management, SQL execution or editing, or result handling
+paths listed in [`CODEOWNERS`](.github/CODEOWNERS) should request
+[@Aias00](https://github.com/Aias00) directly. Their approval can satisfy the
+Code Owner requirement for those paths. `@openai0229` remains the backup Code
+Owner when `@Aias00` authored or made the latest push to the pull request.
 
 Changes under `.github/`, `script/github/`, `script/package/`, and `docker/`
 require Code Owner approval from `@openai0229`. Trusted Contributor reviews are
