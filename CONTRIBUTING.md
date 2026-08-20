@@ -171,6 +171,76 @@ A good pull request description should include:
 
 Please avoid mixing unrelated changes in one pull request.
 
+## Trusted Contributors
+
+Trusted Contributors are experienced Community contributors invited by the
+repository administrators to help review and land changes. The role is granted
+through the `@OtterMind/chat2db-community-contributors` team and is scoped to
+this repository. It is not a Maintainer or Release Owner appointment.
+
+The current Trusted Contributor is:
+
+- [@auenger](https://github.com/auenger)
+
+The repository administrator, Code Owner, and Release Owner is
+[@openai0229](https://github.com/openai0229). This is a separate role with
+additional permissions.
+
+### Requesting A Review
+
+Pull request authors and maintainers may request a review from
+`@OtterMind/chat2db-community-contributors` or from an individual Trusted
+Contributor. Use the GitHub reviewer selector when it is available; otherwise,
+mention the team or reviewer in a pull request comment.
+
+Trusted Contributors may comment, approve, or request changes. For general
+repository paths, a valid approval from a Trusted Contributor can satisfy the
+required approval and Code Owner review. The approval must be from someone
+other than the author and the person who made the latest push.
+
+Pull requests that change the AI frontend, model configuration, chat stream,
+or Community AI backend paths listed in [`CODEOWNERS`](.github/CODEOWNERS)
+should request [@auenger](https://github.com/auenger) directly. His approval
+can satisfy the Code Owner requirement for those paths. `@openai0229` remains
+the backup Code Owner when `@auenger` authored or made the latest push to the
+pull request.
+
+Changes under `.github/`, `script/github/`, `script/package/`, and `docker/`
+require Code Owner approval from `@openai0229`. Trusted Contributor reviews are
+welcome on these changes, but they do not replace that approval.
+
+### Role Permissions And Boundaries
+
+Trusted Contributors may:
+
+- create and update non-protected repository branches;
+- review Community pull requests and help contributors resolve review threads;
+- merge a pull request into `main` after GitHub reports that every required
+  review, Code Owner approval, latest-push approval, status check, and review
+  conversation has passed; and
+- manually run the `Build Community Desktop Release` workflow from `main` with
+  a numeric version without the `v` prefix, such as `5.3.4`, to produce beta
+  artifacts in GitHub Actions.
+
+Trusted Contributors may not:
+
+- push or force-push directly to `main`;
+- bypass required reviews, status checks, Code Owner approval, latest-push
+  approval, or unresolved review conversations;
+- create, update, or delete release tags;
+- publish a formal GitHub Release or Community Docker image;
+- change repository access, rulesets, environments, or Actions secrets; or
+- treat access to beta workflows as access to signing credentials. Secret
+  values remain confidential and must never be printed, copied, or disclosed.
+
+Beta runs publish GitHub Actions artifacts only. Formal releases and Docker
+publication start from a protected tag and remain the responsibility of the
+Release Owner.
+
+Repository administrators grant or revoke the role based on sustained useful
+contributions, review quality, security judgment, familiarity with the
+Community workflow, and the project's current need for additional reviewers.
+
 ## Local Setup
 
 Please refer to the README for the latest setup instructions.
