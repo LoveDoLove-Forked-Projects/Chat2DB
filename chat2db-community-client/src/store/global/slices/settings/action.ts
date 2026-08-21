@@ -1,7 +1,6 @@
-import { EditorSettings } from '@/components/SQLEditor';
+import type { EditorSettings } from '@/components/SQLEditor/type';
 import { APP_URL_CONFIG_CHINA, APP_URL_CONFIG_OVERSEAS } from '@/constants/appConfig';
 import { clientRuntime } from '@client-runtime';
-import clientExtension from '@client-extension';
 import {
   EffectiveShortcutConfig,
   getEffectiveShortcutConfigMap,
@@ -225,6 +224,7 @@ export const createSettingsAction: StateCreator<GlobalStore, [['zustand/devtools
       return;
     }
 
+    const { default: clientExtension } = await import('@client-extension');
     await clientExtension.reportClient?.({
       deviceUuid,
       clientVersion: get().appConfig.version,

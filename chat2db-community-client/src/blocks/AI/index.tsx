@@ -43,6 +43,7 @@ import { keyboardKey } from '@/utils';
 import { cx } from 'antd-style';
 import AIModelConfigModal from './components/AIModelConfigModal';
 import { resolveSelectedModel } from './components/AIModelSelect/modelSelectOptions';
+import { ErrorCode } from '@/constants/request';
 import { listAvailableModelOptions, resolveModelRequestPayload } from '@/service/aiModelConfig';
 import { isDesktop } from '@/utils/env';
 import { usePermission } from '@/hooks/usePermission';
@@ -888,11 +889,13 @@ export default function AI({ variant = 'page', onTableClick, onPinSql, onSession
       if (nextSelectedModel?.value !== selectedModel?.value || nextSelectedModel?.label !== selectedModel?.label) {
         setSelectedModel(nextSelectedModel);
       }
-    } catch {
+    } catch (error: any) {
       setModelOptions([]);
       setModelOptionMap({});
       setSelectedModel(null);
-      feedback.error(i18n('stream.error.loadModelList'));
+      if (error?.errorCode !== ErrorCode.NeedLoggedIn) {
+        feedback.error(i18n('stream.error.loadModelList'));
+      }
     }
   }, [selectedModel?.label, selectedModel?.value, setSelectedModel]);
 

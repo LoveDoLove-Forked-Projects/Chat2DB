@@ -5,7 +5,7 @@ import { isDesktop } from '@/utils/env';
 import { staticMessage } from '@chat2db/ui';
 import request, { ResponseError } from 'umi-request';
 import { commandLineRequest, DesktopRequestOptions } from './commandLine/commandLine';
-import interceptorsResponse from './interceptorsResponse';
+import interceptorsResponse from '@/service/interceptorsResponse';
 
 export type IErrorLevel = 'toast' | 'notification' | 'prompt' | 'critical' | false;
 export type PermissionError = 'apply' | false;

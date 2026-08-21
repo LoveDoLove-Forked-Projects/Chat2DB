@@ -60,7 +60,6 @@ export default defineConfig({
             { path: '/stream', component: mainComponent },
             { path: '/workspace', component: mainComponent },
             { path: '/plugin', component: mainComponent },
-            { path: '/knowledge-management', component: mainComponent },
             { path: '/connections', redirect: '/workspace' },
             createMainRootRoute(true, mainComponent),
           ],

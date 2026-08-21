@@ -1,4 +1,5 @@
 import { clientRuntime } from '@client-runtime';
+import { registerI18nStateReader } from '@/i18n/runtime';
 import { PersistOptions, devtools, persist } from 'zustand/middleware';
 import { shallow } from 'zustand/shallow';
 import { createWithEqualityFn } from 'zustand/traditional';
@@ -57,6 +58,14 @@ export const useGlobalStore = createWithEqualityFn<GlobalStore>()(
   ),
   shallow,
 );
+
+registerI18nStateReader(() => {
+  const state = useGlobalStore.getState();
+  return {
+    language: state.baseSetting.language,
+    isCN: state.appConfig.isCN,
+  };
+});
 
 export const clearGlobalStore = () => {
   useGlobalStore.setState({

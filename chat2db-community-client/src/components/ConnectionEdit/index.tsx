@@ -520,12 +520,16 @@ const ConnectionEdit = forwardRef((props: IProps, ref: ForwardedRef<ICreateConne
     }));
 
     if ((type === submitType.SAVE || type === submitType.UPDATE) && submit) {
-      submit?.(p, type).finally(() => {
-        setLoading((state) => ({
-          ...state,
-          [loadingsButton]: false,
-        }));
-      });
+      Promise.resolve(submit(p, type))
+        .catch((error: any) => {
+          staticMessage.error(getConnectionErrorMessage(error));
+        })
+        .finally(() => {
+          setLoading((state) => ({
+            ...state,
+            [loadingsButton]: false,
+          }));
+        });
       return;
     }
 

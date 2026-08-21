@@ -1,6 +1,5 @@
 import { clientRuntime } from '@client-runtime';
 import { LangType } from '@/constants/settings';
-import { useGlobalStore } from '@/store/global';
 import { getUserComputerLanguage } from '@/utils';
 import React, { Fragment } from 'react';
 import en_US from './en-US';
@@ -9,6 +8,7 @@ import ja_JP from './ja-JP';
 import ko_KR from './ko-KR';
 import zh_CN from './zh-CN';
 import { APP_CONFIG } from '@/constants/appConfig';
+import { getI18nRuntimeState } from './runtime';
 
 const locale = {
   [LangType.EN_US]: en_US,
@@ -41,10 +41,11 @@ function resolveProductName(value: string) {
 }
 
 function i18n(key: keyof typeof en_US, ...args: any[]) {
-  const currentLang: LangType = useGlobalStore.getState().baseSetting.language;
+  const runtimeState = getI18nRuntimeState();
+  const currentLang: LangType = runtimeState.language || getUserComputerLanguage();
   let langSet: Record<string, string> = locale[currentLang] || locale[getUserComputerLanguage()];
   const fallbackLangSet = locale[LangType.EN_US];
-  const isCN = useGlobalStore.getState().appConfig.isCN;
+  const isCN = runtimeState.isCN ?? false;
   // Force English for users outside China.
   if (clientRuntime.restrictChineseOutsideChina && !isCN && currentLang === LangType.ZH_CN) {
     langSet = locale[LangType.EN_US];
@@ -68,10 +69,11 @@ function i18n(key: keyof typeof en_US, ...args: any[]) {
 }
 
 function i18nElement(key: keyof typeof en_US, ...args: React.ReactNode[]) {
-  const currentLang: LangType = useGlobalStore.getState().baseSetting.language;
+  const runtimeState = getI18nRuntimeState();
+  const currentLang: LangType = runtimeState.language || getUserComputerLanguage();
   let langSet: Record<string, string> = locale[currentLang] || locale[getUserComputerLanguage()];
   const fallbackLangSet = locale[LangType.EN_US];
-  const isCN = useGlobalStore.getState().appConfig.isCN;
+  const isCN = runtimeState.isCN ?? false;
   // Force English for users outside China.
   if (clientRuntime.restrictChineseOutsideChina && !isCN && currentLang === LangType.ZH_CN) {
     langSet = locale[LangType.EN_US];
