@@ -43,6 +43,9 @@ public final class TerminalSessionManager {
     private static final TerminalEventPublisher JCEF_EVENT_PUBLISHER = TerminalSessionManager::publishToJcef;
     private static volatile TerminalEventPublisher eventPublisher = JCEF_EVENT_PUBLISHER;
 
+    static final String DEFAULT_SHELL_PROPERTY = "chat2db.community.terminal.default-shell";
+    private static volatile TerminalProcessFactory processFactory = TerminalSessionManager::defaultProcessFactory;
+
     private TerminalSessionManager() {
     }
 
@@ -51,7 +54,10 @@ public final class TerminalSessionManager {
     }
 
     public static Map<String, Object> create(Path directory, int columns, int rows, String shellId) throws IOException {
-        List<ShellCommand> candidates = resolveShellCandidates(shellId);
+        return create(directory, columns, rows, resolveShellCandidates(shellId));
+    }
+
+    static Map<String, Object> create(Path directory, int columns, int rows, List<ShellCommand> candidates) throws IOException {
         IOException lastFailure = null;
         for (ShellCommand shell : candidates) {
             try {
@@ -97,14 +103,8 @@ public final class TerminalSessionManager {
             applyShellColorEnvironment(environment, shell);
         }
 
-        PtyProcess process = new PtyProcessBuilder(shell.command().toArray(String[]::new))
-                .setDirectory(cwd.toString())
-                .setEnvironment(environment)
-                .setInitialColumns(Math.max(columns, 20))
-                .setInitialRows(Math.max(rows, 5))
-                .setRedirectErrorStream(true)
-                .setWindowsAnsiColorEnabled(true)
-                .start();
+        PtyProcess process = startProcess(shell.command().toArray(String[]::new), cwd.toString(), environment,
+                Math.max(columns, 20), Math.max(rows, 5));
 
         String sessionId = UUID.randomUUID().toString();
         TerminalSession session = new TerminalSession(sessionId, cwd, shell, process);
@@ -117,6 +117,23 @@ public final class TerminalSessionManager {
         result.put("shell", shell.displayName());
         result.put("shellId", shell.id());
         return result;
+    }
+
+    private static PtyProcess startProcess(String[] command, String directory, Map<String, String> environment,
+                                           int columns, int rows) throws IOException {
+        return processFactory.create(command, directory, environment, columns, rows);
+    }
+
+    static PtyProcess defaultProcessFactory(String[] command, String directory, Map<String, String> environment,
+                                            int columns, int rows) throws IOException {
+        return new PtyProcessBuilder(command)
+                .setDirectory(directory)
+                .setEnvironment(environment)
+                .setInitialColumns(columns)
+                .setInitialRows(rows)
+                .setRedirectErrorStream(true)
+                .setWindowsAnsiColorEnabled(true)
+                .start();
     }
 
     static boolean applyColorEnvironment(Map<String, String> environment) {
@@ -273,12 +290,7 @@ public final class TerminalSessionManager {
                     "Windows PowerShell",
                     requireCommand(os, "Windows PowerShell", "powershell.exe")
             );
-            case "cmd" -> new ShellCommand(
-                    "cmd",
-                    List.of(requireCommand(os, "Command Prompt", resolveCommandPrompt())),
-                    "Command Prompt",
-                    ShellFamily.CMD
-            );
+            case "cmd" -> commandPrompt("cmd", requireCommand(os, "Command Prompt", resolveCommandPrompt()));
             default -> throw new IllegalArgumentException("Unsupported terminal shell: " + shellId);
         };
     }
@@ -288,26 +300,69 @@ public final class TerminalSessionManager {
     }
 
     private static List<ShellCommand> resolveSystemShellCandidates(String os) {
-        if (isWindows(os)) {
-            List<ShellCommand> candidates = new ArrayList<>();
-            String pwsh = findCommand(os, "pwsh.exe", "pwsh");
-            if (pwsh != null) {
-                candidates.add(powerShell("system", "PowerShell 7", pwsh));
+        return resolveSystemShellCandidates(os, TerminalSessionManager::findCommand);
+    }
+
+    static List<ShellCommand> resolveSystemShellCandidates(String os, CommandResolver resolver) {
+        List<ShellCommand> candidates = new ArrayList<>();
+        Set<String> seenCommands = new HashSet<>();
+        String configuredShell = configuredDefaultShell();
+        if (configuredShell != null) {
+            ShellCommand leading = resolveConfiguredShell(configuredShell);
+            if (leading != null) {
+                candidates.add(leading);
+                seenCommands.add(leading.command().get(0));
             }
-            String powerShell = findCommand(os, "powershell.exe");
+        }
+        if (isWindows(os)) {
+            String pwsh = resolver.find(os, "pwsh.exe", "pwsh");
+            if (pwsh != null) {
+                addCandidate(candidates, seenCommands, powerShell("system", "PowerShell 7", pwsh));
+            }
+            String powerShell = resolver.find(os, "powershell.exe");
             if (powerShell != null) {
-                candidates.add(powerShell("system", "Windows PowerShell", powerShell));
+                addCandidate(candidates, seenCommands, powerShell("system", "Windows PowerShell", powerShell));
             }
             // Keep cmd.exe as the last resort so a blocked PowerShell still yields a usable shell.
-            candidates.add(new ShellCommand(
-                    "system",
-                    List.of(requireCommand(os, "Command Prompt", resolveCommandPrompt())),
-                    "Command Prompt",
-                    ShellFamily.CMD
-            ));
+            String cmd = resolver.find(os, resolveCommandPrompt());
+            addCandidate(candidates, seenCommands, commandPrompt("system", cmd == null ? resolveCommandPrompt() : cmd));
             return candidates;
         }
-        return List.of(resolveNonWindowsSystemShell(os));
+        ShellCommand systemShell = resolveNonWindowsSystemShell(os);
+        if (seenCommands.add(systemShell.command().get(0))) {
+            candidates.add(systemShell);
+        }
+        return candidates;
+    }
+
+    static ShellCommand commandPrompt(String id, String command) {
+        // /K keeps cmd.exe resident after launch, matching pwsh's -NoExit behaviour.
+        return new ShellCommand(id, List.of(command, "/K"), "Command Prompt", ShellFamily.CMD);
+    }
+
+    static String configuredDefaultShell() {
+        String configured = System.getProperty(DEFAULT_SHELL_PROPERTY);
+        if (configured == null || configured.isBlank()) {
+            return null;
+        }
+        String normalized = configured.trim().toLowerCase(Locale.ROOT);
+        // "system" means auto resolution; treating it as a configured default would loop back here.
+        return "system".equals(normalized) ? null : normalized;
+    }
+
+    private static ShellCommand resolveConfiguredShell(String shellId) {
+        try {
+            return resolveShell(shellId);
+        } catch (IllegalArgumentException exception) {
+            log.warn("Ignoring configured default terminal shell [{}]: {}", shellId, exception.getMessage());
+            return null;
+        }
+    }
+
+    private static void addCandidate(List<ShellCommand> candidates, Set<String> seenCommands, ShellCommand shell) {
+        if (seenCommands.add(shell.command().get(0))) {
+            candidates.add(shell);
+        }
     }
 
     private static ShellCommand resolveNonWindowsSystemShell(String os) {
@@ -319,7 +374,7 @@ public final class TerminalSessionManager {
         return unixShell("system", fallbackName, requireCommand(os, fallbackName, fallbackName));
     }
 
-    private static void applyShellColorEnvironment(Map<String, String> environment, ShellCommand shell) {
+    static void applyShellColorEnvironment(Map<String, String> environment, ShellCommand shell) {
         switch (shell.family()) {
             case BASH -> environment.put("PS1", "\\[\\033[34m\\]\\u@\\h\\[\\033[0m\\]:"
                     + "\\[\\033[32m\\]\\w\\[\\033[0m\\]\\$ ");
@@ -331,7 +386,7 @@ public final class TerminalSessionManager {
         }
     }
 
-    private static ShellCommand unixShell(String id, String displayName, String command) {
+    static ShellCommand unixShell(String id, String displayName, String command) {
         String executableName = Path.of(command).getFileName().toString().toLowerCase(Locale.ROOT);
         ShellFamily family = executableName.contains("zsh")
                 ? ShellFamily.ZSH
@@ -339,7 +394,7 @@ public final class TerminalSessionManager {
         return new ShellCommand(id, List.of(command, "-l"), displayName, family);
     }
 
-    private static ShellCommand powerShell(String id, String displayName, String command) {
+    static ShellCommand powerShell(String id, String displayName, String command) {
         String colorSetup = "if (Get-Command Set-PSReadLineOption -ErrorAction SilentlyContinue) { "
                 + "Set-PSReadLineOption -Colors @{ "
                 + "Command = 'Blue'; Parameter = 'Cyan'; String = 'Green'; "
@@ -428,12 +483,31 @@ public final class TerminalSessionManager {
         eventPublisher = JCEF_EVENT_PUBLISHER;
     }
 
+    static void setProcessFactoryForTests(TerminalProcessFactory factory) {
+        processFactory = factory == null ? TerminalSessionManager::defaultProcessFactory : factory;
+    }
+
+    static void resetProcessFactoryForTests() {
+        processFactory = TerminalSessionManager::defaultProcessFactory;
+    }
+
+    @FunctionalInterface
+    interface CommandResolver {
+        String find(String os, String... candidates);
+    }
+
+    @FunctionalInterface
+    interface TerminalProcessFactory {
+        PtyProcess create(String[] command, String directory, Map<String, String> environment,
+                          int columns, int rows) throws IOException;
+    }
+
     @FunctionalInterface
     interface TerminalEventPublisher {
         void publish(String sessionId, ActionTypeEnum actionType, Map<String, Object> message);
     }
 
-    private enum ShellFamily {
+    enum ShellFamily {
         BASH,
         ZSH,
         POWERSHELL,
@@ -441,7 +515,7 @@ public final class TerminalSessionManager {
         OTHER
     }
 
-    private record ShellCommand(String id, List<String> command, String displayName, ShellFamily family) {
+    record ShellCommand(String id, List<String> command, String displayName, ShellFamily family) {
     }
 
     private static final class TerminalSession {
