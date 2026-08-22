@@ -51,7 +51,24 @@ public final class TerminalSessionManager {
     }
 
     public static Map<String, Object> create(Path directory, int columns, int rows, String shellId) throws IOException {
-        return create(directory, columns, rows, resolveShell(shellId));
+        List<ShellCommand> candidates = resolveShellCandidates(shellId);
+        IOException lastFailure = null;
+        for (ShellCommand shell : candidates) {
+            try {
+                return create(directory, columns, rows, shell);
+            } catch (IOException failure) {
+                // Some corporate security suites (e.g. QiAnXin) deny process creation for
+                // powershell.exe even though the binary is present in PATH. Treat a spawn-time
+                // failure as "this shell cannot be invoked" and try the next candidate so the
+                // terminal still opens via, for example, cmd.exe.
+                lastFailure = failure;
+                log.warn("Unable to start terminal shell [{}], trying the next available shell",
+                        shell.command(), failure);
+            }
+        }
+        throw lastFailure != null
+                ? lastFailure
+                : new IOException("No terminal shell is available");
     }
 
     public static Map<String, Object> createInUserHome(int columns, int rows, String shellId) throws IOException {
@@ -226,6 +243,19 @@ public final class TerminalSessionManager {
         return session;
     }
 
+    static List<ShellCommand> resolveShellCandidates(String requestedShellId) {
+        String shellId = requestedShellId == null || requestedShellId.isBlank()
+                ? "system"
+                : requestedShellId.toLowerCase(Locale.ROOT);
+        if ("system".equals(shellId)) {
+            // The default shell may be denied at runtime (e.g. powershell.exe blocked by a
+            // corporate security suite). Return the ordered fallback chain so create(...) can
+            // move on to cmd.exe when an earlier candidate cannot be started.
+            return resolveSystemShellCandidates(normalizedOsName());
+        }
+        return List.of(resolveShell(shellId));
+    }
+
     private static ShellCommand resolveShell(String requestedShellId) {
         String shellId = requestedShellId == null || requestedShellId.isBlank()
                 ? "system"
@@ -254,22 +284,33 @@ public final class TerminalSessionManager {
     }
 
     private static ShellCommand resolveSystemShell(String os) {
+        return resolveSystemShellCandidates(os).get(0);
+    }
+
+    private static List<ShellCommand> resolveSystemShellCandidates(String os) {
         if (isWindows(os)) {
+            List<ShellCommand> candidates = new ArrayList<>();
             String pwsh = findCommand(os, "pwsh.exe", "pwsh");
             if (pwsh != null) {
-                return powerShell("system", "PowerShell 7", pwsh);
+                candidates.add(powerShell("system", "PowerShell 7", pwsh));
             }
             String powerShell = findCommand(os, "powershell.exe");
             if (powerShell != null) {
-                return powerShell("system", "Windows PowerShell", powerShell);
+                candidates.add(powerShell("system", "Windows PowerShell", powerShell));
             }
-            return new ShellCommand(
+            // Keep cmd.exe as the last resort so a blocked PowerShell still yields a usable shell.
+            candidates.add(new ShellCommand(
                     "system",
                     List.of(requireCommand(os, "Command Prompt", resolveCommandPrompt())),
                     "Command Prompt",
                     ShellFamily.CMD
-            );
+            ));
+            return candidates;
         }
+        return List.of(resolveNonWindowsSystemShell(os));
+    }
+
+    private static ShellCommand resolveNonWindowsSystemShell(String os) {
         String configuredShell = System.getenv("SHELL");
         if (configuredShell != null && Files.isExecutable(Path.of(configuredShell))) {
             return unixShell("system", Path.of(configuredShell).getFileName().toString(), configuredShell);

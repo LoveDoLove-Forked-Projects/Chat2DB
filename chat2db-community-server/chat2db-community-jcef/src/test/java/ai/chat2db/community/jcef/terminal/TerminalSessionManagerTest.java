@@ -16,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TerminalSessionManagerTest {
@@ -86,6 +87,19 @@ class TerminalSessionManagerTest {
     @Test
     void resolvesConfiguredUserHomeForDefaultTerminalDirectory() {
         assertEquals(directory, TerminalSessionManager.resolveUserHomeDirectory(directory.toString()));
+    }
+
+    @Test
+    void resolvesDefaultShellCandidatesForCurrentOs() {
+        assertFalse(TerminalSessionManager.resolveShellCandidates("system").isEmpty());
+        assertFalse(TerminalSessionManager.resolveShellCandidates(null).isEmpty());
+        assertFalse(TerminalSessionManager.resolveShellCandidates("").isEmpty());
+    }
+
+    @Test
+    void rejectsUnknownShellCandidates() {
+        assertThrows(IllegalArgumentException.class,
+                () -> TerminalSessionManager.resolveShellCandidates("not-a-shell"));
     }
 
     @Test
