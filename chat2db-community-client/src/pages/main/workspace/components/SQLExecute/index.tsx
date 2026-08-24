@@ -250,6 +250,7 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
     }),
   );
   const [resultDataList, setResultDataList] = useState<IManageResultData[]>([]);
+  const resultPageSizeRef = useRef<number>();
   const pendingRowsRef = useRef<PendingSqlExecutionRows>(new Map());
   const pendingRowsFlushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const streamDiagnosticsRef = useRef(new Map<string, StreamDiagnostic>());
@@ -883,6 +884,9 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
 
     const executeSqlParams = {
       ...requestParams,
+      ...(requestParams.pageSize === undefined && resultPageSizeRef.current !== undefined
+        ? { pageSize: resultPageSizeRef.current }
+        : {}),
       databaseType: executionSnapshot.databaseType,
       dataSourceId: executionSnapshot.dataSourceId,
       dataSourceName: executionSnapshot.dataSourceName,
@@ -1040,6 +1044,21 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
       });
   };
 
+  const handleResultPagingChange = useCallback(
+    (resultData: IManageResultData, paging: { pageNo: number; pageSize: number }) => {
+      resultPageSizeRef.current = paging.pageSize;
+      if (!resultData.executeSqlParams) {
+        return;
+      }
+      return handleExecuteSQL({
+        ...resultData.executeSqlParams,
+        ...paging,
+        sql: resultData.originalSql || resultData.executeSqlParams.sql,
+      });
+    },
+    [handleExecuteSQL],
+  );
+
   const stopExecuteSql = () => {
     stopExecuteSQL();
   };
@@ -1107,6 +1126,7 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
                 onKeepExecutionLogHistoryChange={handleKeepExecutionLogHistoryChange}
                 onKeepResultHistoryChange={handleKeepResultHistoryChange}
                 onResultDataListChange={handleResultDataListChange}
+                onResultPagingChange={handleResultPagingChange}
               />
             )}
             {executing && (

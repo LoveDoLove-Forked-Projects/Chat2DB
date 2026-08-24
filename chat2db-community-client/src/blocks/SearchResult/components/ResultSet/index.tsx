@@ -62,6 +62,7 @@ interface IProps {
   resultData: IManageResultData;
   active: boolean;
   viewTable?: boolean;
+  onResultPagingChange?: (resultData: IManageResultData, paging: ResultPaging) => Promise<unknown> | void;
 }
 
 const RESULT_INSPECTOR_MODE_STORAGE_KEY = createResultInspectorModeStorageKey(
@@ -235,6 +236,10 @@ export default memo<IProps>(
         // If there is no executeSqlParams, the execution information is not known, and no execution is performed.
         if (!resultData.executeSqlParams) return;
         const paging = resolveResultPaging(resultData.executeSqlParams, pagingOverride);
+        if (props.onResultPagingChange) {
+          props.onResultPagingChange(resultData, paging);
+          return;
+        }
         const executeSqlParams = {
           ...resultData.executeSqlParams,
           ...paging,
@@ -263,7 +268,7 @@ export default memo<IProps>(
           }
         });
       },
-      [canExecuteSQL, executeSQL, resultData, viewTable],
+      [canExecuteSQL, executeSQL, props.onResultPagingChange, resultData, viewTable],
     );
 
     const handleSearch = useCallback(() => {
