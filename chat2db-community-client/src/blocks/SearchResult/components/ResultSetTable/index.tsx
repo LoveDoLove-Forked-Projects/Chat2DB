@@ -37,6 +37,7 @@ import {
 } from './columnState';
 import { resolveResultSelectionActiveCell, ResultSelectionCause } from './selectionState';
 import { RESULT_TABLE_CONTENT_LAYOUT_OPTIONS } from './layoutOptions';
+import { capResultTableAutoRowHeights } from './rowHeight';
 
 interface IProps {
   className?: string;
@@ -158,6 +159,16 @@ const ResultSetTable = forwardRef((props: IProps, ref: ForwardedRef<ResultSetTab
   ]);
   const records = useMemo(() => buildResultRecords(resultData), [resultData]);
   const headerTooltip = useHeaderTooltip({ tableInstance });
+
+  useEffect(() => {
+    if (!tableInstance) {
+      return;
+    }
+    const capAutoRowHeights = () => capResultTableAutoRowHeights(tableInstance);
+    const eventId = tableInstance.on('after_render', capAutoRowHeights);
+    capAutoRowHeights();
+    return () => tableInstance.off(eventId);
+  }, [tableInstance]);
 
   const clearColumnSensitiveSelection = useCallback(() => {
     interactionRevisionRef.current += 1;
