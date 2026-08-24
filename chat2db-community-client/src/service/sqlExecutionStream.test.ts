@@ -2,8 +2,10 @@ import assert from 'node:assert/strict';
 import type { IManageResultData } from '@/typings';
 import {
   appendCompletedQueryResult,
+  appendRowsToPendingResult,
   clearClosedSqlExecutionResults,
   cancelSqlExecutionWithReconciliation,
+  discardPendingRowsForExecution,
   isSqlExecutionResultClosed,
   markSqlExecutionResultsClosed,
   mergeRows,
@@ -42,6 +44,21 @@ assert.deepEqual(restoredAfterClear[0].dataList, [['first']]);
 const appendedRows = mergeRows(restoredAfterClear, chunk([['second']]));
 assert.equal(appendedRows.length, 1, 'later chunks stay in the same execution result');
 assert.deepEqual(appendedRows[0].dataList, [['first'], ['second']]);
+
+const pendingRows = new Map<string, IManageResultData>();
+assert.equal(
+  appendRowsToPendingResult(pendingRows, 'execution-1:1:1', chunk([['first']])),
+  1,
+  'the first streamed chunk is buffered without changing the source chunk',
+);
+assert.equal(
+  appendRowsToPendingResult(pendingRows, 'execution-1:1:1', chunk([['second'], ['third']])),
+  3,
+  'subsequent chunks append to one pending result buffer',
+);
+assert.deepEqual(pendingRows.get('execution-1:1:1')!.dataList, [['first'], ['second'], ['third']]);
+discardPendingRowsForExecution(pendingRows, 'execution-1');
+assert.equal(pendingRows.size, 0, 'terminal cleanup discards buffered rows for the completed execution');
 
 const completedQuery = chunk([['finished']]);
 const ignoredRowsEvent = appendCompletedQueryResult([], {
