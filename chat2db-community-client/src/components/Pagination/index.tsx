@@ -156,7 +156,6 @@ export default function Pagination(props: IProps) {
             className={styles.customPageSizeInput}
             size="small"
             min={1}
-            max={100000}
             precision={0}
             controls={false}
             autoFocus
