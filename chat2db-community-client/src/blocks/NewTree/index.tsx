@@ -75,6 +75,7 @@ const NewTree = (props: IProps, ref: React.ForwardedRef<NewTreeRef>) => {
     expandedKeys,
     scrollTargetKey,
     setScrollTargetKey,
+    searchBarValue,
     dataSourceList,
   } = useTreeStore((state) => ({
     editingTreeNode: state.editingTreeNode,
@@ -85,6 +86,7 @@ const NewTree = (props: IProps, ref: React.ForwardedRef<NewTreeRef>) => {
     expandedKeys: state.expandedKeys,
     scrollTargetKey: state.scrollTargetKey,
     setScrollTargetKey: state.setScrollTargetKey,
+    searchBarValue: state.searchBarValue,
     dataSourceList: state.dataSourceList,
   }));
   const identityTreeData = useMemo(
@@ -104,7 +106,7 @@ const NewTree = (props: IProps, ref: React.ForwardedRef<NewTreeRef>) => {
   }, [setTreeRef]);
 
   useEffect(() => {
-    if (!scrollTargetKey || !filteredTreeData?.length) {
+    if (searchBarValue || !scrollTargetKey || !filteredTreeData?.length) {
       return;
     }
 
@@ -125,7 +127,7 @@ const NewTree = (props: IProps, ref: React.ForwardedRef<NewTreeRef>) => {
         window.cancelAnimationFrame(frameId);
       }
     };
-  }, [scrollTargetKey, filteredTreeData, expandedKeys, setScrollTargetKey]);
+  }, [searchBarValue, scrollTargetKey, filteredTreeData, expandedKeys, setScrollTargetKey]);
 
   const treeSize = useSize(treeBoxRef);
 
