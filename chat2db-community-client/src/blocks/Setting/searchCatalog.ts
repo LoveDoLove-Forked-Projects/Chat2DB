@@ -51,6 +51,11 @@ export function getSettingSearchItems(menuCode: string): SettingSearchItem[] {
           'unsaved changes',
           'confirmation',
         ]),
+        settingItem('editor.defaultPageSize', 'monaco.defaultPageSize', [
+          'default page size',
+          'query rows',
+          'row limit',
+        ]),
         settingItem('editor.errorContinue', 'monaco.errorContinue', ['continue on error', 'execution']),
       ];
     case 'terminal':
