@@ -748,6 +748,7 @@ const WorkspaceTabs = memo(() => {
 
   const {
     activeConsoleId,
+    workspaceTabScrollRequest,
     consoleList,
     workspaceTabList,
     workspaceTabSplitLayout: storedWorkspaceTabSplitLayout,
@@ -760,6 +761,7 @@ const WorkspaceTabs = memo(() => {
     return {
       consoleList: state.consoleList,
       activeConsoleId: state.activeConsoleId,
+      workspaceTabScrollRequest: state.workspaceTabScrollRequest,
       workspaceTabList: state.workspaceTabList,
       workspaceTabSplitLayout: state.workspaceTabSplitLayout,
       recentlyClosedWorkspaceTabs: state.recentlyClosedWorkspaceTabs,
@@ -1964,6 +1966,8 @@ const WorkspaceTabs = memo(() => {
     const activeKey =
       workspaceTabSplitLayout?.activeTabIds[paneId] ??
       (paneId === MAIN_WORKSPACE_TAB_PANE ? activeConsoleId : null);
+    const activeTabScrollKey =
+      workspaceTabScrollRequest?.tabId === activeKey ? workspaceTabScrollRequest.requestId : undefined;
     const draggingTabId = draggingWorkspaceTabKey
       ? getWorkspaceTabIdFromDndId(draggingWorkspaceTabKey, workspaceTabList || [])
       : undefined;
@@ -1991,7 +1995,7 @@ const WorkspaceTabs = memo(() => {
           onEdit={(action, data) => handelTabsEdit(action, data || [], paneId)}
           beforeRemove={confirmWorkspaceTabItemsClose}
           activeKey={activeKey}
-          activeTabScrollKey={activeKey}
+          activeTabScrollKey={activeTabScrollKey}
           editableNameOnBlur={editableNameOnBlur}
           items={items}
           contextActions={commonWorkspaceTabContextActions}
