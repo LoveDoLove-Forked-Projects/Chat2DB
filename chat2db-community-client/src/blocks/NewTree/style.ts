@@ -31,8 +31,9 @@ export const useStyles = createStyles(({ css, token }) => {
       .ant-tree-list-scrollbar-horizontal {
         bottom: 0 !important;
         height: 6px !important;
+        visibility: visible !important;
         opacity: 0;
-        pointer-events: none;
+        pointer-events: auto;
         transition: opacity 0.1s ease;
       }
 
@@ -43,7 +44,6 @@ export const useStyles = createStyles(({ css, token }) => {
       .ant-tree-list-scrollbar-horizontal:active,
       .ant-tree-list-scrollbar-horizontal:has(.ant-tree-list-scrollbar-thumb:active) {
         opacity: 1;
-        pointer-events: auto;
       }
 
       .ant-tree-switcher {
@@ -119,7 +119,6 @@ export const useStyles = createStyles(({ css, token }) => {
     horizontalScrolling: css`
       .ant-tree-list-scrollbar-horizontal {
         opacity: 1;
-        pointer-events: auto;
       }
     `,
     spinBox: css`
