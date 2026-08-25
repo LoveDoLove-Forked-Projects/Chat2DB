@@ -50,7 +50,7 @@
     "test:redis-explorer": "tsx src/blocks/RedisAllData/redisExplorer.test.ts",
     "test:result-markdown": "tsx src/blocks/SearchResult/components/ResultSetTable/event/onContextmenuCell/handleCopyAsMarkdown.test.ts",
     "test:result-set-ui": "tsx src/blocks/SearchResult/components/ResultSet/resultSetUi.test.ts",
-    "test:result-table-layout": "tsx src/blocks/SearchResult/components/ResultSetTable/layoutOptions.test.ts",
+    "test:result-table-layout": "tsx src/blocks/SearchResult/components/ResultSetTable/layoutOptions.test.ts && tsx src/blocks/SearchResult/components/ResultSetTable/rowHeight.test.ts",
     "test:result-status": "tsx src/blocks/SearchResult/components/StatusBar/resultSummary.test.ts",
     "test:runtime-storage": "tsx src/store/indexDB/storageKey.test.ts && tsx src/pages/main/workspace/components/WorkspaceLeft/desktopBridge.test.ts",
     "test:result-tab-preferences": "tsx src/blocks/SearchResult/resultTabPreferences.test.ts && tsx src/service/resultTabShortcut.test.ts",
