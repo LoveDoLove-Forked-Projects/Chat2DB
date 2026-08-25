@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { MAX_RESULT_PAGE_SIZE } from '@/constants/pagination';
 import { resolveResultPaging } from './pagination';
+
+test('matches the Java Integer transport boundary without restoring the old product cap', () => {
+  assert.equal(MAX_RESULT_PAGE_SIZE, 2_147_483_647);
+});
 
 test('uses an explicit page-size selection immediately', () => {
   assert.deepEqual(resolveResultPaging({ pageNo: 3, pageSize: 1000 }, { pageNo: 1, pageSize: 5000 }), {

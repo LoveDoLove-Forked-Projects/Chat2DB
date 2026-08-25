@@ -11,6 +11,7 @@ import InteractiveSelect from './InteractiveSelect';
 import { osNow } from '@/utils';
 import { v4 as uuid } from 'uuid';
 import { databaseMap } from '@/constants';
+import { MAX_RESULT_PAGE_SIZE } from '@/constants/pagination';
 import { useUpdateEffect } from 'ahooks';
 import { Braces, ChevronDown, Monitor, Palette, Play, ShieldCheck } from 'lucide-react';
 import SearchTargetLabel from '../SearchTargetLabel';
@@ -334,7 +335,7 @@ function EditorSettings() {
               }
               tooltip={i18n('monaco.defaultPageSize.tooltip')}
             >
-              <InputNumber min={1} precision={0} />
+              <InputNumber min={1} max={MAX_RESULT_PAGE_SIZE} precision={0} />
             </Form.Item>
             <Form.Item
               name="errorContinue"
