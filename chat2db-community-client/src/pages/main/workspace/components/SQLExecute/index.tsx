@@ -60,7 +60,6 @@ import {
   ClosedSqlExecutionResults,
   SqlExecutionEvent,
   SqlExecutionResultIdentity,
-  appendCompletedQueryResult,
   appendRowsToPendingResult,
   attachExecutionIdentity,
   clearClosedSqlExecutionResults,
@@ -617,7 +616,7 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
         if (isSqlExecutionResultClosed(closedSqlExecutionResultsRef.current, event.executionId, resultKey)) {
           return;
         }
-        enqueueRows(resultKey, {
+        const nextChunk = {
           ...chunkWithIdentity,
           displayName: getResultDisplayName({
             executionSequence: displayBatchSequence,
@@ -632,17 +631,16 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
             resultKey,
             resultSequence,
           },
-        });
+        };
+        const callbackState = desktopExecutionCallbackBySequenceRef.current[executionSequence];
+        if (callbackState) {
+          callbackState.data = mergeRows(callbackState.data, nextChunk);
+        }
+        enqueueRows(resultKey, nextChunk);
         return;
       }
       if (event.eventType === 'updateCount' || event.eventType === 'resultFinished') {
         flushPendingRows();
-        if (event.eventType === 'resultFinished') {
-          const callbackState = desktopExecutionCallbackBySequenceRef.current[executionSequence];
-          if (callbackState) {
-            callbackState.data = appendCompletedQueryResult(callbackState.data, event);
-          }
-        }
         const statementSequence =
           getEventStatementSequence(event, currentStatementSequenceByExecutionIdRef.current[event.executionId]) || 1;
         const result = processResultDataList([event.message], {
@@ -657,6 +655,28 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
         const resultSequence =
           getEventResultSequence(event, resultWithIdentity, getResultSequence(resultWithIdentity)) || 1;
         const resultKey = event.resultKey || buildResultKey(event.executionId, statementSequence, resultSequence);
+        const nextResult = {
+          ...resultWithIdentity,
+          displayName: getResultDisplayName({
+            executionSequence: displayBatchSequence,
+            statementSequence,
+            resultSequence: resultWithIdentity.resultSetId || resultSequence,
+            sql: resultWithIdentity.originalSql,
+          }),
+          extra: {
+            ...(resultWithIdentity.extra || {}),
+            executionSequence,
+            executionTarget: executionSnapshot,
+            resultKey,
+            resultSequence,
+          },
+        };
+        if (event.eventType === 'resultFinished') {
+          const callbackState = desktopExecutionCallbackBySequenceRef.current[executionSequence];
+          if (callbackState) {
+            callbackState.data = upsertResultFinished(callbackState.data, nextResult);
+          }
+        }
         if (process.env.NODE_ENV !== 'production') {
           const diagnostic = streamDiagnosticsRef.current.get(resultKey);
           if (diagnostic) {
@@ -670,22 +690,6 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
         }
         if (!isSqlExecutionResultClosed(closedSqlExecutionResultsRef.current, event.executionId, resultKey)) {
           setResultDataList((prev) => {
-            const nextResult = {
-              ...resultWithIdentity,
-              displayName: getResultDisplayName({
-                executionSequence: displayBatchSequence,
-                statementSequence,
-                resultSequence: resultWithIdentity.resultSetId || resultSequence,
-                sql: resultWithIdentity.originalSql,
-              }),
-              extra: {
-                ...(resultWithIdentity.extra || {}),
-                executionSequence,
-                executionTarget: executionSnapshot,
-                resultKey,
-                resultSequence,
-              },
-            };
             const nextResultDataList = upsertResultFinished(prev, nextResult);
             const sortedResultDataList = retainLatestResultBatches(
               sortExecutionResults(nextResultDataList),

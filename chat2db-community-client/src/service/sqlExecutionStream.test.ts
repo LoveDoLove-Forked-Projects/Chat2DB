@@ -9,6 +9,7 @@ import {
   isSqlExecutionResultClosed,
   markSqlExecutionResultsClosed,
   mergeRows,
+  upsertResultFinished,
   type ClosedSqlExecutionResults,
 } from './sqlExecutionStream';
 
@@ -44,6 +45,23 @@ assert.deepEqual(restoredAfterClear[0].dataList, [['first']]);
 const appendedRows = mergeRows(restoredAfterClear, chunk([['second']]));
 assert.equal(appendedRows.length, 1, 'later chunks stay in the same execution result');
 assert.deepEqual(appendedRows[0].dataList, [['first'], ['second']]);
+
+const completedStreamingResult = upsertResultFinished(
+  appendedRows,
+  {
+    ...chunk([]),
+    pageSize: 50_000,
+    fuzzyTotal: '50000+',
+    hasNextPage: true,
+  },
+);
+assert.deepEqual(
+  completedStreamingResult[0].dataList,
+  [['first'], ['second']],
+  'metadata-only completion preserves rows already received from the stream',
+);
+assert.equal(completedStreamingResult[0].pageSize, 50_000);
+assert.equal(completedStreamingResult[0].fuzzyTotal, '50000+');
 
 const pendingRows = new Map<string, IManageResultData>();
 assert.equal(
