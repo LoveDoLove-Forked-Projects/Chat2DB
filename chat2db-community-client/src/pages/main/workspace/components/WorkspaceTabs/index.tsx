@@ -1,4 +1,4 @@
-import React, { memo, useEffect, useMemo, Fragment, useState } from 'react';
+import React, { memo, useCallback, useEffect, useLayoutEffect, useMemo, Fragment, useRef, useState } from 'react';
 import styles from './index.less';
 import i18n from '@/i18n';
 import { Button, theme } from 'antd';
@@ -95,6 +95,12 @@ import {
   replaceWorkspaceTabPaneNode,
   updateWorkspaceTabSplitNodeSize,
 } from './workspaceTabLayout';
+import {
+  areWorkspacePaneContentBoundsEqual,
+  resolveActiveWorkspaceTabPaneIds,
+  resolveWorkspacePaneContentBounds,
+  type WorkspacePaneContentBoundsMap,
+} from './workspaceTabContentLayout';
 
 const SplitPaneAny = SplitPane as any;
 const MAIN_WORKSPACE_TAB_PANE: WorkspaceTabPaneId = 'main';
@@ -783,6 +789,56 @@ const WorkspaceTabs = memo(() => {
     );
     return normalizeWorkspaceTabSplitLayout(preparedLayout, workspaceTabList || [], activeConsoleId);
   }, [storedWorkspaceTabSplitLayout, workspaceTabList, activeConsoleId, terminalOpenPosition]);
+  const splitTabBoxRef = useRef<HTMLDivElement>(null);
+  const paneContentMeasureFrameRef = useRef<number>();
+  const [paneContentBounds, setPaneContentBounds] = useState<WorkspacePaneContentBoundsMap>({});
+
+  const measurePaneContentBounds = useCallback(() => {
+    const container = splitTabBoxRef.current;
+    if (!container) {
+      return;
+    }
+    const containerRect = container.getBoundingClientRect();
+    const nextBounds: WorkspacePaneContentBoundsMap = {};
+    container.querySelectorAll<HTMLElement>('[data-workspace-pane-content]').forEach((paneSlot) => {
+      const paneId = paneSlot.dataset.workspacePaneContent;
+      if (paneId) {
+        nextBounds[paneId] = resolveWorkspacePaneContentBounds(containerRect, paneSlot.getBoundingClientRect());
+      }
+    });
+    setPaneContentBounds((currentBounds) =>
+      areWorkspacePaneContentBoundsEqual(currentBounds, nextBounds) ? currentBounds : nextBounds,
+    );
+  }, []);
+
+  const schedulePaneContentMeasurement = useCallback(() => {
+    if (paneContentMeasureFrameRef.current !== undefined) {
+      window.cancelAnimationFrame(paneContentMeasureFrameRef.current);
+    }
+    paneContentMeasureFrameRef.current = window.requestAnimationFrame(() => {
+      paneContentMeasureFrameRef.current = undefined;
+      measurePaneContentBounds();
+    });
+  }, [measurePaneContentBounds]);
+
+  useLayoutEffect(() => {
+    const container = splitTabBoxRef.current;
+    if (!container) {
+      return;
+    }
+    const paneSlots = Array.from(container.querySelectorAll<HTMLElement>('[data-workspace-pane-content]'));
+    measurePaneContentBounds();
+    const resizeObserver = new ResizeObserver(schedulePaneContentMeasurement);
+    resizeObserver.observe(container);
+    paneSlots.forEach((paneSlot) => resizeObserver.observe(paneSlot));
+    return () => {
+      resizeObserver.disconnect();
+      if (paneContentMeasureFrameRef.current !== undefined) {
+        window.cancelAnimationFrame(paneContentMeasureFrameRef.current);
+        paneContentMeasureFrameRef.current = undefined;
+      }
+    };
+  }, [measurePaneContentBounds, schedulePaneContentMeasurement, workspaceTabSplitLayout]);
 
   // Get the currently selected data source.
   const { zoerBoundInfo } = useZoerStore((state) => {
@@ -1880,6 +1936,17 @@ const WorkspaceTabs = memo(() => {
   const workspaceTabItems = useMemo(() => {
     return getWorkspaceTabItems(workspaceTabList || []);
   }, [workspaceTabList, activeConsoleId, dataSourceList]);
+  const workspaceTabItemMap = useMemo(
+    () => new Map(workspaceTabItems.map((item) => [item.key, item])),
+    [workspaceTabItems],
+  );
+  const activeTabPaneIds = useMemo(() => {
+    return resolveActiveWorkspaceTabPaneIds({
+      activeConsoleId,
+      paneActiveTabIds: workspaceTabSplitLayout?.activeTabIds,
+      mainPaneId: MAIN_WORKSPACE_TAB_PANE,
+    });
+  }, [activeConsoleId, workspaceTabSplitLayout]);
 
   function renderCreateConsoleButton() {
     if (!canCreateConsole) {
@@ -1962,7 +2029,9 @@ const WorkspaceTabs = memo(() => {
     paneId: WorkspaceTabPaneId,
     className?: string,
   ) {
-    const items = getWorkspaceTabItems(getPaneWorkspaceTabs(paneId));
+    const items = getPaneWorkspaceTabs(paneId)
+      .map((tab) => workspaceTabItemMap.get(tab.id))
+      .filter(Boolean) as ITabItem[];
     const activeKey =
       workspaceTabSplitLayout?.activeTabIds[paneId] ??
       (paneId === MAIN_WORKSPACE_TAB_PANE ? activeConsoleId : null);
@@ -1990,7 +2059,7 @@ const WorkspaceTabs = memo(() => {
         <CustomTabs
           height={36}
           hideAdd={hideAdd}
-          className={styles.tabBox}
+          className={styles.tabHeaderBox}
           onChange={(key) => onPaneTabChange(paneId, key)}
           onEdit={(action, data) => handelTabsEdit(action, data || [], paneId)}
           beforeRemove={confirmWorkspaceTabItemsClose}
@@ -2006,7 +2075,9 @@ const WorkspaceTabs = memo(() => {
           onDraggingTabKeyChange={setDraggingWorkspaceTabKey}
           tabPaneDroppableId={getWorkspaceTabPaneDroppableId(paneId)}
           closeShortcutAction={ShortcutAction.CloseCurrentConsole}
+          concealTabContent
         />
+        <div className={styles.splitPaneContentSlot} data-workspace-pane-content={paneId} />
         {draggingWorkspaceTabKey && canSplitDraggedTabHere && (
           <WorkspaceTabPaneDropOverlay
             paneId={paneId}
@@ -2063,6 +2134,41 @@ const WorkspaceTabs = memo(() => {
     );
   }
 
+  function renderWorkspaceTabContentLayer() {
+    // Keep tab bodies outside the recursive split tree so layout changes never remount editors or result views.
+    return (
+      <div key="workspace-tab-content-layer" className={styles.workspaceTabContentLayer}>
+        {workspaceTabItems.map((item) => {
+          const paneId = activeTabPaneIds.get(item.key);
+          const bounds = paneId ? paneContentBounds[paneId] : undefined;
+          const isActive = paneId !== undefined;
+          if (item.destroyOnHide && !isActive) {
+            return null;
+          }
+          return (
+            <div
+              key={item.key}
+              aria-hidden={!bounds}
+              className={`${styles.workspaceTabContentItem} ${bounds ? styles.workspaceTabContentItemActive : ''}`}
+              style={
+                bounds
+                  ? {
+                      left: bounds.left,
+                      top: bounds.top,
+                      width: bounds.width,
+                      height: bounds.height,
+                    }
+                  : undefined
+              }
+            >
+              {item.children}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
   const draggingWorkspaceTab = draggingWorkspaceTabKey
     ? workspaceTabItems.find((item) => String(item.key) === draggingWorkspaceTabKey)
     : undefined;
@@ -2079,7 +2185,7 @@ const WorkspaceTabs = memo(() => {
         setWorkspaceTabDropTarget(undefined);
       }}
     >
-      <div className={styles.splitTabBox}>
+      <div ref={splitTabBoxRef} className={styles.splitTabBox}>
         {workspaceTabSplitLayout ? (
           renderWorkspaceTabPaneNode(
             ensureWorkspaceTabSplitNodeIds(
@@ -2089,6 +2195,7 @@ const WorkspaceTabs = memo(() => {
         ) : (
           renderWorkspaceTabPane(MAIN_WORKSPACE_TAB_PANE, styles.splitPaneItem)
         )}
+        {renderWorkspaceTabContentLayer()}
       </div>
       <DragOverlay adjustScale={false}>
         {draggingWorkspaceTab && (
