@@ -92,6 +92,7 @@ interface IProps {
   hideAdd?: boolean;
   editableNameOnBlur?: (option: ITabItem) => void;
   concealTabHeader?: boolean;
+  concealTabContent?: boolean;
   // Keep the final tab open.
   lastTabCannotClosed?: boolean;
   destroyInactiveTabPane?: boolean;
@@ -223,6 +224,7 @@ export default memo<IProps>((props) => {
     lastTabCannotClosed,
     editableNameOnBlur,
     concealTabHeader,
+    concealTabContent = false,
     destroyInactiveTabPane = false,
     height = 40,
     tabMaxWidth = 'none',
@@ -989,7 +991,7 @@ export default memo<IProps>((props) => {
       />
       {!concealTabHeader && renderTabsNav()}
       {/* Hidden implementation. */}
-      {!destroyInactiveTabPane ? (
+      {!concealTabContent && (!destroyInactiveTabPane ? (
         <div className={styles.tabsContent}>
           {internalTabs?.map((t) => {
             if (t.destroyOnHide && t.key !== activeKey) {
@@ -1013,7 +1015,7 @@ export default memo<IProps>((props) => {
             {internalTabs.find((t) => t.key === activeKey)?.children}
           </div>
         </div>
-      )}
+      ))}
     </div>
   );
 });
