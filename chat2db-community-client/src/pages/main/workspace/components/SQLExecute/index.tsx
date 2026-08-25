@@ -104,6 +104,7 @@ import {
 } from '@/service/sqlExecutionLog';
 import { isDesktop } from '@/utils/env';
 import { v4 as uuidv4 } from 'uuid';
+import { buildStreamResultExecuteSqlParams } from './streamResultExecutionParams';
 
 const SplitPaneAny = SplitPane as any;
 const HISTORY_BATCH_LIMIT = 30;
@@ -228,6 +229,7 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
   const availabilityGenerationByExecutionSequenceRef = useRef(new Map<number, number>());
   const keepExistingOutputByExecutionSequenceRef = useRef<Record<number, boolean>>({});
   const desktopExecutionCallbackBySequenceRef = useRef<Record<number, DesktopExecutionCallbackState>>({});
+  const executionParamsBySequenceRef = useRef<Record<number, IExecuteSqlParams>>({});
   const currentStatementSequenceByExecutionIdRef = useRef<Record<string, number>>({});
   const [resultBatchKey, setResultBatchKey] = useState(0);
   const [forceOutputTab, setForceOutputTab] = useState(false);
@@ -424,6 +426,7 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
       delete keepExistingOutputByExecutionSequenceRef.current[executionSequence];
       delete resultDisplayBatchSequenceByExecutionRef.current[executionSequence];
       delete desktopExecutionCallbackBySequenceRef.current[executionSequence];
+      delete executionParamsBySequenceRef.current[executionSequence];
     }
   }, [discardPendingRows]);
   const handleSqlExecutionRequestStart = useCallback(
@@ -542,6 +545,11 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
         setResultDataList((prev) => {
           const nextResult = {
             ...resultWithIdentity,
+            executeSqlParams: buildStreamResultExecuteSqlParams(
+              executionParamsBySequenceRef.current[executionSequence],
+              resultWithIdentity,
+              resultSequence,
+            ),
             extra: {
               ...(resultWithIdentity.extra || {}),
               executionSequence,
@@ -624,6 +632,11 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
         const resultKey = event.resultKey || buildResultKey(event.executionId, statementSequence, resultSequence);
         const nextResult = {
           ...resultWithIdentity,
+          executeSqlParams: buildStreamResultExecuteSqlParams(
+            executionParamsBySequenceRef.current[executionSequence],
+            resultWithIdentity,
+            resultSequence,
+          ),
           displayName: getResultDisplayName({
             executionSequence: displayBatchSequence,
             statementSequence,
@@ -853,6 +866,7 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
       databaseName: executionSnapshot.databaseName,
       schemaName: executionSnapshot.schemaName,
     };
+    executionParamsBySequenceRef.current[executionSequence] = executeSqlParams;
 
     const webExecutionId = isDesktop ? undefined : uuidv4();
     const executionLogContext = getExecutionLogContext(executionSnapshot);
@@ -1001,6 +1015,7 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
         delete keepExistingOutputByExecutionSequenceRef.current[executionSequence];
         delete resultDisplayBatchSequenceByExecutionRef.current[executionSequence];
         delete desktopExecutionCallbackBySequenceRef.current[executionSequence];
+        delete executionParamsBySequenceRef.current[executionSequence];
       });
   };
 
