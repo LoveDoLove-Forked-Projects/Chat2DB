@@ -115,13 +115,6 @@ const KEEP_EXECUTION_LOG_HISTORY_STORAGE_KEY = createExecutionConsoleKeepHistory
 );
 const KEEP_RESULT_HISTORY_STORAGE_KEY = createResultTabKeepHistoryStorageKey('community', __RUNTIME_ENV__);
 
-interface StreamDiagnostic {
-  startedAt: number;
-  receivedRows: number;
-  receivedEvents: number;
-  flushes: number;
-}
-
 interface IProps {
   boundInfo: IBoundInfo;
   initDDL: string;
@@ -252,7 +245,6 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
   const resultPageSizeRef = useRef<number>();
   const pendingRowsRef = useRef<PendingSqlExecutionRows>(new Map());
   const pendingRowsFlushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const streamDiagnosticsRef = useRef(new Map<string, StreamDiagnostic>());
   const closedSqlExecutionResultsRef = useRef<ClosedSqlExecutionResults>(new Map());
   const [sqlExecutionLogState, setSqlExecutionLogState] = useState(createSqlExecutionLogState);
   const [keepExecutionLogHistory, setKeepExecutionLogHistory] = useState(() =>
@@ -284,20 +276,6 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
     const pendingRows = pendingRowsRef.current;
     if (!pendingRows.size) {
       return;
-    }
-    const diagnosticsEnabled = process.env.NODE_ENV !== 'production';
-    let pendingRowCount = 0;
-    if (diagnosticsEnabled) {
-      pendingRows.forEach((chunk, resultKey) => {
-        pendingRowCount += chunk.dataList?.length || 0;
-        const diagnostic = streamDiagnosticsRef.current.get(resultKey);
-        if (diagnostic) {
-          diagnostic.flushes += 1;
-        }
-      });
-      console.info(
-        `[Chat2DB][sql-stream] ui-flush results=${pendingRows.size} rows=${pendingRowCount}`,
-      );
     }
     pendingRowsRef.current = new Map();
     setResultDataList((prev) => {
@@ -602,17 +580,6 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
         const resultSequence =
           getEventResultSequence(event, chunkWithIdentity, getResultSequence(chunkWithIdentity)) || 1;
         const resultKey = event.resultKey || buildResultKey(event.executionId, statementSequence, resultSequence);
-        if (process.env.NODE_ENV !== 'production') {
-          const diagnostic = streamDiagnosticsRef.current.get(resultKey) || {
-            startedAt: performance.now(),
-            receivedRows: 0,
-            receivedEvents: 0,
-            flushes: 0,
-          };
-          diagnostic.receivedRows += chunkWithIdentity.dataList?.length || 0;
-          diagnostic.receivedEvents += 1;
-          streamDiagnosticsRef.current.set(resultKey, diagnostic);
-        }
         if (isSqlExecutionResultClosed(closedSqlExecutionResultsRef.current, event.executionId, resultKey)) {
           return;
         }
@@ -675,17 +642,6 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
           const callbackState = desktopExecutionCallbackBySequenceRef.current[executionSequence];
           if (callbackState) {
             callbackState.data = upsertResultFinished(callbackState.data, nextResult);
-          }
-        }
-        if (process.env.NODE_ENV !== 'production') {
-          const diagnostic = streamDiagnosticsRef.current.get(resultKey);
-          if (diagnostic) {
-            const streamMs = Math.round(performance.now() - diagnostic.startedAt);
-            console.info(
-              `[Chat2DB][sql-stream] ui-finished resultKey=${resultKey} rows=${diagnostic.receivedRows} ` +
-                `events=${diagnostic.receivedEvents} flushes=${diagnostic.flushes} streamMs=${streamMs}`,
-            );
-            streamDiagnosticsRef.current.delete(resultKey);
           }
         }
         if (!isSqlExecutionResultClosed(closedSqlExecutionResultsRef.current, event.executionId, resultKey)) {

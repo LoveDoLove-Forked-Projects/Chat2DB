@@ -1285,7 +1285,6 @@ public class DefaultSQLExecutor implements ICommandExecutor {
         executeResult.setResultSetId(resultSetId);
         setStreamResultId(executeResult, streamResultId);
         ResultSet rs = null;
-        long resultStartedAtNanos = System.nanoTime();
         long fetchDurationNanos = 0L;
         try {
             long metadataStartedNanos = System.nanoTime();
@@ -1306,15 +1305,6 @@ public class DefaultSQLExecutor implements ICommandExecutor {
                     count, pageNo, pageSize, cancellation, consumer, executeResult);
             fetchDurationNanos = ExecutionTiming.addNanos(
                     fetchDurationNanos, streamingDataResult.fetchDurationNanos());
-            log.info("[sql-stream] resultSet={} pageNo={} pageSize={} rows={} executeMs={} fetchConvertMs={} callbackMs={} resultMs={}",
-                    resultSetId,
-                    pageNo,
-                    pageSize,
-                    streamingDataResult.dataList().size(),
-                    executeDurationNanos / 1_000_000L,
-                    fetchDurationNanos / 1_000_000L,
-                    streamingDataResult.callbackDurationNanos() / 1_000_000L,
-                    ExecutionTiming.elapsedNanos(resultStartedAtNanos) / 1_000_000L);
             executeResult.setDataList(streamingDataResult.dataList());
             setPageInfo(executeResult, sqlType, pageNo, pageSize);
         } finally {
@@ -1402,12 +1392,10 @@ public class DefaultSQLExecutor implements ICommandExecutor {
         }
         long fetchDurationNanos = ExecutionTiming.subtractNanos(
                 ExecutionTiming.elapsedNanos(startedAtNanos), callbackDurationNanos);
-        return new StreamingDataResult(dataList, fetchDurationNanos, callbackDurationNanos);
+        return new StreamingDataResult(dataList, fetchDurationNanos);
     }
 
-    private record StreamingDataResult(List<List<ResultCell>> dataList,
-                                       long fetchDurationNanos,
-                                       long callbackDurationNanos) {
+    private record StreamingDataResult(List<List<ResultCell>> dataList, long fetchDurationNanos) {
     }
 
     private void addRowNumberHeader(ExecuteResponse executeResult) {

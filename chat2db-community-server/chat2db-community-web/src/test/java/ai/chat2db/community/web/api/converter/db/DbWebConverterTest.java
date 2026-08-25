@@ -1,19 +1,22 @@
-package ai.chat2db.community.web.api.adapter.db.execution;
+package ai.chat2db.community.web.api.converter.db;
 
 import ai.chat2db.community.domain.api.model.result.ExecuteResponse;
 import ai.chat2db.community.domain.api.model.result.ResultCell;
+import ai.chat2db.community.web.api.model.response.db.ExecuteResultResponse;
 import org.junit.jupiter.api.Test;
+import org.mapstruct.factory.Mappers;
 
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotSame;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
-class SqlExecutionConsumerTest {
+class DbWebConverterTest {
+
+    private final DbWebConverter converter = Mappers.getMapper(DbWebConverter.class);
 
     @Test
-    void completionMetadataOmitsRowsAndPreservesFinalPagingState() {
+    void completionResponseOmitsRowsAndPreservesFinalPagingState() {
         ExecuteResponse result = ExecuteResponse.builder()
                 .success(Boolean.TRUE)
                 .dataList(List.of(
@@ -26,14 +29,13 @@ class SqlExecutionConsumerTest {
                 .resultSetId(1)
                 .build();
 
-        ExecuteResponse metadata = SqlExecutionConsumer.completionMetadata(result);
+        ExecuteResultResponse response = converter.dto2completionResponse(result);
 
-        assertNotSame(result, metadata);
-        assertTrue(metadata.getDataList().isEmpty());
+        assertNull(response.getDataList());
         assertEquals(2, result.getDataList().size());
-        assertEquals(50_000, metadata.getPageSize());
-        assertEquals("50000+", metadata.getFuzzyTotal());
-        assertEquals(Boolean.TRUE, metadata.getHasNextPage());
-        assertEquals(1, metadata.getResultSetId());
+        assertEquals(50_000, response.getPageSize());
+        assertEquals("50000+", response.getFuzzyTotal());
+        assertEquals(Boolean.TRUE, response.getHasNextPage());
+        assertEquals(1, response.getResultSetId());
     }
 }

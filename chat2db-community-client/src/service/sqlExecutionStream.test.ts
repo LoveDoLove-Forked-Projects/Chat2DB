@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import type { IManageResultData } from '@/typings';
 import {
-  appendCompletedQueryResult,
   appendRowsToPendingResult,
   clearClosedSqlExecutionResults,
   cancelSqlExecutionWithReconciliation,
@@ -77,40 +76,6 @@ assert.equal(
 assert.deepEqual(pendingRows.get('execution-1:1:1')!.dataList, [['first'], ['second'], ['third']]);
 discardPendingRowsForExecution(pendingRows, 'execution-1');
 assert.equal(pendingRows.size, 0, 'terminal cleanup discards buffered rows for the completed execution');
-
-const completedQuery = chunk([['finished']]);
-const ignoredRowsEvent = appendCompletedQueryResult([], {
-  executionId: 'execution-1',
-  eventType: 'rows',
-  message: chunk([['streamed']]),
-});
-assert.deepEqual(ignoredRowsEvent, [], 'row chunks do not trigger completed-result callbacks');
-
-const completedResults = appendCompletedQueryResult(ignoredRowsEvent, {
-  executionId: 'execution-1',
-  eventType: 'resultFinished',
-  message: completedQuery,
-});
-assert.deepEqual(completedResults, [completedQuery], 'a completed query result is retained for callback consumers');
-
-const emptyCompletedQuery = chunk([]);
-const completedResultsWithEmptyQuery = appendCompletedQueryResult(completedResults, {
-  executionId: 'execution-1',
-  eventType: 'resultFinished',
-  message: emptyCompletedQuery,
-});
-assert.deepEqual(
-  completedResultsWithEmptyQuery,
-  [completedQuery, emptyCompletedQuery],
-  'an empty query result still retains its headers for callback consumers',
-);
-
-const ignoredUpdate = appendCompletedQueryResult(completedResultsWithEmptyQuery, {
-  executionId: 'execution-1',
-  eventType: 'updateCount',
-  message: { ...chunk([]), dataList: null },
-});
-assert.equal(ignoredUpdate, completedResultsWithEmptyQuery, 'non-query results do not enter query callbacks');
 
 const closedResults: ClosedSqlExecutionResults = new Map();
 markSqlExecutionResultsClosed(closedResults, [

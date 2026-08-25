@@ -9,7 +9,6 @@ import ai.chat2db.community.domain.api.model.result.ExecuteResponse;
 import ai.chat2db.community.domain.api.model.result.ResultCell;
 import ai.chat2db.community.domain.api.service.db.ISqlExecutionResultConsumer;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -88,7 +87,7 @@ public class SqlExecutionConsumer implements ISqlExecutionResultConsumer {
     public void resultFinished(ExecuteResponse result) {
         synchronized (eventContext) {
             SqlExecutionEventIdentity identity = eventContext.resultActive(result);
-            sink.send("resultFinished", dbWebConverter.dto2response(completionMetadata(result)), identity);
+            sink.send("resultFinished", dbWebConverter.dto2completionResponse(result), identity);
         }
     }
 
@@ -138,33 +137,4 @@ public class SqlExecutionConsumer implements ISqlExecutionResultConsumer {
         largeValueTokenService.attachTokens(attachLargeValueTokensRequest);
     }
 
-    static ExecuteResponse completionMetadata(ExecuteResponse result) {
-        if (result == null) {
-            return null;
-        }
-        return ExecuteResponse.builder()
-                .success(result.getSuccess())
-                .message(result.getMessage())
-                .sql(result.getSql())
-                .originalSql(result.getOriginalSql())
-                .description(result.getDescription())
-                .updateCount(result.getUpdateCount())
-                .headerList(result.getHeaderList())
-                .dataList(Collections.emptyList())
-                .sqlType(result.getSqlType())
-                .hasNextPage(result.getHasNextPage())
-                .pageNo(result.getPageNo())
-                .pageSize(result.getPageSize())
-                .fuzzyTotal(result.getFuzzyTotal())
-                .canEdit(result.isCanEdit())
-                .tableName(result.getTableName())
-                .extra(result.getExtra())
-                .refreshTargets(result.getRefreshTargets())
-                .comment(result.getComment())
-                .resultSetId(result.getResultSetId())
-                .statementSequence(result.getStatementSequence())
-                .executionMetrics(result.getExecutionMetrics())
-                .executionContext(result.getExecutionContext())
-                .build();
-    }
 }

@@ -28,16 +28,6 @@ export interface SqlExecutionEvent<T = any> {
   message: T;
 }
 
-export function appendCompletedQueryResult(
-  current: IManageResultData[],
-  event: SqlExecutionEvent,
-): IManageResultData[] {
-  if (event.eventType !== 'resultFinished' || !Array.isArray(event.message?.dataList)) {
-    return current;
-  }
-  return [...current, event.message as IManageResultData];
-}
-
 export interface SqlExecutionStartResult {
   executionId: string;
 }

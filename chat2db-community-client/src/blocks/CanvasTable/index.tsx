@@ -211,13 +211,7 @@ const CanvasTable = forwardRef((props: IProps, ref: ForwardedRef<CanvasTableRef>
   // update records
   useEffect(() => {
     if (!tableInstance) return;
-    const startedAt = process.env.NODE_ENV !== 'production' ? performance.now() : 0;
     tableInstance.setRecords(records);
-    if (process.env.NODE_ENV !== 'production' && records.length >= 5000) {
-      console.info(
-        `[Chat2DB][vtable] setRecords rows=${records.length} durationMs=${Math.round(performance.now() - startedAt)}`,
-      );
-    }
   }, [records]);
 
   // update columns
