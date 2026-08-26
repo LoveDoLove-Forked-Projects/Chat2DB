@@ -31,6 +31,7 @@ import {
   CloseActiveResultTabHandlerResult,
   registerCloseActiveResultTabHandler,
 } from '@/service/resultTabShortcut';
+import { shouldProcessTabScrollRequest, type ProcessedTabScrollRequest } from './activeTabScroll';
 
 export interface ITabItem {
   prefixIcon?: string | React.ReactNode;
@@ -91,6 +92,7 @@ interface IProps {
   hideAdd?: boolean;
   editableNameOnBlur?: (option: ITabItem) => void;
   concealTabHeader?: boolean;
+  concealTabContent?: boolean;
   // Keep the final tab open.
   lastTabCannotClosed?: boolean;
   destroyInactiveTabPane?: boolean;
@@ -135,18 +137,23 @@ interface TabPaneDroppableNavProps {
   dropOverClassName: string;
 }
 
-function SortableTabItem({
-  children,
-  className,
-  disabled,
-  itemKey,
-  style,
-  ...restProps
-}: SortableTabItemProps) {
+const SortableTabItem = React.forwardRef<HTMLDivElement, SortableTabItemProps>(
+  ({ children, className, disabled, itemKey, style, ...restProps }, forwardedRef) => {
   const { attributes, listeners, setNodeRef, isDragging } = useSortable({
     id: String(itemKey),
     disabled,
   });
+  const mergedRef = React.useCallback(
+    (node: HTMLDivElement | null) => {
+      setNodeRef(node);
+      if (typeof forwardedRef === 'function') {
+        forwardedRef(node);
+      } else if (forwardedRef) {
+        forwardedRef.current = node;
+      }
+    },
+    [forwardedRef, setNodeRef],
+  );
 
   const sortableStyle: React.CSSProperties = {
     ...style,
@@ -158,7 +165,7 @@ function SortableTabItem({
 
   return (
     <div
-      ref={setNodeRef}
+      ref={mergedRef}
       style={sortableStyle}
       className={className}
       {...attributes}
@@ -168,7 +175,9 @@ function SortableTabItem({
       {children}
     </div>
   );
-}
+  },
+);
+SortableTabItem.displayName = 'SortableTabItem';
 
 function TabPaneDroppableNav({ children, className, droppableId, dropOverClassName }: TabPaneDroppableNavProps) {
   const { setNodeRef, isOver } = useDroppable({
@@ -215,6 +224,7 @@ export default memo<IProps>((props) => {
     lastTabCannotClosed,
     editableNameOnBlur,
     concealTabHeader,
+    concealTabContent = false,
     destroyInactiveTabPane = false,
     height = 40,
     tabMaxWidth = 'none',
@@ -236,13 +246,11 @@ export default memo<IProps>((props) => {
   const [editingTab, setEditingTab] = useState<ITabItem['key'] | undefined>();
   const tabBoxRef = useRef<HTMLDivElement>(null);
   const tabListBoxRef = useRef<HTMLDivElement>(null);
+  const tabItemRefs = useRef(new Map<TabKey, HTMLDivElement>());
   const closeActiveTabOnShortcutRef = useRef<() => CloseActiveResultTabHandlerResult>(
     () => 'inactive',
   );
-  const lastTabScrollRequestRef = useRef<{
-    activeKey: IProps['activeKey'];
-    scrollKey: IProps['activeTabScrollKey'];
-  }>();
+  const lastTabScrollRequestRef = useRef<ProcessedTabScrollRequest>();
   const [showAddButton, setShowAddButton] = useState<boolean>(!hideAdd);
   const { styles, cx } = useStyles({
     height,
@@ -308,17 +316,12 @@ export default memo<IProps>((props) => {
       return;
     }
 
-    const lastRequest = lastTabScrollRequestRef.current;
-    if (
-      lastRequest &&
-      Object.is(lastRequest.activeKey, activeKey) &&
-      Object.is(lastRequest.scrollKey, activeTabScrollKey)
-    ) {
+    if (!shouldProcessTabScrollRequest(lastTabScrollRequestRef.current, activeKey, activeTabScrollKey)) {
       return;
     }
 
     const animationFrame = window.requestAnimationFrame(() => {
-      const activeTab = tabListBoxRef.current?.querySelector(`.${styles.activeTab}`);
+      const activeTab = activeKey === null || activeKey === undefined ? undefined : tabItemRefs.current.get(activeKey);
       if (!activeTab) {
         return;
       }
@@ -670,6 +673,14 @@ export default memo<IProps>((props) => {
   }
 
   const renderTabItem = (t: ITabItem, index: number) => {
+    const setTabItemRef = (node: HTMLDivElement | null) => {
+      if (node) {
+        tabItemRefs.current.set(t.key, node);
+      } else {
+        tabItemRefs.current.delete(t.key);
+      }
+    };
+
     function inputOnChange(value: string) {
       internalTabs[index].label = value;
       setInternalTabs([...internalTabs]);
@@ -713,6 +724,7 @@ export default memo<IProps>((props) => {
     };
     const tabNode = enableReorder ? (
       <SortableTabItem
+        ref={setTabItemRef}
         disabled={false}
         itemKey={t.key}
         onContextMenu={handleContextMenu}
@@ -735,6 +747,7 @@ export default memo<IProps>((props) => {
       </SortableTabItem>
     ) : (
       <div
+        ref={setTabItemRef}
         onContextMenu={handleContextMenu}
         onDoubleClick={() => {
           onDoubleClick(t);
@@ -978,7 +991,7 @@ export default memo<IProps>((props) => {
       />
       {!concealTabHeader && renderTabsNav()}
       {/* Hidden implementation. */}
-      {!destroyInactiveTabPane ? (
+      {!concealTabContent && (!destroyInactiveTabPane ? (
         <div className={styles.tabsContent}>
           {internalTabs?.map((t) => {
             if (t.destroyOnHide && t.key !== activeKey) {
@@ -1002,7 +1015,7 @@ export default memo<IProps>((props) => {
             {internalTabs.find((t) => t.key === activeKey)?.children}
           </div>
         </div>
-      )}
+      ))}
     </div>
   );
 });
