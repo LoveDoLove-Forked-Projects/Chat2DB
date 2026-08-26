@@ -51,6 +51,7 @@ import { retainPinnedResults } from './resultTabPinning';
 import { useTreeStore } from '@/store/tree';
 import { resolveDataSourceIdentityColor } from '@/utils/dataSourceIdentity';
 import type { DataSourceExecutionTarget } from '@/service/dataSourceExecutionSnapshot';
+import type { ResultPaging } from './components/ResultSet/pagination';
 
 interface IProps {
   className?: string;
@@ -72,6 +73,7 @@ interface IProps {
     historyResultDataList: IManageResultData[];
     closedResultIdentities: SqlExecutionResultIdentity[];
   }) => void;
+  onResultPagingChange?: (resultData: IManageResultData, paging: ResultPaging) => Promise<unknown> | void;
 }
 
 const RESULT_TAB_ORDER_STORAGE_KEY = createResultTabOrderStorageKey('community', __RUNTIME_ENV__);
@@ -306,6 +308,7 @@ const SearchResult = forwardRef((props: IProps, ref: ForwardedRef<ISearchResultR
               active={activeTabId === queryResultData.uuid}
               viewTable={viewTable || queryResultData.canEdit}
               resultData={queryResultData}
+              onResultPagingChange={props.onResultPagingChange}
             />
           ),
         };
@@ -321,6 +324,7 @@ const SearchResult = forwardRef((props: IProps, ref: ForwardedRef<ISearchResultR
     orderedConsoleResultDataList,
     dataSourceList,
     props.showExecutionResultCoordinates,
+    props.onResultPagingChange,
     styles.resultTabIcon,
     viewTable,
     pinnedResultTabKeys,
