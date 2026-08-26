@@ -2,7 +2,12 @@ import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useStat
 import { createPortal } from 'react-dom';
 import { useStyles } from './style';
 import ResultSetToolbar, { ToolbarOperationType } from '../ResultSetToolbar';
-import { resolveResultPaging, ResultPaging } from './pagination';
+import {
+  buildResultPageExecuteParams,
+  resolveResultPaging,
+  ResultPaging,
+  runResultPagingRequest,
+} from './pagination';
 import ScreeningResult, { IScreeningResultRef } from '../ScreeningResult';
 import FESearch, { FESearchRef } from '../FESearch';
 import ResultSetTable, { IResultSetSelection, ResultSetTableRef } from '../ResultSetTable';
@@ -12,8 +17,8 @@ import SQLPreviewExecute, { SQLPreviewExecuteRef } from '../SQLPreviewExecute';
 import ViewData, { ViewDataRef } from '../ViewData';
 import RowDetail, { IChangeDataParams, IViewDataParams, RowDetailRef } from '../RowDetail';
 import SelectionAggregates from '../SelectionAggregates';
-import { IManageResultData } from '@/typings';
-import { Button, Spin, Tabs, Tooltip } from 'antd';
+import { IExecuteSqlParams, IManageResultData } from '@/typings';
+import { Button, Tabs, Tooltip } from 'antd';
 import i18n from '@/i18n';
 import { copyToClipboard } from '@/utils';
 import StatusBar, { StatusBarRef } from '../StatusBar';
@@ -57,12 +62,13 @@ import {
 } from '../ResultSetTable/columnState';
 import { resolveResultInspectorActiveCell } from '../ResultSetTable/selectionState';
 import { areResultCellValuesEquivalent } from './inspectorState';
+import SqlExecutionLoading from '@/components/SqlExecutionLoading';
 
 interface IProps {
   resultData: IManageResultData;
   active: boolean;
   viewTable?: boolean;
-  onResultPagingChange?: (resultData: IManageResultData, paging: ResultPaging) => Promise<unknown> | void;
+  onResultPagingChange?: (resultData: IManageResultData, params: IExecuteSqlParams) => Promise<unknown> | void;
 }
 
 const RESULT_INSPECTOR_MODE_STORAGE_KEY = createResultInspectorModeStorageKey(
@@ -77,6 +83,9 @@ export default memo<IProps>(
     const { executeSQL, stopExecuteSQL, executing, canExecuteSQL } = useSqlExecutor();
     const [resultData, setResultData] = useState<IManageResultData>(props.resultData);
     const executeRequestSequenceRef = useRef(0);
+    const baseQuerySqlRef = useRef(
+      props.resultData.originalSql || props.resultData.sql || props.resultData.executeSqlParams?.sql || '',
+    );
     const screenResultRef = useRef<IScreeningResultRef>(null);
     const resultSetTableRef = useRef<ResultSetTableRef>(null);
     const [hasOperationRecord, setHasOperationRecord] = useState(false);
@@ -236,17 +245,24 @@ export default memo<IProps>(
         // If there is no executeSqlParams, the execution information is not known, and no execution is performed.
         if (!resultData.executeSqlParams) return;
         const paging = resolveResultPaging(resultData.executeSqlParams, pagingOverride);
-        if (props.onResultPagingChange) {
-          props.onResultPagingChange(resultData, paging);
+        const executeSqlParams = buildResultPageExecuteParams(
+          resultData.executeSqlParams,
+          paging,
+          viewTable ? screenResultRef.current?.getJointSQL() || '' : undefined,
+        );
+        const onResultPagingChange = props.onResultPagingChange;
+        if (onResultPagingChange) {
+          void runResultPagingRequest(
+            () => onResultPagingChange(resultData, executeSqlParams),
+            {
+              onSuccess: () => setExecuteErrorMessage(null),
+              onError: (message) => {
+                setExecuteErrorMessage(message);
+                setResultData((current) => ({ ...current }));
+              },
+            },
+          );
           return;
-        }
-        const executeSqlParams = {
-          ...resultData.executeSqlParams,
-          ...paging,
-        };
-        // Filter conditions when viewing tables
-        if (viewTable) {
-          executeSqlParams.sql = screenResultRef.current?.getJointSQL() || '';
         }
         const requestSequence = ++executeRequestSequenceRef.current;
         executeSQL(executeSqlParams).then((data) => {
@@ -800,14 +816,7 @@ export default memo<IProps>(
       <>
         <div tabIndex={0} className={cx(styles.container)} ref={resultSetRef} id={searchAreaId}>
           {(executing || submitLoading) && (
-            <div className={styles.tableLoading}>
-              <Spin />
-              {executing && (
-                <div className={styles.stopExecuteSql} onClick={stopExecuteSQL}>
-                  {i18n('common.button.cancelRequest')}
-                </div>
-              )}
-            </div>
+            <SqlExecutionLoading onCancel={executing ? stopExecuteSQL : undefined} />
           )}
           <>
             <ResultSetToolbar
@@ -822,7 +831,7 @@ export default memo<IProps>(
               <ScreeningResult
                 ref={screenResultRef}
                 onSearch={handleSearch}
-                originalSql={props.resultData.originalSql}
+                originalSql={baseQuerySqlRef.current}
                 promptWord={resultData.headerList}
                 orderByText={orderByText}
                 databaseType={resultData.executeSqlParams?.databaseType}
