@@ -83,6 +83,7 @@ import java.nio.file.Paths;
 import java.util.*;
 import java.util.List;
 import java.util.Timer;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -94,6 +95,7 @@ public class MainJFrame extends JFrame {
             ConsoleCodec.CHAT2DB_IPC_RESPONSE_SERVICE_STATUS_SUCCESS;
     private static final String MAC_OS_14_1_VERSION_PREFIX = "14.1";
     private static final String WEB_FRONTEND_PROPERTY = "chat2db.jcef.web-frontend";
+    private static final String WEB_FRONTEND_URL_PROPERTY = "chat2db.jcef.web-frontend-url";
     private static final String WEB_FRONTEND_URL = "http://127.0.0.1:8889/";
     private static final String DESKTOP_READY_FILE_PROPERTY = "chat2db.jcef.ready-file";
     private JSplitPane splitPane;
@@ -114,6 +116,7 @@ public class MainJFrame extends JFrame {
             TimeUnit.SECONDS,
             new LinkedBlockingQueue<>()
     );
+    private final Map<Long, CancellableCefQueryCallback> activeQueryCallbacks = new ConcurrentHashMap<>();
     private void ensureBrowserFocusIfNeeded() {
         if (browser_ == null || browserUI_ == null) {
             return;
@@ -136,7 +139,7 @@ public class MainJFrame extends JFrame {
         return instance;
     }
     static {
-        appName = DesktopProductTitle.resolve(OS.isWindows(), ConfigUtils.isCommunity(), ConfigUtils.isLocalEdition());
+        appName = DesktopProductTitle.resolve();
         if (!OS.isMacintosh()) {
             JFrame.setDefaultLookAndFeelDecorated(true);
             JDialog.setDefaultLookAndFeelDecorated(true);
@@ -669,6 +672,8 @@ public class MainJFrame extends JFrame {
             @Override
             public boolean onQuery(CefBrowser browser, CefFrame frame, long queryId, String data,
                                    boolean persistent, CefQueryCallback callback) {
+                CancellableCefQueryCallback guardedCallback = new CancellableCefQueryCallback(callback);
+                activeQueryCallbacks.put(queryId, guardedCallback);
                 executor.submit(() -> {
                     String action = "unKnow Action";
                     ConsoleMessage wsMessage = new ConsoleMessage();
@@ -687,14 +692,14 @@ public class MainJFrame extends JFrame {
                         bridge.setHeaders(wsMessage);
                         IJcefActionHandler handler = actionHandlers.get(Pair.of(action, wsMessage.getMethod().toLowerCase()));
                         if (handler != null) {
-                            handler.handle(wsMessage, wsResult, callback);
+                            handler.handle(wsMessage, wsResult, guardedCallback);
                         } else {
                             while (!bridge.isReady()) {
                                 Thread.sleep(20);
                             }
                             wsResult = bridge.doController(wsMessage);
                             if (wsResult != null) {
-                                ResponseBuilder.buildSuccess(wsResult, callback);
+                                ResponseBuilder.buildSuccess(wsResult, guardedCallback);
                             } else {
                                 ResponseBuilder.buildSuccess(
                                         ConsoleResult.builder()
@@ -704,14 +709,16 @@ public class MainJFrame extends JFrame {
                                                 .method(wsMessage.getMethod())
                                                 .message(Map.of("success", true))
                                                 .build(),
-                                        callback
+                                        guardedCallback
                                 );
                             }
                         }
                     } catch (ForestNetworkException ex) {
-                        handleNetworkException(ex, wsMessage, callback, action);
+                        handleNetworkException(ex, wsMessage, guardedCallback, action);
                     } catch (Exception e) {
-                        handleGenericException(e, wsMessage, callback, action);
+                        handleGenericException(e, wsMessage, guardedCallback, action);
+                    } finally {
+                        activeQueryCallbacks.remove(queryId, guardedCallback);
                     }
                 });
                 return true;
@@ -719,6 +726,10 @@ public class MainJFrame extends JFrame {
             @Override
             public void onQueryCanceled(CefBrowser browser, CefFrame frame, long queryId) {
                 log.info("JS query canceled: {}", queryId);
+                CancellableCefQueryCallback callback = activeQueryCallbacks.remove(queryId);
+                if (callback != null) {
+                    callback.cancel();
+                }
             }
         }, true);
         this.client_.addMessageRouter(messageRouter);
@@ -748,8 +759,8 @@ public class MainJFrame extends JFrame {
         log.info("4. Starting CefBrowser and UI component creation...");
         String indexHtmlFile;
         if (Boolean.getBoolean(WEB_FRONTEND_PROPERTY)) {
-            indexHtmlFile = WEB_FRONTEND_URL;
-            log.info("Using Community Web frontend for JCEF development: {}", indexHtmlFile);
+            indexHtmlFile = resolveWebFrontendUrl();
+            log.info("Using web frontend for JCEF development: {}", indexHtmlFile);
         } else {
             String currentJarPath = OSOperateUtil.getCurrentJarPath();
             try {
@@ -812,6 +823,12 @@ public class MainJFrame extends JFrame {
         });
         log.info("4. CefBrowser and UI component creation completed.");
     }
+
+    private static String resolveWebFrontendUrl() {
+        String configuredUrl = System.getProperty(WEB_FRONTEND_URL_PROPERTY);
+        return StringUtils.isBlank(configuredUrl) ? WEB_FRONTEND_URL : configuredUrl;
+    }
+
     private void initializeFrame() {
         log.info("5. Starting JFrame initialization...");
         initAppWindowSize();
