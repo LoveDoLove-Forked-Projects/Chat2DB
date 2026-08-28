@@ -396,9 +396,10 @@ public class AiModelConfigServiceImpl implements IAiModelConfigService {
     }
 
     private synchronized void persistToDisk() {
-        Path temp = Paths.get(storagePath.toString() + ".tmp");
+        Path temp = null;
         try {
-            Files.createDirectories(storagePath.getParent());
+            Path parent = storagePath.getParent();
+            Files.createDirectories(parent);
             StorageData data = new StorageData();
             List<AiModelConfig> all = userConfigMap.values().stream()
                     .flatMap(List::stream)
@@ -407,15 +408,32 @@ public class AiModelConfigServiceImpl implements IAiModelConfigService {
             data.setConfigs(all);
             // Write to a temp file then atomically rename, so a crash mid-write
             // does not corrupt/empty the config file (which stores encrypted API keys).
+            temp = Files.createTempFile(parent, storagePath.getFileName() + ".", ".tmp");
             objectMapper.writerWithDefaultPrettyPrinter().writeValue(temp.toFile(), data);
-            try {
-                Files.move(temp, storagePath, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-            } catch (AtomicMoveNotSupportedException e) {
-                Files.move(temp, storagePath, StandardCopyOption.REPLACE_EXISTING);
-            }
+            replaceStorageFile(temp, storagePath);
         } catch (IOException e) {
-            try { Files.deleteIfExists(temp); } catch (IOException ignore) {}
             throw new IllegalStateException("Failed to persist ai config to " + storagePath, e);
+        } finally {
+            deleteTempFile(temp);
+        }
+    }
+
+    protected void replaceStorageFile(Path temp, Path target) throws IOException {
+        try {
+            Files.move(temp, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+        } catch (AtomicMoveNotSupportedException e) {
+            Files.move(temp, target, StandardCopyOption.REPLACE_EXISTING);
+        }
+    }
+
+    private void deleteTempFile(Path temp) {
+        if (temp == null) {
+            return;
+        }
+        try {
+            Files.deleteIfExists(temp);
+        } catch (IOException e) {
+            log.warn("Failed to clean up temporary ai config file: {}", temp, e);
         }
     }
 
