@@ -71,10 +71,8 @@ public class DMSimpleParserVisitor extends DMParserBaseVisitor<Void> {
         if (Objects.isNull(currentStatement)) {
             return null;
         }
-        // Statement#setType is first-write-wins. Set the outer type before visiting the
-        // inner DML so EXPLAIN remains the statement type.
         currentStatement.setType(SqlTypeEnum.EXPLAIN.name());
-        return super.visitExplain_statement(ctx);
+        return null;
     }
 
     @Override
