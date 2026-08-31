@@ -240,20 +240,33 @@ public class MysqlSqlBuilder extends DefaultSqlBuilder {
         if (oldIndex == null) {
             return false;
         }
-        if (!StringUtils.equals(oldIndex.getType(), newIndex.getType())
-                || !StringUtils.equals(oldIndex.getComment(), newIndex.getComment())) {
+        if (Objects.equals(oldIndex.getVisible(), newIndex.getVisible())) {
             return false;
         }
-        return indexColumnNames(oldIndex).equals(indexColumnNames(newIndex));
+        return indexDefinitionsMatchExceptVisibility(oldIndex, newIndex);
     }
 
-    private static List<String> indexColumnNames(TableIndex tableIndex) {
+    private static boolean indexDefinitionsMatchExceptVisibility(TableIndex oldIndex, TableIndex newIndex) {
+        return StringUtils.equalsIgnoreCase(oldIndex.getType(), newIndex.getType())
+                && StringUtils.equals(oldIndex.getComment(), newIndex.getComment())
+                && StringUtils.equalsIgnoreCase(StringUtils.trimToEmpty(oldIndex.getMethod()),
+                        StringUtils.trimToEmpty(newIndex.getMethod()))
+                && indexColumnDefinitions(oldIndex).equals(indexColumnDefinitions(newIndex));
+    }
+
+    private static List<IndexColumnDefinition> indexColumnDefinitions(TableIndex tableIndex) {
         if (tableIndex.getColumnList() == null) {
             return Collections.emptyList();
         }
         return tableIndex.getColumnList().stream()
-                .map(TableIndexColumn::getColumnName)
+                .map(column -> new IndexColumnDefinition(
+                        column.getColumnName(),
+                        StringUtils.trimToEmpty(column.getAscOrDesc()).toUpperCase(Locale.ROOT),
+                        column.getSubPart()))
                 .collect(Collectors.toList());
+    }
+
+    private record IndexColumnDefinition(String columnName, String ascOrDesc, Long subPart) {
     }
 
     private String findPrevious(TableColumn tableColumn, Table newTable) {
