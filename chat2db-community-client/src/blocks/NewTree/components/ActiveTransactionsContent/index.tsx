@@ -9,7 +9,17 @@ import sqlService, { IActiveTransactionItem } from '@/service/sql';
  * users' transactions and their SQL requires the PROCESS privilege, which is surfaced as
  * an explicit unavailable state instead of a misleading blank list.
  */
-const ActiveTransactionsContent = () => {
+interface ActiveTransactionsContentProps {
+  dataSourceId: number;
+  databaseName?: string;
+  schemaName?: string;
+}
+
+const ActiveTransactionsContent = ({
+  dataSourceId,
+  databaseName,
+  schemaName,
+}: ActiveTransactionsContentProps) => {
   const [data, setData] = useState<IActiveTransactionItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -18,14 +28,14 @@ const ActiveTransactionsContent = () => {
     setLoading(true);
     setError(null);
     sqlService
-      .getActiveTransactionList({})
+      .getActiveTransactionList({ dataSourceId, databaseName, schemaName })
       .then((list) => setData(list || []))
       .catch((e) => {
         setData([]);
         setError(e?.message || i18n('common.text.failure'));
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [dataSourceId, databaseName, schemaName]);
 
   useEffect(() => {
     load();

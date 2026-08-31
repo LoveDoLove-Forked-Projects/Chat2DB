@@ -1,11 +1,13 @@
 package ai.chat2db.community.domain.core.impl.db;
 
 import ai.chat2db.community.domain.api.service.db.IDbActiveTransactionService;
+import ai.chat2db.community.tools.exception.BusinessException;
 import ai.chat2db.spi.DefaultSQLExecutor;
 import ai.chat2db.spi.sql.Chat2DBContext;
 import org.springframework.stereotype.Service;
 
 import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -32,26 +34,47 @@ public class DbActiveTransactionServiceImpl implements IDbActiveTransactionServi
     @Override
     public List<Map<String, Object>> activeTransactions() {
         Connection connection = Chat2DBContext.getConnection();
-        return DefaultSQLExecutor.getInstance().execute(connection, SQL_ACTIVE_TRANSACTIONS, resultSet -> {
-            List<Map<String, Object>> transactions = new ArrayList<>();
-            while (resultSet.next()) {
-                Map<String, Object> row = new LinkedHashMap<>();
-                row.put("trxId", resultSet.getString("trx_id"));
-                row.put("state", resultSet.getString("trx_state"));
-                row.put("startedAt", resultSet.getTimestamp("trx_started"));
-                row.put("ageSeconds", resultSet.getLong("trx_age_seconds"));
-                row.put("isolationLevel", resultSet.getString("trx_isolation_level"));
-                row.put("rowsLocked", resultSet.getLong("trx_rows_locked"));
-                row.put("rowsModified", resultSet.getLong("trx_rows_modified"));
-                row.put("lockStructs", resultSet.getLong("trx_lock_structs"));
-                row.put("threadId", resultSet.getLong("trx_mysql_thread_id"));
-                row.put("user", resultSet.getString("USER"));
-                row.put("host", resultSet.getString("HOST"));
-                row.put("db", resultSet.getString("DB"));
-                row.put("query", resultSet.getString("trx_query"));
-                transactions.add(row);
+        try {
+            return DefaultSQLExecutor.getInstance().execute(connection, SQL_ACTIVE_TRANSACTIONS, resultSet -> {
+                List<Map<String, Object>> transactions = new ArrayList<>();
+                while (resultSet.next()) {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("trxId", resultSet.getString("trx_id"));
+                    row.put("state", resultSet.getString("trx_state"));
+                    row.put("startedAt", resultSet.getTimestamp("trx_started"));
+                    row.put("ageSeconds", resultSet.getLong("trx_age_seconds"));
+                    row.put("isolationLevel", resultSet.getString("trx_isolation_level"));
+                    row.put("rowsLocked", resultSet.getLong("trx_rows_locked"));
+                    row.put("rowsModified", resultSet.getLong("trx_rows_modified"));
+                    row.put("lockStructs", resultSet.getLong("trx_lock_structs"));
+                    row.put("threadId", resultSet.getLong("trx_mysql_thread_id"));
+                    row.put("user", resultSet.getString("USER"));
+                    row.put("host", resultSet.getString("HOST"));
+                    row.put("db", resultSet.getString("DB"));
+                    row.put("query", resultSet.getString("trx_query"));
+                    transactions.add(row);
+                }
+                return transactions;
+            });
+        } catch (RuntimeException exception) {
+            if (hasProcessPrivilegeError(exception)) {
+                throw new BusinessException("mysql.activeTransaction.processPrivilegeRequired", null, exception);
             }
-            return transactions;
-        });
+            throw exception;
+        }
+    }
+
+    static boolean hasProcessPrivilegeError(Throwable throwable) {
+        Throwable current = throwable;
+        while (current != null) {
+            if (current instanceof SQLException sqlException
+                    && (sqlException.getErrorCode() == 1227
+                    || sqlException.getMessage() != null
+                    && sqlException.getMessage().toUpperCase().contains("PROCESS"))) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 }

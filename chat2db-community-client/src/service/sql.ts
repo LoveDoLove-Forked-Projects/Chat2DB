@@ -447,7 +447,13 @@ export interface IActiveTransactionItem {
   query: string | null;
 }
 
-const getActiveTransactionList = createRequest<Record<string, never>, IActiveTransactionItem[]>(
+export interface IActiveTransactionRequest {
+  dataSourceId: number;
+  databaseName?: string;
+  schemaName?: string;
+}
+
+const getActiveTransactionList = createRequest<IActiveTransactionRequest, IActiveTransactionItem[]>(
   '/api/rdb/active_transaction/list',
   { method: 'get' },
 );

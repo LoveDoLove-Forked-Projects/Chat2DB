@@ -412,7 +412,13 @@ export const useCreateRightClickMenu = () => {
         handle: () => {
           staticModal.confirm({
             title: i18n('workspace.ops.activeTransactions'),
-            content: <ActiveTransactionsContent />,
+            content: (
+              <ActiveTransactionsContent
+                dataSourceId={dataSourceId}
+                databaseName={databaseName}
+                schemaName={schemaName}
+              />
+            ),
             footer: null,
             width: 1100,
           });
