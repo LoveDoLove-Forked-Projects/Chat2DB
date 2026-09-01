@@ -1,5 +1,6 @@
 import type { EditorSettings } from '@/components/SQLEditor';
 import type { IWorkspaceTab } from '@/typings';
+import { WorkspaceTabType } from '@/constants/workspace';
 
 export type EditorCloseDecision = 'save' | 'saved' | 'discard' | 'cancel';
 
@@ -11,6 +12,13 @@ export interface EditorCloseGuardRef {
 
 export type EditorCloseGuardMap = Record<string | number, EditorCloseGuardRef | undefined>;
 
+function requiresEditorCloseGuard(tab: IWorkspaceTab) {
+  return (
+    tab.type === WorkspaceTabType.CONSOLE ||
+    (tab.type === WorkspaceTabType.LocalSQLFile && !tab.uniqueData?.filePreviewMimeType)
+  );
+}
+
 export const isEditorCloseConfirmationEnabled = (settings?: Partial<EditorSettings>) =>
   settings?.confirmBeforeClose ?? true;
 
@@ -21,6 +29,12 @@ export async function confirmDirtyEditorTabs(
 ) {
   for (const tab of tabs) {
     const editor = editorList[tab.id];
+    if (!editor) {
+      if (requiresEditorCloseGuard(tab)) {
+        return false;
+      }
+      continue;
+    }
     if (!editor?.hasUnsavedChangesBeforeClose?.()) {
       continue;
     }

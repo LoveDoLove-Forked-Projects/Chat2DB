@@ -44,6 +44,21 @@ async function run() {
   );
   assert.equal(decisionCount, 0, 'clean editors close without confirmation');
 
+  assert.equal(
+    await confirmDirtyEditorTabs([editorOne], {}, async () => 'discard'),
+    false,
+    'editable tabs without a close guard fail closed',
+  );
+  assert.equal(
+    await confirmDirtyEditorTabs(
+      [{ id: 'preview', type: WorkspaceTabType.LocalSQLFile, title: 'Preview', uniqueData: { filePreviewMimeType: 'image/png' } }],
+      {},
+      async () => 'cancel',
+    ),
+    true,
+    'non-editable previews do not require a close guard',
+  );
+
   const discarded = await confirmDirtyEditorTabs(
     [editorOne],
     {
@@ -135,6 +150,8 @@ async function run() {
   const consoleActionSource = readFileSync('src/store/workspace/slices/console/action.ts', 'utf8');
   const editorSource = readFileSync('src/components/SQLEditor/editor/SQLEditorWithOperation/index.tsx', 'utf8');
   const confirmationSource = readFileSync('src/utils/editorCloseConfirmation.tsx', 'utf8');
+  const markdownSource = readFileSync('src/pages/main/workspace/components/WorkspaceTabs/FilePreviewTab.tsx', 'utf8');
+  const localFileTreeSource = readFileSync('src/pages/main/workspace/components/LocalSQLFileTree/index.tsx', 'utf8');
   assert.match(
     workspaceTabsSource,
     /beforeRemove=\{confirmWorkspaceTabItemsClose\}/,
@@ -152,6 +169,8 @@ async function run() {
   );
   assert.match(editorSource, /hasUnsavedChangesBeforeClose/, 'editor refs expose dirty-state detection');
   assert.match(editorSource, /saveBeforeClose/, 'editor refs expose a real save operation');
+  assert.match(markdownSource, /setEditorToList\(workspaceTabId, markdownCloseGuard\)/, 'markdown files register a close guard');
+  assert.match(localFileTreeSource, /confirmWorkspaceFileTabsBeforeRemoval/, 'file deletion checks open dirty files');
   assert.match(
     confirmationSource,
     /const footerButtonStyle = \{ marginInlineStart: 0 \}/,

@@ -15,6 +15,7 @@ import {
   type SavedConsoleSaveMode,
 } from '@/store/workspace/utils/savedConsoleMutationCoordinator';
 import { persistSavedConsoleRecord } from '@/store/workspace/utils/savedConsolePersistence';
+import { hasUnsavedSavedConsoleChanges } from '@/utils/savedConsoleDirty';
 
 interface IProps {
   isActive?: boolean;
@@ -182,6 +183,9 @@ export const useSaveEditorData = (props: IProps) => {
   };
 
   const persistAutomaticValue = async (value = editorRef.current?.getValue()) => {
+    if (type === WorkspaceTabType.LocalSQLFile) {
+      return true;
+    }
     if (value === undefined || value === lastSyncConsole.current || isReadOnly) {
       return true;
     }
@@ -247,6 +251,10 @@ export const useSaveEditorData = (props: IProps) => {
   }, [boundInfo?.consoleId, boundInfo?.status]);
 
   useEffect(() => {
+    if (type === WorkspaceTabType.LocalSQLFile) {
+      editorRef?.current?.setValue(defaultValue || '', 'reset');
+      return;
+    }
     if (saveStatus === ConsoleStatus.RELEASE) {
       editorRef?.current?.setValue(defaultValue || '', 'reset');
     } else {
@@ -265,12 +273,7 @@ export const useSaveEditorData = (props: IProps) => {
   }, []);
 
   const hasUnsavedChanges = useCallback(
-    (value: string) => {
-      if (!value.trim()) {
-        return false;
-      }
-      return !hasSavedSqlRecord || value !== lastSyncConsole.current;
-    },
+    (value: string) => hasUnsavedSavedConsoleChanges(value, hasSavedSqlRecord, lastSyncConsole.current),
     [hasSavedSqlRecord],
   );
 

@@ -31,6 +31,7 @@ import i18n from '@/i18n';
 import jcefApi from '@/jcef';
 import { useGlobalStore } from '@/store/global';
 import { useWorkspaceStore } from '@/store/workspace';
+import { confirmDirtyWorkspaceEditors } from '@/utils/editorCloseConfirmation';
 import { getFileManagerLabelKey } from '@/utils/fileManagerLabel';
 import { getLocalTextFileIcon, LOCAL_TEXT_FILE_ICON_MAP, SQL_FILE_EXTENSION_NAME } from '../../utils/localTextFile';
 import { useStyles } from './style';
@@ -1010,6 +1011,22 @@ const LocalSQLFileTree = forwardRef<LocalSQLFileTreeRef, LocalSQLFileTreeProps>(
     }
   }
 
+  function getWorkspaceTabsForNode(node: LocalSQLFileTreeNode) {
+    return (useWorkspaceStore.getState().workspaceTabList || []).filter(
+      (tab) =>
+        tab.type === WorkspaceTabType.LocalSQLFile &&
+        !!tab.uniqueData?.filePath &&
+        isSameOrChildPath(tab.uniqueData.filePath, node.path, node.type),
+    );
+  }
+
+  async function confirmWorkspaceFileTabsBeforeRemoval(node: LocalSQLFileTreeNode) {
+    return confirmDirtyWorkspaceEditors(
+      getWorkspaceTabsForNode(node),
+      useWorkspaceStore.getState().editorList || {},
+    );
+  }
+
   async function deleteNode(node: LocalSQLFileTreeNode) {
     if (node.disabled || node.rootPath) {
       return;
@@ -1050,18 +1067,26 @@ const LocalSQLFileTree = forwardRef<LocalSQLFileTreeRef, LocalSQLFileTreeProps>(
   }
 
   function confirmDeleteNode(node: LocalSQLFileTreeNode) {
-    modal.confirm({
+    const confirmation = modal.confirm({
       title: i18n('common.text.deleteConfirmTitle'),
       content: i18n('common.text.deleteConfirmTip', node.name),
       okText: i18n('common.button.delete'),
       okButtonProps: { danger: true },
       cancelText: i18n('common.button.cancel'),
-      onOk: () => deleteNode(node),
+      onOk: async () => {
+        confirmation.destroy();
+        if (await confirmWorkspaceFileTabsBeforeRemoval(node)) {
+          await deleteNode(node);
+        }
+      },
     });
   }
 
-  function removeRootNode(node: LocalSQLFileTreeNode) {
+  async function removeRootNode(node: LocalSQLFileTreeNode) {
     if (!node.rootPath) {
+      return;
+    }
+    if (!(await confirmWorkspaceFileTabsBeforeRemoval(node))) {
       return;
     }
 

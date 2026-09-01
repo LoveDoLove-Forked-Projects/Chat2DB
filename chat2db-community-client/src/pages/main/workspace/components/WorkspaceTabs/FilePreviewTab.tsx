@@ -11,7 +11,7 @@ import remarkMath from 'remark-math';
 import MonacoEditor, { type IEditorIns, type IExportRefFunction } from '@/components/MonacoEditor';
 import i18n from '@/i18n';
 import type { IBoundInfo } from '@/typings';
-import { updateFileContent } from '@/utils/file';
+import { saveLocalFileContent } from '@/utils/file';
 import 'katex/dist/katex.min.css';
 import styles from './FilePreviewTab.less';
 import { getSqlDirectoryPreviewUrl } from '@/utils/previewResource';
@@ -120,20 +120,14 @@ function MermaidDiagram({ source }: { source: string }) {
 
 function MarkdownSourceEditor({
   source,
-  filePath,
-  fileCharset,
-  fileBom,
   onChange,
   onSave,
   onEditorChange,
   onCursorPositionChange,
 }: {
   source: string;
-  filePath?: string;
-  fileCharset?: string;
-  fileBom?: boolean;
   onChange: (value: string) => void;
-  onSave: (value: string) => void;
+  onSave: (value: string) => Promise<boolean>;
   onEditorChange: (editor?: IEditorIns) => void;
   onCursorPositionChange: (position: monaco.IPosition) => void;
 }) {
@@ -171,23 +165,7 @@ function MarkdownSourceEditor({
         editor.onDidChangeCursorPosition(({ position }) => onCursorPositionChange(position));
         editor.onDidChangeModelContent(() => onChange(editor.getValue()));
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
-          if (filePath) {
-            const fileContent = editor.getValue();
-            void updateFileContent({
-              filePath,
-              fileContent,
-              charset: fileCharset,
-              bom: fileBom,
-            })
-              .then(() => {
-                onSave(fileContent);
-                staticMessage.success(i18n('workspace.text.changeFileSuccess'));
-              })
-              .catch((error) => {
-                console.error('update local file error', error);
-                staticMessage.error(i18n('common.text.failure'));
-              });
-          }
+          void onSave(editor.getValue());
         });
       }}
     />
@@ -253,7 +231,59 @@ const FilePreviewTab = memo(({ file, workspaceTabId }: FilePreviewTabProps) => {
   const scrollSyncFrameRef = useRef<number | undefined>(undefined);
   const pdfLoadTimeoutRef = useRef<number | undefined>(undefined);
   const markdownCursorPositionRef = useRef<HTMLSpanElement>(null);
+  const fileRef = useRef(file);
+  const markdownContentRef = useRef(markdownContent);
+  const markdownPersistedContentRef = useRef(markdownPersistedContent);
   const [modal, modalContextHolder] = Modal.useModal();
+  const { setEditorToList, deleteEditor } = useWorkspaceStore((state) => ({
+    setEditorToList: state.setEditorToList,
+    deleteEditor: state.deleteEditor,
+  }));
+
+  fileRef.current = file;
+  markdownContentRef.current = markdownContent;
+  markdownPersistedContentRef.current = markdownPersistedContent;
+
+  const saveMarkdownFile = useCallback(async (value = markdownContentRef.current) => {
+    const currentFile = fileRef.current;
+    if (!currentFile.filePath) {
+      return false;
+    }
+    try {
+      const result = await saveLocalFileContent({
+        filePath: currentFile.filePath,
+        fileContent: value,
+        charset: currentFile.fileCharset,
+        bom: currentFile.fileBom,
+      });
+      markdownPersistedContentRef.current = result.fileContent;
+      setMarkdownPersistedContent(result.fileContent);
+      staticMessage.success(i18n('workspace.text.changeFileSuccess'));
+      return true;
+    } catch (error) {
+      console.error('update local file error', error);
+      staticMessage.error(i18n('common.text.failure'));
+      return false;
+    }
+  }, []);
+
+  const markdownCloseGuard = useMemo(
+    () => ({
+      hasUnsavedChangesBeforeClose: () =>
+        isMarkdown &&
+        hasUnsavedLocalFileChanges(markdownContentRef.current, markdownPersistedContentRef.current),
+      saveBeforeClose: () => saveMarkdownFile(),
+    }),
+    [isMarkdown, saveMarkdownFile],
+  );
+
+  useEffect(() => {
+    if (!isMarkdown) {
+      return undefined;
+    }
+    setEditorToList(workspaceTabId, markdownCloseGuard);
+    return () => deleteEditor(workspaceTabId);
+  }, [deleteEditor, isMarkdown, markdownCloseGuard, setEditorToList, workspaceTabId]);
 
   const confirmDiscardUnsavedChanges = useCallback(
     () =>
@@ -538,11 +568,8 @@ const FilePreviewTab = memo(({ file, workspaceTabId }: FilePreviewTabProps) => {
       <MarkdownSourceEditor
         key={`${workspaceTabId}:${file.filePath || ''}:${file.fileCharset || ''}:${String(file.fileBom)}`}
         source={markdownContent}
-        filePath={file.filePath}
-        fileCharset={file.fileCharset}
-        fileBom={file.fileBom}
         onChange={setMarkdownContent}
-        onSave={setMarkdownPersistedContent}
+        onSave={saveMarkdownFile}
         onEditorChange={setEditor}
         onCursorPositionChange={handleMarkdownCursorPositionChange}
       />

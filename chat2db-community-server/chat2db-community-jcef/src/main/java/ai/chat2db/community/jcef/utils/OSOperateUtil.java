@@ -29,6 +29,9 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.*;
 import java.util.Timer;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import java.util.prefs.Preferences;
@@ -36,6 +39,8 @@ import java.util.prefs.Preferences;
 
 @Slf4j
 public class OSOperateUtil {
+
+    private static final ConcurrentMap<Path, FileWriteLock> FILE_WRITE_LOCKS = new ConcurrentHashMap<>();
 
 
     public static void openFileManager(String filePath) {
@@ -299,23 +304,46 @@ public class OSOperateUtil {
             throw new IllegalArgumentException("File path and content must not be empty");
         }
 
-        Path path = Paths.get(filePath);
+        Path path = Paths.get(filePath).toAbsolutePath().normalize();
         if (!Files.exists(path)) {
             throw new FileNotFoundException("File not found: " + filePath);
         }
 
-        LocalTextFileCodec.DecodedText existingFile = null;
-        if (charset == null || bom == null) {
-            existingFile = LocalTextFileCodec.read(path, charset);
+        long size;
+        FileWriteLock fileWriteLock = FILE_WRITE_LOCKS.compute(path, (ignored, current) -> {
+            FileWriteLock next = current == null ? new FileWriteLock() : current;
+            next.references.incrementAndGet();
+            return next;
+        });
+        try {
+            synchronized (fileWriteLock.monitor) {
+                LocalTextFileCodec.DecodedText existingFile = null;
+                if (charset == null || bom == null) {
+                    existingFile = LocalTextFileCodec.read(path, charset);
+                }
+                Charset targetCharset = charset != null ? charset : Charset.forName(existingFile.charset());
+                boolean includeBom = bom != null ? bom : existingFile.bom();
+                LocalTextFileCodec.write(path, fileContent, targetCharset, includeBom);
+                size = Files.size(path);
+            }
+        } finally {
+            FILE_WRITE_LOCKS.computeIfPresent(path, (ignored, current) -> {
+                if (current != fileWriteLock || current.references.decrementAndGet() > 0) {
+                    return current;
+                }
+                return null;
+            });
         }
-        Charset targetCharset = charset != null ? charset : Charset.forName(existingFile.charset());
-        boolean includeBom = bom != null ? bom : existingFile.bom();
-        LocalTextFileCodec.write(path, fileContent, targetCharset, includeBom);
 
         Map<String, Object> result = new HashMap<>();
         result.put("path", path.toAbsolutePath().toString());
-        result.put("size", Files.size(path));
+        result.put("size", size);
         return result;
+    }
+
+    private static final class FileWriteLock {
+        private final Object monitor = new Object();
+        private final AtomicInteger references = new AtomicInteger();
     }
 
 

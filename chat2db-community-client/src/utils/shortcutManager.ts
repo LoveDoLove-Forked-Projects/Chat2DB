@@ -104,6 +104,18 @@ class ShortcutManager {
     handelCreateConsole();
   }
 
+  private handleSaveActiveWorkspaceTab(): void {
+    const { activeConsoleId, editorList } = useWorkspaceStore.getState();
+    const editor =
+      activeConsoleId === null || activeConsoleId === undefined ? undefined : editorList?.[activeConsoleId];
+    if (!editor?.saveBeforeClose) {
+      return;
+    }
+    void editor.saveBeforeClose().catch((error) => {
+      console.error('active workspace save failed', error);
+    });
+  }
+
   private handleArouseAIAssistant(): void {
     const { showPanel, setShowPanel } = useAIStore.getState();
     setShowPanel(!showPanel);
@@ -161,6 +173,13 @@ class ShortcutManager {
 
     const { shortcutOverrides } = useGlobalStore.getState();
     const shortcutConfig = getEffectiveShortcutConfigMap(shortcutOverrides as ShortcutOverrides);
+
+    const saveConfig = shortcutConfig[ShortcutAction.SqlSave];
+    if (!isFromEditable && !saveConfig.disabled && isShortcutEventMatch(e, saveConfig.binding)) {
+      e.preventDefault();
+      this.handleSaveActiveWorkspaceTab();
+      return;
+    }
 
     const matchedConfig = Object.values(shortcutConfig).find((config) => {
       return config.scope === ShortcutScope.Global && !config.disabled && isShortcutEventMatch(e, config.binding);
