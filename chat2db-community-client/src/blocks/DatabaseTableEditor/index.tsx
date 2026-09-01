@@ -50,6 +50,7 @@ export interface IDatabaseSupportField {
   indexTypes: IOption[];
   defaultValues: IOption[];
   engineTypes: IOption[];
+  supportInvisibleColumn?: boolean;
 }
 
 export default memo((props: IProps) => {
@@ -100,6 +101,7 @@ export default memo((props: IProps) => {
     indexTypes: [],
     defaultValues: [],
     engineTypes: [],
+    supportInvisibleColumn: false,
   });
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const { styles, cx } = useStyles();
@@ -184,6 +186,7 @@ export default memo((props: IProps) => {
           indexTypes,
           defaultValues,
           engineTypes,
+          supportInvisibleColumn: res?.supportInvisibleColumn === true,
         });
       });
   };

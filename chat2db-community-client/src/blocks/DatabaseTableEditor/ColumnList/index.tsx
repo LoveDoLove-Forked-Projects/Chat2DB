@@ -343,7 +343,7 @@ const ColumnList = forwardRef((props: IProps, ref: ForwardedRef<IColumnListRef>)
         },
       },
     ];
-    if (shouldShowMysqlColumnVisible(databaseType)) {
+    if (shouldShowMysqlColumnVisible(databaseType, databaseSupportField.supportInvisibleColumn)) {
       _columns.splice(-1, 0, {
         title: i18n('editTable.label.columnVisible'),
         dataIndex: 'visible',

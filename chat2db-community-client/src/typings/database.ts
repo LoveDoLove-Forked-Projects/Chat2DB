@@ -220,6 +220,7 @@ export interface IDatabaseSupportField {
   indexTypes: IIndexTypes[];
   defaultValues: IDefaultValue[];
   engineTypes: IEngineType[];
+  supportInvisibleColumn?: boolean;
 }
 
 /** The character set corresponding to the field */

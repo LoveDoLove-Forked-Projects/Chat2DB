@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -38,7 +39,7 @@ class MysqlMetaDataColumnTypeTest {
                 "COLLATION_NAME", "utf8mb4_general_ci"
         ));
 
-        List<TableColumn> columns = metaData.columns(connection, "app", null, "users");
+        List<TableColumn> columns = assertDoesNotThrow(() -> metaData.columns(connection, "app", null, "users"));
 
         assertEquals(1, columns.size());
         TableColumn column = columns.get(0);
@@ -47,6 +48,27 @@ class MysqlMetaDataColumnTypeTest {
         assertFalse(column.getAutoIncrement());
         assertFalse(column.getOnUpdateCurrentTimestamp());
         assertTrue(column.getVisible());
+    }
+
+    @Test
+    void mapsInvisibleColumnFromExtraMetadata() {
+        MysqlMetaData metaData = new MysqlMetaData();
+        Connection connection = connectionWithColumnRow(Map.of(
+                "COLUMN_NAME", "name",
+                "DATA_TYPE", "varchar",
+                "COLUMN_TYPE", "varchar(64)",
+                "IS_NULLABLE", "YES",
+                "COLUMN_KEY", "",
+                "EXTRA", "INVISIBLE",
+                "COLUMN_COMMENT", "",
+                "CHARACTER_SET_NAME", "utf8mb4",
+                "COLLATION_NAME", "utf8mb4_general_ci"
+        ));
+
+        List<TableColumn> columns = metaData.columns(connection, "app", null, "users");
+
+        assertEquals(1, columns.size());
+        assertFalse(columns.get(0).getVisible());
     }
 
     private static Connection connectionWithColumnRow(Map<String, String> row) {
@@ -69,7 +91,6 @@ class MysqlMetaDataColumnTypeTest {
     }
 
     private static class SingleRowResultSet implements java.lang.reflect.InvocationHandler {
-        private static final String NULL_EXTRA_FIELD = "EXTRA";
         private final Map<String, String> row;
         private boolean read;
 
@@ -85,7 +106,7 @@ class MysqlMetaDataColumnTypeTest {
                     read = true;
                     yield hasNext;
                 }
-                case "getString" -> NULL_EXTRA_FIELD.equals(args[0]) ? null : row.get(args[0]);
+                case "getString" -> row.get(args[0]);
                 default -> defaultValue(method.getReturnType());
             };
         }

@@ -457,6 +457,7 @@ public class MysqlMetaData extends DefaultMetaService implements IDbMetaData {
                 .indexTypes(MysqlIndexTypeEnum.getIndexTypes())
                 .defaultValues(MysqlDefaultValueEnum.getDefaultValues())
                 .engineTypes(getEngineTypes())
+                .supportInvisibleColumn(MysqlVersionSupport.supportsInvisibleColumns(MysqlVersionSupport.getCurrentDbVersion()))
                 .build();
     }
 
