@@ -1,11 +1,15 @@
 import assert from 'node:assert/strict';
 
 import {
+  beginActiveTransactionRefresh,
   buildSessionInspectionSql,
   canOpenTransactionSession,
+  canShowActiveTransactionsMenu,
   getActiveTransactionRowKey,
   getLiveTransactionAge,
   getTransactionSessionThreadId,
+  invalidateActiveTransactionRefresh,
+  isLatestActiveTransactionRefresh,
 } from './activeTransactionUtils';
 import type { IActiveTransactionItem } from '@/service/sql';
 
@@ -40,11 +44,29 @@ const waitingTransaction: IActiveTransactionItem = {
   lockMetadataSource: 'MYSQL_80_PERFORMANCE_SCHEMA',
 };
 
-assert.equal(getActiveTransactionRowKey(waitingTransaction), '421337:421337:7:3:2:45');
+assert.equal(getActiveTransactionRowKey(waitingTransaction), '421337:421337:7:3:2:421336:7:3:2:421336:45');
+assert.notEqual(
+  getActiveTransactionRowKey(waitingTransaction),
+  getActiveTransactionRowKey({
+    ...waitingTransaction,
+    blockingLockId: '421338:7:3:2',
+    blockingTrxId: '421338',
+  }),
+);
 assert.equal(canOpenTransactionSession(waitingTransaction, 'owner'), true);
 assert.equal(canOpenTransactionSession(waitingTransaction, 'blocker'), true);
 assert.equal(getTransactionSessionThreadId(waitingTransaction, 'owner'), 45);
 assert.equal(getTransactionSessionThreadId(waitingTransaction, 'blocker'), 44);
+assert.equal(canShowActiveTransactionsMenu('MYSQL', true), true);
+assert.equal(canShowActiveTransactionsMenu('MYSQL', false), false);
+assert.equal(canShowActiveTransactionsMenu('ORACLE', true), false);
+const refreshGenerationRef = { current: 0 };
+const olderRefresh = beginActiveTransactionRefresh(refreshGenerationRef);
+const newerRefresh = beginActiveTransactionRefresh(refreshGenerationRef);
+assert.equal(isLatestActiveTransactionRefresh(refreshGenerationRef, olderRefresh), false);
+assert.equal(isLatestActiveTransactionRefresh(refreshGenerationRef, newerRefresh), true);
+invalidateActiveTransactionRefresh(refreshGenerationRef);
+assert.equal(isLatestActiveTransactionRefresh(refreshGenerationRef, newerRefresh), false);
 assert.equal(getLiveTransactionAge(12, 1_000, 4_900), 15);
 assert.equal(getLiveTransactionAge(12, 5_000, 4_000), 12);
 assert.equal(getLiveTransactionAge(null, 1_000, 4_900), null);

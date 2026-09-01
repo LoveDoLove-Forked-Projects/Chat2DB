@@ -55,7 +55,10 @@ import accountAdminService, { AccountActionType, formatAccountExecuteMessage } f
 import CreateAccountContent, { CreateAccountValues } from '../components/CreateAccountContent';
 import DeleteDatabaseSchemaConfirmContent from '../components/DeleteDatabaseSchemaConfirmContent';
 import ActiveTransactionsContent from '../components/ActiveTransactionsContent';
-import { buildSessionInspectionSql } from '../components/ActiveTransactionsContent/activeTransactionUtils';
+import {
+  buildSessionInspectionSql,
+  canShowActiveTransactionsMenu,
+} from '../components/ActiveTransactionsContent/activeTransactionUtils';
 import { buildWorkspaceObjectTabTitle } from '@/utils/workspaceObjectTabTitle';
 import { allowsResourceOperations } from '@/client-extension/resourceOperationCapabilities';
 import type { ResourceOperation, ResourceOperationCapabilities } from '@/client-extension/types';
@@ -438,6 +441,8 @@ export const useCreateRightClickMenu = () => {
             width: 1100,
           });
         },
+        discard: !canShowActiveTransactionsMenu(databaseType, hasPermission),
+        requiredOperations: ['SELECT'],
       },
 
       [OperationColumn.CreateAccount]: {

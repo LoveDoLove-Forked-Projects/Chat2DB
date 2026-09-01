@@ -1,13 +1,17 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button, Space, Table, Tag, Tooltip, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import i18n from '@/i18n';
 import sqlService, { IActiveTransactionItem } from '@/service/sql';
+import { RequestGenerationRef } from '@/utils/latestRequest';
 import {
+  beginActiveTransactionRefresh,
   canOpenTransactionSession,
   getActiveTransactionRowKey,
   getLiveTransactionAge,
   getTransactionSessionThreadId,
+  invalidateActiveTransactionRefresh,
+  isLatestActiveTransactionRefresh,
 } from './activeTransactionUtils';
 
 /**
@@ -33,27 +37,40 @@ const ActiveTransactionsContent = ({
   const [error, setError] = useState<string | null>(null);
   const [snapshotAtMs, setSnapshotAtMs] = useState(() => Date.now());
   const [nowMs, setNowMs] = useState(() => Date.now());
+  const refreshGenerationRef = useRef<RequestGenerationRef>({ current: 0 });
 
   const load = useCallback(() => {
+    const generation = beginActiveTransactionRefresh(refreshGenerationRef.current);
     setLoading(true);
     setError(null);
     sqlService
       .getActiveTransactionList({ dataSourceId, databaseName, schemaName })
       .then((list) => {
+        if (!isLatestActiveTransactionRefresh(refreshGenerationRef.current, generation)) {
+          return;
+        }
         const loadedAt = Date.now();
         setData(list || []);
         setSnapshotAtMs(loadedAt);
         setNowMs(loadedAt);
       })
       .catch((e) => {
+        if (!isLatestActiveTransactionRefresh(refreshGenerationRef.current, generation)) {
+          return;
+        }
         setData([]);
         setError(e?.message || i18n('common.text.failure'));
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (isLatestActiveTransactionRefresh(refreshGenerationRef.current, generation)) {
+          setLoading(false);
+        }
+      });
   }, [dataSourceId, databaseName, schemaName]);
 
   useEffect(() => {
     load();
+    return () => invalidateActiveTransactionRefresh(refreshGenerationRef.current);
   }, [load]);
 
   useEffect(() => {

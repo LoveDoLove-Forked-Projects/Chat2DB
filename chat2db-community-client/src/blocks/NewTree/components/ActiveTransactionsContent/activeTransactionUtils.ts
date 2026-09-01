@@ -1,11 +1,36 @@
 import type { IActiveTransactionItem } from '@/service/sql';
+import { DatabaseTypeCode } from '@/constants/common';
+import {
+  beginLatestRequest,
+  invalidateLatestRequest,
+  isLatestRequest,
+  RequestGenerationRef,
+} from '@/utils/latestRequest';
 
 export function getActiveTransactionRowKey(record: IActiveTransactionItem): string {
   return [
     record.trxId || 'no-trx',
     record.waitingLockId || 'no-wait',
+    record.blockingLockId || 'no-blocking-lock',
+    record.blockingTrxId || 'no-blocking-trx',
     record.threadId == null ? 'no-thread' : String(record.threadId),
   ].join(':');
+}
+
+export function canShowActiveTransactionsMenu(databaseType: string | undefined, hasPermission: boolean): boolean {
+  return databaseType === DatabaseTypeCode.MYSQL && hasPermission;
+}
+
+export function beginActiveTransactionRefresh(generationRef: RequestGenerationRef): number {
+  return beginLatestRequest(generationRef);
+}
+
+export function invalidateActiveTransactionRefresh(generationRef: RequestGenerationRef): void {
+  invalidateLatestRequest(generationRef);
+}
+
+export function isLatestActiveTransactionRefresh(generationRef: RequestGenerationRef, generation: number): boolean {
+  return isLatestRequest(generationRef, generation);
 }
 
 export function getLiveTransactionAge(

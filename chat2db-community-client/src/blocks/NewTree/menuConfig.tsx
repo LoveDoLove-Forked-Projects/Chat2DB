@@ -100,7 +100,6 @@ export const dropMenuConfig = {
       OperationColumn.Divider,
       // Management
       OperationColumn.MoveToGroup,
-      OperationColumn.ActiveTransactions,
       OperationColumn.Refresh,
       OperationColumn.Divider,
       OperationColumn.RemoveDataSource,
@@ -162,6 +161,7 @@ export const dropMenuConfig = {
       OperationColumn.Divider,
       // Management
       OperationColumn.MoveToGroup,
+      OperationColumn.ActiveTransactions,
       OperationColumn.Refresh,
       OperationColumn.Divider,
       OperationColumn.RemoveDataSource,

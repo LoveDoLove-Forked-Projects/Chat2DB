@@ -1,7 +1,8 @@
 -- MYSQL-OPS-002: Active transaction inspection
 -- Test fixture: users, a test table, and a stored helper that opens transactions.
--- The admin account can see all transactions (PROCESS); the limited account can only
--- see its own transactions and NULL SQL text.
+-- The admin account can see all transactions (PROCESS). The limited account has no
+-- PROCESS grant: MySQL may hide cross-user transaction/process details, return NULL SQL
+-- text, or reject active-transaction inspection depending on the server/version path.
 
 CREATE DATABASE IF NOT EXISTS `ops002_test`;
 USE `ops002_test`;

@@ -172,38 +172,42 @@ public class DbActiveTransactionServiceImpl implements IDbActiveTransactionServi
 
     private List<Map<String, Object>> activeTransactionsWithoutLockMetadata(Connection connection, String message) {
         LockMetadataQuery fallback = unavailableLockMetadataQuery(message);
-        return DefaultSQLExecutor.getInstance().execute(connection, fallback.sql(), resultSet -> {
-            List<Map<String, Object>> transactions = new ArrayList<>();
-            while (resultSet.next()) {
-                Map<String, Object> row = new LinkedHashMap<>();
-                row.put("trxId", resultSet.getString("trx_id"));
-                row.put("state", resultSet.getString("trx_state"));
-                row.put("startedAt", resultSet.getTimestamp("trx_started"));
-                row.put("ageSeconds", resultSet.getLong("trx_age_seconds"));
-                row.put("isolationLevel", resultSet.getString("trx_isolation_level"));
-                row.put("rowsLocked", resultSet.getLong("trx_rows_locked"));
-                row.put("rowsModified", resultSet.getLong("trx_rows_modified"));
-                row.put("lockStructs", resultSet.getLong("trx_lock_structs"));
-                Long threadId = nullableLong(resultSet, "trx_mysql_thread_id");
-                row.put("threadId", threadId);
-                row.put("user", resultSet.getString("process_user"));
-                row.put("host", resultSet.getString("process_host"));
-                row.put("db", resultSet.getString("process_db"));
-                String query = resultSet.getString("trx_query");
-                Long processId = nullableLong(resultSet, "process_id");
-                row.put("query", query);
-                row.put("sessionAvailable", processId != null);
-                row.put("sessionState", processId == null ? "DISAPPEARED_OR_HIDDEN" : "LIVE");
-                row.put("canOpenSession", processId != null && threadId != null);
-                row.put("queryState", query == null ? "UNAVAILABLE" : "VISIBLE");
-                row.put("lockMetadataState", LOCK_METADATA_UNAVAILABLE);
-                row.put("lockMetadataSource", null);
-                row.put("lockMetadataMessage", fallback.message());
-                putLockWait(row, resultSet);
-                transactions.add(row);
-            }
-            return transactions;
-        });
+        try {
+            return DefaultSQLExecutor.getInstance().execute(connection, fallback.sql(), resultSet -> {
+                List<Map<String, Object>> transactions = new ArrayList<>();
+                while (resultSet.next()) {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("trxId", resultSet.getString("trx_id"));
+                    row.put("state", resultSet.getString("trx_state"));
+                    row.put("startedAt", resultSet.getTimestamp("trx_started"));
+                    row.put("ageSeconds", resultSet.getLong("trx_age_seconds"));
+                    row.put("isolationLevel", resultSet.getString("trx_isolation_level"));
+                    row.put("rowsLocked", resultSet.getLong("trx_rows_locked"));
+                    row.put("rowsModified", resultSet.getLong("trx_rows_modified"));
+                    row.put("lockStructs", resultSet.getLong("trx_lock_structs"));
+                    Long threadId = nullableLong(resultSet, "trx_mysql_thread_id");
+                    row.put("threadId", threadId);
+                    row.put("user", resultSet.getString("process_user"));
+                    row.put("host", resultSet.getString("process_host"));
+                    row.put("db", resultSet.getString("process_db"));
+                    String query = resultSet.getString("trx_query");
+                    Long processId = nullableLong(resultSet, "process_id");
+                    row.put("query", query);
+                    row.put("sessionAvailable", processId != null);
+                    row.put("sessionState", processId == null ? "DISAPPEARED_OR_HIDDEN" : "LIVE");
+                    row.put("canOpenSession", processId != null && threadId != null);
+                    row.put("queryState", query == null ? "UNAVAILABLE" : "VISIBLE");
+                    row.put("lockMetadataState", LOCK_METADATA_UNAVAILABLE);
+                    row.put("lockMetadataSource", null);
+                    row.put("lockMetadataMessage", fallback.message());
+                    putLockWait(row, resultSet);
+                    transactions.add(row);
+                }
+                return transactions;
+            });
+        } catch (RuntimeException exception) {
+            throw sanitizeActiveTransactionQueryException(exception);
+        }
     }
 
     private static void putLockWait(Map<String, Object> row, ResultSet resultSet) throws SQLException {
@@ -336,6 +340,13 @@ public class DbActiveTransactionServiceImpl implements IDbActiveTransactionServi
             current = current.getCause();
         }
         return "Lock wait metadata is not available for this MySQL version or account.";
+    }
+
+    static RuntimeException sanitizeActiveTransactionQueryException(RuntimeException exception) {
+        if (hasProcessPrivilegeError(exception)) {
+            return new BusinessException("mysql.activeTransaction.processPrivilegeRequired", null, exception);
+        }
+        return exception;
     }
 
     record LockMetadataQuery(String sql, boolean available, String source, String message) {

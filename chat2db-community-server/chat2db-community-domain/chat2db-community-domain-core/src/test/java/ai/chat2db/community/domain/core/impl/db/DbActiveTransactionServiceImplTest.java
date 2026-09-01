@@ -1,11 +1,15 @@
 package ai.chat2db.community.domain.core.impl.db;
 
+import ai.chat2db.community.tools.exception.BusinessException;
 import org.junit.jupiter.api.Test;
 
 import java.sql.SQLException;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class DbActiveTransactionServiceImplTest {
 
@@ -60,5 +64,27 @@ class DbActiveTransactionServiceImplTest {
 
         assertTrue(message.contains("unavailable or access was denied"));
         assertFalse(message.contains("private_schema"));
+    }
+
+    @Test
+    void fallbackProcessPrivilegeFailureUsesSanitizedBusinessCode() {
+        RuntimeException executionFailure = new IllegalStateException("execution failed",
+                new SQLException("Access denied; you need (at least one of) the PROCESS privilege", "42000", 1227));
+
+        BusinessException exception = assertThrows(BusinessException.class, () -> {
+            throw DbActiveTransactionServiceImpl.sanitizeActiveTransactionQueryException(executionFailure);
+        });
+
+        assertEquals("mysql.activeTransaction.processPrivilegeRequired", exception.getCode());
+        assertSame(executionFailure, exception.getCause());
+    }
+
+    @Test
+    void nonProcessFallbackFailureRemainsOriginalRuntimeException() {
+        RuntimeException executionFailure = new IllegalStateException("syntax error",
+                new SQLException("Syntax error", "42000", 1064));
+
+        assertSame(executionFailure,
+                DbActiveTransactionServiceImpl.sanitizeActiveTransactionQueryException(executionFailure));
     }
 }
