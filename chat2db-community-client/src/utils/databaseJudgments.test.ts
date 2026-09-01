@@ -27,6 +27,7 @@ import {
   quoteSqlCompletionIdentifier,
   shouldHideOracleIndexColumn,
   shouldShowMysqlIndexMethod,
+  shouldShowMysqlIndexVisible,
   shouldShowMysqlTableBaseInfo,
   shouldShowSqliteIncludeCollation,
   shouldShowSqlServerSparse,
@@ -127,6 +128,10 @@ assert.equal(isMongodbTreeDataSource(DatabaseTypeCode.MYSQL), false);
 assert.equal(shouldShowMysqlTableBaseInfo(DatabaseTypeCode.MYSQL), true);
 assert.equal(shouldShowMysqlTableBaseInfo(DatabaseTypeCode.POSTGRESQL), false);
 assert.equal(shouldShowMysqlIndexMethod(DatabaseTypeCode.MYSQL), true);
+assert.equal(shouldShowMysqlIndexVisible(DatabaseTypeCode.MYSQL, true), true);
+assert.equal(shouldShowMysqlIndexVisible(DatabaseTypeCode.MYSQL, false), false);
+assert.equal(shouldShowMysqlIndexVisible(DatabaseTypeCode.MYSQL), false);
+assert.equal(shouldShowMysqlIndexVisible(DatabaseTypeCode.POSTGRESQL, true), false);
 assert.equal(shouldHideOracleIndexColumn(DatabaseTypeCode.ORACLE), true);
 assert.equal(shouldShowSqliteIncludeCollation(DatabaseTypeCode.SQLITE), true);
 assert.equal(isSqliteExistingColumnReadonly(DatabaseTypeCode.SQLITE, EditColumnOperationType.Modify), true);

@@ -21,6 +21,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class MysqlSqlBuilderTest {
@@ -229,6 +230,41 @@ class MysqlSqlBuilderTest {
     }
 
     @Test
+    void shouldRejectInvisibleIndexWhenCreatingOnMysql57() {
+        withMysqlVersion("5.7.44", () -> {
+            Table table = Table.builder()
+                    .databaseName("test_db")
+                    .name("sample_table")
+                    .columnList(List.of(mysqlVarcharColumn("content", "content", null)))
+                    .indexList(List.of(mysqlIndex("idx_content", "BTREE", false,
+                            List.of(mysqlIndexColumn("content", "ASC", null)))))
+                    .build();
+
+            IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                    () -> new MysqlSqlBuilder().ddl().table().buildCreateTable(table,
+                            TableBuilderConfig.defaultConfig()));
+
+            assertEquals("MySQL invisible indexes require MySQL 8.0 or later", exception.getMessage());
+        });
+    }
+
+    @Test
+    void shouldRejectInvisibleIndexVisibilityChangeOnMysql57() {
+        withMysqlVersion("5.7.44", () -> {
+            MysqlSqlBuilder builder = new MysqlSqlBuilder();
+            Table oldTable = mysqlTableWithIndexes(List.of(mysqlIndex("idx_content", "BTREE", true,
+                    List.of(mysqlIndexColumn("content", "ASC", null)))));
+            Table newTable = mysqlTableWithIndexes(List.of(mysqlModifiedIndex("idx_content", "BTREE", false,
+                    List.of(mysqlIndexColumn("content", "ASC", null)))));
+
+            IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                    () -> builder.ddl().table().buildAlterTable(oldTable, newTable));
+
+            assertEquals("MySQL invisible indexes require MySQL 8.0 or later", exception.getMessage());
+        });
+    }
+
+    @Test
     void shouldRebuildIndexWhenVisibilityAndPrefixLengthChangeTogether() {
         MysqlSqlBuilder builder = new MysqlSqlBuilder();
         Table oldTable = mysqlTableWithIndexes(List.of(mysqlIndex("idx_content", "BTREE", true,
@@ -356,6 +392,21 @@ class MysqlSqlBuilderTest {
                 .columnSize(255)
                 .editStatus(editStatus)
                 .build();
+    }
+
+    private static void withMysqlVersion(String dbVersion, Runnable runnable) {
+        ConnectInfo connectInfo = new ConnectInfo();
+        connectInfo.setDbType("MYSQL");
+        connectInfo.setDbVersion(dbVersion);
+        DriverConfig driverConfig = new DriverConfig();
+        driverConfig.setDbType("MYSQL");
+        connectInfo.setDriverConfig(driverConfig);
+        Chat2DBContext.putContext(connectInfo);
+        try {
+            runnable.run();
+        } finally {
+            Chat2DBContext.removeContext();
+        }
     }
 
     @Test

@@ -1,6 +1,7 @@
 package ai.chat2db.plugin.mysql.builder;
 
 import ai.chat2db.plugin.mysql.MysqlSqlGuards;
+import ai.chat2db.plugin.mysql.MysqlVersionSupport;
 import ai.chat2db.plugin.mysql.identifier.MysqlIdentifierProcessor;
 import ai.chat2db.plugin.mysql.enums.MysqlViewAlgorithmOptionEnum;
 import ai.chat2db.plugin.mysql.enums.MysqlViewCheckOptionEnum;
@@ -52,6 +53,9 @@ import static ai.chat2db.plugin.mysql.constant.MysqlSqlConstants.SQL_UNDEFINED;
 
 public class MysqlSqlBuilder extends DefaultSqlBuilder {
 
+    private static final String INVISIBLE_INDEX_UNSUPPORTED_MESSAGE =
+            "MySQL invisible indexes require MySQL 8.0 or later";
+
     @Override
     public String quoteIdentifier(String identifier) {
         return quoteMysqlIdentifier(identifier);
@@ -100,6 +104,7 @@ public class MysqlSqlBuilder extends DefaultSqlBuilder {
             if (mysqlIndexTypeEnum == null) {
                 continue;
             }
+            rejectInvisibleIndexIfUnsupported(null, tableIndex, mysqlIndexTypeEnum);
             script.append(SQLConstants.TAB).append(mysqlIndexTypeEnum.buildIndexScript(tableIndex)).append(SQLConstants.COMMA_LINE_SEPARATOR);
         }
 
@@ -202,6 +207,7 @@ public class MysqlSqlBuilder extends DefaultSqlBuilder {
                 if (mysqlIndexTypeEnum == null) {
                     continue;
                 }
+                rejectInvisibleIndexIfUnsupported(oldTable, tableIndex, mysqlIndexTypeEnum);
                 if (EditStatusEnum.MODIFY.name().equals(tableIndex.getEditStatus())
                         && !MysqlIndexTypeEnum.PRIMARY_KEY.equals(mysqlIndexTypeEnum)
                         && onlyIndexVisibilityChanged(oldTable, tableIndex)) {
@@ -244,6 +250,40 @@ public class MysqlSqlBuilder extends DefaultSqlBuilder {
             return false;
         }
         return indexDefinitionsMatchExceptVisibility(oldIndex, newIndex);
+    }
+
+    private static void rejectInvisibleIndexIfUnsupported(Table oldTable, TableIndex newIndex,
+            MysqlIndexTypeEnum indexType) {
+        if (MysqlIndexTypeEnum.PRIMARY_KEY.equals(indexType)) {
+            return;
+        }
+        if (!usesInvisibleIndexFeature(oldTable, newIndex)) {
+            return;
+        }
+        if (MysqlVersionSupport.currentVersionDisallowsInvisibleIndexes()) {
+            throw new IllegalArgumentException(INVISIBLE_INDEX_UNSUPPORTED_MESSAGE);
+        }
+    }
+
+    private static boolean usesInvisibleIndexFeature(Table oldTable, TableIndex newIndex) {
+        if (Boolean.FALSE.equals(newIndex.getVisible())) {
+            return true;
+        }
+        TableIndex oldIndex = findOldIndex(oldTable, newIndex);
+        return oldIndex != null
+                && newIndex.getVisible() != null
+                && !Objects.equals(oldIndex.getVisible(), newIndex.getVisible());
+    }
+
+    private static TableIndex findOldIndex(Table oldTable, TableIndex newIndex) {
+        if (oldTable == null || oldTable.getIndexList() == null) {
+            return null;
+        }
+        String sourceName = StringUtils.defaultIfBlank(newIndex.getOldName(), newIndex.getName());
+        return oldTable.getIndexList().stream()
+                .filter(idx -> StringUtils.equals(idx.getName(), sourceName))
+                .findFirst()
+                .orElse(null);
     }
 
     private static boolean indexDefinitionsMatchExceptVisibility(TableIndex oldIndex, TableIndex newIndex) {

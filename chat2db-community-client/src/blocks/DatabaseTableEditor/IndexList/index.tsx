@@ -348,7 +348,7 @@ const IndexList = forwardRef((props: IProps, ref: ForwardedRef<IIndexListRef>) =
         },
       });
     }
-    if (shouldShowMysqlIndexVisible(databaseType)) {
+    if (shouldShowMysqlIndexVisible(databaseType, databaseSupportField.supportInvisibleIndex)) {
       _columns.splice(-1, 0, {
         title: i18n('editTable.label.indexVisible'),
         dataIndex: 'visible',
