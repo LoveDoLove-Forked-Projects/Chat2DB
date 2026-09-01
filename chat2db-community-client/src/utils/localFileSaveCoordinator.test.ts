@@ -74,9 +74,19 @@ async function testFailureRejectsCurrentBatchAndAllowsRetry() {
 }
 
 async function run() {
-  assert.equal(normalizeLocalFileSaveKey(' C:\\SQL\\query.sql\\ '), 'c:/sql/query.sql');
-  assert.equal(normalizeLocalFileSaveKey('\\\\SERVER\\Share\\query.sql'), '//server/share/query.sql');
-  assert.equal(normalizeLocalFileSaveKey('/tmp/query.sql/'), '/tmp/query.sql');
+  assert.equal(normalizeLocalFileSaveKey('C:\\SQL\\query.sql'), 'C:/SQL/query.sql');
+  assert.equal(normalizeLocalFileSaveKey('\\\\SERVER\\Share\\query.sql'), '//SERVER/Share/query.sql');
+  assert.equal(normalizeLocalFileSaveKey('/tmp//query.sql'), '/tmp/query.sql');
+  assert.notEqual(
+    normalizeLocalFileSaveKey('/tmp/query.sql'),
+    normalizeLocalFileSaveKey('/tmp/query.sql '),
+    'valid trailing spaces must not merge distinct files',
+  );
+  assert.notEqual(
+    normalizeLocalFileSaveKey('/tmp/query.sql'),
+    normalizeLocalFileSaveKey('/tmp/query.sql/'),
+    'the coordinator must not repair invalid paths into another file key',
+  );
   await testSavesAreSerializedAndCoalesced();
   await testDifferentPathsCanRunIndependently();
   await testFailureRejectsCurrentBatchAndAllowsRetry();

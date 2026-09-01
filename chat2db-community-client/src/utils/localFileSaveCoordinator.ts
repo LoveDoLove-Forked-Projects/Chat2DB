@@ -28,16 +28,9 @@ interface FileSaveState {
 }
 
 export function normalizeLocalFileSaveKey(filePath: string) {
-  const rawPath = filePath.trim().replace(/\\/g, '/');
+  const rawPath = filePath.replace(/\\/g, '/');
   const leadingSlashes = rawPath.startsWith('//') ? '//' : '';
-  let normalizedPath = `${leadingSlashes}${rawPath.slice(leadingSlashes.length).replace(/\/+/g, '/')}`;
-  if (normalizedPath.length > 1) {
-    normalizedPath = normalizedPath.replace(/\/+$/, '');
-  }
-  if (/^[A-Za-z]:\//.test(normalizedPath) || normalizedPath.startsWith('//')) {
-    return normalizedPath.toLowerCase();
-  }
-  return normalizedPath;
+  return `${leadingSlashes}${rawPath.slice(leadingSlashes.length).replace(/\/+/g, '/')}`;
 }
 
 export class LocalFileSaveCoordinator {

@@ -45,7 +45,7 @@ export const useSaveEditorData = (props: IProps) => {
   const timerRef = useRef<any>();
   const effectiveConsoleIdRef = useRef<number | undefined>(boundInfo?.consoleId);
   // Console data from the previous synchronization.
-  const lastSyncConsole = useRef<any>(defaultValue);
+  const lastSyncConsole = useRef(defaultValue ?? '');
   const storageId = boundInfo?.workspaceTabId ?? boundInfo?.consoleId;
   const isReadOnly = !!boundInfo?.readOnly;
   const [saveStatus, setSaveStatus] = useState<ConsoleStatus>(boundInfo?.status || ConsoleStatus.DRAFT);
@@ -94,7 +94,7 @@ export const useSaveEditorData = (props: IProps) => {
     }
 
     if (isReadOnly) {
-      lastSyncConsole.current = value;
+      lastSyncConsole.current = value ?? '';
       return Promise.resolve();
     }
 
@@ -107,7 +107,7 @@ export const useSaveEditorData = (props: IProps) => {
           userId: curUser?.id,
         })
         .then(() => {
-          lastSyncConsole.current = value;
+          lastSyncConsole.current = value ?? '';
         });
     }
 
@@ -140,7 +140,7 @@ export const useSaveEditorData = (props: IProps) => {
               userId: curUser?.id,
             })
             .then(() => {
-              lastSyncConsole.current = value;
+              lastSyncConsole.current = value ?? '';
             });
           return;
         }
@@ -164,7 +164,7 @@ export const useSaveEditorData = (props: IProps) => {
         getSavedConsoleList();
         emitSavedConsoleUpdated(savedBoundInfo);
         void indexDB.deleteValue(storageId);
-        lastSyncConsole.current = value;
+        lastSyncConsole.current = value ?? '';
         saveStatusRef.current = ConsoleStatus.RELEASE;
         setSaveStatus(ConsoleStatus.RELEASE);
         markWorkspaceTabConsoleSaved({
@@ -233,7 +233,6 @@ export const useSaveEditorData = (props: IProps) => {
       timingAutoSave();
     }
     return () => {
-      lastSyncConsole.current = null;
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }

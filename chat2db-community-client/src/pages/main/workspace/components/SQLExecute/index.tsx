@@ -52,6 +52,7 @@ import {
   ISQLEditorWithOperationRef,
   type SQLExecutionInvocation,
 } from '@/components/SQLEditor/editor/SQLEditorWithOperation';
+import { createLiveSqlEditorHandle } from './liveEditorHandle';
 import SplitPaneUnpack from '@/components/SplitPaneUnpack';
 import useSqlExecutor from '@/hooks/useSqlExecutor';
 import i18n from '@/i18n';
@@ -214,6 +215,7 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
   } = props;
   const { styles, cx } = useStyles();
   const sqlEditorRef = useRef<ISQLEditorWithOperationRef>(null);
+  const liveSqlEditorHandle = useMemo(() => createLiveSqlEditorHandle(sqlEditorRef), []);
   const [boundInfo, setBoundInfo] = useState<IBoundInfo>(_boundInfo);
   const boundInfoRef = useRef<IBoundInfo>(_boundInfo);
   const editorId = boundInfo.workspaceTabId ?? boundInfo.consoleId;
@@ -724,14 +726,14 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
 
   useEffect(() => {
     if (editorId) {
-      setEditorToList(editorId, sqlEditorRef.current);
+      setEditorToList(editorId, liveSqlEditorHandle);
     }
     return () => {
       if (editorId) {
         deleteEditor(editorId);
       }
     };
-  }, [editorId]);
+  }, [editorId, liveSqlEditorHandle]);
 
   useUpdateEffect(() => {
     boundInfoRef.current = boundInfo;

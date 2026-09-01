@@ -1,7 +1,7 @@
 export function hasUnsavedSavedConsoleChanges(
   value: string,
   hasSavedSqlRecord: boolean,
-  lastSyncValue: string | undefined,
+  lastSyncValue: string,
 ) {
   if (!hasSavedSqlRecord) {
     return Boolean(value.trim());

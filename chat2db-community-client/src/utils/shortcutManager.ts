@@ -5,14 +5,12 @@ import { useWorkspaceStore } from '@/store/workspace';
 import {
   ShortcutAction,
   ShortcutOverrides,
-  ShortcutScope,
   getEffectiveShortcutConfigMap,
-  isShortcutEventMatch,
 } from '@/constants/shortcut';
 import { useAIStore } from '@/store/ai';
 import { requestCloseActiveResultTab } from '@/service/resultTabShortcut';
 import { handleWebFrameZoom, WebFrameZoomType } from './jcefZoom';
-import { prepareGlobalShortcutHandling } from './shortcutDispatch';
+import { prepareGlobalShortcutHandling, resolveShortcutDispatch } from './shortcutDispatch';
 import { AppTitleBarAction, requestAppTitleBarAction } from './appTitleBarAction';
 
 const NON_TEXT_INPUT_TYPES = new Set([
@@ -171,29 +169,22 @@ class ShortcutManager {
   private handleKeyDown = (e: KeyboardEvent): void => {
     const isFromEditable = isEditableElement(e.target);
 
-    const { shortcutOverrides } = useGlobalStore.getState();
+    const { shortcutOverrides, mainPageActiveTab } = useGlobalStore.getState();
     const shortcutConfig = getEffectiveShortcutConfigMap(shortcutOverrides as ShortcutOverrides);
-
-    const saveConfig = shortcutConfig[ShortcutAction.SqlSave];
-    if (!isFromEditable && !saveConfig.disabled && isShortcutEventMatch(e, saveConfig.binding)) {
+    const resolution = resolveShortcutDispatch(e, shortcutConfig, {
+      editableTarget: isFromEditable,
+      workspaceActive: mainPageActiveTab === 'workspace',
+    });
+    if (!resolution) {
+      return;
+    }
+    if (resolution.kind === 'workspace-save') {
       e.preventDefault();
       this.handleSaveActiveWorkspaceTab();
       return;
     }
 
-    const matchedConfig = Object.values(shortcutConfig).find((config) => {
-      return config.scope === ShortcutScope.Global && !config.disabled && isShortcutEventMatch(e, config.binding);
-    });
-
-    if (!matchedConfig) {
-      return;
-    }
-
-    if (isFromEditable && !matchedConfig.allowInEditable) {
-      return;
-    }
-
-    const action = matchedConfig.action as ShortcutAction;
+    const action = resolution.action;
 
     if (!prepareGlobalShortcutHandling(e, action)) {
       return;
