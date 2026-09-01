@@ -445,6 +445,37 @@ export interface IActiveTransactionItem {
   host: string | null;
   db: string | null;
   query: string | null;
+  queryState?: 'VISIBLE' | 'UNAVAILABLE';
+  sessionAvailable?: boolean;
+  sessionState?: 'LIVE' | 'DISAPPEARED_OR_HIDDEN';
+  canOpenSession?: boolean;
+  waitingLockId?: string | null;
+  blockingLockId?: string | null;
+  blockingTrxId?: string | null;
+  waitingPerformanceSchemaThreadId?: number | null;
+  blockingPerformanceSchemaThreadId?: number | null;
+  blockingThreadId?: number | null;
+  blockingSessionAvailable?: boolean;
+  canOpenBlockingSession?: boolean;
+  blockingUser?: string | null;
+  blockingHost?: string | null;
+  blockingDb?: string | null;
+  waitingObject?: string | null;
+  waitingIndex?: string | null;
+  waitingLockType?: string | null;
+  waitingLockMode?: string | null;
+  waitingLockStatus?: string | null;
+  waitingLockData?: string | null;
+  blockingObject?: string | null;
+  blockingIndex?: string | null;
+  blockingLockType?: string | null;
+  blockingLockMode?: string | null;
+  blockingLockStatus?: string | null;
+  blockingLockData?: string | null;
+  lockWaitAvailable?: boolean;
+  lockMetadataState?: 'AVAILABLE' | 'UNAVAILABLE';
+  lockMetadataSource?: 'MYSQL_80_PERFORMANCE_SCHEMA' | 'MYSQL_57_INFORMATION_SCHEMA' | null;
+  lockMetadataMessage?: string | null;
 }
 
 export interface IActiveTransactionRequest {

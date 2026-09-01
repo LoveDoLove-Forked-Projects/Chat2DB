@@ -55,6 +55,7 @@ import accountAdminService, { AccountActionType, formatAccountExecuteMessage } f
 import CreateAccountContent, { CreateAccountValues } from '../components/CreateAccountContent';
 import DeleteDatabaseSchemaConfirmContent from '../components/DeleteDatabaseSchemaConfirmContent';
 import ActiveTransactionsContent from '../components/ActiveTransactionsContent';
+import { buildSessionInspectionSql } from '../components/ActiveTransactionsContent/activeTransactionUtils';
 import { buildWorkspaceObjectTabTitle } from '@/utils/workspaceObjectTabTitle';
 import { allowsResourceOperations } from '@/client-extension/resourceOperationCapabilities';
 import type { ResourceOperation, ResourceOperationCapabilities } from '@/client-extension/types';
@@ -410,13 +411,27 @@ export const useCreateRightClickMenu = () => {
         text: i18n('workspace.ops.activeTransactions'),
         icon: 'icon-file-text',
         handle: () => {
+          const handleOpenSession = (threadId: number) => {
+            createConsole({
+              name: i18n('workspace.ops.sessionThreadTitle', threadId),
+              ddl: buildSessionInspectionSql(threadId),
+              dataSourceId: dataSourceId!,
+              dataSourceName: dataSourceName!,
+              environmentId,
+              environment,
+              databaseType: databaseType!,
+              databaseName,
+              schemaName,
+            });
+          };
           staticModal.confirm({
             title: i18n('workspace.ops.activeTransactions'),
             content: (
               <ActiveTransactionsContent
-                dataSourceId={dataSourceId}
+                dataSourceId={dataSourceId!}
                 databaseName={databaseName}
                 schemaName={schemaName}
+                onOpenSession={handleOpenSession}
               />
             ),
             footer: null,
