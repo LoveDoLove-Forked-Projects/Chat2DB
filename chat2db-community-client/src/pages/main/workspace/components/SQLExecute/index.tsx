@@ -54,6 +54,7 @@ import {
   type SQLExecutionInvocation,
 } from '@/components/SQLEditor/editor/SQLEditorWithOperation';
 import { createLiveSqlEditorHandle } from './liveEditorHandle';
+import { mergeLatestLocalFileBoundInfo } from './liveEditorBoundInfo';
 import SplitPaneUnpack from '@/components/SplitPaneUnpack';
 import useSqlExecutor from '@/hooks/useSqlExecutor';
 import i18n from '@/i18n';
@@ -821,13 +822,26 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
     [discardPendingResult],
   );
 
-  const handleChangeDBInfo = (newBoundInfo: IBoundInfo) => {
-    const { databaseType } = newBoundInfo;
-    setBoundInfo((currentBoundInfo) => ({
-      ...currentBoundInfo,
-      ...newBoundInfo,
-      ...getDatabaseSupport(databaseType),
-    }));
+  const handleChangeDBInfo = (newBoundInfo: Partial<IBoundInfo>) => {
+    setBoundInfo((currentBoundInfo) => {
+      const latestWorkspaceBoundInfo =
+        type === WorkspaceTabType.LocalSQLFile
+          ? useWorkspaceStore
+              .getState()
+              .workspaceTabList?.find((tab) => tab.id === currentBoundInfo.workspaceTabId)?.uniqueData
+          : undefined;
+      const nextBoundInfo = mergeLatestLocalFileBoundInfo(
+        currentBoundInfo,
+        newBoundInfo,
+        latestWorkspaceBoundInfo,
+      );
+      return newBoundInfo.databaseType === undefined
+        ? nextBoundInfo
+        : {
+            ...nextBoundInfo,
+            ...getDatabaseSupport(nextBoundInfo.databaseType),
+          };
+    });
   };
 
   const handleExecuteSQL = (params: IConsoleReturnExecuteSql | SQLExecutionInvocation): Promise<any> => {

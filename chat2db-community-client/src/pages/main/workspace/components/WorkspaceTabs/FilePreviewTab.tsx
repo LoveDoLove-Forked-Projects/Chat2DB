@@ -288,7 +288,6 @@ const FilePreviewTab = memo(({ file, workspaceTabId }: FilePreviewTabProps) => {
       markdownPersistedContentRef.current = result.fileContent;
       setMarkdownPersistedContent(result.fileContent);
       useWorkspaceStore.getState().updateWorkspaceTabBoundInfo({
-        ...fileRef.current,
         workspaceTabId,
         ddl: result.fileContent,
       });

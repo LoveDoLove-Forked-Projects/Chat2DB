@@ -70,7 +70,7 @@ interface ISQLEditorWithOperationProps {
   active: boolean;
   defaultSQL?: string;
   dbInfo: IBoundInfo;
-  setDBInfo: (dbInfo: IBoundInfo) => void;
+  setDBInfo: (dbInfo: Partial<IBoundInfo>) => void;
 
   sqlFileName?: string;
   workspaceTabsTitle?: string;
@@ -1008,10 +1008,7 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
     } catch {
       // Content diff is only a hint and must not affect file saving.
     }
-    setDBInfo({
-      ...dbInfo,
-      ddl: result.fileContent,
-    });
+    setDBInfo({ ddl: result.fileContent });
     staticMessage.success(i18n('workspace.text.changeFileSuccess'));
     return true;
   };
