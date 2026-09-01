@@ -7,6 +7,7 @@ export type EditorCloseDecision = 'save' | 'saved' | 'discard' | 'cancel';
 export interface EditorCloseGuardRef {
   hasUnsavedChangesBeforeClose?: () => boolean;
   saveBeforeClose?: () => Promise<boolean>;
+  waitForPendingSave?: () => Promise<void>;
   persistBeforeApplicationExit?: () => Promise<boolean>;
 }
 
@@ -22,11 +23,7 @@ function requiresEditorCloseGuard(tab: IWorkspaceTab) {
 export const isEditorCloseConfirmationEnabled = (settings?: Partial<EditorSettings>) =>
   settings?.confirmBeforeClose ?? true;
 
-export async function confirmDirtyEditorTabs(
-  tabs: IWorkspaceTab[],
-  editorList: EditorCloseGuardMap,
-  requestDecision: (tab: IWorkspaceTab, editor: EditorCloseGuardRef) => Promise<EditorCloseDecision>,
-) {
+export async function waitForPendingEditorTabs(tabs: IWorkspaceTab[], editorList: EditorCloseGuardMap) {
   for (const tab of tabs) {
     const editor = editorList[tab.id];
     if (!editor) {
@@ -35,7 +32,22 @@ export async function confirmDirtyEditorTabs(
       }
       continue;
     }
-    if (!editor?.hasUnsavedChangesBeforeClose?.()) {
+    await editor.waitForPendingSave?.();
+  }
+  return true;
+}
+
+async function confirmDirtyEditorTabsAfterPending(
+  tabs: IWorkspaceTab[],
+  editorList: EditorCloseGuardMap,
+  requestDecision: (tab: IWorkspaceTab, editor: EditorCloseGuardRef) => Promise<EditorCloseDecision>,
+) {
+  for (const tab of tabs) {
+    const editor = editorList[tab.id];
+    if (!editor) {
+      continue;
+    }
+    if (!editor.hasUnsavedChangesBeforeClose?.()) {
       continue;
     }
 
@@ -49,8 +61,18 @@ export async function confirmDirtyEditorTabs(
       }
     }
   }
-
   return true;
+}
+
+export async function confirmDirtyEditorTabs(
+  tabs: IWorkspaceTab[],
+  editorList: EditorCloseGuardMap,
+  requestDecision: (tab: IWorkspaceTab, editor: EditorCloseGuardRef) => Promise<EditorCloseDecision>,
+) {
+  if (!(await waitForPendingEditorTabs(tabs, editorList))) {
+    return false;
+  }
+  return confirmDirtyEditorTabsAfterPending(tabs, editorList, requestDecision);
 }
 
 export async function prepareEditorsForApplicationExit(
@@ -59,6 +81,9 @@ export async function prepareEditorsForApplicationExit(
   requestDecision: (tab: IWorkspaceTab, editor: EditorCloseGuardRef) => Promise<EditorCloseDecision>,
   confirmDirtyEditors: boolean,
 ) {
+  if (!(await waitForPendingEditorTabs(tabs, editorList))) {
+    return false;
+  }
   const tabsRequiringConfirmation: IWorkspaceTab[] = [];
   for (const tab of tabs) {
     const editor = editorList[tab.id];
@@ -73,5 +98,5 @@ export async function prepareEditorsForApplicationExit(
   if (!confirmDirtyEditors) {
     return true;
   }
-  return confirmDirtyEditorTabs(tabsRequiringConfirmation, editorList, requestDecision);
+  return confirmDirtyEditorTabsAfterPending(tabsRequiringConfirmation, editorList, requestDecision);
 }

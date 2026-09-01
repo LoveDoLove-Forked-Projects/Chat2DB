@@ -19,8 +19,24 @@ export type ShortcutDispatchResolution =
 export function resolveShortcutDispatch(
   event: KeyboardEvent,
   shortcutConfig: Record<ShortcutAction, EffectiveShortcutConfig>,
-  options: { editableTarget: boolean; workspaceActive: boolean },
+  options: {
+    activeScope?: ShortcutScope;
+    editableTarget: boolean;
+    workspaceSaveAllowed: boolean;
+  },
 ): ShortcutDispatchResolution | undefined {
+  const scopedShortcut = options.activeScope
+    ? Object.values(shortcutConfig).find(
+        (config) =>
+          config.scope === options.activeScope &&
+          !config.disabled &&
+          isShortcutEventMatch(event, config.binding),
+      )
+    : undefined;
+  if (scopedShortcut) {
+    return undefined;
+  }
+
   const globalShortcut = Object.values(shortcutConfig).find(
     (config) =>
       config.scope === ShortcutScope.Global &&
@@ -37,7 +53,7 @@ export function resolveShortcutDispatch(
   const saveShortcut = shortcutConfig[ShortcutAction.SqlSave];
   if (
     !options.editableTarget &&
-    options.workspaceActive &&
+    options.workspaceSaveAllowed &&
     !saveShortcut.disabled &&
     isShortcutEventMatch(event, saveShortcut.binding)
   ) {

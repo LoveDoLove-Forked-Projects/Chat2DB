@@ -23,6 +23,7 @@ export function createLiveSqlEditorHandle(
     executeSQL: () => editorRef.current?.executeSQL(),
     hasUnsavedChangesBeforeClose: () => editorRef.current?.hasUnsavedChangesBeforeClose?.() ?? true,
     saveBeforeClose: () => editorRef.current?.saveBeforeClose?.() ?? Promise.resolve(false),
+    waitForPendingSave: () => editorRef.current?.waitForPendingSave?.() ?? Promise.resolve(),
     get persistBeforeApplicationExit() {
       if (!editorRef.current?.persistBeforeApplicationExit) {
         return undefined;

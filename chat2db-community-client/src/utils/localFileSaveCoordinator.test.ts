@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { LocalFileSaveCoordinator, normalizeLocalFileSaveKey } from './localFileSaveCoordinator';
+import { getLocalFileSaveKey, LocalFileSaveCoordinator } from './localFileSaveCoordinator';
 
 function deferred() {
   let resolve!: () => void;
@@ -22,16 +22,20 @@ async function testSavesAreSerializedAndCoalesced() {
     }
     calls.push(`end:${fileContent}`);
   };
+  const latestMutation = async ({ fileContent }: { fileContent: string }) => {
+    calls.push(`latest-start:${fileContent}`);
+    calls.push(`latest-end:${fileContent}`);
+  };
 
   const first = coordinator.save({ filePath: '/tmp/query.sql', fileContent: 'first' }, mutation);
-  const second = coordinator.save({ filePath: '/tmp/query.sql', fileContent: 'second' }, mutation);
+  const second = coordinator.save({ filePath: '/tmp/query.sql', fileContent: 'second' }, latestMutation);
   await Promise.resolve();
   assert.deepEqual(calls, ['start:first']);
 
   firstGate.resolve();
   assert.deepEqual(await first, { filePath: '/tmp/query.sql', fileContent: 'second' });
   assert.deepEqual(await second, { filePath: '/tmp/query.sql', fileContent: 'second' });
-  assert.deepEqual(calls, ['start:first', 'end:first', 'start:second', 'end:second']);
+  assert.deepEqual(calls, ['start:first', 'end:first', 'latest-start:second', 'latest-end:second']);
 }
 
 async function testDifferentPathsCanRunIndependently() {
@@ -54,6 +58,29 @@ async function testDifferentPathsCanRunIndependently() {
   await first;
 }
 
+async function testEquivalentPathsShareSaveOrder() {
+  const coordinator = new LocalFileSaveCoordinator(false);
+  const firstGate = deferred();
+  const calls: string[] = [];
+  const mutation = async ({ fileContent }: { fileContent: string }) => {
+    calls.push(`start:${fileContent}`);
+    if (fileContent === 'first') {
+      await firstGate.promise;
+    }
+    calls.push(`end:${fileContent}`);
+  };
+
+  const first = coordinator.save({ filePath: '/work/dir/../query.sql', fileContent: 'first' }, mutation);
+  const second = coordinator.save({ filePath: '/work/query.sql', fileContent: 'second' }, mutation);
+  await Promise.resolve();
+  assert.deepEqual(calls, ['start:first']);
+
+  firstGate.resolve();
+  assert.equal((await first).fileContent, 'second');
+  assert.equal((await second).fileContent, 'second');
+  assert.deepEqual(calls, ['start:first', 'end:first', 'start:second', 'end:second']);
+}
+
 async function testFailureRejectsCurrentBatchAndAllowsRetry() {
   const coordinator = new LocalFileSaveCoordinator();
   let attempts = 0;
@@ -73,23 +100,51 @@ async function testFailureRejectsCurrentBatchAndAllowsRetry() {
   assert.equal(attempts, 2);
 }
 
+async function testWaitForIdleIncludesQueuedSaves() {
+  const coordinator = new LocalFileSaveCoordinator();
+  const firstGate = deferred();
+  let idle = false;
+  const mutation = async () => firstGate.promise;
+
+  const save = coordinator.save({ filePath: '/tmp/pending.sql', fileContent: 'pending' }, mutation);
+  void coordinator.waitForIdle('/tmp/pending.sql').then(() => {
+    idle = true;
+  });
+  await Promise.resolve();
+  assert.equal(idle, false, 'pending writes keep the file busy');
+
+  firstGate.resolve();
+  await save;
+  await coordinator.waitForIdle('/tmp/pending.sql');
+  assert.equal(idle, true, 'the idle barrier resolves after the save queue drains');
+}
+
 async function run() {
-  assert.equal(normalizeLocalFileSaveKey('C:\\SQL\\query.sql'), 'C:/SQL/query.sql');
-  assert.equal(normalizeLocalFileSaveKey('\\\\SERVER\\Share\\query.sql'), '//SERVER/Share/query.sql');
-  assert.equal(normalizeLocalFileSaveKey('/tmp//query.sql'), '/tmp/query.sql');
+  assert.equal(getLocalFileSaveKey('/work/dir/../query.sql'), '/work/query.sql');
+  assert.equal(getLocalFileSaveKey('/tmp//query.sql'), '/tmp/query.sql');
+  assert.equal(getLocalFileSaveKey('/tmp/query.sql/'), '/tmp/query.sql');
+  assert.equal(getLocalFileSaveKey('C:\\SQL\\..\\Query.sql', true), 'c:/query.sql');
+  assert.equal(getLocalFileSaveKey('\\\\SERVER\\Share\\dir\\..\\Query.sql', true), '//server/share/query.sql');
   assert.notEqual(
-    normalizeLocalFileSaveKey('/tmp/query.sql'),
-    normalizeLocalFileSaveKey('/tmp/query.sql '),
+    getLocalFileSaveKey('/tmp/a\\b.sql'),
+    getLocalFileSaveKey('/tmp/a/b.sql'),
+    'POSIX backslashes must remain valid file-name characters',
+  );
+  assert.notEqual(
+    getLocalFileSaveKey('/tmp/query.sql'),
+    getLocalFileSaveKey('/tmp/query.sql '),
     'valid trailing spaces must not merge distinct files',
   );
   assert.notEqual(
-    normalizeLocalFileSaveKey('/tmp/query.sql'),
-    normalizeLocalFileSaveKey('/tmp/query.sql/'),
-    'the coordinator must not repair invalid paths into another file key',
+    getLocalFileSaveKey('/tmp/query.sql'),
+    getLocalFileSaveKey('/tmp/query.sql.'),
+    'POSIX trailing dots remain part of the file name',
   );
   await testSavesAreSerializedAndCoalesced();
   await testDifferentPathsCanRunIndependently();
+  await testEquivalentPathsShareSaveOrder();
   await testFailureRejectsCurrentBatchAndAllowsRetry();
+  await testWaitForIdleIncludesQueuedSaves();
   console.log('local file save coordinator tests passed');
 }
 

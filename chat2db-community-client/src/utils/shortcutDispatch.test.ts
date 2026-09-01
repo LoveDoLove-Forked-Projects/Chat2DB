@@ -13,10 +13,8 @@ if (typeof globalThis.navigator === 'undefined') {
 }
 
 async function run() {
-  const [{ getEffectiveShortcutConfigMap, ShortcutAction }, { resolveShortcutDispatch }] = await Promise.all([
-    import('@/constants/shortcut'),
-    import('./shortcutDispatch'),
-  ]);
+  const [{ getEffectiveShortcutConfigMap, ShortcutAction, ShortcutScope }, { resolveShortcutDispatch }] =
+    await Promise.all([import('@/constants/shortcut'), import('./shortcutDispatch')]);
   const event = {
     key: 's',
     code: 'KeyS',
@@ -30,17 +28,17 @@ async function run() {
   });
 
   assert.deepEqual(
-    resolveShortcutDispatch(event, shortcutConfig, { editableTarget: false, workspaceActive: true }),
+    resolveShortcutDispatch(event, shortcutConfig, { editableTarget: false, workspaceSaveAllowed: true }),
     { kind: 'workspace-save' },
     'non-editor workspace focus routes the save shortcut to the active editor',
   );
   assert.equal(
-    resolveShortcutDispatch(event, shortcutConfig, { editableTarget: true, workspaceActive: true }),
+    resolveShortcutDispatch(event, shortcutConfig, { editableTarget: true, workspaceSaveAllowed: true }),
     undefined,
     'editor-owned shortcuts remain inside the editor',
   );
   assert.equal(
-    resolveShortcutDispatch(event, shortcutConfig, { editableTarget: false, workspaceActive: false }),
+    resolveShortcutDispatch(event, shortcutConfig, { editableTarget: false, workspaceSaveAllowed: false }),
     undefined,
     'workspace save must not affect a hidden editor from another page',
   );
@@ -50,9 +48,23 @@ async function run() {
     [ShortcutAction.SwitchToChat]: { binding: 'Ctrl + S' },
   });
   assert.deepEqual(
-    resolveShortcutDispatch(event, conflictingConfig, { editableTarget: false, workspaceActive: true }),
+    resolveShortcutDispatch(event, conflictingConfig, { editableTarget: false, workspaceSaveAllowed: true }),
     { kind: 'global', action: ShortcutAction.SwitchToChat },
     'global shortcuts retain precedence over a SQL-editor shortcut with the same binding',
+  );
+
+  const fileTreeConfig = getEffectiveShortcutConfigMap({
+    [ShortcutAction.SqlSave]: { binding: 'Ctrl + S' },
+    [ShortcutAction.LocalSqlFileTreeDelete]: { binding: 'Ctrl + S' },
+  });
+  assert.equal(
+    resolveShortcutDispatch(event, fileTreeConfig, {
+      activeScope: ShortcutScope.LocalSqlFileTree,
+      editableTarget: false,
+      workspaceSaveAllowed: true,
+    }),
+    undefined,
+    'a focused scope owns its binding before the workspace save fallback',
   );
 
   console.log('shortcut dispatch tests passed');

@@ -84,6 +84,10 @@ export function saveLocalFileContent(params: LocalFileSaveRequest): Promise<Loca
   });
 }
 
+export function waitForLocalFileSave(filePath: string) {
+  return localFileSaveCoordinator.waitForIdle(filePath);
+}
+
 export function updateFileContent({
   filePath,
   fileContent,

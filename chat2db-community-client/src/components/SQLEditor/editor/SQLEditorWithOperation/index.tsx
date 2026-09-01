@@ -9,7 +9,7 @@ import { EditorSetValueType, EditorType, SQLOptType } from '../../type';
 import { staticMessage } from '@chat2db/ui';
 import { Modal } from 'antd';
 import { IConsoleReturnExecuteSql, IBoundInfo, TreeNodeData } from '@/typings';
-import { saveFileToDesktop, saveLocalFileContent } from '@/utils/file';
+import { saveFileToDesktop, saveLocalFileContent, waitForLocalFileSave } from '@/utils/file';
 import i18n from '@/i18n';
 import { useSaveEditorData } from '@/components/SQLEditor/hooks/useSaveEditorData';
 import { formatSql } from '../../helper/utils';
@@ -208,6 +208,10 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
     executeSQL: handleExecuteSQL,
     hasUnsavedChangesBeforeClose,
     saveBeforeClose,
+    waitForPendingSave:
+      type === WorkspaceTabType.LocalSQLFile && dbInfo.filePath
+        ? () => waitForLocalFileSave(dbInfo.filePath!)
+        : undefined,
     persistBeforeApplicationExit: type === WorkspaceTabType.CONSOLE ? flushAutoSave : undefined,
   }));
 
@@ -1004,6 +1008,10 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
     } catch {
       // Content diff is only a hint and must not affect file saving.
     }
+    setDBInfo({
+      ...dbInfo,
+      ddl: result.fileContent,
+    });
     staticMessage.success(i18n('workspace.text.changeFileSuccess'));
     return true;
   };

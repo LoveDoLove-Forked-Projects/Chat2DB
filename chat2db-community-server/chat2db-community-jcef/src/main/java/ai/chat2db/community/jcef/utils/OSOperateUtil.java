@@ -24,6 +24,7 @@ import java.net.URLDecoder;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
@@ -40,7 +41,7 @@ import java.util.prefs.Preferences;
 @Slf4j
 public class OSOperateUtil {
 
-    private static final ConcurrentMap<Path, FileWriteLock> FILE_WRITE_LOCKS = new ConcurrentHashMap<>();
+    private static final ConcurrentMap<Path, FileOperationLock> FILE_OPERATION_LOCKS = new ConcurrentHashMap<>();
 
 
     public static void openFileManager(String filePath) {
@@ -304,44 +305,57 @@ public class OSOperateUtil {
             throw new IllegalArgumentException("File path and content must not be empty");
         }
 
-        Path path = Paths.get(filePath).toAbsolutePath().normalize();
-        if (!Files.exists(path)) {
-            throw new FileNotFoundException("File not found: " + filePath);
-        }
+        return withLocalFileOperationLock(Paths.get(filePath), path -> {
+            if (!Files.exists(path)) {
+                throw new FileNotFoundException("File not found: " + filePath);
+            }
 
-        long size;
-        FileWriteLock fileWriteLock = FILE_WRITE_LOCKS.compute(path, (ignored, current) -> {
-            FileWriteLock next = current == null ? new FileWriteLock() : current;
+            LocalTextFileCodec.DecodedText existingFile = null;
+            if (charset == null || bom == null) {
+                existingFile = LocalTextFileCodec.read(path, charset);
+            }
+            Charset targetCharset = charset != null ? charset : Charset.forName(existingFile.charset());
+            boolean includeBom = bom != null ? bom : existingFile.bom();
+            LocalTextFileCodec.write(path, fileContent, targetCharset, includeBom);
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("path", path.toString());
+            result.put("size", Files.size(path));
+            return result;
+        });
+    }
+
+    public static <T> T withLocalFileOperationLock(Path requestedPath, LocalFileOperation<T> operation)
+            throws IOException {
+        Objects.requireNonNull(requestedPath, "File operation path is required");
+        Objects.requireNonNull(operation, "File operation is required");
+        Path path = requestedPath.toAbsolutePath().normalize();
+        Path lockKey = Files.exists(path, LinkOption.NOFOLLOW_LINKS) ? path.toRealPath() : path;
+        FileOperationLock operationLock = FILE_OPERATION_LOCKS.compute(lockKey, (ignored, current) -> {
+            FileOperationLock next = current == null ? new FileOperationLock() : current;
             next.references.incrementAndGet();
             return next;
         });
         try {
-            synchronized (fileWriteLock.monitor) {
-                LocalTextFileCodec.DecodedText existingFile = null;
-                if (charset == null || bom == null) {
-                    existingFile = LocalTextFileCodec.read(path, charset);
-                }
-                Charset targetCharset = charset != null ? charset : Charset.forName(existingFile.charset());
-                boolean includeBom = bom != null ? bom : existingFile.bom();
-                LocalTextFileCodec.write(path, fileContent, targetCharset, includeBom);
-                size = Files.size(path);
+            synchronized (operationLock.monitor) {
+                return operation.execute(path);
             }
         } finally {
-            FILE_WRITE_LOCKS.computeIfPresent(path, (ignored, current) -> {
-                if (current != fileWriteLock || current.references.decrementAndGet() > 0) {
+            FILE_OPERATION_LOCKS.computeIfPresent(lockKey, (ignored, current) -> {
+                if (current != operationLock || current.references.decrementAndGet() > 0) {
                     return current;
                 }
                 return null;
             });
         }
-
-        Map<String, Object> result = new HashMap<>();
-        result.put("path", path.toAbsolutePath().toString());
-        result.put("size", size);
-        return result;
     }
 
-    private static final class FileWriteLock {
+    @FunctionalInterface
+    public interface LocalFileOperation<T> {
+        T execute(Path path) throws IOException;
+    }
+
+    private static final class FileOperationLock {
         private final Object monitor = new Object();
         private final AtomicInteger references = new AtomicInteger();
     }

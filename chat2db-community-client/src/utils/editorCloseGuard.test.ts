@@ -44,6 +44,29 @@ async function run() {
   );
   assert.equal(decisionCount, 0, 'clean editors close without confirmation');
 
+  let releasePendingSave!: () => void;
+  const pendingSave = new Promise<void>((resolve) => {
+    releasePendingSave = resolve;
+  });
+  let pendingCloseResolved = false;
+  const pendingClose = confirmDirtyEditorTabs(
+    [editorOne],
+    {
+      [editorOne.id]: {
+        waitForPendingSave: () => pendingSave,
+        hasUnsavedChangesBeforeClose: () => false,
+      },
+    },
+    async () => 'cancel',
+  ).then((result) => {
+    pendingCloseResolved = true;
+    return result;
+  });
+  await Promise.resolve();
+  assert.equal(pendingCloseResolved, false, 'close waits for an in-flight save before checking dirty state');
+  releasePendingSave();
+  assert.equal(await pendingClose, true);
+
   assert.equal(
     await confirmDirtyEditorTabs([editorOne], {}, async () => 'discard'),
     false,
@@ -146,6 +169,25 @@ async function run() {
   assert.equal(persistedDrafts, 1, 'application exit flushes recoverable console drafts');
   assert.equal(applicationExitPrompts, 1, 'only non-auto-saved editors require an application-exit prompt');
 
+  let exitPendingSaveWaited = false;
+  assert.equal(
+    await prepareEditorsForApplicationExit(
+      [editorTwo],
+      {
+        [editorTwo.id]: {
+          waitForPendingSave: async () => {
+            exitPendingSaveWaited = true;
+          },
+          hasUnsavedChangesBeforeClose: () => true,
+        },
+      },
+      async () => 'cancel',
+      false,
+    ),
+    true,
+  );
+  assert.equal(exitPendingSaveWaited, true, 'application exit drains pending saves even when prompts are disabled');
+
   const workspaceTabsSource = readFileSync('src/pages/main/workspace/components/WorkspaceTabs/index.tsx', 'utf8');
   const consoleActionSource = readFileSync('src/store/workspace/slices/console/action.ts', 'utf8');
   const editorSource = readFileSync('src/components/SQLEditor/editor/SQLEditorWithOperation/index.tsx', 'utf8');
@@ -171,6 +213,13 @@ async function run() {
   assert.match(editorSource, /saveBeforeClose/, 'editor refs expose a real save operation');
   assert.match(markdownSource, /setEditorToList\(workspaceTabId, markdownCloseGuard\)/, 'markdown files register a close guard');
   assert.match(localFileTreeSource, /confirmWorkspaceFileTabsBeforeRemoval/, 'file deletion checks open dirty files');
+  assert.match(localFileTreeSource, /waitForPendingWorkspaceEditors/, 'file rename waits for pending writes');
+  assert.match(markdownSource, /shortcutBindingToMonacoKeybinding/, 'markdown uses the configured save shortcut');
+  assert.doesNotMatch(
+    markdownSource,
+    /monaco\.KeyMod\.CtrlCmd\s*\|\s*monaco\.KeyCode\.KeyS/,
+    'markdown must not retain a hard-coded save shortcut',
+  );
   assert.match(
     confirmationSource,
     /const footerButtonStyle = \{ marginInlineStart: 0 \}/,

@@ -5,6 +5,7 @@ import { useWorkspaceStore } from '@/store/workspace';
 import {
   ShortcutAction,
   ShortcutOverrides,
+  ShortcutScope,
   getEffectiveShortcutConfigMap,
 } from '@/constants/shortcut';
 import { useAIStore } from '@/store/ai';
@@ -45,6 +46,18 @@ function isEditableElement(target: EventTarget | null): boolean {
   }
 
   return editable.isContentEditable;
+}
+
+function getShortcutScope(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) {
+    return undefined;
+  }
+  const scope = target.closest<HTMLElement>('[data-shortcut-scope]')?.dataset.shortcutScope;
+  return Object.values(ShortcutScope).includes(scope as ShortcutScope) ? (scope as ShortcutScope) : undefined;
+}
+
+function isWorkspaceSaveSurface(target: EventTarget | null) {
+  return target instanceof HTMLElement && !!target.closest('[data-workspace-shortcut-surface="true"]');
 }
 
 class ShortcutManager {
@@ -169,11 +182,15 @@ class ShortcutManager {
   private handleKeyDown = (e: KeyboardEvent): void => {
     const isFromEditable = isEditableElement(e.target);
 
-    const { shortcutOverrides, mainPageActiveTab } = useGlobalStore.getState();
+    const { shortcutOverrides, mainPageActiveTab, settingPageActiveTab } = useGlobalStore.getState();
     const shortcutConfig = getEffectiveShortcutConfigMap(shortcutOverrides as ShortcutOverrides);
     const resolution = resolveShortcutDispatch(e, shortcutConfig, {
+      activeScope: getShortcutScope(e.target),
       editableTarget: isFromEditable,
-      workspaceActive: mainPageActiveTab === 'workspace',
+      workspaceSaveAllowed:
+        mainPageActiveTab === 'workspace' &&
+        settingPageActiveTab === false &&
+        isWorkspaceSaveSurface(e.target),
     });
     if (!resolution) {
       return;

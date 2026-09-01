@@ -11,6 +11,7 @@ const second = {
   getValue: () => 'second',
   hasUnsavedChangesBeforeClose: () => true,
   saveBeforeClose: async () => true,
+  waitForPendingSave: async () => undefined,
   persistBeforeApplicationExit: async () => true,
 } as ISQLEditorWithOperationRef;
 const editorRef: CurrentSqlEditorHandleRef = { current: first };
@@ -25,11 +26,13 @@ async function run() {
   assert.equal(liveEditor.getValue(), 'second', 'the registered handle reads the latest editor ref');
   assert.equal(liveEditor.hasUnsavedChangesBeforeClose?.(), true);
   assert.equal(await liveEditor.saveBeforeClose?.(), true);
+  assert.equal(await liveEditor.waitForPendingSave?.(), undefined);
   assert.equal(await liveEditor.persistBeforeApplicationExit?.(), true);
 
   editorRef.current = null;
   assert.equal(liveEditor.hasUnsavedChangesBeforeClose?.(), true, 'a missing live editor fails closed');
   assert.equal(await liveEditor.saveBeforeClose?.(), false);
+  assert.equal(await liveEditor.waitForPendingSave?.(), undefined);
 
   console.log('live editor handle tests passed');
 }

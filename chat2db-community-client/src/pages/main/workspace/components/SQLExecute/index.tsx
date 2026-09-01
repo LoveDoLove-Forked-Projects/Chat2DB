@@ -11,6 +11,7 @@ import {
   useImperativeHandle,
 } from 'react';
 import { beginLatestRequest, invalidateLatestRequest, isLatestRequest } from '@/utils/latestRequest';
+import { WorkspaceTabType } from '@/constants/workspace';
 import {
   getDataSourceRuntimeAvailabilityGeneration,
   getSqlExecutionBlockReason,
@@ -751,6 +752,29 @@ const SQLExecute = forwardRef((props: IProps, ref: ForwardedRef<SQLExecuteRef>) 
     _boundInfo.watermarkEnabled,
     _boundInfo.watermarkContent,
     _boundInfo.connectable,
+  ]);
+
+  useUpdateEffect(() => {
+    if (type !== WorkspaceTabType.LocalSQLFile) {
+      return;
+    }
+    setBoundInfo((currentBoundInfo) => ({
+      ...currentBoundInfo,
+      filePath: _boundInfo.filePath,
+      fileExtension: _boundInfo.fileExtension,
+      fileCharset: _boundInfo.fileCharset,
+      fileBom: _boundInfo.fileBom,
+      fileRootToken: _boundInfo.fileRootToken,
+      fileRelativePath: _boundInfo.fileRelativePath,
+    }));
+  }, [
+    type,
+    _boundInfo.filePath,
+    _boundInfo.fileExtension,
+    _boundInfo.fileCharset,
+    _boundInfo.fileBom,
+    _boundInfo.fileRootToken,
+    _boundInfo.fileRelativePath,
   ]);
 
   useEffect(() => {

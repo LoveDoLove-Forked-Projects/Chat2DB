@@ -11,11 +11,18 @@ import remarkMath from 'remark-math';
 import MonacoEditor, { type IEditorIns, type IExportRefFunction } from '@/components/MonacoEditor';
 import i18n from '@/i18n';
 import type { IBoundInfo } from '@/typings';
-import { saveLocalFileContent } from '@/utils/file';
+import { saveLocalFileContent, waitForLocalFileSave } from '@/utils/file';
 import 'katex/dist/katex.min.css';
 import styles from './FilePreviewTab.less';
 import { getSqlDirectoryPreviewUrl } from '@/utils/previewResource';
 import LocalFileEncodingSelect from '@/components/LocalFileEncodingSelect';
+import {
+  getEffectiveShortcutConfigMap,
+  shortcutBindingToMonacoKeybinding,
+  ShortcutAction,
+  type ShortcutOverrides,
+} from '@/constants/shortcut';
+import { useGlobalStore } from '@/store/global';
 import { useWorkspaceStore } from '@/store/workspace';
 import { hasUnsavedLocalFileChanges } from '@/utils/localFileEncoding';
 
@@ -120,12 +127,14 @@ function MermaidDiagram({ source }: { source: string }) {
 
 function MarkdownSourceEditor({
   source,
+  saveKeybinding,
   onChange,
   onSave,
   onEditorChange,
   onCursorPositionChange,
 }: {
   source: string;
+  saveKeybinding?: number;
   onChange: (value: string) => void;
   onSave: (value: string) => Promise<boolean>;
   onEditorChange: (editor?: IEditorIns) => void;
@@ -134,6 +143,7 @@ function MarkdownSourceEditor({
   const reactId = useId();
   const editorId = useMemo(() => `markdown-${reactId.replace(/[^a-zA-Z0-9_-]/g, '')}`, [reactId]);
   const editorRef = useRef<IExportRefFunction>(null);
+  const [editorInstance, setEditorInstance] = useState<IEditorIns>();
 
   useEffect(() => {
     if (editorRef.current?.getAllContent() !== source) {
@@ -142,6 +152,21 @@ function MarkdownSourceEditor({
   }, [source]);
 
   useEffect(() => () => onEditorChange(undefined), [onEditorChange]);
+
+  useEffect(() => {
+    if (!editorInstance || !saveKeybinding) {
+      return undefined;
+    }
+    const action = editorInstance.addAction({
+      id: `${editorId}-save`,
+      label: i18n('monaco.text.saveFile'),
+      keybindings: [saveKeybinding],
+      run: () => {
+        void onSave(editorInstance.getValue());
+      },
+    });
+    return () => action.dispose();
+  }, [editorId, editorInstance, onSave, saveKeybinding]);
 
   return (
     <MonacoEditor
@@ -157,6 +182,7 @@ function MarkdownSourceEditor({
         padding: { top: 12, bottom: 12 },
       }}
       didMount={(editor) => {
+        setEditorInstance(editor);
         onEditorChange(editor);
         const initialPosition = editor.getPosition();
         if (initialPosition) {
@@ -164,9 +190,6 @@ function MarkdownSourceEditor({
         }
         editor.onDidChangeCursorPosition(({ position }) => onCursorPositionChange(position));
         editor.onDidChangeModelContent(() => onChange(editor.getValue()));
-        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
-          void onSave(editor.getValue());
-        });
       }}
     />
   );
@@ -235,6 +258,7 @@ const FilePreviewTab = memo(({ file, workspaceTabId }: FilePreviewTabProps) => {
   const markdownContentRef = useRef(markdownContent);
   const markdownPersistedContentRef = useRef(markdownPersistedContent);
   const [modal, modalContextHolder] = Modal.useModal();
+  const shortcutOverrides = useGlobalStore((state) => state.shortcutOverrides);
   const { setEditorToList, deleteEditor } = useWorkspaceStore((state) => ({
     setEditorToList: state.setEditorToList,
     deleteEditor: state.deleteEditor,
@@ -243,6 +267,11 @@ const FilePreviewTab = memo(({ file, workspaceTabId }: FilePreviewTabProps) => {
   fileRef.current = file;
   markdownContentRef.current = markdownContent;
   markdownPersistedContentRef.current = markdownPersistedContent;
+
+  const markdownSaveKeybinding = useMemo(() => {
+    const shortcutConfig = getEffectiveShortcutConfigMap(shortcutOverrides as ShortcutOverrides);
+    return shortcutBindingToMonacoKeybinding(shortcutConfig[ShortcutAction.SqlSave].binding, monaco) || undefined;
+  }, [shortcutOverrides]);
 
   const saveMarkdownFile = useCallback(async (value = markdownContentRef.current) => {
     const currentFile = fileRef.current;
@@ -258,6 +287,11 @@ const FilePreviewTab = memo(({ file, workspaceTabId }: FilePreviewTabProps) => {
       });
       markdownPersistedContentRef.current = result.fileContent;
       setMarkdownPersistedContent(result.fileContent);
+      useWorkspaceStore.getState().updateWorkspaceTabBoundInfo({
+        ...fileRef.current,
+        workspaceTabId,
+        ddl: result.fileContent,
+      });
       staticMessage.success(i18n('workspace.text.changeFileSuccess'));
       return true;
     } catch (error) {
@@ -265,7 +299,7 @@ const FilePreviewTab = memo(({ file, workspaceTabId }: FilePreviewTabProps) => {
       staticMessage.error(i18n('common.text.failure'));
       return false;
     }
-  }, []);
+  }, [workspaceTabId]);
 
   const markdownCloseGuard = useMemo(
     () => ({
@@ -273,6 +307,10 @@ const FilePreviewTab = memo(({ file, workspaceTabId }: FilePreviewTabProps) => {
         isMarkdown &&
         hasUnsavedLocalFileChanges(markdownContentRef.current, markdownPersistedContentRef.current),
       saveBeforeClose: () => saveMarkdownFile(),
+      waitForPendingSave: () => {
+        const filePath = fileRef.current.filePath;
+        return filePath ? waitForLocalFileSave(filePath) : Promise.resolve();
+      },
     }),
     [isMarkdown, saveMarkdownFile],
   );
@@ -344,13 +382,15 @@ const FilePreviewTab = memo(({ file, workspaceTabId }: FilePreviewTabProps) => {
   }, []);
 
   useEffect(() => {
+    if (isMarkdown) {
+      return;
+    }
     setMarkdownContent(file.ddl || '');
     setMarkdownPreviewContent(file.ddl || '');
     setMarkdownPersistedContent(file.ddl || '');
-    setMarkdownViewMode('review');
     setImageZoom(1);
     setImageNaturalSize({ width: 0, height: 0 });
-  }, [file.filePath]);
+  }, [file.ddl, file.filePath, isMarkdown]);
 
   useEffect(() => {
     if (markdownViewMode === 'source') {
@@ -566,8 +606,9 @@ const FilePreviewTab = memo(({ file, workspaceTabId }: FilePreviewTabProps) => {
     );
     const source = (
       <MarkdownSourceEditor
-        key={`${workspaceTabId}:${file.filePath || ''}:${file.fileCharset || ''}:${String(file.fileBom)}`}
+        key={`${workspaceTabId}:${file.fileCharset || ''}:${String(file.fileBom)}`}
         source={markdownContent}
+        saveKeybinding={markdownSaveKeybinding}
         onChange={setMarkdownContent}
         onSave={saveMarkdownFile}
         onEditorChange={setEditor}
