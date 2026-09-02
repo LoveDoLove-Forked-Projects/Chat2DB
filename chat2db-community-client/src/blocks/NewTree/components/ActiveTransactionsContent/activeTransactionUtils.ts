@@ -1,5 +1,6 @@
 import type { IActiveTransactionItem } from '@/service/sql';
 import { DatabaseTypeCode } from '@/constants/common';
+import dayjs from 'dayjs';
 import {
   beginLatestRequest,
   invalidateLatestRequest,
@@ -42,6 +43,14 @@ export function getLiveTransactionAge(
     return null;
   }
   return ageSeconds + Math.max(0, Math.floor((nowMs - snapshotAtMs) / 1000));
+}
+
+export function formatActiveTransactionStartedAt(value: number | string | null): string {
+  if (value == null || value === '') {
+    return '-';
+  }
+  const timestamp = dayjs(value);
+  return timestamp.isValid() ? timestamp.format('YYYY-MM-DD HH:mm:ss') : '-';
 }
 
 export function canOpenTransactionSession(record: IActiveTransactionItem, target: 'owner' | 'blocker'): boolean {

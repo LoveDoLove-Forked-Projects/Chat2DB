@@ -434,7 +434,7 @@ const copyTable = createRequest<ICopyTableParams, void>('/api/rdb/table/copy', {
 export interface IActiveTransactionItem {
   trxId: string | null;
   state: string | null;
-  startedAt: string | null;
+  startedAt: number | string | null;
   ageSeconds: number | null;
   isolationLevel: string | null;
   rowsLocked: number | null;

@@ -7,6 +7,7 @@ import { RequestGenerationRef } from '@/utils/latestRequest';
 import {
   beginActiveTransactionRefresh,
   canOpenTransactionSession,
+  formatActiveTransactionStartedAt,
   getActiveTransactionRowKey,
   getLiveTransactionAge,
   getTransactionSessionThreadId,
@@ -108,6 +109,7 @@ const ActiveTransactionsContent = ({
       title: i18n('workspace.ops.transactionStarted'),
       dataIndex: 'startedAt',
       width: 170,
+      render: formatActiveTransactionStartedAt,
       sorter: (a, b) => String(a.startedAt || '').localeCompare(String(b.startedAt || '')),
     },
     {

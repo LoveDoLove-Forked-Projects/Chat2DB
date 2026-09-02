@@ -5,6 +5,7 @@ import {
   buildSessionInspectionSql,
   canOpenTransactionSession,
   canShowActiveTransactionsMenu,
+  formatActiveTransactionStartedAt,
   getActiveTransactionRowKey,
   getLiveTransactionAge,
   getTransactionSessionThreadId,
@@ -70,6 +71,11 @@ assert.equal(isLatestActiveTransactionRefresh(refreshGenerationRef, newerRefresh
 assert.equal(getLiveTransactionAge(12, 1_000, 4_900), 15);
 assert.equal(getLiveTransactionAge(12, 5_000, 4_000), 12);
 assert.equal(getLiveTransactionAge(null, 1_000, 4_900), null);
+assert.equal(formatActiveTransactionStartedAt('2026-08-31 12:00:00'), '2026-08-31 12:00:00');
+assert.match(formatActiveTransactionStartedAt(1_788_352_626_000), /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
+assert.notEqual(formatActiveTransactionStartedAt(1_788_352_626_000), '1788352626000');
+assert.equal(formatActiveTransactionStartedAt(null), '-');
+assert.equal(formatActiveTransactionStartedAt('not-a-date'), '-');
 assert.equal(
   buildSessionInspectionSql(45),
   [
