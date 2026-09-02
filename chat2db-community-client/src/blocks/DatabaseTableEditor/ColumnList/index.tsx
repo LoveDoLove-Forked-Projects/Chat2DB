@@ -19,8 +19,8 @@ import { CSS } from '@dnd-kit/utilities';
 import { Context } from '../index';
 import { IColumnItemNew, IColumnTypes } from '@/typings';
 import i18n from '@/i18n';
-import { EditColumnOperationType, NullableType } from '@/constants';
-import { isSqliteExistingColumnReadonly, shouldShowSqlServerSparse, shouldShowMysqlColumnVisible } from '@/utils/databaseJudgments';
+import { DatabaseCapability, EditColumnOperationType, MYSQL_VISIBILITY, NullableType } from '@/constants';
+import { isDatabaseCapabilitySupported, isSqliteExistingColumnReadonly } from '@/utils/databaseJudgments';
 import CustomSelect from '@/components/CustomSelect';
 import Iconfont from '@/components/Iconfont';
 import { useStyles } from './style';
@@ -343,19 +343,26 @@ const ColumnList = forwardRef((props: IProps, ref: ForwardedRef<IColumnListRef>)
         },
       },
     ];
-    if (shouldShowMysqlColumnVisible(databaseType, databaseSupportField.supportInvisibleColumn)) {
+    if (isDatabaseCapabilitySupported(databaseType, DatabaseCapability.TABLE_EDITOR_COLUMN_VISIBILITY)) {
       _columns.splice(-1, 0, {
         title: i18n('editTable.label.columnVisible'),
         dataIndex: 'visible',
         width: 80,
         render: (text: boolean | null | undefined, record: IColumnItemNew) => {
           const editable = isEditing(record);
-          const value = record.visible === false ? 'INVISIBLE' : 'VISIBLE';
+          const value =
+            record.visible === MYSQL_VISIBILITY.INVISIBLE
+              ? i18n('editTable.option.invisible')
+              : i18n('editTable.option.visible');
           return editable ? (
             <Form.Item name="visible" style={{ margin: 0 }}>
               <Select size="small" style={{ width: '100%' }}>
-                <Select.Option value={true}>VISIBLE</Select.Option>
-                <Select.Option value={false}>INVISIBLE</Select.Option>
+                <Select.Option value={MYSQL_VISIBILITY.VISIBLE}>
+                  {i18n('editTable.option.visible')}
+                </Select.Option>
+                <Select.Option value={MYSQL_VISIBILITY.INVISIBLE}>
+                  {i18n('editTable.option.invisible')}
+                </Select.Option>
               </Select>
             </Form.Item>
           ) : (
@@ -365,7 +372,13 @@ const ColumnList = forwardRef((props: IProps, ref: ForwardedRef<IColumnListRef>)
       });
     }
     return _columns;
-  }, [columnsWidth, editingData, editingConfig, databaseType, dataSource]);
+  }, [
+    columnsWidth,
+    editingData,
+    editingConfig,
+    databaseType,
+    dataSource,
+  ]);
 
   const handleResize = useCallback(
     (index) =>
@@ -594,7 +607,7 @@ const ColumnList = forwardRef((props: IProps, ref: ForwardedRef<IColumnListRef>)
             <Checkbox>{i18n('editTable.label.autoIncrement')}</Checkbox>
           </Form.Item>
         )}
-        {shouldShowSqlServerSparse(databaseType) && (
+        {isDatabaseCapabilitySupported(databaseType, DatabaseCapability.TABLE_EDITOR_SPARSE_COLUMN) && (
           <Form.Item className={styles.checkboxContainer} labelCol={labelCol} name="sparse" valuePropName="checked">
             <Checkbox>{i18n('editTable.label.sparse')}</Checkbox>
           </Form.Item>

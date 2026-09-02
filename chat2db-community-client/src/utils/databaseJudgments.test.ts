@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { DatabaseTypeCode } from '@/constants/common';
-import { IdentifierQuoteMode } from '@/constants/databaseCapabilities';
+import { DatabaseCapability, IdentifierQuoteMode } from '@/constants/databaseCapabilities';
 import { EditColumnOperationType } from '@/constants/editTable';
 import {
   canCreateDatabase,
@@ -23,14 +23,9 @@ import {
   isMongodbTreeDataSource,
   isRedisTreeDataSource,
   isSqliteExistingColumnReadonly,
+  isDatabaseCapabilitySupported,
   quoteOpenTableIdentifier,
   quoteSqlCompletionIdentifier,
-  shouldHideOracleIndexColumn,
-  shouldShowMysqlIndexMethod,
-  shouldShowMysqlColumnVisible,
-  shouldShowMysqlTableBaseInfo,
-  shouldShowSqliteIncludeCollation,
-  shouldShowSqlServerSparse,
 } from './databaseJudgments';
 
 assert.deepEqual(getDatabaseSupport(DatabaseTypeCode.MYSQL), {
@@ -125,19 +120,52 @@ assert.equal(isRedisTreeDataSource(DatabaseTypeCode.MYSQL), false);
 assert.equal(isMongodbTreeDataSource(DatabaseTypeCode.MONGODB), true);
 assert.equal(isMongodbTreeDataSource(DatabaseTypeCode.MYSQL), false);
 
-assert.equal(shouldShowMysqlTableBaseInfo(DatabaseTypeCode.MYSQL), true);
-assert.equal(shouldShowMysqlTableBaseInfo(DatabaseTypeCode.POSTGRESQL), false);
-assert.equal(shouldShowMysqlIndexMethod(DatabaseTypeCode.MYSQL), true);
-assert.equal(shouldShowMysqlColumnVisible(DatabaseTypeCode.MYSQL, true), true);
-assert.equal(shouldShowMysqlColumnVisible(DatabaseTypeCode.MYSQL, false), false);
-assert.equal(shouldShowMysqlColumnVisible(DatabaseTypeCode.MYSQL), false);
-assert.equal(shouldShowMysqlColumnVisible(DatabaseTypeCode.POSTGRESQL, true), false);
-assert.equal(shouldHideOracleIndexColumn(DatabaseTypeCode.ORACLE), true);
-assert.equal(shouldShowSqliteIncludeCollation(DatabaseTypeCode.SQLITE), true);
+assert.equal(
+  isDatabaseCapabilitySupported(DatabaseTypeCode.MYSQL, DatabaseCapability.TABLE_EDITOR_BASE_INFO),
+  true,
+);
+assert.equal(
+  isDatabaseCapabilitySupported(DatabaseTypeCode.POSTGRESQL, DatabaseCapability.TABLE_EDITOR_BASE_INFO),
+  false,
+);
+assert.equal(
+  isDatabaseCapabilitySupported(DatabaseTypeCode.MYSQL, DatabaseCapability.TABLE_EDITOR_INDEX_METHOD),
+  true,
+);
+assert.equal(
+  isDatabaseCapabilitySupported(DatabaseTypeCode.MYSQL, DatabaseCapability.TABLE_EDITOR_COLUMN_VISIBILITY),
+  true,
+);
+assert.equal(
+  isDatabaseCapabilitySupported(DatabaseTypeCode.POSTGRESQL, DatabaseCapability.TABLE_EDITOR_COLUMN_VISIBILITY),
+  false,
+);
+assert.equal(
+  isDatabaseCapabilitySupported(DatabaseTypeCode.MYSQL, DatabaseCapability.TABLE_EDITOR_INDEX_VISIBILITY),
+  true,
+);
+assert.equal(
+  isDatabaseCapabilitySupported(DatabaseTypeCode.POSTGRESQL, DatabaseCapability.TABLE_EDITOR_INDEX_VISIBILITY),
+  false,
+);
+assert.equal(
+  isDatabaseCapabilitySupported(DatabaseTypeCode.ORACLE, DatabaseCapability.TABLE_EDITOR_INDEX_COLUMN),
+  false,
+);
+assert.equal(
+  isDatabaseCapabilitySupported(DatabaseTypeCode.SQLITE, DatabaseCapability.TABLE_EDITOR_INCLUDE_COLLATION),
+  true,
+);
 assert.equal(isSqliteExistingColumnReadonly(DatabaseTypeCode.SQLITE, EditColumnOperationType.Modify), true);
 assert.equal(isSqliteExistingColumnReadonly(DatabaseTypeCode.SQLITE, EditColumnOperationType.Add), false);
 assert.equal(isSqliteExistingColumnReadonly(DatabaseTypeCode.MYSQL, EditColumnOperationType.Modify), false);
-assert.equal(shouldShowSqlServerSparse(DatabaseTypeCode.SQLSERVER), true);
-assert.equal(shouldShowSqlServerSparse(DatabaseTypeCode.MYSQL), false);
+assert.equal(
+  isDatabaseCapabilitySupported(DatabaseTypeCode.SQLSERVER, DatabaseCapability.TABLE_EDITOR_SPARSE_COLUMN),
+  true,
+);
+assert.equal(
+  isDatabaseCapabilitySupported(DatabaseTypeCode.MYSQL, DatabaseCapability.TABLE_EDITOR_SPARSE_COLUMN),
+  false,
+);
 
 console.log('databaseJudgments.test.ts: all assertions passed');

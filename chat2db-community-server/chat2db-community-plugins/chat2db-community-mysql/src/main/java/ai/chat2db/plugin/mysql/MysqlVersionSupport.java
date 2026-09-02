@@ -25,8 +25,17 @@ public final class MysqlVersionSupport {
     }
 
     public static boolean currentVersionDisallowsInvisibleColumns() {
+        return !supportsInvisibleColumns(getCurrentDbVersion());
+    }
+
+    public static boolean supportsInvisibleIndexes(String dbVersion) {
+        MysqlVersion version = parseMysqlVersion(dbVersion);
+        return version != null && version.major() >= 8;
+    }
+
+    public static boolean currentVersionDisallowsInvisibleIndexes() {
         String dbVersion = getCurrentDbVersion();
-        return StringUtils.isNotBlank(dbVersion) && !supportsInvisibleColumns(dbVersion);
+        return !supportsInvisibleIndexes(dbVersion);
     }
 
     public static String getCurrentDbVersion() {
