@@ -134,3 +134,22 @@ export function getPersistableActiveConsoleId(params: {
   }
   return workspaceTabList[0].id;
 }
+
+export interface PersistedWorkspaceTabsState {
+  workspaceTabList?: IWorkspaceTab[] | null;
+  activeConsoleId?: string | number | null;
+  recentlyClosedWorkspaceTabs?: IWorkspaceTab[] | null;
+}
+
+export function sanitizePersistedWorkspaceTabsState<T extends PersistedWorkspaceTabsState>(state: T) {
+  const workspaceTabList = getPersistableWorkspaceTabList(state.workspaceTabList);
+  return {
+    ...state,
+    workspaceTabList,
+    activeConsoleId: getPersistableActiveConsoleId({
+      activeConsoleId: state.activeConsoleId,
+      workspaceTabList,
+    }),
+    recentlyClosedWorkspaceTabs: getPersistableWorkspaceTabList(state.recentlyClosedWorkspaceTabs) || [],
+  };
+}

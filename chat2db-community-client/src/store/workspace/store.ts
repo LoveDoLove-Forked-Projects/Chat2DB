@@ -14,6 +14,7 @@ import {
   getPersistableWorkspaceLayout,
   getPersistableWorkspaceTabList,
   createSafeWorkspaceStorage,
+  sanitizePersistedWorkspaceTabsState,
 } from './utils/workspaceTabPersistence';
 
 type WorkspaceAction = CommonAction & ConfigAction & ConsoleAction & ModalAction;
@@ -40,6 +41,7 @@ type GlobalPersist = Pick<
 // local-storage Options
 const persistOptions: PersistOptions<WorkspaceStore, GlobalPersist> = {
   name: clientRuntime.workspaceStoreName,
+  version: 1,
   storage: createJSONStorage<GlobalPersist>(() => createSafeWorkspaceStorage(localStorage)),
   partialize: (state) => {
     const workspaceTabList = getPersistableWorkspaceTabList(state.workspaceTabList);
@@ -55,19 +57,13 @@ const persistOptions: PersistOptions<WorkspaceStore, GlobalPersist> = {
       recentlyClosedWorkspaceTabs: getPersistableWorkspaceTabList(state.recentlyClosedWorkspaceTabs) || [],
     };
   },
+  migrate: (persistedState) => sanitizePersistedWorkspaceTabsState((persistedState || {}) as GlobalPersist),
   merge: (persistedState, currentState) => {
-    const storedState = (persistedState || {}) as Partial<GlobalPersist>;
-    const workspaceTabList = getPersistableWorkspaceTabList(storedState.workspaceTabList);
+    const storedState = sanitizePersistedWorkspaceTabsState((persistedState || {}) as Partial<GlobalPersist>);
     return {
       ...currentState,
       ...storedState,
       layout: getHydratedWorkspaceLayout(currentState.layout, storedState.layout),
-      workspaceTabList,
-      activeConsoleId: getPersistableActiveConsoleId({
-        activeConsoleId: storedState.activeConsoleId,
-        workspaceTabList,
-      }),
-      recentlyClosedWorkspaceTabs: getPersistableWorkspaceTabList(storedState.recentlyClosedWorkspaceTabs) || [],
     };
   },
 };

@@ -7,6 +7,7 @@ import {
   getPersistableWorkspaceLayout,
   getPersistableWorkspaceTabList,
   createSafeWorkspaceStorage,
+  sanitizePersistedWorkspaceTabsState,
 } from './workspaceTabPersistence';
 
 const tabs: IWorkspaceTab[] = [
@@ -164,6 +165,24 @@ assert.equal(storageWriteErrors.length, 1, 'workspace persistence failures must 
 failStorageWrites = false;
 safeStorage.setItem('Chat2DB_Workspace_Store', '{"state":{}}');
 assert.equal(storedWorkspaceValue, '{"state":{}}', 'workspace persistence must recover after a failed write');
+
+const sanitizedLegacyState = sanitizePersistedWorkspaceTabsState({
+  workspaceTabList: largeLocalFileTabs,
+  activeConsoleId: 'large-sql',
+  recentlyClosedWorkspaceTabs: largeLocalFileTabs,
+  currentConnectionDetails: { dataSourceId: 42 },
+});
+assert.equal(
+  JSON.stringify(sanitizedLegacyState).includes(largeLocalFileContent),
+  false,
+  'legacy workspace migration must remove local file content from open and recently closed tabs',
+);
+assert.equal(sanitizedLegacyState.activeConsoleId, 'large-sql', 'legacy workspace migration must retain the active tab');
+assert.deepEqual(
+  sanitizedLegacyState.currentConnectionDetails,
+  { dataSourceId: 42 },
+  'legacy workspace migration must preserve unrelated persisted state',
+);
 
 const circularPanelState: Record<string, unknown> = {};
 circularPanelState.self = circularPanelState;

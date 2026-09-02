@@ -48,6 +48,7 @@ import TerminalTab from './TerminalTab';
 import { useWorkspaceStore } from '@/store/workspace';
 import { useGlobalStore } from '@/store/global';
 import { getPersistableActiveConsoleId } from '@/store/workspace/utils/workspaceTabPersistence';
+import { getRestoredLocalFileReadRequest } from '@/store/workspace/utils/localFileWorkspaceTab';
 import { isWorkspaceResultInspectorCode } from '@/store/workspace/utils/resultInspector';
 import { isConsoleTabNameCustomized } from '@/store/workspace/utils/consoleTabName';
 import { useTreeStore } from '@/store/tree';
@@ -271,14 +272,19 @@ function rebuildSqlExecuteTabData(item: IWorkspaceTab) {
     return uniqueData;
   }
 
-  if (
-    item.type === WorkspaceTabType.LocalSQLFile &&
-    uniqueData.ddl === undefined &&
-    uniqueData.filePath
-  ) {
+  const localFileReadRequest = getRestoredLocalFileReadRequest(item);
+  if (localFileReadRequest) {
     return {
       ...uniqueData,
-      loadSQL: () => jcefApi.readFile(uniqueData.filePath!, uniqueData.fileCharset).then((file) => file.content),
+      loadSQL: () =>
+        useWorkspaceStore
+          .getState()
+          .readFile(
+            localFileReadRequest.filePath,
+            localFileReadRequest.fileExtension,
+            localFileReadRequest.context,
+          )
+          .then((file) => file?.content || ''),
     };
   }
 
