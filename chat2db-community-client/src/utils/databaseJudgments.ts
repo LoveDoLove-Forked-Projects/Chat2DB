@@ -1,7 +1,6 @@
 import { DatabaseTypeCode } from '@/constants/common';
 import { DatabaseCapability, IdentifierQuoteMode } from '@/constants/databaseCapabilities';
 import { getDatabaseInfo, normalizeDatabaseType } from '@/constants/database';
-import { EditColumnOperationType } from '@/constants/editTable';
 
 type DatabaseTypeInput = DatabaseTypeCode | string | null | undefined;
 
@@ -208,66 +207,6 @@ export const getDatabaseSupport = (databaseType?: DatabaseTypeInput) => {
   };
 };
 
-export const canUseRoutineOperation = (databaseType?: DatabaseTypeInput): boolean => {
-  return isDatabaseCapabilitySupported(databaseType, DatabaseCapability.ROUTINE_OPERATION);
-};
-
-export const canUseAccountManage = (databaseType?: DatabaseTypeInput): boolean => {
-  return isDatabaseCapabilitySupported(databaseType, DatabaseCapability.ACCOUNT_MANAGEMENT);
-};
-
-export const canDeleteDatabase = (databaseType?: DatabaseTypeInput): boolean => {
-  return isDatabaseCapabilitySupported(databaseType, DatabaseCapability.DATABASE_DELETE);
-};
-
-export const canDeleteSchema = (databaseType?: DatabaseTypeInput): boolean => {
-  return isDatabaseCapabilitySupported(databaseType, DatabaseCapability.SCHEMA_DELETE);
-};
-
-export const canCreateDatabase = (databaseType?: DatabaseTypeInput): boolean => {
-  return isDatabaseCapabilitySupported(databaseType, DatabaseCapability.DATABASE_CREATE);
-};
-
-export const canSetCreateDatabaseCharset = (databaseType?: DatabaseTypeInput): boolean => {
-  return isDatabaseCapabilitySupported(databaseType, DatabaseCapability.DATABASE_CREATE_CHARSET);
-};
-
-export const canSetCreateDatabaseCollation = (databaseType?: DatabaseTypeInput): boolean => {
-  return isDatabaseCapabilitySupported(databaseType, DatabaseCapability.DATABASE_CREATE_COLLATION);
-};
-
-export const canCreateSchema = (databaseType?: DatabaseTypeInput): boolean => {
-  return isDatabaseCapabilitySupported(databaseType, DatabaseCapability.SCHEMA_CREATE);
-};
-
-export const canRunSqlFile = (databaseType?: DatabaseTypeInput): boolean => {
-  return isDatabaseCapabilitySupported(databaseType, DatabaseCapability.IMPORT_EXPORT);
-};
-
-export const canExportSqlFile = (databaseType?: DatabaseTypeInput): boolean => {
-  return isDatabaseCapabilitySupported(databaseType, DatabaseCapability.IMPORT_EXPORT);
-};
-
-export const canExportData = (databaseType?: DatabaseTypeInput): boolean => {
-  return isDatabaseCapabilitySupported(databaseType, DatabaseCapability.IMPORT_EXPORT);
-};
-
-export const canImportData = (databaseType?: DatabaseTypeInput): boolean => {
-  return isDatabaseCapabilitySupported(databaseType, DatabaseCapability.IMPORT_EXPORT);
-};
-
-export const canGenerateJavaClass = (databaseType?: DatabaseTypeInput): boolean => {
-  return isDatabaseCapabilitySupported(databaseType, DatabaseCapability.JAVA_CLASS_GENERATION);
-};
-
-export const canUseBackendCompletion = (databaseType?: DatabaseTypeInput): boolean => {
-  return isDatabaseCapabilitySupported(databaseType, DatabaseCapability.BACKEND_COMPLETION);
-};
-
-export const canUseBackendEditorHints = (databaseType?: DatabaseTypeInput): boolean => {
-  return isDatabaseCapabilitySupported(databaseType, DatabaseCapability.BACKEND_EDITOR_HINTS);
-};
-
 export const getOpenTableIdentifierQuoteMode = (databaseType?: DatabaseTypeInput): IdentifierQuoteMode => {
   return getIdentifierQuoteModeFromConfig(openTableIdentifierQuoteJudgments, databaseType);
 };
@@ -295,22 +234,4 @@ export const quoteOpenTableIdentifier = (name: string, databaseType?: DatabaseTy
 
 export const quoteSqlCompletionIdentifier = (name: string, databaseType?: DatabaseTypeInput): string => {
   return quoteIdentifierByMode(name, getSqlCompletionIdentifierQuoteMode(databaseType));
-};
-
-export const isRedisTreeDataSource = (databaseType?: DatabaseTypeInput): boolean => {
-  return isDatabaseCapabilitySupported(databaseType, DatabaseCapability.REDIS_TREE);
-};
-
-export const isMongodbTreeDataSource = (databaseType?: DatabaseTypeInput): boolean => {
-  return isDatabaseCapabilitySupported(databaseType, DatabaseCapability.MONGODB_TREE);
-};
-
-export const isSqliteExistingColumnReadonly = (
-  databaseType?: DatabaseTypeInput,
-  editStatus?: EditColumnOperationType | null,
-): boolean => {
-  return (
-    !isDatabaseCapabilitySupported(databaseType, DatabaseCapability.TABLE_EDITOR_EXISTING_COLUMN_EDIT) &&
-    editStatus !== EditColumnOperationType.Add
-  );
 };

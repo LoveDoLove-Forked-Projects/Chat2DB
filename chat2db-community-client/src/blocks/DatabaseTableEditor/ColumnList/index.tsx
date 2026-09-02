@@ -20,7 +20,7 @@ import { Context } from '../index';
 import { IColumnItemNew, IColumnTypes } from '@/typings';
 import i18n from '@/i18n';
 import { DatabaseCapability, EditColumnOperationType, MYSQL_VISIBILITY, NullableType } from '@/constants';
-import { isDatabaseCapabilitySupported, isSqliteExistingColumnReadonly } from '@/utils/databaseJudgments';
+import { isDatabaseCapabilitySupported } from '@/utils/databaseJudgments';
 import CustomSelect from '@/components/CustomSelect';
 import Iconfont from '@/components/Iconfont';
 import { useStyles } from './style';
@@ -270,7 +270,13 @@ const ColumnList = forwardRef((props: IProps, ref: ForwardedRef<IColumnListRef>)
             <div>
               <Checkbox
                 onChange={() => {
-                  if (isSqliteExistingColumnReadonly(databaseType, record.editStatus)) {
+                  if (
+                    record.editStatus !== EditColumnOperationType.Add &&
+                    !isDatabaseCapabilitySupported(
+                      databaseType,
+                      DatabaseCapability.TABLE_EDITOR_EXISTING_COLUMN_EDIT,
+                    )
+                  ) {
                     return null;
                   }
                   handelNullable(record);
@@ -279,7 +285,11 @@ const ColumnList = forwardRef((props: IProps, ref: ForwardedRef<IColumnListRef>)
                 disabled={
                   editingConfig?.supportNullable === false ||
                   !!record.primaryKey ||
-                  isSqliteExistingColumnReadonly(databaseType, record.editStatus)
+                  (record.editStatus !== EditColumnOperationType.Add &&
+                    !isDatabaseCapabilitySupported(
+                      databaseType,
+                      DatabaseCapability.TABLE_EDITOR_EXISTING_COLUMN_EDIT,
+                    ))
                 }
               />
             </div>
@@ -295,7 +305,13 @@ const ColumnList = forwardRef((props: IProps, ref: ForwardedRef<IColumnListRef>)
             <div
               className={cx(styles.keyBox)}
               onClick={() => {
-                if (isSqliteExistingColumnReadonly(databaseType, record.editStatus)) {
+                if (
+                  record.editStatus !== EditColumnOperationType.Add &&
+                  !isDatabaseCapabilitySupported(
+                    databaseType,
+                    DatabaseCapability.TABLE_EDITOR_EXISTING_COLUMN_EDIT,
+                  )
+                ) {
                   return null;
                 }
                 handelPrimaryKey(record);
@@ -325,7 +341,10 @@ const ColumnList = forwardRef((props: IProps, ref: ForwardedRef<IColumnListRef>)
         width: columnsWidth[7],
         render: (text: string, record: IColumnItemNew) => {
           // sqlLite does not support deleting fields. New fields can be deleted.
-          if (isSqliteExistingColumnReadonly(databaseType, record.editStatus)) {
+          if (
+            record.editStatus !== EditColumnOperationType.Add &&
+            !isDatabaseCapabilitySupported(databaseType, DatabaseCapability.TABLE_EDITOR_EXISTING_COLUMN_EDIT)
+          ) {
             return null;
           }
           return (
@@ -666,7 +685,10 @@ const ColumnList = forwardRef((props: IProps, ref: ForwardedRef<IColumnListRef>)
     return {
       onClick: () => {
         // sqlLite does not support modifying fields. New fields can be modified.
-        if (isSqliteExistingColumnReadonly(databaseType, record.editStatus)) {
+        if (
+          record.editStatus !== EditColumnOperationType.Add &&
+          !isDatabaseCapabilitySupported(databaseType, DatabaseCapability.TABLE_EDITOR_EXISTING_COLUMN_EDIT)
+        ) {
           return;
         }
         if (editingData?.key !== record.key) {
