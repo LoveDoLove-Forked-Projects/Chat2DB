@@ -53,6 +53,8 @@ import static ai.chat2db.plugin.mysql.constant.MysqlSqlConstants.SQL_UNDEFINED;
 
 public class MysqlSqlBuilder extends DefaultSqlBuilder {
 
+    private static final String INVISIBLE_COLUMN_UNSUPPORTED_MESSAGE =
+            "MySQL invisible columns require MySQL 8.0.23 or later";
     private static final String INVISIBLE_INDEX_UNSUPPORTED_MESSAGE =
             "MySQL invisible indexes require MySQL 8.0 or later";
 
@@ -90,6 +92,7 @@ public class MysqlSqlBuilder extends DefaultSqlBuilder {
             if (typeEnum == null) {
                 continue;
             }
+            rejectInvisibleColumnIfUnsupported(null, column);
             script.append(SQLConstants.TAB).append(typeEnum.buildCreateColumnSql(column)).append(SQLConstants.COMMA_LINE_SEPARATOR);
         }
         List<TableIndex> indexList = table.getIndexList();
@@ -193,11 +196,14 @@ public class MysqlSqlBuilder extends DefaultSqlBuilder {
                 if (typeEnum == null) {
                     continue;
                 }
+                boolean forceVisibleKeyword = isColumnVisibilityChangedToVisible(oldTable, tableColumn);
+                rejectInvisibleColumnIfUnsupported(oldTable, tableColumn);
                 if (moved || added) {
-                    script.append(SQLConstants.TAB).append(typeEnum.buildModifyColumn(tableColumn, true, findPrevious(tableColumn, newTable)))
+                    script.append(SQLConstants.TAB).append(typeEnum.buildModifyColumn(tableColumn, true,
+                                    findPrevious(tableColumn, newTable), forceVisibleKeyword))
                             .append(SQLConstants.COMMA_LINE_SEPARATOR);
                 } else {
-                    script.append(SQLConstants.TAB).append(typeEnum.buildModifyColumn(tableColumn)).append(SQLConstants.COMMA_LINE_SEPARATOR);
+                    script.append(SQLConstants.TAB).append(typeEnum.buildModifyColumn(tableColumn, forceVisibleKeyword)).append(SQLConstants.COMMA_LINE_SEPARATOR);
                 }
             }
         }
@@ -320,6 +326,43 @@ public class MysqlSqlBuilder extends DefaultSqlBuilder {
             }
         }
         return PREVIOUS_COLUMN_NOT_FOUND;
+    }
+
+    private static void rejectInvisibleColumnIfUnsupported(Table oldTable, TableColumn newColumn) {
+        if (!usesInvisibleColumnFeature(oldTable, newColumn)) {
+            return;
+        }
+        if (MysqlVersionSupport.currentVersionDisallowsInvisibleColumns()) {
+            throw new IllegalArgumentException(INVISIBLE_COLUMN_UNSUPPORTED_MESSAGE);
+        }
+    }
+
+    private static boolean usesInvisibleColumnFeature(Table oldTable, TableColumn newColumn) {
+        if (Boolean.FALSE.equals(newColumn.getVisible())) {
+            return true;
+        }
+        TableColumn oldColumn = findOldColumn(oldTable, newColumn);
+        return oldColumn != null
+                && newColumn.getVisible() != null
+                && !Objects.equals(oldColumn.getVisible(), newColumn.getVisible());
+    }
+
+    private static boolean isColumnVisibilityChangedToVisible(Table oldTable, TableColumn newColumn) {
+        TableColumn oldColumn = findOldColumn(oldTable, newColumn);
+        return oldColumn != null
+                && Boolean.FALSE.equals(oldColumn.getVisible())
+                && Boolean.TRUE.equals(newColumn.getVisible());
+    }
+
+    private static TableColumn findOldColumn(Table oldTable, TableColumn newColumn) {
+        if (oldTable == null || oldTable.getColumnList() == null) {
+            return null;
+        }
+        String sourceName = StringUtils.defaultIfBlank(newColumn.getOldName(), newColumn.getName());
+        return oldTable.getColumnList().stream()
+                .filter(column -> StringUtils.equals(column.getName(), sourceName))
+                .findFirst()
+                .orElse(null);
     }
 
     @Override

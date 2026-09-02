@@ -215,6 +215,89 @@ class MysqlSqlBuilderTest {
     }
 
     @Test
+    void shouldPreviewColumnTransitionToInvisible() {
+        withMysqlVersion("8.0.23", () -> {
+            MysqlSqlBuilder builder = new MysqlSqlBuilder();
+            Table oldTable = mysqlTable(List.of(mysqlVarcharColumn("content", "content", null, true)));
+            Table newTable = mysqlTable(List.of(mysqlVarcharColumn("content", "content",
+                    EditStatusEnum.MODIFY.name(), false)));
+
+            String sql = builder.ddl().table().buildAlterTable(oldTable, newTable);
+
+            assertTrue(normalizeWhitespace(sql)
+                    .contains("MODIFY COLUMN `content` VARCHAR(255) NOT NULL INVISIBLE"), sql);
+        });
+    }
+
+    @Test
+    void shouldPreviewColumnTransitionToVisible() {
+        withMysqlVersion("8.0.23", () -> {
+            MysqlSqlBuilder builder = new MysqlSqlBuilder();
+            Table oldTable = mysqlTable(List.of(mysqlVarcharColumn("content", "content", null, false)));
+            Table newTable = mysqlTable(List.of(mysqlVarcharColumn("content", "content",
+                    EditStatusEnum.MODIFY.name(), true)));
+
+            String sql = builder.ddl().table().buildAlterTable(oldTable, newTable);
+
+            assertTrue(normalizeWhitespace(sql)
+                    .contains("MODIFY COLUMN `content` VARCHAR(255) NOT NULL VISIBLE"), sql);
+        });
+    }
+
+    @Test
+    void shouldPlaceInvisibleBeforeCommentInColumnDefinition() {
+        TableColumn column = mysqlVarcharColumn("content", "content", null, false);
+        column.setComment("content note");
+
+        String sql = MysqlColumnTypeEnum.VARCHAR.buildCreateColumnSql(column);
+
+        assertEquals("`content` VARCHAR(255) NOT NULL INVISIBLE COMMENT 'content note'", normalizeWhitespace(sql));
+    }
+
+    @Test
+    void shouldPlaceVisibleBeforeCommentInColumnDefinition() {
+        TableColumn column = mysqlVarcharColumn("content", "content", EditStatusEnum.MODIFY.name(), true);
+        column.setComment("content note");
+
+        String sql = MysqlColumnTypeEnum.VARCHAR.buildCreateColumnSql(column, true);
+
+        assertEquals("`content` VARCHAR(255) NOT NULL VISIBLE COMMENT 'content note'", normalizeWhitespace(sql));
+    }
+
+    @Test
+    void shouldRejectInvisibleColumnWhenCreatingOnMysql8022() {
+        withMysqlVersion("8.0.22", () -> {
+            Table table = Table.builder()
+                    .databaseName("test_db")
+                    .name("sample_table")
+                    .columnList(List.of(mysqlVarcharColumn("content", "content", null, false)))
+                    .indexList(List.of())
+                    .build();
+
+            IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                    () -> new MysqlSqlBuilder().ddl().table().buildCreateTable(table,
+                            TableBuilderConfig.defaultConfig()));
+
+            assertEquals("MySQL invisible columns require MySQL 8.0.23 or later", exception.getMessage());
+        });
+    }
+
+    @Test
+    void shouldRejectVisibleColumnTransitionOnMysql8022() {
+        withMysqlVersion("8.0.22", () -> {
+            MysqlSqlBuilder builder = new MysqlSqlBuilder();
+            Table oldTable = mysqlTable(List.of(mysqlVarcharColumn("content", "content", null, false)));
+            Table newTable = mysqlTable(List.of(mysqlVarcharColumn("content", "content",
+                    EditStatusEnum.MODIFY.name(), true)));
+
+            IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                    () -> builder.ddl().table().buildAlterTable(oldTable, newTable));
+
+            assertEquals("MySQL invisible columns require MySQL 8.0.23 or later", exception.getMessage());
+        });
+    }
+
+    @Test
     void shouldRebuildIndexWhenVisibilityAndMethodChangeTogether() {
         withMysqlVersion("8.0.36", () -> {
             MysqlSqlBuilder builder = new MysqlSqlBuilder();
@@ -405,13 +488,22 @@ class MysqlSqlBuilderTest {
     }
 
     private static TableColumn mysqlVarcharColumn(String name, String oldName, String editStatus) {
+        return mysqlVarcharColumn(name, oldName, editStatus, null);
+    }
+
+    private static TableColumn mysqlVarcharColumn(String name, String oldName, String editStatus, Boolean visible) {
         return TableColumn.builder()
                 .name(name)
                 .oldName(oldName)
                 .columnType("VARCHAR")
                 .columnSize(255)
                 .editStatus(editStatus)
+                .visible(visible)
                 .build();
+    }
+
+    private static String normalizeWhitespace(String sql) {
+        return sql.replaceAll("\\s+", " ").trim();
     }
 
     private static void withMysqlVersion(String dbVersion, Runnable runnable) {

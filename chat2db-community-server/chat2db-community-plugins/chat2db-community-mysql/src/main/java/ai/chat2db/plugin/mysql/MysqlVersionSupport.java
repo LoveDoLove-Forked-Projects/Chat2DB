@@ -14,6 +14,20 @@ public final class MysqlVersionSupport {
     private MysqlVersionSupport() {
     }
 
+    public static boolean supportsInvisibleColumns(String dbVersion) {
+        MysqlVersion version = parseMysqlVersion(dbVersion);
+        if (version == null) {
+            return false;
+        }
+        return version.major() > 8
+                || version.major() == 8 && (version.minor() > 0
+                || version.minor() == 0 && version.patch() >= 23);
+    }
+
+    public static boolean currentVersionDisallowsInvisibleColumns() {
+        return !supportsInvisibleColumns(getCurrentDbVersion());
+    }
+
     public static boolean supportsInvisibleIndexes(String dbVersion) {
         MysqlVersion version = parseMysqlVersion(dbVersion);
         return version != null && version.major() >= 8;
@@ -47,9 +61,10 @@ public final class MysqlVersionSupport {
         if (!matcher.matches()) {
             return null;
         }
-        return new MysqlVersion(Integer.parseInt(matcher.group(1)));
+        int patch = matcher.group(3) == null ? 0 : Integer.parseInt(matcher.group(3));
+        return new MysqlVersion(Integer.parseInt(matcher.group(1)), Integer.parseInt(matcher.group(2)), patch);
     }
 
-    private record MysqlVersion(int major) {
+    private record MysqlVersion(int major, int minor, int patch) {
     }
 }

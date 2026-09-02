@@ -240,8 +240,10 @@ public class MysqlMetaData extends DefaultMetaService implements IDbMetaData {
                 column.setName(resultSet.getString(FIELD_COLUMN_NAME_UPPER));
                 column.setColumnType(resultSet.getString(FIELD_DATA_TYPE).toUpperCase());
                 column.setDefaultValue(resultSet.getString(FIELD_COLUMN_DEFAULT));
-                column.setAutoIncrement(resultSet.getString(FIELD_EXTRA).contains(SQL_AUTO_INCREMENT));
-                column.setOnUpdateCurrentTimestamp(resultSet.getString(FIELD_EXTRA).contains(SQL_ON_UPDATE_CURRENT_TIMESTAMP));
+                String columnExtra = StringUtils.defaultString(resultSet.getString(FIELD_EXTRA));
+                column.setAutoIncrement(columnExtra.contains(SQL_AUTO_INCREMENT));
+                column.setOnUpdateCurrentTimestamp(columnExtra.contains(SQL_ON_UPDATE_CURRENT_TIMESTAMP));
+                column.setVisible(!columnExtra.contains(SQL_INVISIBLE));
                 column.setComment(resultSet.getString(FIELD_COLUMN_COMMENT));
                 column.setPrimaryKey(SQL_PRIMARY_KEY_FLAG.equalsIgnoreCase(resultSet.getString(FIELD_COLUMN_KEY)));
                 column.setNullable(SQL_YES.equalsIgnoreCase(resultSet.getString(FIELD_IS_NULLABLE)) ? 1 : 0);
@@ -460,7 +462,6 @@ public class MysqlMetaData extends DefaultMetaService implements IDbMetaData {
                 .indexTypes(MysqlIndexTypeEnum.getIndexTypes())
                 .defaultValues(MysqlDefaultValueEnum.getDefaultValues())
                 .engineTypes(getEngineTypes())
-                .supportInvisibleIndex(MysqlVersionSupport.supportsInvisibleIndexes(MysqlVersionSupport.getCurrentDbVersion()))
                 .build();
     }
 

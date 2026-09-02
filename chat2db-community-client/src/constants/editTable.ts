@@ -17,7 +17,7 @@ export enum NullableType {
 
 export const MYSQL_PRIMARY_INDEX_TYPE = 'Primary' as const;
 
-export const MYSQL_INDEX_VISIBILITY = {
-  VISIBLE: true,
-  INVISIBLE: false,
+export const MYSQL_VISIBILITY = {
+  VISIBLE: { label: 'VISIBLE', value: true },
+  INVISIBLE: { label: 'INVISIBLE', value: false },
 } as const;
