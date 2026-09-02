@@ -156,7 +156,7 @@ public enum MysqlIndexTypeEnum {
         String visibility = Boolean.FALSE.equals(tableIndex.getVisible()) ? SQL_INVISIBLE : SQL_VISIBLE;
         return StringUtils.join(SQL_ALTER_INDEX,
                 MysqlIdentifierProcessor.INSTANCE.quoteIdentifierAlways(tableIndex.getName()),
-                " ", visibility);
+                SQLConstants.SPACE, visibility);
     }
 
     private String buildDropIndex(TableIndex tableIndex) {

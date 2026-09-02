@@ -21,7 +21,7 @@ public final class MysqlVersionSupport {
 
     public static boolean currentVersionDisallowsInvisibleIndexes() {
         String dbVersion = getCurrentDbVersion();
-        return StringUtils.isNotBlank(dbVersion) && !supportsInvisibleIndexes(dbVersion);
+        return !supportsInvisibleIndexes(dbVersion);
     }
 
     public static String getCurrentDbVersion() {

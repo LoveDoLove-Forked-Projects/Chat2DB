@@ -12,6 +12,8 @@ export default {
   'editTable.label.indexType': 'Type',
   'editTable.label.indexMethod': 'Index method',
   'editTable.label.indexVisible': 'Visible',
+  'editTable.option.indexVisible': 'VISIBLE',
+  'editTable.option.indexInvisible': 'INVISIBLE',
   'editTable.label.includeColumn': 'Include column',
   'editTable.button.createTable': 'Create Table',
   'editTable.button.importTable': 'Export Table',

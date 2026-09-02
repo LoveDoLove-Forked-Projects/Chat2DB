@@ -12,6 +12,8 @@ export default {
   'editTable.label.indexType': 'タイプ',
   'editTable.label.indexMethod': 'インデックス方法',
   'editTable.label.indexVisible': '表示',
+  'editTable.option.indexVisible': '表示',
+  'editTable.option.indexInvisible': '非表示',
   'editTable.label.includeColumn': '列を含む',
   'editTable.button.createTable': 'テーブルを作成',
   'editTable.button.importTable': 'テーブルをエクスポート',

@@ -216,17 +216,35 @@ class MysqlSqlBuilderTest {
 
     @Test
     void shouldRebuildIndexWhenVisibilityAndMethodChangeTogether() {
-        MysqlSqlBuilder builder = new MysqlSqlBuilder();
-        Table oldTable = mysqlTableWithIndexes(List.of(mysqlIndex("idx_content", "BTREE", true,
-                List.of(mysqlIndexColumn("content", "ASC", null)))));
-        Table newTable = mysqlTableWithIndexes(List.of(mysqlModifiedIndex("idx_content", "HASH", false,
-                List.of(mysqlIndexColumn("content", "ASC", null)))));
+        withMysqlVersion("8.0.36", () -> {
+            MysqlSqlBuilder builder = new MysqlSqlBuilder();
+            Table oldTable = mysqlTableWithIndexes(List.of(mysqlIndex("idx_content", "BTREE", true,
+                    List.of(mysqlIndexColumn("content", "ASC", null)))));
+            Table newTable = mysqlTableWithIndexes(List.of(mysqlModifiedIndex("idx_content", "HASH", false,
+                    List.of(mysqlIndexColumn("content", "ASC", null)))));
 
-        String sql = builder.ddl().table().buildAlterTable(oldTable, newTable);
+            String sql = builder.ddl().table().buildAlterTable(oldTable, newTable);
 
-        assertEquals("ALTER TABLE `test_db`.`sample_table`\n"
-                + "\tDROP INDEX `idx_content`,\n"
-                + "ADD INDEX `idx_content` (`content` ASC) USING HASH INVISIBLE;", sql);
+            assertEquals("ALTER TABLE `test_db`.`sample_table`\n"
+                    + "\tDROP INDEX `idx_content`,\n"
+                    + "ADD INDEX `idx_content` (`content` ASC) USING HASH INVISIBLE;", sql);
+        });
+    }
+
+    @Test
+    void shouldUseLightweightAlterForVisibilityOnlyChange() {
+        withMysqlVersion("8.0.36", () -> {
+            MysqlSqlBuilder builder = new MysqlSqlBuilder();
+            Table oldTable = mysqlTableWithIndexes(List.of(mysqlIndex("idx_content", "BTREE", true,
+                    List.of(mysqlIndexColumn("content", "ASC", 16L)))));
+            Table newTable = mysqlTableWithIndexes(List.of(mysqlModifiedIndex("idx_content", "BTREE", false,
+                    List.of(mysqlIndexColumn("content", "ASC", 16L)))));
+
+            String sql = builder.ddl().table().buildAlterTable(oldTable, newTable);
+
+            assertEquals("ALTER TABLE `test_db`.`sample_table`\n"
+                    + "\tALTER INDEX `idx_content` INVISIBLE;", sql);
+        });
     }
 
     @Test
@@ -266,17 +284,19 @@ class MysqlSqlBuilderTest {
 
     @Test
     void shouldRebuildIndexWhenVisibilityAndPrefixLengthChangeTogether() {
-        MysqlSqlBuilder builder = new MysqlSqlBuilder();
-        Table oldTable = mysqlTableWithIndexes(List.of(mysqlIndex("idx_content", "BTREE", true,
-                List.of(mysqlIndexColumn("content", "ASC", 16L)))));
-        Table newTable = mysqlTableWithIndexes(List.of(mysqlModifiedIndex("idx_content", "BTREE", false,
-                List.of(mysqlIndexColumn("content", "ASC", 32L)))));
+        withMysqlVersion("8.0.36", () -> {
+            MysqlSqlBuilder builder = new MysqlSqlBuilder();
+            Table oldTable = mysqlTableWithIndexes(List.of(mysqlIndex("idx_content", "BTREE", true,
+                    List.of(mysqlIndexColumn("content", "ASC", 16L)))));
+            Table newTable = mysqlTableWithIndexes(List.of(mysqlModifiedIndex("idx_content", "BTREE", false,
+                    List.of(mysqlIndexColumn("content", "ASC", 32L)))));
 
-        String sql = builder.ddl().table().buildAlterTable(oldTable, newTable);
+            String sql = builder.ddl().table().buildAlterTable(oldTable, newTable);
 
-        assertEquals("ALTER TABLE `test_db`.`sample_table`\n"
-                + "\tDROP INDEX `idx_content`,\n"
-                + "ADD INDEX `idx_content` (`content`(32) ASC) USING BTREE INVISIBLE;", sql);
+            assertEquals("ALTER TABLE `test_db`.`sample_table`\n"
+                    + "\tDROP INDEX `idx_content`,\n"
+                    + "ADD INDEX `idx_content` (`content`(32) ASC) USING BTREE INVISIBLE;", sql);
+        });
     }
 
     @Test
