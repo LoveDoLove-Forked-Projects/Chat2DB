@@ -344,6 +344,11 @@ public class MysqlMetaData extends DefaultMetaService implements IDbMetaData {
                         log.error(LOG_INDEX_COMMENT_FAILED, keyName, e);
                         index.setComment(resultSet.getString(FIELD_INDEX_COMMENT_FALLBACK));
                     }
+                    try {
+                        index.setVisible(INDEX_VISIBLE_VALUE.equalsIgnoreCase(resultSet.getString(FIELD_IS_VISIBLE)));
+                    } catch (SQLException e) {
+                        index.setVisible(Boolean.TRUE);
+                    }
                     List<TableIndexColumn> tableIndexColumns = new ArrayList<>();
                     tableIndexColumns.add(getTableIndexColumn(resultSet));
                     index.setColumnList(tableIndexColumns);
@@ -455,6 +460,7 @@ public class MysqlMetaData extends DefaultMetaService implements IDbMetaData {
                 .indexTypes(MysqlIndexTypeEnum.getIndexTypes())
                 .defaultValues(MysqlDefaultValueEnum.getDefaultValues())
                 .engineTypes(getEngineTypes())
+                .supportInvisibleIndex(MysqlVersionSupport.supportsInvisibleIndexes(MysqlVersionSupport.getCurrentDbVersion()))
                 .build();
     }
 

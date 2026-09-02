@@ -18,8 +18,8 @@ import { Table, Input, Form, Select, Modal } from 'antd';
 import { v4 as uuidv4 } from 'uuid';
 import IncludeCol, { IIncludeColRef } from '../IncludeCol';
 import { IIndexItem, IIndexIncludeColumnItem } from '@/typings';
-import { EditColumnOperationType } from '@/constants';
-import { shouldHideOracleIndexColumn, shouldShowMysqlIndexMethod } from '@/utils/databaseJudgments';
+import { EditColumnOperationType, MYSQL_INDEX_VISIBILITY, MYSQL_PRIMARY_INDEX_TYPE } from '@/constants';
+import { shouldHideOracleIndexColumn, shouldShowMysqlIndexMethod, shouldShowMysqlIndexVisible } from '@/utils/databaseJudgments';
 import Iconfont from '@/components/Iconfont';
 import { Context } from '../index';
 import i18n from '@/i18n';
@@ -344,6 +344,35 @@ const IndexList = forwardRef((props: IProps, ref: ForwardedRef<IIndexListRef>) =
             </Form.Item>
           ) : (
             <div className={styles.editableCell}>{text}</div>
+          );
+        },
+      });
+    }
+    if (shouldShowMysqlIndexVisible(databaseType, databaseSupportField.supportInvisibleIndex)) {
+      _columns.splice(-1, 0, {
+        title: i18n('editTable.label.indexVisible'),
+        dataIndex: 'visible',
+        width: '100px',
+        render: (text: boolean | null | undefined, record: IIndexItem) => {
+          const isPrimaryKey = record.type === MYSQL_PRIMARY_INDEX_TYPE;
+          const editable = isEditing(record) && !isPrimaryKey;
+          const value =
+            record.visible === MYSQL_INDEX_VISIBILITY.INVISIBLE
+              ? i18n('editTable.option.indexInvisible')
+              : i18n('editTable.option.indexVisible');
+          return editable ? (
+            <Form.Item name="visible" style={{ margin: 0 }}>
+              <Select style={{ width: '100%' }} disabled={isPrimaryKey}>
+                <Select.Option value={MYSQL_INDEX_VISIBILITY.VISIBLE}>
+                  {i18n('editTable.option.indexVisible')}
+                </Select.Option>
+                <Select.Option value={MYSQL_INDEX_VISIBILITY.INVISIBLE}>
+                  {i18n('editTable.option.indexInvisible')}
+                </Select.Option>
+              </Select>
+            </Form.Item>
+          ) : (
+            <div className={styles.editableCell}>{value}</div>
           );
         },
       });
