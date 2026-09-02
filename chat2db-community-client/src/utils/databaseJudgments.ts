@@ -152,6 +152,16 @@ export const shouldShowMysqlIndexMethod = (databaseType?: DatabaseTypeInput): bo
   return containsStrict(databaseCapabilities.tableEditorMysqlIndexMethodSupported, databaseType);
 };
 
+export const shouldShowMysqlIndexVisible = (
+  databaseType?: DatabaseTypeInput,
+  supportInvisibleIndex?: boolean,
+): boolean => {
+  return (
+    containsStrict(databaseCapabilities.tableEditorMysqlIndexVisibleSupported, databaseType) &&
+    supportInvisibleIndex === true
+  );
+};
+
 export const shouldHideOracleIndexColumn = (databaseType?: DatabaseTypeInput): boolean => {
   return containsStrict(databaseCapabilities.tableEditorOracleIndexColumnHidden, databaseType);
 };

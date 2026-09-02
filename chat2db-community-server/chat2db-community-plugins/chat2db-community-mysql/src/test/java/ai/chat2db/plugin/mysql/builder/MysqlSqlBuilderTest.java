@@ -21,6 +21,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class MysqlSqlBuilderTest {
@@ -214,6 +215,91 @@ class MysqlSqlBuilderTest {
     }
 
     @Test
+    void shouldRebuildIndexWhenVisibilityAndMethodChangeTogether() {
+        withMysqlVersion("8.0.36", () -> {
+            MysqlSqlBuilder builder = new MysqlSqlBuilder();
+            Table oldTable = mysqlTableWithIndexes(List.of(mysqlIndex("idx_content", "BTREE", true,
+                    List.of(mysqlIndexColumn("content", "ASC", null)))));
+            Table newTable = mysqlTableWithIndexes(List.of(mysqlModifiedIndex("idx_content", "HASH", false,
+                    List.of(mysqlIndexColumn("content", "ASC", null)))));
+
+            String sql = builder.ddl().table().buildAlterTable(oldTable, newTable);
+
+            assertEquals("ALTER TABLE `test_db`.`sample_table`\n"
+                    + "\tDROP INDEX `idx_content`,\n"
+                    + "ADD INDEX `idx_content` (`content` ASC) USING HASH INVISIBLE;", sql);
+        });
+    }
+
+    @Test
+    void shouldUseLightweightAlterForVisibilityOnlyChange() {
+        withMysqlVersion("8.0.36", () -> {
+            MysqlSqlBuilder builder = new MysqlSqlBuilder();
+            Table oldTable = mysqlTableWithIndexes(List.of(mysqlIndex("idx_content", "BTREE", true,
+                    List.of(mysqlIndexColumn("content", "ASC", 16L)))));
+            Table newTable = mysqlTableWithIndexes(List.of(mysqlModifiedIndex("idx_content", "BTREE", false,
+                    List.of(mysqlIndexColumn("content", "ASC", 16L)))));
+
+            String sql = builder.ddl().table().buildAlterTable(oldTable, newTable);
+
+            assertEquals("ALTER TABLE `test_db`.`sample_table`\n"
+                    + "\tALTER INDEX `idx_content` INVISIBLE;", sql);
+        });
+    }
+
+    @Test
+    void shouldRejectInvisibleIndexWhenCreatingOnMysql57() {
+        withMysqlVersion("5.7.44", () -> {
+            Table table = Table.builder()
+                    .databaseName("test_db")
+                    .name("sample_table")
+                    .columnList(List.of(mysqlVarcharColumn("content", "content", null)))
+                    .indexList(List.of(mysqlIndex("idx_content", "BTREE", false,
+                            List.of(mysqlIndexColumn("content", "ASC", null)))))
+                    .build();
+
+            IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                    () -> new MysqlSqlBuilder().ddl().table().buildCreateTable(table,
+                            TableBuilderConfig.defaultConfig()));
+
+            assertEquals("MySQL invisible indexes require MySQL 8.0 or later", exception.getMessage());
+        });
+    }
+
+    @Test
+    void shouldRejectInvisibleIndexVisibilityChangeOnMysql57() {
+        withMysqlVersion("5.7.44", () -> {
+            MysqlSqlBuilder builder = new MysqlSqlBuilder();
+            Table oldTable = mysqlTableWithIndexes(List.of(mysqlIndex("idx_content", "BTREE", true,
+                    List.of(mysqlIndexColumn("content", "ASC", null)))));
+            Table newTable = mysqlTableWithIndexes(List.of(mysqlModifiedIndex("idx_content", "BTREE", false,
+                    List.of(mysqlIndexColumn("content", "ASC", null)))));
+
+            IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                    () -> builder.ddl().table().buildAlterTable(oldTable, newTable));
+
+            assertEquals("MySQL invisible indexes require MySQL 8.0 or later", exception.getMessage());
+        });
+    }
+
+    @Test
+    void shouldRebuildIndexWhenVisibilityAndPrefixLengthChangeTogether() {
+        withMysqlVersion("8.0.36", () -> {
+            MysqlSqlBuilder builder = new MysqlSqlBuilder();
+            Table oldTable = mysqlTableWithIndexes(List.of(mysqlIndex("idx_content", "BTREE", true,
+                    List.of(mysqlIndexColumn("content", "ASC", 16L)))));
+            Table newTable = mysqlTableWithIndexes(List.of(mysqlModifiedIndex("idx_content", "BTREE", false,
+                    List.of(mysqlIndexColumn("content", "ASC", 32L)))));
+
+            String sql = builder.ddl().table().buildAlterTable(oldTable, newTable);
+
+            assertEquals("ALTER TABLE `test_db`.`sample_table`\n"
+                    + "\tDROP INDEX `idx_content`,\n"
+                    + "ADD INDEX `idx_content` (`content`(32) ASC) USING BTREE INVISIBLE;", sql);
+        });
+    }
+
+    @Test
     void shouldKeepTargetPositionWhenRenamingAndMovingColumn() {
         MysqlSqlBuilder builder = new MysqlSqlBuilder();
         Table oldTable = mysqlTable(List.of(
@@ -277,6 +363,47 @@ class MysqlSqlBuilderTest {
                 .build();
     }
 
+    private static Table mysqlTableWithIndexes(List<TableIndex> indexes) {
+        return Table.builder()
+                .databaseName("test_db")
+                .name("sample_table")
+                .columnList(List.of())
+                .indexList(indexes)
+                .build();
+    }
+
+    private static TableIndex mysqlIndex(String name, String method, Boolean visible, List<TableIndexColumn> columns) {
+        return TableIndex.builder()
+                .name(name)
+                .oldName(name)
+                .type("Normal")
+                .method(method)
+                .visible(visible)
+                .columnList(columns)
+                .build();
+    }
+
+    private static TableIndex mysqlModifiedIndex(String name, String method, Boolean visible,
+            List<TableIndexColumn> columns) {
+        return TableIndex.builder()
+                .name(name)
+                .oldName(name)
+                .type("Normal")
+                .method(method)
+                .visible(visible)
+                .editStatus(EditStatusEnum.MODIFY.name())
+                .columnList(columns)
+                .build();
+    }
+
+    private static TableIndexColumn mysqlIndexColumn(String name, String ascOrDesc, Long subPart) {
+        return TableIndexColumn.builder()
+                .columnName(name)
+                .ascOrDesc(ascOrDesc)
+                .subPart(subPart)
+                .build();
+    }
+
     private static TableColumn mysqlVarcharColumn(String name, String oldName, String editStatus) {
         return TableColumn.builder()
                 .name(name)
@@ -285,6 +412,21 @@ class MysqlSqlBuilderTest {
                 .columnSize(255)
                 .editStatus(editStatus)
                 .build();
+    }
+
+    private static void withMysqlVersion(String dbVersion, Runnable runnable) {
+        ConnectInfo connectInfo = new ConnectInfo();
+        connectInfo.setDbType("MYSQL");
+        connectInfo.setDbVersion(dbVersion);
+        DriverConfig driverConfig = new DriverConfig();
+        driverConfig.setDbType("MYSQL");
+        connectInfo.setDriverConfig(driverConfig);
+        Chat2DBContext.putContext(connectInfo);
+        try {
+            runnable.run();
+        } finally {
+            Chat2DBContext.removeContext();
+        }
     }
 
     @Test
