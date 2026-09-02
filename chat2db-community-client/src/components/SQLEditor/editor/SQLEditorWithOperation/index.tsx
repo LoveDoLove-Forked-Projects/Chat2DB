@@ -9,7 +9,7 @@ import { EditorSetValueType, EditorType, SQLOptType } from '../../type';
 import { staticMessage } from '@chat2db/ui';
 import { Modal } from 'antd';
 import { IConsoleReturnExecuteSql, IBoundInfo, TreeNodeData } from '@/typings';
-import { saveFileToDesktop, updateFileContent } from '@/utils/file';
+import { saveFileToDesktop, saveLocalFileContent, waitForLocalFileSave } from '@/utils/file';
 import i18n from '@/i18n';
 import { useSaveEditorData } from '@/components/SQLEditor/hooks/useSaveEditorData';
 import { formatSql } from '../../helper/utils';
@@ -70,7 +70,7 @@ interface ISQLEditorWithOperationProps {
   active: boolean;
   defaultSQL?: string;
   dbInfo: IBoundInfo;
-  setDBInfo: (dbInfo: IBoundInfo) => void;
+  setDBInfo: (dbInfo: Partial<IBoundInfo>) => void;
 
   sqlFileName?: string;
   workspaceTabsTitle?: string;
@@ -208,6 +208,11 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
     executeSQL: handleExecuteSQL,
     hasUnsavedChangesBeforeClose,
     saveBeforeClose,
+    waitForPendingSave:
+      type === WorkspaceTabType.LocalSQLFile && dbInfo.filePath
+        ? () => waitForLocalFileSave(dbInfo.filePath!)
+        : undefined,
+    persistBeforeApplicationExit: type === WorkspaceTabType.CONSOLE ? flushAutoSave : undefined,
   }));
 
   const getInstance = useCallback(() => {
@@ -310,7 +315,7 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
     }
   }, [active]);
 
-  const { saveConsole, hasSavedSqlRecord, hasUnsavedChanges } = useSaveEditorData({
+  const { saveConsole, hasSavedSqlRecord, hasUnsavedChanges, flushAutoSave } = useSaveEditorData({
     editorRef: sqlEditorRef,
     isActive: active,
     boundInfo: dbInfo,
@@ -893,10 +898,7 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
     const executionBoundInfo = createDataSourceExecutionBoundInfo(dbInfo);
     const executionTarget = createDataSourceExecutionSnapshot(executionBoundInfo);
     const executionDataSourceState = dataSourceState;
-    await sqlEditorRef.current?.handleQuickSQLParser(
-      sqlEditorRef.current?.getValue() || '',
-      executionBoundInfo,
-    );
+    await sqlEditorRef.current?.handleQuickSQLParser(sqlEditorRef.current?.getValue() || '', executionBoundInfo);
     // await sqlEditorRef.current?.handleSQLParser(sqlEditorRef.current?.getValue() || '', dbInfo);
 
     const selectSQL = sqlEditorRef.current?.getSelectedContent() || '';
@@ -942,7 +944,10 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
       }
       return;
     }
-    void saveConsole(getValue(), { mode: 'manual' });
+    void saveConsole(getValue(), { mode: 'manual' }).catch((error) => {
+      console.error('save saved-console error', error);
+      staticMessage.error(i18n('common.text.failure'));
+    });
   }, [
     dbInfo.consoleId,
     dbInfo.databaseName,
@@ -985,8 +990,9 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
 
   const handleSaveFile = async () => {
     const fileContent = sqlEditorRef.current?.getValue() ?? '';
+    let result: Awaited<ReturnType<typeof saveLocalFileContent>>;
     try {
-      await updateFileContent({
+      result = await saveLocalFileContent({
         filePath: dbInfo.filePath!,
         fileContent,
         charset: dbInfo.fileCharset,
@@ -998,10 +1004,11 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
       return false;
     }
     try {
-      sqlEditorRef.current?.resetContentDiffBaseline(fileContent);
+      sqlEditorRef.current?.resetContentDiffBaseline(result.fileContent);
     } catch {
       // Content diff is only a hint and must not affect file saving.
     }
+    setDBInfo({ ddl: result.fileContent });
     staticMessage.success(i18n('workspace.text.changeFileSuccess'));
     return true;
   };
@@ -1030,7 +1037,9 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
       try {
         await saveConsole(getValue(), { mode: 'manual' });
         return true;
-      } catch {
+      } catch (error) {
+        console.error('save saved-console before close error', error);
+        staticMessage.error(i18n('common.text.failure'));
         return false;
       }
     }

@@ -9,6 +9,7 @@ export interface ClientRuntime {
   usesFixedIdentity: boolean;
   usesLocalPersistence: boolean;
   requiresAuthentication: boolean;
+  requiresLicenseActivation: boolean;
   loadAppConfigFromServer: boolean;
   loadSubscriptionFromServer: boolean;
   loadModelOptionsFromServer: boolean;
@@ -65,6 +66,7 @@ export const clientRuntime: ClientRuntime = {
   usesFixedIdentity: true,
   usesLocalPersistence: true,
   requiresAuthentication: false,
+  requiresLicenseActivation: false,
   loadAppConfigFromServer: false,
   loadSubscriptionFromServer: false,
   loadModelOptionsFromServer: false,

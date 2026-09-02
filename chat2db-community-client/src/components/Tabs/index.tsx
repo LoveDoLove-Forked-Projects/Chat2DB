@@ -31,6 +31,8 @@ import {
   CloseActiveResultTabHandlerResult,
   registerCloseActiveResultTabHandler,
 } from '@/service/resultTabShortcut';
+import { shouldProcessTabScrollRequest, type ProcessedTabScrollRequest } from './activeTabScroll';
+import { getTabWheelScrollAmount } from './wheelScroll';
 
 export interface ITabItem {
   prefixIcon?: string | React.ReactNode;
@@ -91,6 +93,7 @@ interface IProps {
   hideAdd?: boolean;
   editableNameOnBlur?: (option: ITabItem) => void;
   concealTabHeader?: boolean;
+  concealTabContent?: boolean;
   // Keep the final tab open.
   lastTabCannotClosed?: boolean;
   destroyInactiveTabPane?: boolean;
@@ -222,6 +225,7 @@ export default memo<IProps>((props) => {
     lastTabCannotClosed,
     editableNameOnBlur,
     concealTabHeader,
+    concealTabContent = false,
     destroyInactiveTabPane = false,
     height = 40,
     tabMaxWidth = 'none',
@@ -243,13 +247,11 @@ export default memo<IProps>((props) => {
   const [editingTab, setEditingTab] = useState<ITabItem['key'] | undefined>();
   const tabBoxRef = useRef<HTMLDivElement>(null);
   const tabListBoxRef = useRef<HTMLDivElement>(null);
+  const tabItemRefs = useRef(new Map<TabKey, HTMLDivElement>());
   const closeActiveTabOnShortcutRef = useRef<() => CloseActiveResultTabHandlerResult>(
     () => 'inactive',
   );
-  const lastTabScrollRequestRef = useRef<{
-    activeKey: IProps['activeKey'];
-    scrollKey: IProps['activeTabScrollKey'];
-  }>();
+  const lastTabScrollRequestRef = useRef<ProcessedTabScrollRequest>();
   const [showAddButton, setShowAddButton] = useState<boolean>(!hideAdd);
   const { styles, cx } = useStyles({
     height,
@@ -279,30 +281,19 @@ export default memo<IProps>((props) => {
   }, [items]);
 
   useUpdateEffect(() => {
-    const fn = (e) => {
-      if (e.deltaY) {
-        e.preventDefault();
-  // Use the mouse wheel to scroll tabs horizontally.
-        if (tabListBoxRef.current) {
-          const deltaY = Math.abs(e.deltaY);
-          let scrollAmount = 0;
-          console.log('deltaY', deltaY);
-          if (deltaY < 10) {
-            scrollAmount = e.deltaY;
-          } else if (deltaY < 30) {
-            scrollAmount = e.deltaY * 0.5;
-          } else {
-            scrollAmount = e.deltaY * 0.2;
-          }
-          tabListBoxRef.current.scrollLeft += scrollAmount;
-        }
+    const handleWheel = (event: WheelEvent) => {
+      const scrollAmount = getTabWheelScrollAmount(event.deltaX, event.deltaY);
+      if (scrollAmount === null || !tabListBoxRef.current) {
+        return;
       }
+
+      event.preventDefault();
+      tabListBoxRef.current.scrollLeft += scrollAmount;
     };
     const tabListBoxContent = tabListBoxRef.current;
-    tabListBoxContent?.removeEventListener('wheel', fn);
-    tabListBoxRef.current?.addEventListener('wheel', fn);
+    tabListBoxContent?.addEventListener('wheel', handleWheel, { passive: false });
     return () => {
-      tabListBoxContent?.removeEventListener('wheel', fn);
+      tabListBoxContent?.removeEventListener('wheel', handleWheel);
     };
   }, [internalTabs]);
 
@@ -315,17 +306,12 @@ export default memo<IProps>((props) => {
       return;
     }
 
-    const lastRequest = lastTabScrollRequestRef.current;
-    if (
-      lastRequest &&
-      Object.is(lastRequest.activeKey, activeKey) &&
-      Object.is(lastRequest.scrollKey, activeTabScrollKey)
-    ) {
+    if (!shouldProcessTabScrollRequest(lastTabScrollRequestRef.current, activeKey, activeTabScrollKey)) {
       return;
     }
 
     const animationFrame = window.requestAnimationFrame(() => {
-      const activeTab = tabListBoxRef.current?.querySelector(`.${styles.activeTab}`);
+      const activeTab = activeKey === null || activeKey === undefined ? undefined : tabItemRefs.current.get(activeKey);
       if (!activeTab) {
         return;
       }
@@ -677,6 +663,14 @@ export default memo<IProps>((props) => {
   }
 
   const renderTabItem = (t: ITabItem, index: number) => {
+    const setTabItemRef = (node: HTMLDivElement | null) => {
+      if (node) {
+        tabItemRefs.current.set(t.key, node);
+      } else {
+        tabItemRefs.current.delete(t.key);
+      }
+    };
+
     function inputOnChange(value: string) {
       internalTabs[index].label = value;
       setInternalTabs([...internalTabs]);
@@ -720,6 +714,7 @@ export default memo<IProps>((props) => {
     };
     const tabNode = enableReorder ? (
       <SortableTabItem
+        ref={setTabItemRef}
         disabled={false}
         itemKey={t.key}
         onContextMenu={handleContextMenu}
@@ -742,6 +737,7 @@ export default memo<IProps>((props) => {
       </SortableTabItem>
     ) : (
       <div
+        ref={setTabItemRef}
         onContextMenu={handleContextMenu}
         onDoubleClick={() => {
           onDoubleClick(t);
@@ -985,7 +981,7 @@ export default memo<IProps>((props) => {
       />
       {!concealTabHeader && renderTabsNav()}
       {/* Hidden implementation. */}
-      {!destroyInactiveTabPane ? (
+      {!concealTabContent && (!destroyInactiveTabPane ? (
         <div className={styles.tabsContent}>
           {internalTabs?.map((t) => {
             if (t.destroyOnHide && t.key !== activeKey) {
@@ -1009,7 +1005,7 @@ export default memo<IProps>((props) => {
             {internalTabs.find((t) => t.key === activeKey)?.children}
           </div>
         </div>
-      )}
+      ))}
     </div>
   );
 });

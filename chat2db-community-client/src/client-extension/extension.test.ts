@@ -8,7 +8,8 @@ import type { ClientNavigationContribution } from './types';
 assert.deepEqual(clientExtension.navigationItems, []);
 assert.deepEqual(clientExtension.mainPage.useNavigationItems([]), []);
 assert.equal(clientExtension.mainPage.resolveNavigationPage, undefined);
-assert.equal(clientExtension.mainPage.actionBarExtras, undefined);
+assert.equal(clientExtension.mainPage.slots, undefined);
+assert.equal(clientExtension.mainPage.hiddenCoreActions, undefined);
 assert.equal(clientExtension.settings, undefined);
 assert.equal(clientExtension.resourceOperations, undefined);
 assert.equal(clientExtension.knowledgeMentions, undefined);
@@ -50,6 +51,20 @@ assert.throws(
 for (const host of ['src/blocks/Setting/index.tsx', 'src/pages/main/CommunityMainPage.tsx']) {
   assert.match(readFileSync(host, 'utf8'), /clientExtension/);
 }
+
+const actionBarSource = readFileSync('src/pages/main/components/CommunityMainActionBar/index.tsx', 'utf8');
+const beforeTerminalIndex = actionBarSource.indexOf('{beforeTerminal}');
+const terminalIndex = actionBarSource.indexOf('{isDesktop &&');
+const afterTerminalIndex = actionBarSource.indexOf('{afterTerminal}');
+const settingsIndex = actionBarSource.indexOf('{!hideSettings &&');
+assert.ok(beforeTerminalIndex >= 0);
+assert.ok(beforeTerminalIndex < terminalIndex);
+assert.ok(terminalIndex < afterTerminalIndex);
+assert.ok(afterTerminalIndex < settingsIndex);
+
+const mainPageSource = readFileSync('src/pages/main/CommunityMainPage.tsx', 'utf8');
+assert.match(mainPageSource, /actionBarBeforeTerminal\s*\?\?\s*\n\s*clientExtension\.mainPage\.slots\?\.actionBarFooter/);
+assert.match(mainPageSource, /afterTerminal=\{clientExtension\.mainPage\.slots\?\.actionBarAfterTerminal\}/);
 
 const configSource = readFileSync('.umirc.ts', 'utf8');
 assert.match(configSource, /'@client-extension':/);

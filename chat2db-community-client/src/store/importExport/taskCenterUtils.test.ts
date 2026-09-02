@@ -9,7 +9,10 @@ import {
   mergeTaskEvents,
   mergeTasks,
   reconcileCompletedTaskNotifications,
+  shouldKeepTaskPolling,
+  shouldRetryTaskPolling,
 } from './taskCenterUtils';
+import { ErrorCode } from '@/constants/request';
 
 const event = (sequence: number, message: string): ImportExportTaskEvent => ({
   eventId: sequence,
@@ -110,6 +113,18 @@ function testPollingDelay() {
   assert.equal(getTaskPollingDelay(1), 1000);
   assert.equal(getTaskPollingDelay(0), null);
   assert.equal(getTaskPollingDelay(0, true), FAILED_TASK_POLL_INTERVAL);
+  assert.equal(shouldKeepTaskPolling(true, 0), true);
+  assert.equal(shouldKeepTaskPolling(false, 1), true);
+  assert.equal(shouldKeepTaskPolling(false, 0), false);
+}
+
+function testPollingRetryPolicy() {
+  assert.equal(shouldRetryTaskPolling(new Error('temporary failure')), true);
+  assert.equal(shouldRetryTaskPolling({ errorCode: ErrorCode.NetworkError }), true);
+  assert.equal(shouldRetryTaskPolling({ errorCode: ErrorCode.NeedLoggedIn }), false);
+  assert.equal(shouldRetryTaskPolling({ errorCode: ErrorCode.OfflineInvalidTrial }), false);
+  assert.equal(shouldRetryTaskPolling({ errorCode: ErrorCode.OfflineTrialExpired }), false);
+  assert.equal(shouldRetryTaskPolling({ errorCode: ErrorCode.OfflineLicenseExpired }), false);
 }
 
 function testCompletedTaskNotifications() {
@@ -161,6 +176,7 @@ void testActiveTaskPagination().then(async () => {
   testTaskMerge();
   testEventMerge();
   testPollingDelay();
+  testPollingRetryPolicy();
   testCompletedTaskNotifications();
   console.log('Task center utility tests passed');
 });

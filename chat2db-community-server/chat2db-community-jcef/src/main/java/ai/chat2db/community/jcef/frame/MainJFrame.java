@@ -83,6 +83,7 @@ import java.nio.file.Paths;
 import java.util.*;
 import java.util.List;
 import java.util.Timer;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -115,6 +116,7 @@ public class MainJFrame extends JFrame {
             TimeUnit.SECONDS,
             new LinkedBlockingQueue<>()
     );
+    private final Map<Long, CancellableCefQueryCallback> activeQueryCallbacks = new ConcurrentHashMap<>();
     private void ensureBrowserFocusIfNeeded() {
         if (browser_ == null || browserUI_ == null) {
             return;
@@ -295,24 +297,9 @@ public class MainJFrame extends JFrame {
         Desktop desktop = Desktop.getDesktop();
         if (desktop.isSupported(Desktop.Action.APP_QUIT_HANDLER)) {
             desktop.setQuitHandler((e, response) -> {
-                if (ConfigUtils.isCommunity()) {
-                    log.info("Quit handler triggered. Waiting for active task confirmation.");
-                    response.cancelQuit();
-                    ApplicationExitCoordinator.request(ApplicationExitCoordinator.ExitAction.CLOSE.name());
-                    return;
-                }
-                log.info("Quit handler triggered. Preparing for graceful shutdown.");
-                SystemSettingsUtil.saveWindowsInfo();
-                JcefContext.getInstance().getFrame_().dispose();
-                CefApp.getInstance().dispose();
-                Timer timer = new Timer();
-                timer.schedule(new TimerTask() {
-                    @Override
-                    public void run() {
-                        log.info("CefApp is shutting down... {}", Thread.currentThread().getName());
-                        response.performQuit();
-                    }
-                }, 3000);
+                log.info("Quit handler triggered. Waiting for application exit confirmation.");
+                response.cancelQuit();
+                ApplicationExitCoordinator.request(ApplicationExitCoordinator.ExitAction.CLOSE.name());
             });
         }
         if (desktop.isSupported(Desktop.Action.APP_OPEN_URI)) {
@@ -385,8 +372,8 @@ public class MainJFrame extends JFrame {
     private void setupGenericPlatformSpecifics(Image appIcon) {
         this.setTitle(appName);
         this.setIconImage(appIcon);
-        if (WindowsCommunityWindowChrome.isEnabled(OS.isWindows(), ConfigUtils.isCommunity())) {
-            WindowsCommunityWindowChrome.configureRootPane(getRootPane());
+        if (WindowsDesktopWindowChrome.isEnabled(OS.isWindows())) {
+            WindowsDesktopWindowChrome.configureRootPane(getRootPane());
         }
         applyTheme(ThemeEnum.DARK);
     }
@@ -510,6 +497,7 @@ public class MainJFrame extends JFrame {
             @Override
             public void onLoadStart(CefBrowser browser, CefFrame frame, CefRequest.TransitionType transitionType) {
                 if (frame.isMain()) {
+                    ApplicationExitCoordinator.markFrontendUnavailable();
                     String languagePreference = OSOperateUtil.getLanguagePreference();
                     OSTypeEnum osType = JcefContext.getInstance().getOsType();
                     browser.executeJavaScript(String.format("window.navigator.app_language = '%s';", languagePreference), browser.getURL(), 0);
@@ -670,6 +658,8 @@ public class MainJFrame extends JFrame {
             @Override
             public boolean onQuery(CefBrowser browser, CefFrame frame, long queryId, String data,
                                    boolean persistent, CefQueryCallback callback) {
+                CancellableCefQueryCallback guardedCallback = new CancellableCefQueryCallback(callback);
+                activeQueryCallbacks.put(queryId, guardedCallback);
                 executor.submit(() -> {
                     String action = "unKnow Action";
                     ConsoleMessage wsMessage = new ConsoleMessage();
@@ -688,14 +678,14 @@ public class MainJFrame extends JFrame {
                         bridge.setHeaders(wsMessage);
                         IJcefActionHandler handler = actionHandlers.get(Pair.of(action, wsMessage.getMethod().toLowerCase()));
                         if (handler != null) {
-                            handler.handle(wsMessage, wsResult, callback);
+                            handler.handle(wsMessage, wsResult, guardedCallback);
                         } else {
                             while (!bridge.isReady()) {
                                 Thread.sleep(20);
                             }
                             wsResult = bridge.doController(wsMessage);
                             if (wsResult != null) {
-                                ResponseBuilder.buildSuccess(wsResult, callback);
+                                ResponseBuilder.buildSuccess(wsResult, guardedCallback);
                             } else {
                                 ResponseBuilder.buildSuccess(
                                         ConsoleResult.builder()
@@ -705,14 +695,16 @@ public class MainJFrame extends JFrame {
                                                 .method(wsMessage.getMethod())
                                                 .message(Map.of("success", true))
                                                 .build(),
-                                        callback
+                                        guardedCallback
                                 );
                             }
                         }
                     } catch (ForestNetworkException ex) {
-                        handleNetworkException(ex, wsMessage, callback, action);
+                        handleNetworkException(ex, wsMessage, guardedCallback, action);
                     } catch (Exception e) {
-                        handleGenericException(e, wsMessage, callback, action);
+                        handleGenericException(e, wsMessage, guardedCallback, action);
+                    } finally {
+                        activeQueryCallbacks.remove(queryId, guardedCallback);
                     }
                 });
                 return true;
@@ -720,6 +712,10 @@ public class MainJFrame extends JFrame {
             @Override
             public void onQueryCanceled(CefBrowser browser, CefFrame frame, long queryId) {
                 log.info("JS query canceled: {}", queryId);
+                CancellableCefQueryCallback callback = activeQueryCallbacks.remove(queryId);
+                if (callback != null) {
+                    callback.cancel();
+                }
             }
         }, true);
         this.client_.addMessageRouter(messageRouter);
@@ -768,9 +764,9 @@ public class MainJFrame extends JFrame {
         }
         this.browser_ = this.client_.createBrowser(indexHtmlFile, CefRendering.DEFAULT, false);
         this.browserUI_ = browser_.getUIComponent();
-        if (WindowsCommunityWindowChrome.isEnabled(OS.isWindows(), ConfigUtils.isCommunity())) {
-            WindowsCommunityWindowChrome.configureBrowserComponent(browserUI_);
-            WindowsCommunityWindowChrome.installWindowDragging(this, browserUI_);
+        if (WindowsDesktopWindowChrome.isEnabled(OS.isWindows())) {
+            WindowsDesktopWindowChrome.configureBrowserComponent(browserUI_);
+            WindowsDesktopWindowChrome.installWindowDragging(this, browserUI_);
         }
         this.browserUI_.addMouseListener(new MouseAdapter() {
             @Override

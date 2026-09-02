@@ -19,11 +19,22 @@ export interface ClientNavigationResolutionContext {
   visibleItems: readonly INavItem[];
 }
 
+export type ClientMainPageCoreAction = 'settings';
+
+export interface ClientMainPageSlots {
+  actionBarBeforeTerminal?: ReactNode;
+  actionBarAfterTerminal?: ReactNode;
+  /** @deprecated Use actionBarBeforeTerminal. */
+  actionBarFooter?: ReactNode;
+  titleBarActions?: ReactNode;
+}
+
 export interface ClientMainPageExtension {
   /** React hook used by a product layer to derive its visible navigation items. */
   useNavigationItems: (items: readonly INavItem[]) => readonly INavItem[];
   resolveNavigationPage?: (context: ClientNavigationResolutionContext) => string;
-  actionBarExtras?: ReactNode;
+  slots?: ClientMainPageSlots;
+  hiddenCoreActions?: readonly ClientMainPageCoreAction[];
 }
 
 export type ResourceOperation =
