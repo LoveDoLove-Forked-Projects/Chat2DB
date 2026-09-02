@@ -271,6 +271,17 @@ function rebuildSqlExecuteTabData(item: IWorkspaceTab) {
     return uniqueData;
   }
 
+  if (
+    item.type === WorkspaceTabType.LocalSQLFile &&
+    uniqueData.ddl === undefined &&
+    uniqueData.filePath
+  ) {
+    return {
+      ...uniqueData,
+      loadSQL: () => jcefApi.readFile(uniqueData.filePath!, uniqueData.fileCharset).then((file) => file.content),
+    };
+  }
+
   const { dataSourceId, databaseName, schemaName } = uniqueData;
 
   if (item.type === WorkspaceTabType.VIEW) {
@@ -887,6 +898,7 @@ const WorkspaceTabs = memo(() => {
     tabs: IWorkspaceTab[],
     layout: IWorkspaceTabSplitLayout | null | undefined = useWorkspaceStore.getState().workspaceTabSplitLayout,
     nextActiveConsoleId: string | number | null | undefined = useWorkspaceStore.getState().activeConsoleId,
+    nextRecentlyClosedWorkspaceTabs?: IWorkspaceTab[],
   ) => {
     const orderedTabs = orderPinnedWorkspaceTabsFirst(tabs);
     const orderedLayout = orderSplitLayoutPaneIdsByPinned(layout || null, orderedTabs);
@@ -901,6 +913,9 @@ const WorkspaceTabs = memo(() => {
     };
     if (!areWorkspaceTabSplitLayoutsEqual(currentState.workspaceTabSplitLayout, normalizedLayout)) {
       nextState.workspaceTabSplitLayout = normalizedLayout;
+    }
+    if (nextRecentlyClosedWorkspaceTabs !== undefined) {
+      nextState.recentlyClosedWorkspaceTabs = nextRecentlyClosedWorkspaceTabs;
     }
     useWorkspaceStore.setState(nextState);
   };
@@ -1018,25 +1033,22 @@ const WorkspaceTabs = memo(() => {
     });
   };
 
-  const rememberClosedWorkspaceTabs = (tabs: IWorkspaceTab[]) => {
+  const createRecentlyClosedWorkspaceTabs = (tabs: IWorkspaceTab[]) => {
+    const currentRecentlyClosed = useWorkspaceStore.getState().recentlyClosedWorkspaceTabs || [];
     if (!tabs.length) {
-      return;
+      return currentRecentlyClosed;
     }
     const currentEditorList = useWorkspaceStore.getState().editorList || {};
     const snapshots = tabs
       .map((tab) => createPersistableWorkspaceTabSnapshot(tab, currentEditorList[tab.id]?.getValue?.()))
       .filter(Boolean) as IWorkspaceTab[];
     if (!snapshots.length) {
-      return;
+      return currentRecentlyClosed;
     }
-    const currentRecentlyClosed = useWorkspaceStore.getState().recentlyClosedWorkspaceTabs || [];
-    const nextRecentlyClosedWorkspaceTabs = [...snapshots, ...currentRecentlyClosed].slice(
+    return [...snapshots, ...currentRecentlyClosed].slice(
       0,
       RECENTLY_CLOSED_WORKSPACE_TAB_LIMIT,
     );
-    useWorkspaceStore.setState({
-      recentlyClosedWorkspaceTabs: nextRecentlyClosedWorkspaceTabs,
-    });
   };
 
   const closeWorkspaceTabs = (tabs: IWorkspaceTab[]) => {
@@ -1053,8 +1065,13 @@ const WorkspaceTabs = memo(() => {
       layout: workspaceTabSplitLayout,
       orderedNextWorkspaceTabList,
     });
-    rememberClosedWorkspaceTabs(closableTabs);
-    setWorkspaceTabsState(orderedNextWorkspaceTabList, workspaceTabSplitLayout, nextActiveConsoleId);
+    const nextRecentlyClosedWorkspaceTabs = createRecentlyClosedWorkspaceTabs(closableTabs);
+    setWorkspaceTabsState(
+      orderedNextWorkspaceTabList,
+      workspaceTabSplitLayout,
+      nextActiveConsoleId,
+      nextRecentlyClosedWorkspaceTabs,
+    );
 
     if (closeTabIds.has(activeConsoleId as any)) {
       setActiveConsoleId(nextActiveConsoleId);
