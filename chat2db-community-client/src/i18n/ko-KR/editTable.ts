@@ -12,8 +12,6 @@ export default {
   'editTable.label.indexType': '유형',
   'editTable.label.indexMethod': '인덱스 방식',
   'editTable.label.indexVisible': '표시',
-  'editTable.option.visible': '표시',
-  'editTable.option.invisible': '숨김',
   'editTable.label.includeColumn': '포함 열',
   'editTable.button.createTable': '테이블 생성',
   'editTable.button.importTable': '테이블 내보내기',

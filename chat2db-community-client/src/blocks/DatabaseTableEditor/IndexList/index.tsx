@@ -362,17 +362,17 @@ const IndexList = forwardRef((props: IProps, ref: ForwardedRef<IIndexListRef>) =
           const isPrimaryKey = record.type === MYSQL_PRIMARY_INDEX_TYPE;
           const editable = isEditing(record) && !isPrimaryKey;
           const value =
-            record.visible === MYSQL_VISIBILITY.INVISIBLE
-              ? i18n('editTable.option.invisible')
-              : i18n('editTable.option.visible');
+            record.visible === MYSQL_VISIBILITY.INVISIBLE.value
+              ? MYSQL_VISIBILITY.INVISIBLE.label
+              : MYSQL_VISIBILITY.VISIBLE.label;
           return editable ? (
             <Form.Item name="visible" style={{ margin: 0 }}>
               <Select style={{ width: '100%' }} disabled={isPrimaryKey}>
-                <Select.Option value={MYSQL_VISIBILITY.VISIBLE}>
-                  {i18n('editTable.option.visible')}
+                <Select.Option value={MYSQL_VISIBILITY.VISIBLE.value}>
+                  {MYSQL_VISIBILITY.VISIBLE.label}
                 </Select.Option>
-                <Select.Option value={MYSQL_VISIBILITY.INVISIBLE}>
-                  {i18n('editTable.option.invisible')}
+                <Select.Option value={MYSQL_VISIBILITY.INVISIBLE.value}>
+                  {MYSQL_VISIBILITY.INVISIBLE.label}
                 </Select.Option>
               </Select>
             </Form.Item>
