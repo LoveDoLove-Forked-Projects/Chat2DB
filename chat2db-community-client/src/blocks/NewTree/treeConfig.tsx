@@ -10,6 +10,11 @@ import { getDatabaseSupport } from '@/utils/database';
 import { isDatabaseCapabilitySupported } from '@/utils/databaseJudgments';
 import { v4 as uuid } from 'uuid';
 import { createSavedConsoleTreeNodeKey } from '@/store/tree/backgroundRefresh';
+import {
+  createActiveTransactionsTreeNodeKey,
+  createMonitorTreeNodeKey,
+  MONITOR_TREE_ITEMS,
+} from './monitorTree';
 
 const fileIcon = 'icon-colourful-folder-close';
 const unfoldFileIcon = 'icon-colourful-folder-open';
@@ -179,6 +184,17 @@ function createSaveConsolesNode(extraParams: any): TreeNodeData {
   };
 }
 
+function createMonitorNode(extraParams: any): TreeNodeData {
+  return {
+    key: createMonitorTreeNodeKey(extraParams.dataSourceId),
+    originalTitle: i18n('workspace.ops.monitor'),
+    title: null,
+    treeNodeType: TreeNodeType.MONITOR,
+    isLeaf: false,
+    extraParams,
+  };
+}
+
 export const treeConfig: { [key in TreeNodeType]: ITreeConfigItem } = {
   [TreeNodeType.GROUPS]: {
     getChildren: () => {
@@ -268,6 +284,20 @@ export const treeConfig: { [key in TreeNodeType]: ITreeConfigItem } = {
               extraParams,
             }
           : null;
+        const monitorNode = MONITOR_TREE_ITEMS.some(({ capability }) =>
+          isDatabaseCapabilitySupported(databaseType, capability),
+        )
+          ? createMonitorNode(extraParams)
+          : null;
+        const appendDataSourceNodes = (data: TreeNodeData[]) => {
+          if (monitorNode) {
+            data.push(monitorNode);
+          }
+          if (accountNode) {
+            data.push(accountNode);
+          }
+          return data;
+        };
         if (supportDatabase === false && supportSchema === false) {
           // No database or schema level at all (Firebird, IoTDB, ...): the
           // connection itself is the namespace, so show the object folders
@@ -317,10 +347,7 @@ export const treeConfig: { [key in TreeNodeType]: ITreeConfigItem } = {
             },
             createSaveConsolesNode(nodeExtraParams),
           ];
-          if (accountNode) {
-            data.push(accountNode);
-          }
-          r(data);
+          r(appendDataSourceNodes(data));
           return;
         }
         if (supportDatabase === false) {
@@ -345,10 +372,7 @@ export const treeConfig: { [key in TreeNodeType]: ITreeConfigItem } = {
                   },
                 };
               });
-              if (accountNode) {
-                data.push(accountNode);
-              }
-              r(data);
+              r(appendDataSourceNodes(data));
             })
             .catch(() => {
               j();
@@ -375,10 +399,7 @@ export const treeConfig: { [key in TreeNodeType]: ITreeConfigItem } = {
                   },
                 };
               });
-              if (accountNode) {
-                data.push(accountNode);
-              }
-              r(data);
+              r(appendDataSourceNodes(data));
             })
             .catch(() => {
               j();
@@ -390,6 +411,29 @@ export const treeConfig: { [key in TreeNodeType]: ITreeConfigItem } = {
       const { dataSourceId } = formatObject(params);
       return `dataSource_${dataSourceId}`;
     },
+  },
+
+  [TreeNodeType.MONITOR]: {
+    getChildren: (extraParams: any) => {
+      return Promise.resolve(
+        MONITOR_TREE_ITEMS.filter(({ capability }) =>
+          isDatabaseCapabilitySupported(extraParams.databaseType, capability),
+        ).map(({ treeNodeType, titleKey }) => ({
+          key: treeConfig[treeNodeType].createTreeNodeKey!(extraParams),
+          originalTitle: i18n(titleKey),
+          title: null,
+          treeNodeType,
+          isLeaf: true,
+          extraParams,
+        })),
+      );
+    },
+    createTreeNodeKey: (params) => createMonitorTreeNodeKey(params.dataSourceId),
+  },
+
+  [TreeNodeType.ACTIVE_TRANSACTIONS]: {
+    getChildren: () => Promise.resolve([]),
+    createTreeNodeKey: (params) => createActiveTransactionsTreeNodeKey(params.dataSourceId),
   },
 
   [TreeNodeType.DATABASE_ACCOUNTS]: {

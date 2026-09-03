@@ -19,7 +19,7 @@ import {
 } from '@dnd-kit/core';
 
 // ----- constants -----
-import { ConsoleOpenedStatus, WorkspaceTabType, workspaceTabConfig } from '@/constants';
+import { ConsoleOpenedStatus, DatabaseCapability, WorkspaceTabType, workspaceTabConfig } from '@/constants';
 import { DEFAULT_TERMINAL_SETTINGS } from '@/constants/terminal';
 import {
   IWorkspaceTab,
@@ -40,6 +40,7 @@ import RedisAllData from '@/blocks/RedisAllData';
 import Iconfont from '@/components/Iconfont';
 import { useZoerStore } from '@/store/zoer';
 import AccountPrivilegePanel from '../AccountPrivilegePanel';
+import ActiveTransactionsContent from '@/blocks/NewTree/components/ActiveTransactionsContent';
 import ContentDiffTab from './ContentDiffTab';
 import FilePreviewTab from './FilePreviewTab';
 import TerminalTab from './TerminalTab';
@@ -60,6 +61,7 @@ import jcefApi from '@/jcef';
 
 import { copyToClipboard, getTemporaryId, isTemporaryId } from '@/utils';
 import { resolveDataSourceIdentityColor } from '@/utils/dataSourceIdentity';
+import { isDatabaseCapabilitySupported } from '@/utils/databaseJudgments';
 
 import { useIndexDBStore } from '@/store/indexDB';
 import { getDatabaseSupport } from '@/utils/database';
@@ -88,6 +90,7 @@ import {
 } from './terminalTabPlacement';
 import { getNextActiveWorkspaceTabIdAfterClose } from './workspaceTabSelection';
 import {
+  appendWorkspaceTabToPane,
   areWorkspaceTabSplitLayoutsEqual,
   collectWorkspaceTabPaneIds,
   createWorkspaceTabSplitNode,
@@ -1120,26 +1123,18 @@ const WorkspaceTabs = memo(() => {
     }
   };
 
+  const appendNewConsoleToPane = (consoleId: string | number, targetPaneId?: WorkspaceTabPaneId) => {
+    const currentLayout = useWorkspaceStore.getState().workspaceTabSplitLayout;
+    if (!currentLayout) {
+      return;
+    }
+    const activePaneId = targetPaneId || currentLayout.activePane || MAIN_WORKSPACE_TAB_PANE;
+    updateWorkspaceTabSplitLayout(appendWorkspaceTabToPane(currentLayout, consoleId, activePaneId));
+  };
+
   const createNewConsole = (targetPaneId?: WorkspaceTabPaneId) => {
-    const appendNewConsoleToActivePane = (consoleId: string | number) => {
-      const currentLayout = useWorkspaceStore.getState().workspaceTabSplitLayout;
-      if (!currentLayout) {
-        return;
-      }
-      const activePaneId = targetPaneId || currentLayout.activePane || MAIN_WORKSPACE_TAB_PANE;
-      updateWorkspaceTabSplitLayout({
-        ...currentLayout,
-        activePane: activePaneId,
-        paneTabIds: {
-          ...currentLayout.paneTabIds,
-          [activePaneId]: [...(currentLayout.paneTabIds[activePaneId] || []), consoleId],
-        },
-        activeTabIds: {
-          ...currentLayout.activeTabIds,
-          [activePaneId]: consoleId,
-        },
-      });
-    };
+    const appendNewConsoleToActivePane = (consoleId: string | number) =>
+      appendNewConsoleToPane(consoleId, targetPaneId);
 
     if (zoerBoundInfo) {
       const param: any = zoerBoundInfo;
@@ -1388,18 +1383,7 @@ const WorkspaceTabs = memo(() => {
     }
     const activePaneId = workspaceTabSplitLayout?.activePane || MAIN_WORKSPACE_TAB_PANE;
     const nextLayout = workspaceTabSplitLayout
-      ? {
-          ...workspaceTabSplitLayout,
-          activePane: activePaneId,
-          paneTabIds: {
-            ...workspaceTabSplitLayout.paneTabIds,
-            [activePaneId]: [...(workspaceTabSplitLayout.paneTabIds[activePaneId] || []), nextTab.id],
-          },
-          activeTabIds: {
-            ...workspaceTabSplitLayout.activeTabIds,
-            [activePaneId]: nextTab.id,
-          },
-        }
+      ? appendWorkspaceTabToPane(workspaceTabSplitLayout, nextTab.id, activePaneId)
       : workspaceTabSplitLayout;
     setWorkspaceTabsState([...(workspaceTabList || []), nextTab], nextLayout, nextTab.id);
     setActiveConsoleId(nextTab.id);
@@ -1857,6 +1841,41 @@ const WorkspaceTabs = memo(() => {
     return <AccountPrivilegePanel uniqueData={uniqueData} />;
   };
 
+  const renderActiveTransactions = (item: IWorkspaceTab) => {
+    const { uniqueData } = item;
+    if (
+      !uniqueData?.dataSourceId ||
+      !isDatabaseCapabilitySupported(
+        uniqueData.databaseType,
+        DatabaseCapability.ACTIVE_TRANSACTION_INSPECTION,
+      )
+    ) {
+      return;
+    }
+    return (
+      <div style={{ height: '100%', overflow: 'auto', padding: 12 }}>
+        <ActiveTransactionsContent
+          dataSourceId={uniqueData.dataSourceId}
+          databaseName={uniqueData.databaseName}
+          schemaName={uniqueData.schemaName}
+          onInspectConnection={({ connectionId, sql }) => {
+            createConsole({
+              name: i18n('workspace.ops.sessionThreadTitle', connectionId),
+              ddl: sql,
+              dataSourceId: uniqueData.dataSourceId!,
+              dataSourceName: uniqueData.dataSourceName!,
+              environmentId: uniqueData.environmentId,
+              environment: uniqueData.environment,
+              databaseType: uniqueData.databaseType!,
+              databaseName: uniqueData.databaseName,
+              schemaName: uniqueData.schemaName,
+            }).then((consoleId) => appendNewConsoleToPane(consoleId));
+          }}
+        />
+      </div>
+    );
+  };
+
   const renderContentDiff = (item: IWorkspaceTab) => {
     const { uniqueData } = item;
     return (
@@ -1905,6 +1924,8 @@ const WorkspaceTabs = memo(() => {
         return renderRedisAllData(item);
       case WorkspaceTabType.AccountPrivileges:
         return renderAccountPrivileges(item);
+      case WorkspaceTabType.ActiveTransactions:
+        return renderActiveTransactions(item);
       case WorkspaceTabType.ContentDiff:
         return renderContentDiff(item);
       case WorkspaceTabType.Terminal:
