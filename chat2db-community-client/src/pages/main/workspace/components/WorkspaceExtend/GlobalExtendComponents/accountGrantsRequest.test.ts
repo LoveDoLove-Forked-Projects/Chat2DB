@@ -49,7 +49,7 @@ async function testStaleResponseCannotReplaceLatestAccount() {
   firstRequest.resolve(['old-account-grant']);
   await runFirstRequest;
 
-  assert.deepEqual(displayedGrants, ['initial']);
+  assert.deepEqual(displayedGrants, []);
   assert.equal(settleCount, 0, 'an old request must not stop the latest request spinner');
 
   secondRequest.resolve(['new-account-grant']);
@@ -57,6 +57,38 @@ async function testStaleResponseCannotReplaceLatestAccount() {
 
   assert.deepEqual(displayedGrants, ['new-account-grant']);
   assert.equal(settleCount, 1);
+}
+
+async function testLatestRequestClearsPreviousGrantsImmediately() {
+  const requestGenerationRef = { current: 0 };
+  const nextRequest = deferred<string[]>();
+  let displayedGrants: string[] = [];
+
+  await loadLatestAccountGrants(
+    requestGenerationRef,
+    async () => ['old-account-grant'],
+    (grants) => {
+      displayedGrants = grants;
+    },
+    () => {},
+  );
+
+  assert.deepEqual(displayedGrants, ['old-account-grant']);
+
+  const runNextRequest = loadLatestAccountGrants(
+    requestGenerationRef,
+    () => nextRequest.promise,
+    (grants) => {
+      displayedGrants = grants;
+    },
+    () => {},
+  );
+
+  assert.deepEqual(displayedGrants, []);
+
+  nextRequest.resolve(['new-account-grant']);
+  await runNextRequest;
+  assert.deepEqual(displayedGrants, ['new-account-grant']);
 }
 
 async function testLatestFailureClearsGrantsAndSettles() {
@@ -102,12 +134,13 @@ async function testUnmountedRequestCannotUpdateState() {
   request.resolve(['ignored-grant']);
   await runRequest;
 
-  assert.equal(updateCount, 0);
+  assert.equal(updateCount, 1);
   assert.equal(settleCount, 0);
 }
 
 Promise.all([
   testStaleResponseCannotReplaceLatestAccount(),
+  testLatestRequestClearsPreviousGrantsImmediately(),
   testLatestFailureClearsGrantsAndSettles(),
   testUnmountedRequestCannotUpdateState(),
 ])

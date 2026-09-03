@@ -9,6 +9,7 @@ export async function loadLatestAccountGrants(
   settleLoading: () => void,
 ) {
   const requestGeneration = beginLatestRequest(requestGenerationRef);
+  updateGrants([]);
 
   try {
     const grants = await loadGrants();
