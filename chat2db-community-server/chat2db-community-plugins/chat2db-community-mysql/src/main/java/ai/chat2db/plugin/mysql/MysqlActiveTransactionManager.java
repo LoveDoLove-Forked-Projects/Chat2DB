@@ -14,116 +14,11 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+
+import static ai.chat2db.plugin.mysql.constant.MysqlActiveTransactionConstants.*;
 
 public class MysqlActiveTransactionManager implements IActiveTransactionManager {
-
-    /**
-     * InnoDB transaction metadata joined with the owning processlist row. The
-     * transaction source is always {@code information_schema.innodb_trx}; each refresh is
-     * a new live snapshot and does not retain rows for transactions that have committed
-     * or rolled back.
-     */
-    private static final String SQL_ACTIVE_TRANSACTIONS =
-            "SELECT t.trx_id, t.trx_state, t.trx_started, "
-                    + "TIMESTAMPDIFF(SECOND, t.trx_started, NOW()) AS trx_age_seconds, "
-                    + "t.trx_isolation_level, t.trx_rows_locked, t.trx_rows_modified, "
-                    + "t.trx_lock_structs, t.trx_mysql_thread_id, "
-                    + "p.ID AS process_id, p.USER AS process_user, p.HOST AS process_host, p.DB AS process_db, "
-                    + "t.trx_query, "
-                    + "%s "
-                    + "FROM information_schema.innodb_trx t "
-                    + "LEFT JOIN information_schema.processlist p ON t.trx_mysql_thread_id = p.ID "
-                    + "%s "
-                    + "ORDER BY t.trx_started";
-
-    private static final String LOCK_COLUMNS_80 =
-            "w.requesting_lock_id, w.blocking_lock_id, w.blocking_trx_id, "
-                    + "w.requesting_ps_thread_id, w.blocking_ps_thread_id, "
-                    + "w.waiting_object_schema, w.waiting_object_name, w.waiting_index_name, "
-                    + "w.waiting_lock_type, w.waiting_lock_mode, w.waiting_lock_status, w.waiting_lock_data, "
-                    + "w.blocking_object_schema, w.blocking_object_name, w.blocking_index_name, "
-                    + "w.blocking_lock_type, w.blocking_lock_mode, w.blocking_lock_status, w.blocking_lock_data, "
-                    + "bt.trx_mysql_thread_id AS blocking_thread_id, bp.ID AS blocking_process_id, "
-                    + "bp.USER AS blocking_user, bp.HOST AS blocking_host, bp.DB AS blocking_db";
-
-    private static final String LOCK_JOIN_80 =
-            "LEFT JOIN ("
-                    + "SELECT dlw.REQUESTING_ENGINE_TRANSACTION_ID AS requesting_trx_id, "
-                    + "dlw.REQUESTING_ENGINE_LOCK_ID AS requesting_lock_id, "
-                    + "dlw.BLOCKING_ENGINE_LOCK_ID AS blocking_lock_id, "
-                    + "dlw.BLOCKING_ENGINE_TRANSACTION_ID AS blocking_trx_id, "
-                    + "dlw.REQUESTING_THREAD_ID AS requesting_ps_thread_id, "
-                    + "dlw.BLOCKING_THREAD_ID AS blocking_ps_thread_id, "
-                    + "rl.OBJECT_SCHEMA AS waiting_object_schema, rl.OBJECT_NAME AS waiting_object_name, "
-                    + "rl.INDEX_NAME AS waiting_index_name, rl.LOCK_TYPE AS waiting_lock_type, "
-                    + "rl.LOCK_MODE AS waiting_lock_mode, rl.LOCK_STATUS AS waiting_lock_status, "
-                    + "rl.LOCK_DATA AS waiting_lock_data, "
-                    + "bl.OBJECT_SCHEMA AS blocking_object_schema, bl.OBJECT_NAME AS blocking_object_name, "
-                    + "bl.INDEX_NAME AS blocking_index_name, bl.LOCK_TYPE AS blocking_lock_type, "
-                    + "bl.LOCK_MODE AS blocking_lock_mode, bl.LOCK_STATUS AS blocking_lock_status, "
-                    + "bl.LOCK_DATA AS blocking_lock_data "
-                    + "FROM performance_schema.data_lock_waits dlw "
-                    + "LEFT JOIN performance_schema.data_locks rl "
-                    + "ON dlw.REQUESTING_ENGINE_LOCK_ID = rl.ENGINE_LOCK_ID "
-                    + "AND dlw.ENGINE = rl.ENGINE "
-                    + "LEFT JOIN performance_schema.data_locks bl "
-                    + "ON dlw.BLOCKING_ENGINE_LOCK_ID = bl.ENGINE_LOCK_ID "
-                    + "AND dlw.ENGINE = bl.ENGINE"
-                    + ") w ON w.requesting_trx_id = t.trx_id "
-                    + "LEFT JOIN information_schema.innodb_trx bt ON bt.trx_id = w.blocking_trx_id "
-                    + "LEFT JOIN information_schema.processlist bp ON bt.trx_mysql_thread_id = bp.ID";
-
-    private static final String LOCK_COLUMNS_57 =
-            "w.requesting_lock_id, w.blocking_lock_id, w.blocking_trx_id, "
-                    + "NULL AS requesting_ps_thread_id, NULL AS blocking_ps_thread_id, "
-                    + "NULL AS waiting_object_schema, w.waiting_object_name, w.waiting_index_name, "
-                    + "w.waiting_lock_type, w.waiting_lock_mode, NULL AS waiting_lock_status, w.waiting_lock_data, "
-                    + "NULL AS blocking_object_schema, w.blocking_object_name, w.blocking_index_name, "
-                    + "w.blocking_lock_type, w.blocking_lock_mode, NULL AS blocking_lock_status, w.blocking_lock_data, "
-                    + "bt.trx_mysql_thread_id AS blocking_thread_id, bp.ID AS blocking_process_id, "
-                    + "bp.USER AS blocking_user, bp.HOST AS blocking_host, bp.DB AS blocking_db";
-
-    private static final String LOCK_JOIN_57 =
-            "LEFT JOIN ("
-                    + "SELECT lw.requesting_trx_id, lw.requested_lock_id AS requesting_lock_id, "
-                    + "lw.blocking_lock_id, lw.blocking_trx_id, "
-                    + "rl.lock_table AS waiting_object_name, rl.lock_index AS waiting_index_name, "
-                    + "rl.lock_type AS waiting_lock_type, rl.lock_mode AS waiting_lock_mode, "
-                    + "rl.lock_data AS waiting_lock_data, "
-                    + "bl.lock_table AS blocking_object_name, bl.lock_index AS blocking_index_name, "
-                    + "bl.lock_type AS blocking_lock_type, bl.lock_mode AS blocking_lock_mode, "
-                    + "bl.lock_data AS blocking_lock_data "
-                    + "FROM information_schema.innodb_lock_waits lw "
-                    + "LEFT JOIN information_schema.innodb_locks rl ON lw.requested_lock_id = rl.lock_id "
-                    + "LEFT JOIN information_schema.innodb_locks bl ON lw.blocking_lock_id = bl.lock_id"
-                    + ") w ON w.requesting_trx_id = t.trx_id "
-                    + "LEFT JOIN information_schema.innodb_trx bt ON bt.trx_id = w.blocking_trx_id "
-                    + "LEFT JOIN information_schema.processlist bp ON bt.trx_mysql_thread_id = bp.ID";
-
-    private static final String LOCK_COLUMNS_UNAVAILABLE =
-            "NULL AS requesting_lock_id, NULL AS blocking_lock_id, NULL AS blocking_trx_id, "
-                    + "NULL AS requesting_ps_thread_id, NULL AS blocking_ps_thread_id, "
-                    + "NULL AS waiting_object_schema, NULL AS waiting_object_name, NULL AS waiting_index_name, "
-                    + "NULL AS waiting_lock_type, NULL AS waiting_lock_mode, NULL AS waiting_lock_status, "
-                    + "NULL AS waiting_lock_data, "
-                    + "NULL AS blocking_object_schema, NULL AS blocking_object_name, NULL AS blocking_index_name, "
-                    + "NULL AS blocking_lock_type, NULL AS blocking_lock_mode, NULL AS blocking_lock_status, "
-                    + "NULL AS blocking_lock_data, "
-                    + "NULL AS blocking_thread_id, NULL AS blocking_process_id, "
-                    + "NULL AS blocking_user, NULL AS blocking_host, NULL AS blocking_db";
-
-    private static final String SQL_PROBE_MYSQL80_LOCKS =
-            "SELECT 1 FROM performance_schema.data_lock_waits WHERE 1 = 0";
-
-    private static final String SQL_PROBE_MYSQL57_LOCKS =
-            "SELECT 1 FROM information_schema.innodb_lock_waits WHERE 1 = 0";
-
-    private static final String SQL_CONNECTION_INSPECTION =
-            "SELECT ID, USER, HOST, DB, COMMAND, TIME, STATE, INFO\n"
-                    + "FROM information_schema.PROCESSLIST\n"
-                    + "WHERE ID = %d;";
-
-    static final String PROCESS_PRIVILEGE_ERROR_CODE = "mysql.activeTransaction.processPrivilegeRequired";
 
     @Override
     public List<ActiveTransaction> activeTransactions(Connection connection) {
@@ -162,22 +57,22 @@ public class MysqlActiveTransactionManager implements IActiveTransactionManager 
     static ActiveTransaction readTransaction(ResultSet resultSet, LockMetadataQuery lockMetadataQuery)
             throws SQLException {
         ActiveTransaction transaction = new ActiveTransaction();
-        transaction.setTrxId(resultSet.getString("trx_id"));
-        transaction.setState(resultSet.getString("trx_state"));
-        transaction.setStartedAt(resultSet.getTimestamp("trx_started"));
-        transaction.setAgeSeconds(nullableLong(resultSet, "trx_age_seconds"));
-        transaction.setIsolationLevel(resultSet.getString("trx_isolation_level"));
-        transaction.setRowsLocked(nullableLong(resultSet, "trx_rows_locked"));
-        transaction.setRowsModified(nullableLong(resultSet, "trx_rows_modified"));
-        transaction.setLockStructs(nullableLong(resultSet, "trx_lock_structs"));
-        Long threadId = nullableLong(resultSet, "trx_mysql_thread_id");
+        transaction.setTrxId(resultSet.getString(RESULT_TRX_ID));
+        transaction.setState(resultSet.getString(RESULT_TRX_STATE));
+        transaction.setStartedAt(resultSet.getTimestamp(RESULT_TRX_STARTED));
+        transaction.setAgeSeconds(nullableLong(resultSet, RESULT_TRX_AGE_SECONDS));
+        transaction.setIsolationLevel(resultSet.getString(RESULT_TRX_ISOLATION_LEVEL));
+        transaction.setRowsLocked(nullableLong(resultSet, RESULT_TRX_ROWS_LOCKED));
+        transaction.setRowsModified(nullableLong(resultSet, RESULT_TRX_ROWS_MODIFIED));
+        transaction.setLockStructs(nullableLong(resultSet, RESULT_TRX_LOCK_STRUCTS));
+        Long threadId = nullableLong(resultSet, RESULT_TRX_MYSQL_THREAD_ID);
         transaction.setThreadId(threadId);
-        transaction.setUser(resultSet.getString("process_user"));
-        transaction.setHost(resultSet.getString("process_host"));
-        transaction.setDb(resultSet.getString("process_db"));
-        String query = resultSet.getString("trx_query");
+        transaction.setUser(resultSet.getString(RESULT_PROCESS_USER));
+        transaction.setHost(resultSet.getString(RESULT_PROCESS_HOST));
+        transaction.setDb(resultSet.getString(RESULT_PROCESS_DB));
+        String query = resultSet.getString(RESULT_TRX_QUERY);
         transaction.setQuery(query);
-        Long processId = nullableLong(resultSet, "process_id");
+        Long processId = nullableLong(resultSet, RESULT_PROCESS_ID);
         transaction.setSessionAvailable(processId != null);
         transaction.setSessionState(processId == null ? SessionState.DISAPPEARED_OR_HIDDEN : SessionState.LIVE);
         boolean canOpenSession = processId != null && threadId != null;
@@ -192,36 +87,40 @@ public class MysqlActiveTransactionManager implements IActiveTransactionManager 
     }
 
     private static void putLockWait(ActiveTransaction transaction, ResultSet resultSet) throws SQLException {
-        Long blockingThreadId = nullableLong(resultSet, "blocking_thread_id");
-        Long blockingProcessId = nullableLong(resultSet, "blocking_process_id");
-        String waitingLockId = resultSet.getString("requesting_lock_id");
-        String blockingLockId = resultSet.getString("blocking_lock_id");
+        Long blockingThreadId = nullableLong(resultSet, RESULT_BLOCKING_THREAD_ID);
+        Long blockingProcessId = nullableLong(resultSet, RESULT_BLOCKING_PROCESS_ID);
+        String waitingLockId = resultSet.getString(RESULT_REQUESTING_LOCK_ID);
+        String blockingLockId = resultSet.getString(RESULT_BLOCKING_LOCK_ID);
         transaction.setWaitingLockId(waitingLockId);
         transaction.setBlockingLockId(blockingLockId);
-        transaction.setBlockingTrxId(resultSet.getString("blocking_trx_id"));
-        transaction.setWaitingPerformanceSchemaThreadId(nullableLong(resultSet, "requesting_ps_thread_id"));
-        transaction.setBlockingPerformanceSchemaThreadId(nullableLong(resultSet, "blocking_ps_thread_id"));
+        transaction.setBlockingTrxId(resultSet.getString(RESULT_BLOCKING_TRX_ID));
+        transaction.setWaitingPerformanceSchemaThreadId(nullableLong(resultSet, RESULT_REQUESTING_PS_THREAD_ID));
+        transaction.setBlockingPerformanceSchemaThreadId(nullableLong(resultSet, RESULT_BLOCKING_PS_THREAD_ID));
         transaction.setBlockingThreadId(blockingThreadId);
         transaction.setBlockingSessionAvailable(blockingProcessId != null);
         boolean canOpenBlockingSession = blockingProcessId != null && blockingThreadId != null;
         transaction.setCanOpenBlockingSession(canOpenBlockingSession);
         transaction.setBlockingConnectionInspectionSql(
                 canOpenBlockingSession ? connectionInspectionSql(blockingThreadId) : null);
-        transaction.setBlockingUser(resultSet.getString("blocking_user"));
-        transaction.setBlockingHost(resultSet.getString("blocking_host"));
-        transaction.setBlockingDb(resultSet.getString("blocking_db"));
-        transaction.setWaitingObject(lockObject(resultSet, "waiting_object_schema", "waiting_object_name"));
-        transaction.setWaitingIndex(resultSet.getString("waiting_index_name"));
-        transaction.setWaitingLockType(resultSet.getString("waiting_lock_type"));
-        transaction.setWaitingLockMode(resultSet.getString("waiting_lock_mode"));
-        transaction.setWaitingLockStatus(resultSet.getString("waiting_lock_status"));
-        transaction.setWaitingLockData(resultSet.getString("waiting_lock_data"));
-        transaction.setBlockingObject(lockObject(resultSet, "blocking_object_schema", "blocking_object_name"));
-        transaction.setBlockingIndex(resultSet.getString("blocking_index_name"));
-        transaction.setBlockingLockType(resultSet.getString("blocking_lock_type"));
-        transaction.setBlockingLockMode(resultSet.getString("blocking_lock_mode"));
-        transaction.setBlockingLockStatus(resultSet.getString("blocking_lock_status"));
-        transaction.setBlockingLockData(resultSet.getString("blocking_lock_data"));
+        transaction.setBlockingUser(resultSet.getString(RESULT_BLOCKING_USER));
+        transaction.setBlockingHost(resultSet.getString(RESULT_BLOCKING_HOST));
+        transaction.setBlockingDb(resultSet.getString(RESULT_BLOCKING_DB));
+        transaction.setWaitingObject(lockObject(resultSet, RESULT_WAITING_OBJECT_SCHEMA, RESULT_WAITING_OBJECT_NAME));
+        transaction.setWaitingIndex(resultSet.getString(RESULT_WAITING_INDEX_NAME));
+        transaction.setWaitingLockType(resultSet.getString(RESULT_WAITING_LOCK_TYPE));
+        transaction.setWaitingLockMode(resultSet.getString(RESULT_WAITING_LOCK_MODE));
+        transaction.setWaitingLockStatus(resultSet.getString(RESULT_WAITING_LOCK_STATUS));
+        transaction.setWaitingLockData(resultSet.getString(RESULT_WAITING_LOCK_DATA));
+        transaction.setBlockingObject(lockObject(
+                resultSet,
+                RESULT_BLOCKING_OBJECT_SCHEMA,
+                RESULT_BLOCKING_OBJECT_NAME
+        ));
+        transaction.setBlockingIndex(resultSet.getString(RESULT_BLOCKING_INDEX_NAME));
+        transaction.setBlockingLockType(resultSet.getString(RESULT_BLOCKING_LOCK_TYPE));
+        transaction.setBlockingLockMode(resultSet.getString(RESULT_BLOCKING_LOCK_MODE));
+        transaction.setBlockingLockStatus(resultSet.getString(RESULT_BLOCKING_LOCK_STATUS));
+        transaction.setBlockingLockData(resultSet.getString(RESULT_BLOCKING_LOCK_DATA));
         transaction.setLockWaitAvailable(waitingLockId != null || blockingLockId != null);
     }
 
@@ -234,7 +133,7 @@ public class MysqlActiveTransactionManager implements IActiveTransactionManager 
         if (object == null || object.isBlank()) {
             return schema;
         }
-        return schema + "." + object;
+        return schema + QUALIFIED_NAME_SEPARATOR + object;
     }
 
     private static Long nullableLong(ResultSet resultSet, String column) throws SQLException {
@@ -278,7 +177,7 @@ public class MysqlActiveTransactionManager implements IActiveTransactionManager 
     }
 
     static LockMetadataQuery unavailableLockMetadataQuery() {
-        return new LockMetadataQuery(activeTransactionSql(LOCK_COLUMNS_UNAVAILABLE, ""),
+        return new LockMetadataQuery(activeTransactionSql(LOCK_COLUMNS_UNAVAILABLE, LOCK_JOIN_UNAVAILABLE),
                 false, null);
     }
 
@@ -286,9 +185,8 @@ public class MysqlActiveTransactionManager implements IActiveTransactionManager 
         Throwable current = throwable;
         while (current != null) {
             if (current instanceof SQLException sqlException
-                    && (sqlException.getErrorCode() == 1227
-                    || sqlException.getMessage() != null
-                    && sqlException.getMessage().toUpperCase().contains("PROCESS"))) {
+                    && (sqlException.getErrorCode() == MYSQL_ERROR_SPECIFIC_ACCESS_DENIED
+                    || normalizedMessage(sqlException).contains(PROCESS_PRIVILEGE_MESSAGE_MARKER))) {
                 return true;
             }
             current = current.getCause();
@@ -300,17 +198,9 @@ public class MysqlActiveTransactionManager implements IActiveTransactionManager 
         Throwable current = throwable;
         while (current != null) {
             if (current instanceof SQLException sqlException) {
-                int errorCode = sqlException.getErrorCode();
-                String message = sqlException.getMessage();
-                String normalized = message == null ? "" : message.toUpperCase();
-                if (errorCode == 1142 || errorCode == 1146 || errorCode == 1227
-                        || normalized.contains("DATA_LOCK")
-                        || normalized.contains("INNODB_LOCK")
-                        || normalized.contains("PERFORMANCE_SCHEMA")
-                        || normalized.contains("COMMAND DENIED")
-                        || normalized.contains("DOESN'T EXIST")
-                        || normalized.contains("DOES NOT EXIST")
-                        || normalized.contains("PROCESS")) {
+                String normalized = normalizedMessage(sqlException);
+                if (LOCK_METADATA_UNAVAILABLE_ERROR_CODES.contains(sqlException.getErrorCode())
+                        || LOCK_METADATA_UNAVAILABLE_MESSAGE_MARKERS.stream().anyMatch(normalized::contains)) {
                     return true;
                 }
             }
@@ -321,9 +211,14 @@ public class MysqlActiveTransactionManager implements IActiveTransactionManager 
 
     static RuntimeException sanitizeActiveTransactionQueryException(RuntimeException exception) {
         if (hasProcessPrivilegeError(exception)) {
-            return new BusinessException(PROCESS_PRIVILEGE_ERROR_CODE, null, exception);
+            return new BusinessException(ERROR_CODE_PROCESS_PRIVILEGE_REQUIRED, null, exception);
         }
         return exception;
+    }
+
+    private static String normalizedMessage(SQLException exception) {
+        String message = exception.getMessage();
+        return message == null ? EMPTY_ERROR_MESSAGE : message.toUpperCase(Locale.ROOT);
     }
 
     record LockMetadataQuery(String sql, boolean available, LockMetadataSource source) {

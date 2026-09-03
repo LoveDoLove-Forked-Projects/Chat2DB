@@ -7,13 +7,17 @@ import ai.chat2db.community.domain.api.model.transaction.ActiveTransaction.Query
 import ai.chat2db.community.tools.exception.BusinessException;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.lang.reflect.Proxy;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static ai.chat2db.plugin.mysql.constant.MysqlActiveTransactionConstants.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -26,12 +30,14 @@ class MysqlActiveTransactionManagerTest {
     @Test
     void recognizesProcessPrivilegeFailuresThroughWrappedCauses() {
         SQLException denied = new SQLException(
-                "Access denied; you need (at least one of) the PROCESS privilege", "42000", 1227);
+                "Access denied; you need (at least one of) the PROCESS privilege",
+                "42000",
+                MYSQL_ERROR_SPECIFIC_ACCESS_DENIED);
 
         assertTrue(MysqlActiveTransactionManager.hasProcessPrivilegeError(
                 new IllegalStateException("execution failed", denied)));
         assertFalse(MysqlActiveTransactionManager.hasProcessPrivilegeError(
-                new SQLException("table not found", "42S02", 1146)));
+                new SQLException("table not found", "42S02", MYSQL_ERROR_TABLE_NOT_FOUND)));
     }
 
     @Test
@@ -60,9 +66,11 @@ class MysqlActiveTransactionManagerTest {
     @Test
     void recognizesMissingOrDeniedLockMetadataFailures() {
         assertTrue(MysqlActiveTransactionManager.hasMissingOrDeniedMetadataError(
-                new SQLException("Table 'performance_schema.data_lock_waits' doesn't exist", "42S02", 1146)));
+                new SQLException("Table 'performance_schema.data_lock_waits' doesn't exist",
+                        "42S02", MYSQL_ERROR_TABLE_NOT_FOUND)));
         assertTrue(MysqlActiveTransactionManager.hasMissingOrDeniedMetadataError(
-                new SQLException("SELECT command denied to user for table 'data_locks'", "42000", 1142)));
+                new SQLException("SELECT command denied to user for table 'data_locks'",
+                        "42000", MYSQL_ERROR_TABLE_ACCESS_DENIED)));
         assertFalse(MysqlActiveTransactionManager.hasMissingOrDeniedMetadataError(
                 new SQLException("Syntax error", "42000", 1064)));
     }
@@ -70,24 +78,24 @@ class MysqlActiveTransactionManagerTest {
     @Test
     void mapsResultSetToTypedTransactionResponse() throws SQLException {
         ResultSet resultSet = resultSet(Map.ofEntries(
-                Map.entry("trx_id", "421337"),
-                Map.entry("trx_state", "LOCK WAIT"),
-                Map.entry("trx_started", Timestamp.valueOf("2026-08-31 12:00:00")),
-                Map.entry("trx_age_seconds", 12L),
-                Map.entry("trx_isolation_level", "REPEATABLE READ"),
-                Map.entry("trx_rows_locked", 1L),
-                Map.entry("trx_rows_modified", 0L),
-                Map.entry("trx_lock_structs", 2L),
-                Map.entry("trx_mysql_thread_id", 45L),
-                Map.entry("process_id", 45L),
-                Map.entry("process_user", "ops002_user"),
-                Map.entry("process_host", "127.0.0.1:50000"),
-                Map.entry("process_db", "ops002_test"),
-                Map.entry("requesting_lock_id", "421337:7:3:2"),
-                Map.entry("blocking_lock_id", "421336:7:3:2"),
-                Map.entry("blocking_trx_id", "421336"),
-                Map.entry("blocking_thread_id", 44L),
-                Map.entry("blocking_process_id", 44L)
+                Map.entry(RESULT_TRX_ID, "421337"),
+                Map.entry(RESULT_TRX_STATE, "LOCK WAIT"),
+                Map.entry(RESULT_TRX_STARTED, Timestamp.valueOf("2026-08-31 12:00:00")),
+                Map.entry(RESULT_TRX_AGE_SECONDS, 12L),
+                Map.entry(RESULT_TRX_ISOLATION_LEVEL, "REPEATABLE READ"),
+                Map.entry(RESULT_TRX_ROWS_LOCKED, 1L),
+                Map.entry(RESULT_TRX_ROWS_MODIFIED, 0L),
+                Map.entry(RESULT_TRX_LOCK_STRUCTS, 2L),
+                Map.entry(RESULT_TRX_MYSQL_THREAD_ID, 45L),
+                Map.entry(RESULT_PROCESS_ID, 45L),
+                Map.entry(RESULT_PROCESS_USER, "ops002_user"),
+                Map.entry(RESULT_PROCESS_HOST, "127.0.0.1:50000"),
+                Map.entry(RESULT_PROCESS_DB, "ops002_test"),
+                Map.entry(RESULT_REQUESTING_LOCK_ID, "421337:7:3:2"),
+                Map.entry(RESULT_BLOCKING_LOCK_ID, "421336:7:3:2"),
+                Map.entry(RESULT_BLOCKING_TRX_ID, "421336"),
+                Map.entry(RESULT_BLOCKING_THREAD_ID, 44L),
+                Map.entry(RESULT_BLOCKING_PROCESS_ID, 44L)
         ));
 
         ActiveTransaction transaction = MysqlActiveTransactionManager.readTransaction(
@@ -116,10 +124,10 @@ class MysqlActiveTransactionManagerTest {
     @Test
     void unavailableConnectionsDoNotExposeInspectionSql() throws SQLException {
         ResultSet resultSet = resultSet(Map.ofEntries(
-                Map.entry("trx_id", "421338"),
-                Map.entry("trx_state", "RUNNING"),
-                Map.entry("trx_started", Timestamp.valueOf("2026-08-31 12:00:00")),
-                Map.entry("trx_mysql_thread_id", 46L)
+                Map.entry(RESULT_TRX_ID, "421338"),
+                Map.entry(RESULT_TRX_STATE, "RUNNING"),
+                Map.entry(RESULT_TRX_STARTED, Timestamp.valueOf("2026-08-31 12:00:00")),
+                Map.entry(RESULT_TRX_MYSQL_THREAD_ID, 46L)
         ));
 
         ActiveTransaction transaction = MysqlActiveTransactionManager.readTransaction(
@@ -136,14 +144,30 @@ class MysqlActiveTransactionManagerTest {
     @Test
     void fallbackProcessPrivilegeFailureUsesSanitizedBusinessCode() {
         RuntimeException executionFailure = new IllegalStateException("execution failed",
-                new SQLException("Access denied; you need (at least one of) the PROCESS privilege", "42000", 1227));
+                new SQLException("Access denied; you need (at least one of) the PROCESS privilege",
+                        "42000", MYSQL_ERROR_SPECIFIC_ACCESS_DENIED));
 
         BusinessException exception = assertThrows(BusinessException.class, () -> {
             throw MysqlActiveTransactionManager.sanitizeActiveTransactionQueryException(executionFailure);
         });
 
-        assertEquals(MysqlActiveTransactionManager.PROCESS_PRIVILEGE_ERROR_CODE, exception.getCode());
+        assertEquals(ERROR_CODE_PROCESS_PRIVILEGE_REQUIRED, exception.getCode());
         assertSame(executionFailure, exception.getCause());
+    }
+
+    @Test
+    void managerDoesNotInlineSqlOrResultColumnNames() throws IOException {
+        Path sourcePath = Path.of(
+                System.getProperty("basedir"),
+                "src/main/java/ai/chat2db/plugin/mysql/MysqlActiveTransactionManager.java"
+        );
+        String source = Files.readString(sourcePath);
+
+        assertFalse(source.contains("resultSet.getString(\""));
+        assertFalse(source.contains("resultSet.getTimestamp(\""));
+        assertFalse(source.contains("nullableLong(resultSet, \""));
+        assertFalse(source.contains("information_schema"));
+        assertFalse(source.contains("performance_schema"));
     }
 
     @Test
