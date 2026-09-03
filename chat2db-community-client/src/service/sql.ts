@@ -16,6 +16,12 @@ import {
 import { DatabaseTypeCode } from '@/constants';
 import { ExportSizeEnum, ExportTypeEnum } from '@/typings/resultTable';
 import type {
+  ActiveTransactionLockMetadataSource,
+  ActiveTransactionLockMetadataState,
+  ActiveTransactionQueryState,
+  ActiveTransactionSessionState,
+} from '@/constants/activeTransaction';
+import type {
   IDdlExecuteRequest,
   ISqlEditorExecuteRequest,
   ITableBrowseRequest,
@@ -429,6 +435,66 @@ export interface ICopyTableParams extends ITableParams {
 // Copy table
 const copyTable = createRequest<ICopyTableParams, void>('/api/rdb/table/copy', { method: 'post' });
 
+
+/** Active InnoDB transactions (MYSQL-OPS-002). */
+export interface IActiveTransactionItem {
+  trxId: string | null;
+  state: string | null;
+  startedAt: number | string | null;
+  ageSeconds: number | null;
+  isolationLevel: string | null;
+  rowsLocked: number | null;
+  rowsModified: number | null;
+  lockStructs: number | null;
+  threadId: number | null;
+  user: string | null;
+  host: string | null;
+  db: string | null;
+  query: string | null;
+  queryState?: ActiveTransactionQueryState;
+  sessionAvailable?: boolean;
+  sessionState?: ActiveTransactionSessionState;
+  canOpenSession?: boolean;
+  connectionInspectionSql: string | null;
+  waitingLockId?: string | null;
+  blockingLockId?: string | null;
+  blockingTrxId?: string | null;
+  waitingPerformanceSchemaThreadId?: number | null;
+  blockingPerformanceSchemaThreadId?: number | null;
+  blockingThreadId?: number | null;
+  blockingSessionAvailable?: boolean;
+  canOpenBlockingSession?: boolean;
+  blockingConnectionInspectionSql: string | null;
+  blockingUser?: string | null;
+  blockingHost?: string | null;
+  blockingDb?: string | null;
+  waitingObject?: string | null;
+  waitingIndex?: string | null;
+  waitingLockType?: string | null;
+  waitingLockMode?: string | null;
+  waitingLockStatus?: string | null;
+  waitingLockData?: string | null;
+  blockingObject?: string | null;
+  blockingIndex?: string | null;
+  blockingLockType?: string | null;
+  blockingLockMode?: string | null;
+  blockingLockStatus?: string | null;
+  blockingLockData?: string | null;
+  lockWaitAvailable?: boolean;
+  lockMetadataState?: ActiveTransactionLockMetadataState;
+  lockMetadataSource?: ActiveTransactionLockMetadataSource | null;
+}
+
+export interface IActiveTransactionRequest {
+  dataSourceId: number;
+  databaseName?: string;
+  schemaName?: string;
+}
+
+const getActiveTransactionList = createRequest<IActiveTransactionRequest, IActiveTransactionItem[]>(
+  '/api/rdb/active_transaction/list',
+  { method: 'get', errorLevel: false },
+);
 const checkIsSelectSQL = createRequest<{ sql: string; dbType: DatabaseTypeCode }, boolean>('/api/sql/valid_select');
 
 const getDataSourceList = createRequest<IPageParams, IPageResponse<IConnectionDetails>>(
@@ -487,5 +553,6 @@ export default {
   getAllTableList,
   getAllFieldByTable,
   checkIsSelectSQL,
+  getActiveTransactionList,
   getDataSourceList,
 };

@@ -2,6 +2,7 @@ package ai.chat2db.community.domain.core.impl.ai;
 
 import ai.chat2db.community.domain.api.model.ai.AiChatSession;
 import ai.chat2db.community.domain.api.model.request.ai.AiChatMessageAddRequest;
+import ai.chat2db.community.domain.api.model.request.ai.AiSelectedKnowledge;
 import ai.chat2db.community.tools.exception.BusinessException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -11,6 +12,8 @@ import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDateTime;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -70,6 +73,59 @@ class AiChatHistoryServiceImplTest {
         assertEquals("ai.chat.history.sessionNotOwned", exception.getCode());
         assertEquals(originalMessages, Files.readString(messageFile));
         assertEquals(1, service.getMessages(session.getId(), OWNER_ID).size());
+    }
+
+    @Test
+    void renameSessionPersistsWithoutChangingActivityTime() {
+        ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
+        AiChatHistoryServiceImpl service = new AiChatHistoryServiceImpl(objectMapper, tempDirectory);
+        AiChatSession session = service.createSession(OWNER_ID, "original title");
+        LocalDateTime originalModifiedTime = session.getGmtModified();
+
+        service.renameSession(session.getId(), OWNER_ID, "  renamed title  ");
+
+        AiChatHistoryServiceImpl reloadedService = new AiChatHistoryServiceImpl(objectMapper, tempDirectory);
+        AiChatSession renamed = reloadedService.listSessions(OWNER_ID).get(0);
+        assertEquals("renamed title", renamed.getTitle());
+        assertEquals(originalModifiedTime, renamed.getGmtModified());
+    }
+
+    @Test
+    void renameSessionRejectsAnotherUsersSession() {
+        AiChatHistoryServiceImpl service = new AiChatHistoryServiceImpl(
+                new ObjectMapper().findAndRegisterModules(), tempDirectory);
+        AiChatSession session = service.createSession(OWNER_ID, "owner title");
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> service.renameSession(session.getId(), OTHER_USER_ID, "intruder title"));
+
+        assertEquals("ai.chat.history.sessionNotOwned", exception.getCode());
+        assertEquals("owner title", service.listSessions(OWNER_ID).get(0).getTitle());
+    }
+
+    @Test
+    void selectedKnowledgeSurvivesHistoryPersistenceAndReload() {
+        ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
+        AiChatHistoryServiceImpl service = new AiChatHistoryServiceImpl(objectMapper, tempDirectory);
+        AiChatSession session = service.createSession(OWNER_ID, "knowledge session");
+        AiChatMessageAddRequest request = addRequest(session.getId(), OWNER_ID, "查询三全水饺销量");
+        AiSelectedKnowledge knowledge = new AiSelectedKnowledge();
+        knowledge.setId(186L);
+        knowledge.setType("KNOWLEDGE_TERM");
+        knowledge.setKey("三全水饺");
+        knowledge.setValue("三全食品旗下水饺产品集合");
+        request.setSelectedKnowledge(List.of(knowledge));
+
+        service.addMessage(request);
+        AiChatHistoryServiceImpl reloadedService = new AiChatHistoryServiceImpl(objectMapper, tempDirectory);
+
+        assertEquals(1, reloadedService.getMessages(session.getId(), OWNER_ID).size());
+        AiSelectedKnowledge restored = reloadedService.getMessages(session.getId(), OWNER_ID)
+                .get(0).getSelectedKnowledge().get(0);
+        assertEquals(186L, restored.getId());
+        assertEquals("KNOWLEDGE_TERM", restored.getType());
+        assertEquals("三全水饺", restored.getKey());
+        assertEquals("三全食品旗下水饺产品集合", restored.getValue());
     }
 
     private AiChatMessageAddRequest addRequest(String sessionId, Long userId, String content) {

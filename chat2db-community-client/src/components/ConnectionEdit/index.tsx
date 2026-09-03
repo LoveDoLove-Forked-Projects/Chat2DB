@@ -21,10 +21,10 @@ import styles from './index.less';
 import { formatJdbcHostForUrl, normalizeJdbcHostFromUrl, shouldSyncJdbcUrlForField } from './utils/jdbcUrl';
 
 // ----- store -----
-import { runtimeEditionConfig } from '@/constants/runtimeEdition';
+import { clientRuntime } from '@client-runtime';
 import { useGlobalStore } from '@/store/global';
-import { useOrgStore } from '@/store/organization';
-import { OrganizationType } from '@/typings/enterprise/organization';
+import { useOrgStore } from '@/store/workspaceContext';
+import clientExtension from '@client-extension';
 import { staticMessage } from '@chat2db/ui';
 
 const { Option } = Select;
@@ -35,6 +35,14 @@ const OSCAR_JDBC_URL_PREFIX = 'jdbc:oscar://';
 const OSCAR_DRIVER_CLASS = 'com.oscar.Driver';
 
 const connectionFormTranslations: Partial<Record<LangType, Record<string, string>>> = {
+  [LangType.ZH_CN]: {
+    'User&Password': '用户名和密码',
+    NONE: '无',
+  },
+  [LangType.JA_JP]: {
+    'User&Password': 'ユーザー名とパスワード',
+    NONE: 'なし',
+  },
   [LangType.ES_ES]: {
     'USE SSH': 'Usar SSH',
     'SSH Hostname': 'Host SSH',
@@ -67,6 +75,7 @@ const connectionFormTranslations: Partial<Record<LangType, Record<string, string
     Datatset: 'Conjunto de datos',
     'Google Service Account': 'Cuenta de servicio de Google',
     'User&Password': 'Usuario y contraseña',
+    NONE: 'Ninguno',
     LocalFile: 'Archivo local',
     Service: 'Servicio',
   },
@@ -102,6 +111,7 @@ const connectionFormTranslations: Partial<Record<LangType, Record<string, string
     Datatset: '데이터 세트',
     'Google Service Account': 'Google 서비스 계정',
     'User&Password': '사용자 및 비밀번호',
+    NONE: '없음',
     LocalFile: '로컬 파일',
     Service: '서비스',
   },
@@ -393,13 +403,13 @@ const ConnectionEdit = forwardRef((props: IProps, ref: ForwardedRef<ICreateConne
   const dataSourceFormConfigPropsMemo = useMemo<IConnectionConfig>(() => {
     const data = resolveDataSourceFormConfig(backfillData?.type);
 
-    // Team-specific storageType handling.
     const items = data?.baseInfo?.items || [];
-    if (curOrg?.type === OrganizationType.TEAM) {
+    const storagePolicy = clientExtension.connectionStoragePolicy?.(curOrg);
+    if (storagePolicy) {
       const storage = items.find((t) => t.name === 'storageType');
       if (storage) {
-        storage.defaultValue = DataSourceStorageType.CLOUD;
-        storage.disabled = true;
+        storage.defaultValue = storagePolicy.value as DataSourceStorageType;
+        storage.disabled = storagePolicy.disabled;
       }
     }
     return data;
@@ -506,7 +516,7 @@ const ConnectionEdit = forwardRef((props: IProps, ref: ForwardedRef<ICreateConne
       p.id = backfillData.id;
     }
 
-    if (runtimeEditionConfig.localPersistence) {
+    if (clientRuntime.usesLocalPersistence) {
       p.storageType = DataSourceStorageType.LOCAL;
     } else if (!curIsPersonalOrg()) {
       p.storageType = DataSourceStorageType.CLOUD;
@@ -520,12 +530,16 @@ const ConnectionEdit = forwardRef((props: IProps, ref: ForwardedRef<ICreateConne
     }));
 
     if ((type === submitType.SAVE || type === submitType.UPDATE) && submit) {
-      submit?.(p, type).finally(() => {
-        setLoading((state) => ({
-          ...state,
-          [loadingsButton]: false,
-        }));
-      });
+      Promise.resolve(submit(p, type))
+        .catch((error: any) => {
+          staticMessage.error(getConnectionErrorMessage(error));
+        })
+        .finally(() => {
+          setLoading((state) => ({
+            ...state,
+            [loadingsButton]: false,
+          }));
+        });
       return;
     }
 
