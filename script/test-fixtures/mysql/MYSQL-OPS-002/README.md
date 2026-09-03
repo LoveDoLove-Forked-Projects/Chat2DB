@@ -15,7 +15,7 @@
 ## Verification
 
 1. Connect as `ops002_admin`.
-2. Open the Active Transactions view (right-click the datasource node).
+2. Expand the datasource's Monitor node, then double-click Active Transactions.
 3. Open a second connection and run `START TRANSACTION; UPDATE ops002_accounts SET balance = balance - 100 WHERE id = 1;` — leave it open.
 4. Refresh the view — verify the transaction appears with state RUNNING, a growing age, isolation level REPEATABLE READ, thread ID, user, host, database, and the UPDATE SQL text.
 5. Open a third connection and run a second open transaction — verify both are listed, ordered by start time.
@@ -31,7 +31,7 @@
    SELECT requesting_trx_id, requested_lock_id, blocking_trx_id, blocking_lock_id
    FROM information_schema.innodb_lock_waits;
    ```
-9. Verify the Active Transactions view shows waited-lock and blocker fields for the waiting row, and that Owner/Blocker session buttons open a datasource-bound console filtered by the exact `information_schema.PROCESSLIST.ID`.
+9. Verify the Active Transactions view shows waited-lock and blocker fields for the waiting row, and that the owner and blocker connection ID links open datasource-bound consoles filtered by the exact `information_schema.PROCESSLIST.ID`.
 10. Commit or roll back the first transaction — refresh — verify committed or rolled-back transactions disappear instead of remaining as historical rows.
 11. Connect as `ops002_user`, open a transaction, and refresh the view — verify hidden SQL is rendered as an explicit unavailable state when MySQL returns NULL, lock-wait metadata degrades explicitly when the account or server cannot expose it, and a PROCESS denial from the transaction/process query is reported as a permission-required state rather than a generic runtime error.
 12. With no open transactions, refresh — verify the empty state is shown normally.
