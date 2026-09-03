@@ -51,12 +51,22 @@ class RedisScriptExecutorUpdateTest {
     }
 
     @Test
-    void updateDoesNotPersistKeyWhenTtlAlreadyHasNoExpiration() {
+    void updatePersistsDesiredNoExpirationStateWithoutTrustingOldTtl() {
         List<String> commands = captureUpdateCommands();
 
         RedisScriptExecutor.getInstance().update(stringKey("k", -1L), stringKey("k", -1L));
 
-        assertTrue(commands.isEmpty());
+        assertEquals(List.of("PERSIST 'k'"), commands);
+    }
+
+    @Test
+    void updatePersistsRecreatedKeyWhenDesiredTtlHasNoExpiration() {
+        List<String> commands = captureUpdateCommands();
+        RedisKey oldKey = RedisKey.builder().name("k").type("list").ttl(60L).build();
+
+        RedisScriptExecutor.getInstance().update(oldKey, stringKey("k", -1L));
+
+        assertEquals("PERSIST 'k'", commands.get(commands.size() - 1));
     }
 
     @Test
