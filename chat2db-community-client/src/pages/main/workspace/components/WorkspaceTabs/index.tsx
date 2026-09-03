@@ -107,6 +107,7 @@ const SplitPaneAny = SplitPane as any;
 const MAIN_WORKSPACE_TAB_PANE: WorkspaceTabPaneId = 'main';
 const SPLIT_WORKSPACE_TAB_PANE: WorkspaceTabPaneId = 'split';
 const WORKSPACE_TAB_PANE_DROPPABLE_PREFIX = 'workspace-tab-pane:';
+const WORKSPACE_TAB_HEADER_HEIGHT = 36;
 const WORKSPACE_TAB_WIDTH = 200;
 const WORKSPACE_TAB_HORIZONTAL_RESIZE_CLASS = 'WorkspaceTabHorizontalResizing';
 const WORKSPACE_TAB_VERTICAL_RESIZE_CLASS = 'WorkspaceTabVerticalResizing';
@@ -841,6 +842,9 @@ const WorkspaceTabs = memo(() => {
   // The split box does not exist in an empty workspace. Re-run when the first
   // tab mounts even if the normalized split layout remains null.
   useLayoutEffect(() => {
+    if (!workspaceTabSplitLayout) {
+      return;
+    }
     const container = splitTabBoxRef.current;
     if (!container) {
       return;
@@ -2087,7 +2091,7 @@ const WorkspaceTabs = memo(() => {
         }}
       >
         <CustomTabs
-          height={36}
+          height={WORKSPACE_TAB_HEADER_HEIGHT}
           hideAdd={hideAdd}
           className={styles.tabHeaderBox}
           onChange={(key) => onPaneTabChange(paneId, key)}
@@ -2172,16 +2176,25 @@ const WorkspaceTabs = memo(() => {
           const paneId = activeTabPaneIds.get(item.key);
           const bounds = paneId ? paneContentBounds[paneId] : undefined;
           const isActive = paneId !== undefined;
+          const fillsSinglePane = isActive && !workspaceTabSplitLayout;
+          const isVisible = fillsSinglePane || !!bounds;
           if (item.destroyOnHide && !isActive) {
             return null;
           }
           return (
             <div
               key={item.key}
-              aria-hidden={!bounds}
-              className={`${styles.workspaceTabContentItem} ${bounds ? styles.workspaceTabContentItemActive : ''}`}
+              aria-hidden={!isVisible}
+              className={`${styles.workspaceTabContentItem} ${isVisible ? styles.workspaceTabContentItemActive : ''}`}
               style={
-                bounds
+                fillsSinglePane
+                  ? {
+                      top: WORKSPACE_TAB_HEADER_HEIGHT,
+                      right: 0,
+                      bottom: 0,
+                      left: 0,
+                    }
+                  : bounds
                   ? {
                       left: bounds.left,
                       top: bounds.top,

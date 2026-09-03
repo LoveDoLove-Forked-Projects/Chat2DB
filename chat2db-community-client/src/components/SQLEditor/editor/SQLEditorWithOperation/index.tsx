@@ -142,7 +142,7 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
   const isSupportedRoutineEditor =
     isDatabaseCapabilitySupported(dbInfo.databaseType, DatabaseCapability.ROUTINE_OPERATION) &&
     [WorkspaceTabType.FUNCTION, WorkspaceTabType.PROCEDURE].includes(type as WorkspaceTabType);
-  const { styles } = useStyles();
+  const { styles, theme } = useStyles();
   const [modal, modalContextHolder] = Modal.useModal();
   const [contextMenuInfo, setContextMenuInfo] = useState<IContextMenuInfo>(contextMenuDefaultConfig);
   const [contextTableIdentifier, setContextTableIdentifier] = useState<EditorTableIdentifier | null>(null);
@@ -1164,7 +1164,7 @@ const SQLEditorWithOperation = forwardRef<ISQLEditorWithOperationRef, ISQLEditor
     isConsole && type === WorkspaceTabType.CONSOLE && dbInfo.dataSourceId
       ? getDataSourceWatermarkContent(dbInfo, dataSourceState)
       : undefined;
-  const watermarkColor = identityColor ? withIdentityColorAlpha(identityColor, 0.4) : undefined;
+  const watermarkColor = withIdentityColorAlpha(identityColor || theme.colorPrimary, 0.4);
   const watermarkLayout = getDataSourceWatermarkLayout(editorViewportSize?.width, editorViewportSize?.height);
 
   return (
