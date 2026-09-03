@@ -63,7 +63,8 @@ assert.equal(
 );
 assert.equal(
   dropMenuConfig.DEFAULT[TreeNodeType.DATA_SOURCE].includes(OperationColumn.ActiveTransactions),
-  true,
+  false,
 );
+assert.deepEqual(dropMenuConfig.DEFAULT[TreeNodeType.ACTIVE_TRANSACTIONS], [OperationColumn.ActiveTransactions]);
 
 console.log('Tree menu grouping tests passed');

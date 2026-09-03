@@ -1,5 +1,5 @@
+import { ACTIVE_TRANSACTION_PROCESS_PRIVILEGE_ERROR_CODE } from '@/constants/activeTransaction';
 import type { IActiveTransactionItem } from '@/service/sql';
-import { DatabaseTypeCode } from '@/constants/common';
 import dayjs from 'dayjs';
 import {
   beginLatestRequest,
@@ -18,8 +18,33 @@ export function getActiveTransactionRowKey(record: IActiveTransactionItem): stri
   ].join(':');
 }
 
-export function canShowActiveTransactionsMenu(databaseType: string | undefined, hasPermission: boolean): boolean {
-  return databaseType === DatabaseTypeCode.MYSQL && hasPermission;
+export enum ActiveTransactionLoadErrorKind {
+  PROCESS_PRIVILEGE_REQUIRED = 'PROCESS_PRIVILEGE_REQUIRED',
+  OTHER = 'OTHER',
+}
+
+export interface ActiveTransactionLoadError {
+  kind: ActiveTransactionLoadErrorKind;
+  message?: string;
+}
+
+export function classifyActiveTransactionLoadError(error: unknown): ActiveTransactionLoadError {
+  if (typeof error !== 'object' || error === null) {
+    return { kind: ActiveTransactionLoadErrorKind.OTHER };
+  }
+  const response = error as Record<string, unknown>;
+  if (response.errorCode === ACTIVE_TRANSACTION_PROCESS_PRIVILEGE_ERROR_CODE) {
+    return { kind: ActiveTransactionLoadErrorKind.PROCESS_PRIVILEGE_REQUIRED };
+  }
+  return {
+    kind: ActiveTransactionLoadErrorKind.OTHER,
+    message:
+      typeof response.errorMessage === 'string'
+        ? response.errorMessage
+        : typeof response.message === 'string'
+          ? response.message
+          : undefined,
+  };
 }
 
 export function beginActiveTransactionRefresh(generationRef: RequestGenerationRef): number {
@@ -53,30 +78,21 @@ export function formatActiveTransactionStartedAt(value: number | string | null):
   return timestamp.isValid() ? timestamp.format('YYYY-MM-DD HH:mm:ss') : '-';
 }
 
-export function canOpenTransactionSession(record: IActiveTransactionItem, target: 'owner' | 'blocker'): boolean {
-  if (target === 'blocker') {
-    return Boolean(record.canOpenBlockingSession && record.blockingThreadId != null);
-  }
-  return Boolean(record.canOpenSession && record.threadId != null);
+export interface TransactionConnectionInspection {
+  connectionId: number;
+  sql: string;
 }
 
-export function getTransactionSessionThreadId(
+export function getTransactionConnectionInspection(
   record: IActiveTransactionItem,
   target: 'owner' | 'blocker',
-): number | null {
-  if (!canOpenTransactionSession(record, target)) {
+): TransactionConnectionInspection | null {
+  const connectionId = target === 'blocker' ? record.blockingThreadId : record.threadId;
+  const sql =
+    target === 'blocker' ? record.blockingConnectionInspectionSql : record.connectionInspectionSql;
+  const available = target === 'blocker' ? record.canOpenBlockingSession : record.canOpenSession;
+  if (!available || connectionId == null || !sql) {
     return null;
   }
-  return target === 'blocker' ? record.blockingThreadId! : record.threadId!;
-}
-
-export function buildSessionInspectionSql(threadId: number): string {
-  if (!Number.isSafeInteger(threadId) || threadId < 0) {
-    throw new Error('A valid MySQL processlist thread ID is required.');
-  }
-  return [
-    'SELECT ID, USER, HOST, DB, COMMAND, TIME, STATE, INFO',
-    'FROM information_schema.PROCESSLIST',
-    `WHERE ID = ${threadId};`,
-  ].join('\n');
+  return { connectionId, sql };
 }

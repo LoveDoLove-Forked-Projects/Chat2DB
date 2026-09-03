@@ -3,7 +3,8 @@
 ## Fixture
 
 - `init.sql` creates:
-  - `ops002_admin` — administrator with PROCESS (full transaction visibility)
+  - `ops002_admin` — administrator with PROCESS plus read access to MySQL 8.0
+    lock-wait metadata (full transaction and blocking-chain visibility)
   - `ops002_user` — limited account (no PROCESS; can inspect its own visible
     InnoDB transactions, but cross-user transaction/process details can be hidden
     or rejected by MySQL privilege checks)
@@ -32,5 +33,5 @@
    ```
 9. Verify the Active Transactions view shows waited-lock and blocker fields for the waiting row, and that Owner/Blocker session buttons open a datasource-bound console filtered by the exact `information_schema.PROCESSLIST.ID`.
 10. Commit or roll back the first transaction — refresh — verify committed or rolled-back transactions disappear instead of remaining as historical rows.
-11. Connect as `ops002_user`, open a transaction, and refresh the view — verify the current user's visible transaction can appear, hidden SQL is rendered as an explicit unavailable state when MySQL returns NULL, lock-wait metadata degrades explicitly when the account or server cannot expose it, and a PROCESS denial from the transaction/process query is reported as a permission-required state rather than a generic runtime error.
+11. Connect as `ops002_user`, open a transaction, and refresh the view — verify hidden SQL is rendered as an explicit unavailable state when MySQL returns NULL, lock-wait metadata degrades explicitly when the account or server cannot expose it, and a PROCESS denial from the transaction/process query is reported as a permission-required state rather than a generic runtime error.
 12. With no open transactions, refresh — verify the empty state is shown normally.

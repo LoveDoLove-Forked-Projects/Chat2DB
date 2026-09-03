@@ -5,6 +5,8 @@ export enum TreeNodeType {
   ALL_DATA = 'allData', // All data dedicated to redis
   DATA_SOURCES = 'dataSources',
   DATA_SOURCE = 'dataSource',
+  MONITOR = 'monitor',
+  ACTIVE_TRANSACTIONS = 'activeTransactions',
   DATABASE_ACCOUNTS = 'databaseAccounts',
   DATABASE_ACCOUNT = 'databaseAccount',
   DATABASE = 'database',

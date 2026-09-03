@@ -53,11 +53,6 @@ import { resolveDataSourceAuthorization } from '@/utils/dataSourceAuthorization'
 import accountAdminService, { AccountActionType, formatAccountExecuteMessage } from '@/service/accountAdmin';
 import CreateAccountContent, { CreateAccountValues } from '../components/CreateAccountContent';
 import DeleteDatabaseSchemaConfirmContent from '../components/DeleteDatabaseSchemaConfirmContent';
-import ActiveTransactionsContent from '../components/ActiveTransactionsContent';
-import {
-  buildSessionInspectionSql,
-  canShowActiveTransactionsMenu,
-} from '../components/ActiveTransactionsContent/activeTransactionUtils';
 import { buildWorkspaceObjectTabTitle } from '@/utils/workspaceObjectTabTitle';
 import { allowsResourceOperations } from '@/client-extension/resourceOperationCapabilities';
 import type { ResourceOperation, ResourceOperationCapabilities } from '@/client-extension/types';
@@ -66,6 +61,7 @@ import { DataSourceIdentityColorRequestRegistry } from '../dataSourceIdentityCol
 import DataSourceColorMenuItem from '../components/DataSourceColorMenuItem';
 import { withDataSourceColorMenuOption } from '../dataSourceColorMenu';
 import { isDangerousTreeOperation } from '../treeMenuDanger';
+import { createActiveTransactionsWorkspaceTabId } from '../monitorTree';
 
 export interface MenuLabelRenderContext {
   closeMenu: () => void;
@@ -129,6 +125,7 @@ export const canBeDoubleClicked = [
   TreeNodeType.TRIGGER,
   TreeNodeType.ALL_DATA,
   TreeNodeType.DATABASE_ACCOUNT,
+  TreeNodeType.ACTIVE_TRANSACTIONS,
   TreeNodeType.SAVE_CONSOLE,
 ];
 
@@ -412,35 +409,20 @@ export const useCreateRightClickMenu = () => {
       [OperationColumn.ActiveTransactions]: {
         text: i18n('workspace.ops.activeTransactions'),
         icon: 'icon-file-text',
+        doubleClickTrigger: true,
         handle: () => {
-          const handleOpenSession = (threadId: number) => {
-            createConsole({
-              name: i18n('workspace.ops.sessionThreadTitle', threadId),
-              ddl: buildSessionInspectionSql(threadId),
-              dataSourceId: dataSourceId!,
-              dataSourceName: dataSourceName!,
-              environmentId,
-              environment,
-              databaseType: databaseType!,
-              databaseName,
-              schemaName,
-            });
-          };
-          staticModal.confirm({
+          addWorkspaceTab({
+            id: createActiveTransactionsWorkspaceTabId(dataSourceId),
+            type: WorkspaceTabType.ActiveTransactions,
             title: i18n('workspace.ops.activeTransactions'),
-            content: (
-              <ActiveTransactionsContent
-                dataSourceId={dataSourceId!}
-                databaseName={databaseName}
-                schemaName={schemaName}
-                onOpenSession={handleOpenSession}
-              />
-            ),
-            footer: null,
-            width: 1100,
+            uniqueData: {
+              ...extraParams,
+            },
           });
         },
-        discard: !canShowActiveTransactionsMenu(databaseType, hasPermission),
+        discard:
+          !hasPermission ||
+          !isDatabaseCapabilitySupported(databaseType, DatabaseCapability.ACTIVE_TRANSACTION_INSPECTION),
         requiredOperations: ['SELECT'],
       },
 

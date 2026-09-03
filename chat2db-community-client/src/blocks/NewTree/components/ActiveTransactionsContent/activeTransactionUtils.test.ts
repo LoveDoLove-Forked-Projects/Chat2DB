@@ -1,22 +1,30 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 import {
+  ActiveTransactionLoadErrorKind,
   beginActiveTransactionRefresh,
-  buildSessionInspectionSql,
-  canOpenTransactionSession,
-  canShowActiveTransactionsMenu,
+  classifyActiveTransactionLoadError,
   formatActiveTransactionStartedAt,
   getActiveTransactionRowKey,
   getLiveTransactionAge,
-  getTransactionSessionThreadId,
+  getTransactionConnectionInspection,
   invalidateActiveTransactionRefresh,
   isLatestActiveTransactionRefresh,
 } from './activeTransactionUtils';
+import {
+  ACTIVE_TRANSACTION_PROCESS_PRIVILEGE_ERROR_CODE,
+  ActiveTransactionLockMetadataSource,
+  ActiveTransactionLockMetadataState,
+  ActiveTransactionQueryState,
+  ActiveTransactionSessionState,
+  MYSQL_ACTIVE_TRANSACTION_STATE,
+} from '@/constants/activeTransaction';
 import type { IActiveTransactionItem } from '@/service/sql';
 
 const waitingTransaction: IActiveTransactionItem = {
   trxId: '421337',
-  state: 'LOCK WAIT',
+  state: MYSQL_ACTIVE_TRANSACTION_STATE.LOCK_WAIT,
   startedAt: '2026-08-31 12:00:00',
   ageSeconds: 12,
   isolationLevel: 'REPEATABLE READ',
@@ -28,21 +36,23 @@ const waitingTransaction: IActiveTransactionItem = {
   host: '127.0.0.1:50000',
   db: 'ops002_test',
   query: null,
-  queryState: 'UNAVAILABLE',
+  queryState: ActiveTransactionQueryState.UNAVAILABLE,
   sessionAvailable: true,
-  sessionState: 'LIVE',
+  sessionState: ActiveTransactionSessionState.LIVE,
   canOpenSession: true,
+  connectionInspectionSql: 'owner inspection sql',
   waitingLockId: '421337:7:3:2',
   blockingLockId: '421336:7:3:2',
   blockingTrxId: '421336',
   blockingThreadId: 44,
   blockingSessionAvailable: true,
   canOpenBlockingSession: true,
+  blockingConnectionInspectionSql: 'blocker inspection sql',
   blockingUser: 'ops002_admin',
   blockingHost: '127.0.0.1:49999',
   blockingDb: 'ops002_test',
-  lockMetadataState: 'AVAILABLE',
-  lockMetadataSource: 'MYSQL_80_PERFORMANCE_SCHEMA',
+  lockMetadataState: ActiveTransactionLockMetadataState.AVAILABLE,
+  lockMetadataSource: ActiveTransactionLockMetadataSource.MYSQL_80_PERFORMANCE_SCHEMA,
 };
 
 assert.equal(getActiveTransactionRowKey(waitingTransaction), '421337:421337:7:3:2:421336:7:3:2:421336:45');
@@ -54,13 +64,30 @@ assert.notEqual(
     blockingTrxId: '421338',
   }),
 );
-assert.equal(canOpenTransactionSession(waitingTransaction, 'owner'), true);
-assert.equal(canOpenTransactionSession(waitingTransaction, 'blocker'), true);
-assert.equal(getTransactionSessionThreadId(waitingTransaction, 'owner'), 45);
-assert.equal(getTransactionSessionThreadId(waitingTransaction, 'blocker'), 44);
-assert.equal(canShowActiveTransactionsMenu('MYSQL', true), true);
-assert.equal(canShowActiveTransactionsMenu('MYSQL', false), false);
-assert.equal(canShowActiveTransactionsMenu('ORACLE', true), false);
+assert.deepEqual(getTransactionConnectionInspection(waitingTransaction, 'owner'), {
+  connectionId: 45,
+  sql: 'owner inspection sql',
+});
+assert.deepEqual(getTransactionConnectionInspection(waitingTransaction, 'blocker'), {
+  connectionId: 44,
+  sql: 'blocker inspection sql',
+});
+assert.equal(
+  getTransactionConnectionInspection({ ...waitingTransaction, connectionInspectionSql: null }, 'owner'),
+  null,
+);
+assert.deepEqual(
+  classifyActiveTransactionLoadError({ errorCode: ACTIVE_TRANSACTION_PROCESS_PRIVILEGE_ERROR_CODE }),
+  { kind: ActiveTransactionLoadErrorKind.PROCESS_PRIVILEGE_REQUIRED },
+);
+assert.deepEqual(classifyActiveTransactionLoadError({ errorMessage: 'connection failed' }), {
+  kind: ActiveTransactionLoadErrorKind.OTHER,
+  message: 'connection failed',
+});
+assert.deepEqual(classifyActiveTransactionLoadError(new Error('connection failed')), {
+  kind: ActiveTransactionLoadErrorKind.OTHER,
+  message: 'connection failed',
+});
 const refreshGenerationRef = { current: 0 };
 const olderRefresh = beginActiveTransactionRefresh(refreshGenerationRef);
 const newerRefresh = beginActiveTransactionRefresh(refreshGenerationRef);
@@ -76,13 +103,28 @@ assert.match(formatActiveTransactionStartedAt(1_788_352_626_000), /^\d{4}-\d{2}-
 assert.notEqual(formatActiveTransactionStartedAt(1_788_352_626_000), '1788352626000');
 assert.equal(formatActiveTransactionStartedAt(null), '-');
 assert.equal(formatActiveTransactionStartedAt('not-a-date'), '-');
-assert.equal(
-  buildSessionInspectionSql(45),
-  [
-    'SELECT ID, USER, HOST, DB, COMMAND, TIME, STATE, INFO',
-    'FROM information_schema.PROCESSLIST',
-    'WHERE ID = 45;',
-  ].join('\n'),
+const activeTransactionsSource = readFileSync(
+  'src/blocks/NewTree/components/ActiveTransactionsContent/index.tsx',
+  'utf8',
 );
-
-assert.throws(() => buildSessionInspectionSql(-1), /valid MySQL processlist/);
+const activeTransactionsStyle = readFileSync(
+  'src/blocks/NewTree/components/ActiveTransactionsContent/index.less',
+  'utf8',
+);
+assert.doesNotMatch(
+  activeTransactionsSource,
+  /fixed:\s*['"]right['"]/,
+  'the session action column must not render the fixed-column divider in dark mode',
+);
+assert.doesNotMatch(
+  activeTransactionsSource,
+  /workspace\.ops\.sessionAction/,
+  'session inspection links belong beside their target thread IDs instead of a duplicate action column',
+);
+assert.doesNotMatch(
+  activeTransactionsSource,
+  /queryState\s*===\s*['"]UNAVAILABLE['"]/,
+  'query state comparisons must use the centralized enum',
+);
+assert.match(activeTransactionsStyle, /ant-table-ping-right/);
+assert.match(activeTransactionsStyle, /box-shadow:\s*none/);

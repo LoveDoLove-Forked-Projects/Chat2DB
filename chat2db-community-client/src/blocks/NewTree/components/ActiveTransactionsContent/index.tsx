@@ -1,16 +1,26 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button, Space, Table, Tag, Tooltip, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
+import { ExternalLink } from 'lucide-react';
+import styles from './index.less';
 import i18n from '@/i18n';
-import sqlService, { IActiveTransactionItem } from '@/service/sql';
+import {
+  ActiveTransactionLockMetadataState,
+  ActiveTransactionQueryState,
+  MYSQL_ACTIVE_TRANSACTION_STATE,
+} from '@/constants/activeTransaction';
+import sqlService, { type IActiveTransactionItem } from '@/service/sql';
 import { RequestGenerationRef } from '@/utils/latestRequest';
 import {
   beginActiveTransactionRefresh,
-  canOpenTransactionSession,
+  type ActiveTransactionLoadError,
+  ActiveTransactionLoadErrorKind,
+  classifyActiveTransactionLoadError,
   formatActiveTransactionStartedAt,
   getActiveTransactionRowKey,
   getLiveTransactionAge,
-  getTransactionSessionThreadId,
+  getTransactionConnectionInspection,
+  type TransactionConnectionInspection,
   invalidateActiveTransactionRefresh,
   isLatestActiveTransactionRefresh,
 } from './activeTransactionUtils';
@@ -24,18 +34,18 @@ interface ActiveTransactionsContentProps {
   dataSourceId: number;
   databaseName?: string;
   schemaName?: string;
-  onOpenSession?: (threadId: number) => void;
+  onInspectConnection?: (inspection: TransactionConnectionInspection) => void;
 }
 
 const ActiveTransactionsContent = ({
   dataSourceId,
   databaseName,
   schemaName,
-  onOpenSession,
+  onInspectConnection,
 }: ActiveTransactionsContentProps) => {
   const [data, setData] = useState<IActiveTransactionItem[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ActiveTransactionLoadError | null>(null);
   const [snapshotAtMs, setSnapshotAtMs] = useState(() => Date.now());
   const [nowMs, setNowMs] = useState(() => Date.now());
   const refreshGenerationRef = useRef<RequestGenerationRef>({ current: 0 });
@@ -55,12 +65,12 @@ const ActiveTransactionsContent = ({
         setSnapshotAtMs(loadedAt);
         setNowMs(loadedAt);
       })
-      .catch((e) => {
+      .catch((e: unknown) => {
         if (!isLatestActiveTransactionRefresh(refreshGenerationRef.current, generation)) {
           return;
         }
         setData([]);
-        setError(e?.message || i18n('common.text.failure'));
+        setError(classifyActiveTransactionLoadError(e));
       })
       .finally(() => {
         if (isLatestActiveTransactionRefresh(refreshGenerationRef.current, generation)) {
@@ -79,15 +89,15 @@ const ActiveTransactionsContent = ({
     return () => window.clearInterval(timer);
   }, []);
 
-  const openSession = useCallback(
+  const inspectConnection = useCallback(
     (record: IActiveTransactionItem, target: 'owner' | 'blocker') => {
-      const threadId = getTransactionSessionThreadId(record, target);
-      if (threadId == null || !onOpenSession) {
+      const inspection = getTransactionConnectionInspection(record, target);
+      if (!inspection || !onInspectConnection) {
         return;
       }
-      onOpenSession(threadId);
+      onInspectConnection(inspection);
     },
-    [onOpenSession],
+    [onInspectConnection],
   );
 
   const renderUnavailable = (label: string) => <Tag color="default">{label}</Tag>;
@@ -99,8 +109,8 @@ const ActiveTransactionsContent = ({
       dataIndex: 'state',
       width: 120,
       filters: [
-        { text: 'RUNNING', value: 'RUNNING' },
-        { text: 'LOCK WAIT', value: 'LOCK WAIT' },
+        { text: MYSQL_ACTIVE_TRANSACTION_STATE.RUNNING, value: MYSQL_ACTIVE_TRANSACTION_STATE.RUNNING },
+        { text: MYSQL_ACTIVE_TRANSACTION_STATE.LOCK_WAIT, value: MYSQL_ACTIVE_TRANSACTION_STATE.LOCK_WAIT },
       ],
       onFilter: (value, record) => record.state === value,
       sorter: (a, b) => String(a.state || '').localeCompare(String(b.state || '')),
@@ -139,8 +149,25 @@ const ActiveTransactionsContent = ({
       title: i18n('workspace.ops.threadId'),
       dataIndex: 'threadId',
       width: 120,
-      render: (_value, record) =>
-        record.sessionAvailable === false ? renderUnavailable(i18n('workspace.ops.sessionUnavailable')) : record.threadId,
+      render: (_value, record) => {
+        if (!onInspectConnection || !getTransactionConnectionInspection(record, 'owner')) {
+          return record.sessionAvailable === false
+            ? renderUnavailable(i18n('workspace.ops.sessionUnavailable'))
+            : record.threadId;
+        }
+        return (
+          <Tooltip title={i18n('workspace.ops.openSession')}>
+            <Button
+              type="link"
+              size="small"
+              icon={<ExternalLink size={14} />}
+              onClick={() => inspectConnection(record, 'owner')}
+            >
+              {record.threadId}
+            </Button>
+          </Tooltip>
+        );
+      },
       sorter: (a, b) => (a.threadId || 0) - (b.threadId || 0),
     },
     { title: i18n('workspace.ops.user'), dataIndex: 'user', width: 110 },
@@ -151,7 +178,7 @@ const ActiveTransactionsContent = ({
       dataIndex: 'waitingLockId',
       width: 220,
       render: (_value, record) => {
-        if (record.lockMetadataState === 'UNAVAILABLE') {
+        if (record.lockMetadataState === ActiveTransactionLockMetadataState.UNAVAILABLE) {
           return renderUnavailable(i18n('workspace.ops.lockMetadataUnavailable'));
         }
         if (!record.lockWaitAvailable) {
@@ -178,6 +205,18 @@ const ActiveTransactionsContent = ({
         return (
           <Space direction="vertical" size={0}>
             <Typography.Text copyable>{record.blockingTrxId}</Typography.Text>
+            {onInspectConnection && getTransactionConnectionInspection(record, 'blocker') && (
+              <Tooltip title={i18n('workspace.ops.openBlockingSession')}>
+                <Button
+                  type="link"
+                  size="small"
+                  icon={<ExternalLink size={14} />}
+                  onClick={() => inspectConnection(record, 'blocker')}
+                >
+                  {`${i18n('workspace.ops.threadId')}: ${record.blockingThreadId}`}
+                </Button>
+              </Tooltip>
+            )}
             <Typography.Text type="secondary">
               {[record.blockingUser, record.blockingHost, record.blockingDb].filter(Boolean).join(' / ') ||
                 i18n('workspace.ops.sessionUnavailable')}
@@ -196,83 +235,49 @@ const ActiveTransactionsContent = ({
           <Typography.Text ellipsis={{ tooltip: value }}>{value}</Typography.Text>
         ) : (
           renderUnavailable(
-            record.queryState === 'UNAVAILABLE'
+            record.queryState === ActiveTransactionQueryState.UNAVAILABLE
               ? i18n('workspace.ops.queryUnavailable')
               : i18n('workspace.ops.emptyValue'),
           )
         ),
     },
-    {
-      title: i18n('workspace.ops.sessionAction'),
-      key: 'sessionAction',
-      fixed: 'right',
-      width: 180,
-      render: (_value, record) => (
-        <Space>
-          <Tooltip
-            title={
-              canOpenTransactionSession(record, 'owner')
-                ? i18n('workspace.ops.openSession')
-                : i18n('workspace.ops.sessionUnavailable')
-            }
-          >
-            <Button
-              size="small"
-              disabled={!canOpenTransactionSession(record, 'owner')}
-              onClick={() => openSession(record, 'owner')}
-            >
-              {i18n('workspace.ops.ownerSession')}
-            </Button>
-          </Tooltip>
-          <Tooltip
-            title={
-              canOpenTransactionSession(record, 'blocker')
-                ? i18n('workspace.ops.openBlockingSession')
-                : i18n('workspace.ops.sessionUnavailable')
-            }
-          >
-            <Button
-              size="small"
-              disabled={!canOpenTransactionSession(record, 'blocker')}
-              onClick={() => openSession(record, 'blocker')}
-            >
-              {i18n('workspace.ops.blockerSession')}
-            </Button>
-          </Tooltip>
-        </Space>
-      ),
-    },
   ];
-  const lockMetadataMessage = data.find((item) => item.lockMetadataState === 'UNAVAILABLE')?.lockMetadataMessage;
+  const hasUnavailableLockMetadata = data.some(
+    (item) => item.lockMetadataState === ActiveTransactionLockMetadataState.UNAVAILABLE,
+  );
+  const errorMessage = error
+    ? error.kind === ActiveTransactionLoadErrorKind.PROCESS_PRIVILEGE_REQUIRED
+      ? `${i18n('workspace.ops.permissionRequired')} ${i18n('workspace.ops.processPrivilegeHint')}`
+      : error.message || i18n('common.text.failure')
+    : null;
 
   return (
     <div>
       <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span>
-          {error
-            ? `${i18n('workspace.ops.permissionRequired')} ${i18n('workspace.ops.processPrivilegeHint')}`
-            : i18n('workspace.ops.activeTransactionCount', data.length)}
+          {error ? i18n('common.text.failure') : i18n('workspace.ops.activeTransactionCount', data.length)}
         </span>
         <Button size="small" onClick={load} loading={loading}>
           {i18n('common.button.refresh')}
         </Button>
       </div>
-      {!error && lockMetadataMessage && (
+      {!error && hasUnavailableLockMetadata && (
         <div style={{ marginBottom: 8, color: 'var(--text-color-secondary)' }}>
-          {i18n('workspace.ops.lockMetadataDegraded')} {lockMetadataMessage}
+          {i18n('workspace.ops.lockMetadataDegraded')} {i18n('workspace.ops.lockMetadataUnavailable')}
         </div>
       )}
       {error ? (
-        <div style={{ color: 'var(--text-color-danger)' }}>{error}</div>
+        <div style={{ color: 'var(--text-color-danger)' }}>{errorMessage}</div>
       ) : (
         <Table
+          className={styles.table}
           size="small"
           rowKey={getActiveTransactionRowKey}
           columns={columns}
           dataSource={data}
           loading={loading}
           pagination={false}
-          scroll={{ x: 1900 }}
+          scroll={{ x: 1720 }}
         />
       )}
     </div>

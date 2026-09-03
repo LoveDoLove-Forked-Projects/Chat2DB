@@ -16,6 +16,12 @@ import {
 import { DatabaseTypeCode } from '@/constants';
 import { ExportSizeEnum, ExportTypeEnum } from '@/typings/resultTable';
 import type {
+  ActiveTransactionLockMetadataSource,
+  ActiveTransactionLockMetadataState,
+  ActiveTransactionQueryState,
+  ActiveTransactionSessionState,
+} from '@/constants/activeTransaction';
+import type {
   IDdlExecuteRequest,
   ISqlEditorExecuteRequest,
   ITableBrowseRequest,
@@ -445,10 +451,11 @@ export interface IActiveTransactionItem {
   host: string | null;
   db: string | null;
   query: string | null;
-  queryState?: 'VISIBLE' | 'UNAVAILABLE';
+  queryState?: ActiveTransactionQueryState;
   sessionAvailable?: boolean;
-  sessionState?: 'LIVE' | 'DISAPPEARED_OR_HIDDEN';
+  sessionState?: ActiveTransactionSessionState;
   canOpenSession?: boolean;
+  connectionInspectionSql: string | null;
   waitingLockId?: string | null;
   blockingLockId?: string | null;
   blockingTrxId?: string | null;
@@ -457,6 +464,7 @@ export interface IActiveTransactionItem {
   blockingThreadId?: number | null;
   blockingSessionAvailable?: boolean;
   canOpenBlockingSession?: boolean;
+  blockingConnectionInspectionSql: string | null;
   blockingUser?: string | null;
   blockingHost?: string | null;
   blockingDb?: string | null;
@@ -473,9 +481,8 @@ export interface IActiveTransactionItem {
   blockingLockStatus?: string | null;
   blockingLockData?: string | null;
   lockWaitAvailable?: boolean;
-  lockMetadataState?: 'AVAILABLE' | 'UNAVAILABLE';
-  lockMetadataSource?: 'MYSQL_80_PERFORMANCE_SCHEMA' | 'MYSQL_57_INFORMATION_SCHEMA' | null;
-  lockMetadataMessage?: string | null;
+  lockMetadataState?: ActiveTransactionLockMetadataState;
+  lockMetadataSource?: ActiveTransactionLockMetadataSource | null;
 }
 
 export interface IActiveTransactionRequest {
@@ -486,7 +493,7 @@ export interface IActiveTransactionRequest {
 
 const getActiveTransactionList = createRequest<IActiveTransactionRequest, IActiveTransactionItem[]>(
   '/api/rdb/active_transaction/list',
-  { method: 'get' },
+  { method: 'get', errorLevel: false },
 );
 const checkIsSelectSQL = createRequest<{ sql: string; dbType: DatabaseTypeCode }, boolean>('/api/sql/valid_select');
 
