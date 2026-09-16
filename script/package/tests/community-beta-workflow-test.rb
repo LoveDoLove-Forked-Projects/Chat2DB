@@ -117,9 +117,21 @@ class CommunityBetaWorkflowTest < Minitest::Test
     assert_equal "${{ needs.resolve.outputs.publish == 'true' }}", WORKFLOW['jobs']['docker']['if']
     assert_equal "${{ needs.resolve.outputs.publish == 'true' }}", WORKFLOW['jobs']['docker']['if']
     assert_includes WORKFLOW['jobs']['publish_release']['if'], 'always()'
+    assert_includes WORKFLOW['jobs']['publish_release']['if'], "needs.stage_release.result == 'success'"
     %w[stage_release publish_release].each do |name|
       refute_equal "${{ needs.resolve.outputs.publish == 'true' }}", WORKFLOW['jobs'][name]['if']
     end
+  end
+
+  def test_beta_index_is_published_only_after_the_version_release
+    publish = WORKFLOW['jobs']['publish_release']
+    steps = publish['steps']
+    release = steps.index { |step| step['name'] == 'Publish validated Release' }
+    index = steps.index { |step| step['name'] == 'Publish Beta update index' }
+    assert_operator index, :>, release
+    assert_equal "${{ needs.resolve.outputs.channel == 'beta' }}", steps[index]['if']
+    assert_equal false, publish['concurrency']['cancel-in-progress']
+    assert_includes publish['concurrency']['group'], 'needs.resolve.outputs.channel'
   end
 
   def test_publish_release_is_a_boolean_dispatch_input

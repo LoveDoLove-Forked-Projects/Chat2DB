@@ -33,8 +33,11 @@ esac
 case "${PLATFORM}" in
   MACOS)
     archive="${PACKAGE_DIR}/community-update-${mac_arch}.tar.gz"
+    capture_dir=$(mktemp -d)
+    trap 'rm -rf "${capture_dir}"' EXIT
     bash "${SCRIPT_DIR}/capture_macos_update_package.sh" \
-      "${PACKAGE_DIR}/Chat2DB-Community-${VERSION}-${mac_arch}.dmg" "${archive}"
+      "${PACKAGE_DIR}/Chat2DB-Community-${VERSION}-${mac_arch}.dmg" "${capture_dir}/package" "${ROOT_DIR}"
+    tar -czf "${archive}" -C "${capture_dir}" package
     generate MACOS_APP_ARCHIVE "${archive}" "Contents/MacOS/Chat2DB Community"
     ;;
   WINDOWS)
