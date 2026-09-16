@@ -269,6 +269,29 @@ class CSVImporterColumnMappingTest {
     }
 
     @Test
+    void fastModeDoesNotFlushBufferedRowsAfterConversionError(@TempDir Path directory) throws Exception {
+        Path input = Files.writeString(directory.resolve("conversion-error.csv"), "name\nAlice\nBob\n");
+        OutOfMemoryError failure = new OutOfMemoryError("simulated row conversion error");
+        TableColumn nameColumn = new TableColumn() {
+            private int conversions;
+
+            @Override
+            public Integer getColumnSize() {
+                if (++conversions == 2) throw failure;
+                return 64;
+            }
+        };
+        nameColumn.setName("name");
+        nameColumn.setColumnType("VARCHAR");
+        ImportTaskSpec spec = ImportTaskSpec.builder().mode("FAST").sourceFile(input.toString())
+                .target(TaskTargetSnapshot.builder().tableName("orders").build()).build();
+
+        org.junit.jupiter.api.Assertions.assertSame(failure, assertThrows(OutOfMemoryError.class,
+                () -> new CSVImporter().doImportData(spec, new RecordingTaskExecutionContext(), List.of(nameColumn))));
+        assertRowCount(0);
+    }
+
+    @Test
     void preservesQuotedEmptyTextAndUnquotedNull(@TempDir Path directory) throws Exception {
         Path input = Files.writeString(directory.resolve("empty.csv"), "name,note\nAlice,\"\"\nBob,\n");
         ImportTaskSpec spec = ImportTaskSpec.builder().sourceFile(input.toString())

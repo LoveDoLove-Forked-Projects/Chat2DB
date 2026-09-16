@@ -46,7 +46,7 @@ final class ParallelCSVImporter extends BaseImporter {
             if (batcher[0] != null) {
                 batcher[0].flush();
             }
-        } catch (RuntimeException failure) {
+        } catch (RuntimeException | Error failure) {
             if (batcher[0] != null) {
                 batcher[0].abort(failure);
             }

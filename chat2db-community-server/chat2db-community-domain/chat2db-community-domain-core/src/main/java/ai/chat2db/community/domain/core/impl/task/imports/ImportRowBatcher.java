@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -103,13 +104,21 @@ public final class ImportRowBatcher implements AutoCloseable {
     private volatile long totalImportNanos;
 
     public ImportRowBatcher(TaskExecutionContext context) {
+        this(context, machineThreadCeiling(), runnable -> {
+            Thread thread = new Thread(runnable, "chat2db-import-" + context.taskId());
+            thread.setDaemon(true);
+            return thread;
+        });
+    }
+
+    ImportRowBatcher(TaskExecutionContext context, int maxWorkers, ThreadFactory threadFactory) {
         this.context = context;
         this.connectInfo = Chat2DBContext.getConnectInfo();
         this.requestContext = ContextUtils.queryContext();
         this.statementGuard = Chat2DBContext.captureStatementGuard();
         this.loggingContext = MDC.getCopyOfContextMap();
         this.batchSizer = new AdaptiveBatchSizer(FAST_MODE_BATCH_ROWS);
-        int requestedWorkers = effectiveWorkerCount(connectInfo);
+        int requestedWorkers = effectiveWorkerCount(connectInfo, maxWorkers);
         List<BlockingQueue<PendingBatch>> builtQueues = null;
         AdaptiveConcurrencyGate builtGate = null;
         ExecutorService builtPool = null;
@@ -119,12 +128,8 @@ public final class ImportRowBatcher implements AutoCloseable {
                 for (int index = 0; index < requestedWorkers; index++) {
                     builtQueues.add(new ArrayBlockingQueue<>(QUEUE_CAPACITY));
                 }
-                builtGate = AdaptiveConcurrencyGate.create(requestedWorkers, machineThreadCeiling());
-                builtPool = Executors.newCachedThreadPool(runnable -> {
-                    Thread thread = new Thread(runnable, "chat2db-import-" + context.taskId());
-                    thread.setDaemon(true);
-                    return thread;
-                });
+                builtGate = AdaptiveConcurrencyGate.create(requestedWorkers, maxWorkers);
+                builtPool = Executors.newCachedThreadPool(threadFactory);
             } catch (Throwable parallelStartupFailure) {
                 // Keep fast-mode batching on the calling thread if parallel infrastructure fails.
                 log.warn("Parallel import infrastructure failed to start; degrading to serial execution",
@@ -148,7 +153,7 @@ public final class ImportRowBatcher implements AutoCloseable {
                     int workerIndex = index;
                     this.workerPool.execute(() -> runWorker(workerIndex));
                 }
-            } catch (RuntimeException startupFailure) {
+            } catch (RuntimeException | Error startupFailure) {
                 this.workerPool.shutdownNow();
                 boolean interrupted = false;
                 while (!this.workerPool.isTerminated()) {
@@ -170,7 +175,7 @@ public final class ImportRowBatcher implements AutoCloseable {
     public void accept(long fileRowNumber, String sql) {
         try {
             acceptRow(fileRowNumber, sql);
-        } catch (RuntimeException taskFailure) {
+        } catch (RuntimeException | Error taskFailure) {
             recordFailure(taskFailure);
             throw taskFailure;
         }
@@ -237,7 +242,7 @@ public final class ImportRowBatcher implements AutoCloseable {
             if (workerPool != null) {
                 awaitQuiesce();
             }
-        } catch (RuntimeException taskFailure) {
+        } catch (RuntimeException | Error taskFailure) {
             recordFailure(taskFailure);
             throw taskFailure;
         }
@@ -312,11 +317,11 @@ public final class ImportRowBatcher implements AutoCloseable {
         return Math.max(1, Runtime.getRuntime().availableProcessors());
     }
 
-    private static int effectiveWorkerCount(ConnectInfo connectInfo) {
+    private static int effectiveWorkerCount(ConnectInfo connectInfo, int maxWorkers) {
         if (StringUtils.isBlank(connectInfo.getUrl())) {
             return 1;
         }
-        return Math.min(BASE_WORKERS, machineThreadCeiling());
+        return Math.min(BASE_WORKERS, maxWorkers);
     }
 
     /**
@@ -470,7 +475,7 @@ public final class ImportRowBatcher implements AutoCloseable {
     }
 
     /** Stops pending writes when the source parser fails outside the batch executor. */
-    public void abort(RuntimeException sourceFailure) {
+    public void abort(Throwable sourceFailure) {
         recordFailure(sourceFailure);
     }
 
