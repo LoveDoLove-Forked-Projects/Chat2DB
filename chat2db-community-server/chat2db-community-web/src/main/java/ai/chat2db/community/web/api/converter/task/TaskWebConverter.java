@@ -2,6 +2,7 @@ package ai.chat2db.community.web.api.converter.task;
 
 import ai.chat2db.community.domain.api.enums.ExportSizeEnum;
 import ai.chat2db.community.domain.api.enums.ExportScopeTypeEnum;
+import ai.chat2db.community.domain.api.model.task.CsvOptions;
 import ai.chat2db.community.domain.api.model.task.ExportTaskSpec;
 import ai.chat2db.community.domain.api.model.task.ImportTaskSpec;
 import ai.chat2db.community.domain.api.model.task.TaskFileFormat;
@@ -58,10 +59,20 @@ public class TaskWebConverter {
                 .target(target(request.getDataSourceId(), request.getDatabaseName(), request.getSchemaName(),
                         request.getTableName()))
                 .sourceFile(sourceFile)
+                .importFileId(request.getFileId())
                 .displayFileName(StringUtils.defaultIfBlank(request.getDisplayFileName(), fileName(sourceFile)))
                 .format(format)
                 .dataTimeFormat(request.getDataTimeFormat())
+                .csvOptions(csvOptions(format, request.getCsvOptions()))
+                .mode(request.getMode())
                 .build();
+    }
+
+    private CsvOptions csvOptions(String format, CsvOptions csvOptions) {
+        if (!TaskFileFormat.CSV.name().equals(format)) {
+            return null;
+        }
+        return (csvOptions == null ? CsvOptions.defaults() : csvOptions).validate();
     }
 
     private String resolveExportTaskType(TaskExportRequest request) {

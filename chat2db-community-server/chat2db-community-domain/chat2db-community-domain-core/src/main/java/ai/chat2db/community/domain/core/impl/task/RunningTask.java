@@ -3,13 +3,16 @@ package ai.chat2db.community.domain.core.impl.task;
 import ai.chat2db.community.domain.api.service.task.TaskCancelable;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 
 @Slf4j
@@ -26,9 +29,13 @@ final class RunningTask {
 
     private final Long taskId;
 
+    private final Executor cancellationExecutor;
+
     private final CancellationToken cancellationToken = new CancellationToken();
 
-    private final AtomicReference<TaskCancelable> cancelable = new AtomicReference<>();
+    private final Object cancellationLock = new Object();
+
+    private final Set<TaskCancelable> cancelables = new HashSet<>();
 
     private final ReentrantLock completionLock = new ReentrantLock();
 
@@ -38,8 +45,15 @@ final class RunningTask {
 
     private volatile boolean closed;
 
+    private boolean resourcesCancelled;
+
     RunningTask(Long taskId) {
+        this(taskId, CANCELLATION_EXECUTOR);
+    }
+
+    RunningTask(Long taskId, Executor cancellationExecutor) {
         this.taskId = taskId;
+        this.cancellationExecutor = cancellationExecutor;
     }
 
     Long taskId() {
@@ -59,29 +73,58 @@ final class RunningTask {
     }
 
     boolean requestCancellation(boolean mayInterruptIfRunning) {
-        if (closed) {
-            return false;
+        Future<?> currentFuture;
+        List<TaskCancelable> currentCancelables;
+        synchronized (cancellationLock) {
+            if (closed) {
+                return false;
+            }
+            if (!cancellationToken.cancel()) {
+                return false;
+            }
+            currentFuture = future;
+            currentCancelables = cancelResourcesLocked();
         }
-        if (!cancellationToken.cancel()) {
-            return false;
-        }
-        Future<?> currentFuture = future;
         if (currentFuture != null) {
             currentFuture.cancel(mayInterruptIfRunning);
         }
-        cancelRegisteredResourceAsync(cancelable.get());
+        currentCancelables.forEach(this::cancelRegisteredResourceAsync);
         return true;
     }
 
+    void cancelResources() {
+        List<TaskCancelable> resources;
+        synchronized (cancellationLock) {
+            resources = cancelResourcesLocked();
+        }
+        resources.forEach(this::cancelRegisteredResourceAsync);
+    }
+
+    private List<TaskCancelable> cancelResourcesLocked() {
+        if (resourcesCancelled) {
+            return List.of();
+        }
+        resourcesCancelled = true;
+        return List.copyOf(cancelables);
+    }
+
     void registerCancelable(TaskCancelable resource) {
-        cancelable.set(resource);
-        if (resource != null && cancellationToken.isCancelled()) {
+        if (resource == null) {
+            return;
+        }
+        boolean cancelImmediately;
+        synchronized (cancellationLock) {
+            cancelImmediately = cancelables.add(resource) && resourcesCancelled;
+        }
+        if (cancelImmediately) {
             cancelRegisteredResourceAsync(resource);
         }
     }
 
     void clearCancelable(TaskCancelable resource) {
-        cancelable.compareAndSet(resource, null);
+        synchronized (cancellationLock) {
+            cancelables.remove(resource);
+        }
     }
 
     boolean isClosed() {
@@ -89,8 +132,10 @@ final class RunningTask {
     }
 
     void close() {
-        closed = true;
-        cancelable.set(null);
+        synchronized (cancellationLock) {
+            closed = true;
+            cancelables.clear();
+        }
     }
 
     void markFinished() {
@@ -105,7 +150,7 @@ final class RunningTask {
         if (resource == null) {
             return;
         }
-        CANCELLATION_EXECUTOR.execute(() -> {
+        cancellationExecutor.execute(() -> {
             try {
                 resource.cancel();
             } catch (Exception e) {
