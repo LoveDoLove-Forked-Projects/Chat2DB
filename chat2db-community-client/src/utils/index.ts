@@ -1,4 +1,4 @@
-import { runtimeEditionConfig } from '@/constants/runtimeEdition';
+import { clientRuntime } from '@client-runtime';
 import { LangType } from '@/constants/settings';
 import { ITreeNode, TreeNodeData } from '@/typings';
 import _copyToClipboard from 'copy-to-clipboard';
@@ -7,6 +7,7 @@ import queryString from 'query-string';
 import React from 'react';
 import { v4 as uuid } from 'uuid';
 import { isDesktop } from './env';
+import { normalizeClipboardText } from './clipboardText';
 import { clearInternalClipboard } from './internalClipboard';
 import { findNode } from './treeNodeLookup';
 
@@ -148,15 +149,15 @@ export function findObjListValue<T, K extends keyof T>(list: T[], key: K, value:
 // Clean up incompatible LocalStorage for the current edition only. This avoids
 // clearing Pro, Local, and Community state when they share the same origin.
 export function clearOlderLocalStorage() {
-  const versionKey = runtimeEditionConfig.localStorageVersionKey;
+  const versionKey = clientRuntime.localStorageVersionKey;
   if (localStorage.getItem(versionKey) !== 'v6') {
     [
-      runtimeEditionConfig.globalStoreName,
-      runtimeEditionConfig.userStoreName,
-      runtimeEditionConfig.orgStoreName,
-      runtimeEditionConfig.workspaceStoreName,
-      runtimeEditionConfig.aiStoreName,
-      runtimeEditionConfig.treeStoreName,
+      clientRuntime.globalStoreName,
+      clientRuntime.userStoreName,
+      clientRuntime.orgStoreName,
+      clientRuntime.workspaceStoreName,
+      clientRuntime.aiStoreName,
+      clientRuntime.treeStoreName,
     ].forEach((key) => localStorage.removeItem(key));
     localStorage.setItem(versionKey, 'v6');
   }
@@ -164,10 +165,10 @@ export function clearOlderLocalStorage() {
 
 // Log out and clean up localStorage of some record locations
 export function logoutClearSomeLocalStorage() {
-  localStorage.removeItem(runtimeEditionConfig.currentWorkspaceDatabaseStorageKey);
-  localStorage.removeItem(runtimeEditionConfig.currentConnectionStorageKey);
-  localStorage.removeItem(runtimeEditionConfig.activeConsoleIdStorageKey);
-  localStorage.removeItem(runtimeEditionConfig.currentPageStorageKey);
+  localStorage.removeItem(clientRuntime.currentWorkspaceDatabaseStorageKey);
+  localStorage.removeItem(clientRuntime.currentConnectionStorageKey);
+  localStorage.removeItem(clientRuntime.activeConsoleIdStorageKey);
+  localStorage.removeItem(clientRuntime.currentPageStorageKey);
 }
 
 // Determine whether an updated version is needed
@@ -321,7 +322,7 @@ export function copyToClipboard(
       _copyToClipboard(' ', { format: 'text/plain' });
       return _copyToClipboard('', { format: 'text/plain' });
     }
-    return _copyToClipboard(text, { format: 'text/plain' });
+    return _copyToClipboard(normalizeClipboardText(text, navigator.userAgent), { format: 'text/plain' });
 
     // staticMessage.success('Copied to clipboard');
   } catch {

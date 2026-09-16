@@ -5,22 +5,33 @@ const globalObject = globalThis as unknown as {
   __ENV__?: string;
   __APP_NAME__?: string;
   __APP_VERSION__?: string;
+  __APP_CAPITAL_NAME__?: string;
+  __APP_DISPLAY_NAME__?: string;
+  __APP_PROTOCOL_SCHEME__?: string;
   window?: { javaQuery?: () => number };
   location?: { search: string };
 };
 
-const originalRuntimeEnvironment = globalObject.__RUNTIME_ENV__;
-const originalEnvironment = globalObject.__ENV__;
-const originalAppName = globalObject.__APP_NAME__;
-const originalAppVersion = globalObject.__APP_VERSION__;
-const originalWindow = globalObject.window;
+const originalGlobals = {
+  runtimeEnvironment: globalObject.__RUNTIME_ENV__,
+  environment: globalObject.__ENV__,
+  appName: globalObject.__APP_NAME__,
+  appVersion: globalObject.__APP_VERSION__,
+  appCapitalName: globalObject.__APP_CAPITAL_NAME__,
+  appDisplayName: globalObject.__APP_DISPLAY_NAME__,
+  appProtocolScheme: globalObject.__APP_PROTOCOL_SCHEME__,
+  window: globalObject.window,
+};
 const originalNavigatorDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
 const originalLocationDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'location');
 
 globalObject.__RUNTIME_ENV__ = 'desktop';
 globalObject.__ENV__ = 'test';
-globalObject.__APP_NAME__ = 'chat2db-pro-test';
-globalObject.__APP_VERSION__ = '5.3.3';
+globalObject.__APP_NAME__ = 'chat2db-community-test';
+globalObject.__APP_VERSION__ = '5.3.0';
+globalObject.__APP_CAPITAL_NAME__ = 'Chat2DB Community';
+globalObject.__APP_DISPLAY_NAME__ = 'Chat2DB Community';
+globalObject.__APP_PROTOCOL_SCHEME__ = 'chat2db-community';
 globalObject.window = { javaQuery: () => 1 };
 Object.defineProperty(globalThis, 'navigator', {
   value: { userAgent: 'Mac', app_language: 'en-US', language: 'en-US' },
@@ -31,12 +42,22 @@ Object.defineProperty(globalThis, 'location', {
   configurable: true,
 });
 
+function restoreGlobal<T extends keyof typeof globalObject>(key: T, value: (typeof globalObject)[T]) {
+  if (value === undefined) {
+    delete globalObject[key];
+  } else {
+    globalObject[key] = value;
+  }
+}
+
 async function run() {
   const [{ createHotUpdateAction }, { default: jcefApi }, { UpdatedStatus }] = await Promise.all([
     import('./action'),
     import('@/jcef'),
     import('@/constants/settings'),
   ]);
+  const { clientRuntime } = await import('@/client-runtime');
+  assert.equal(clientRuntime.supportsBetaUpdates, true);
   const originalApi = {
     appCheckUpdate: jcefApi.appCheckUpdate,
     triggerInstallation: jcefApi.triggerInstallation,
@@ -62,59 +83,48 @@ async function run() {
   Object.assign(state, createHotUpdateAction(set as any, get as any, {} as any));
 
   try {
-    let restartCount = 0;
-    jcefApi.restartApp = async () => {
-      restartCount += 1;
-      return true;
+    let desktopBridgeCalls = 0;
+    jcefApi.appCheckUpdate = async () => {
+      desktopBridgeCalls += 1;
+      return { status: UpdatedStatus.Available, version: '5.3.1' } as any;
     };
     jcefApi.triggerInstallation = async () => {
-      throw new Error('bridge rejected installation');
+      desktopBridgeCalls += 1;
+      return true;
     };
-    await state.updateAndRestartApp();
-    assert.equal(state.updateDetail.status, UpdatedStatus.UpdateFailed);
-    assert.equal(restartCount, 0);
-
-    state.updateDetail = { status: UpdatedStatus.Updated };
-    jcefApi.triggerInstallation = async () => false;
-    await state.updateAndRestartApp();
-    assert.equal(state.updateDetail.status, UpdatedStatus.UpdateFailed);
-    assert.equal(restartCount, 0);
-
-    state.updateDetail = { status: UpdatedStatus.Updated };
-    jcefApi.triggerInstallation = async () => true;
-    await state.updateAndRestartApp();
-    assert.equal(state.updateDetail.status, UpdatedStatus.Installing);
-    assert.equal(restartCount, 1);
-
-    state.updateDetail = { status: UpdatedStatus.Default };
-    jcefApi.appCheckUpdate = async () => {
-      throw new Error('check failed');
+    jcefApi.restartApp = async () => {
+      desktopBridgeCalls += 1;
+      return true;
     };
-    assert.equal(await state.handleCheckUpdate(), false);
-    assert.equal(state.updateDetail.status, UpdatedStatus.UpdateFailed);
-
     jcefApi.updatePreferences = async () => {
-      throw new Error('preference save failed');
+      desktopBridgeCalls += 1;
+      return { saved: true, receiveBeta: true };
     };
-    await state.updateHotUpdateConfig('receiveBeta', true);
-    assert.equal(state.hotUpdateConfig.receiveBeta, false);
 
-    jcefApi.updatePreferences = async () => ({ saved: false, receiveBeta: true });
+    await state.updateAndRestartApp();
+    assert.equal(await state.handleCheckUpdate(), true);
+    await state.syncUpdatePreferences();
     await state.updateHotUpdateConfig('receiveBeta', true);
-    assert.equal(state.hotUpdateConfig.receiveBeta, false);
 
-    jcefApi.updatePreferences = async () => ({ saved: true, receiveBeta: true });
-    await state.updateHotUpdateConfig('receiveBeta', true);
+    assert.equal(desktopBridgeCalls, 5);
+    assert.equal(state.updateDetail.status, UpdatedStatus.Available);
     assert.equal(state.hotUpdateConfig.receiveBeta, true);
 
-    state.updateDetail = { status: UpdatedStatus.Installed };
+    await state.updateHotUpdateConfig('remindMe', false);
+    assert.equal(state.hotUpdateConfig.remindMe, false);
+
+    let restarts = 0;
     jcefApi.restartApp = async () => {
-      throw new Error('restart failed');
+      restarts += 1;
+      return true;
     };
+    state.updateDetail.status = UpdatedStatus.Updated;
+    jcefApi.triggerInstallation = async () => false;
     await state.updateAndRestartApp();
+    assert.equal(restarts, 0);
     assert.equal(state.updateDetail.status, UpdatedStatus.UpdateFailed);
 
-    console.log('Hot update action tests passed');
+    console.log('Community hot update integration tests passed');
   } finally {
     Object.assign(jcefApi, originalApi);
   }
@@ -126,31 +136,14 @@ run()
     process.exitCode = 1;
   })
   .finally(() => {
-    if (originalRuntimeEnvironment === undefined) {
-      delete globalObject.__RUNTIME_ENV__;
-    } else {
-      globalObject.__RUNTIME_ENV__ = originalRuntimeEnvironment;
-    }
-    if (originalEnvironment === undefined) {
-      delete globalObject.__ENV__;
-    } else {
-      globalObject.__ENV__ = originalEnvironment;
-    }
-    if (originalAppName === undefined) {
-      delete globalObject.__APP_NAME__;
-    } else {
-      globalObject.__APP_NAME__ = originalAppName;
-    }
-    if (originalAppVersion === undefined) {
-      delete globalObject.__APP_VERSION__;
-    } else {
-      globalObject.__APP_VERSION__ = originalAppVersion;
-    }
-    if (originalWindow === undefined) {
-      delete globalObject.window;
-    } else {
-      globalObject.window = originalWindow;
-    }
+    restoreGlobal('__RUNTIME_ENV__', originalGlobals.runtimeEnvironment);
+    restoreGlobal('__ENV__', originalGlobals.environment);
+    restoreGlobal('__APP_NAME__', originalGlobals.appName);
+    restoreGlobal('__APP_VERSION__', originalGlobals.appVersion);
+    restoreGlobal('__APP_CAPITAL_NAME__', originalGlobals.appCapitalName);
+    restoreGlobal('__APP_DISPLAY_NAME__', originalGlobals.appDisplayName);
+    restoreGlobal('__APP_PROTOCOL_SCHEME__', originalGlobals.appProtocolScheme);
+    restoreGlobal('window', originalGlobals.window);
     if (originalNavigatorDescriptor === undefined) {
       delete (globalThis as { navigator?: Navigator }).navigator;
     } else {

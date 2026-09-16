@@ -9,11 +9,13 @@ import ai.chat2db.community.domain.api.model.task.TaskEventCode;
 import ai.chat2db.community.domain.api.model.task.TaskEventLevel;
 import ai.chat2db.community.domain.api.model.task.TaskExecutionException;
 import ai.chat2db.community.domain.api.model.task.TaskSpec;
+import ai.chat2db.community.domain.api.model.task.TaskStage;
 import ai.chat2db.community.domain.api.model.task.TaskStatus;
 import ai.chat2db.community.domain.api.model.task.TaskStatusPatch;
-import ai.chat2db.community.domain.api.model.task.TaskStage;
+import ai.chat2db.community.domain.api.service.task.ArtifactService;
 import ai.chat2db.community.domain.api.service.task.TaskExecutor;
 import ai.chat2db.community.domain.api.service.task.TaskStorage;
+import ai.chat2db.community.domain.core.impl.task.extension.TaskExtensionManager;
 import ai.chat2db.community.tools.util.ContextUtils;
 import ai.chat2db.spi.sql.Chat2DBContext;
 import lombok.extern.slf4j.Slf4j;
@@ -40,14 +42,18 @@ final class TaskRunner<S extends TaskSpec> implements Runnable {
 
     private final ArtifactService artifactService;
 
+    private final TaskExtensionManager taskExtensionManager;
+
     TaskRunner(TaskSubmission<S> submission, RunningTask runningTask, RunningTaskRegistry runningTaskRegistry,
-            TaskStorage taskStorage, TaskExecutor<S> taskExecutor, ArtifactService artifactService) {
+            TaskStorage taskStorage, TaskExecutor<S> taskExecutor, ArtifactService artifactService,
+            TaskExtensionManager taskExtensionManager) {
         this.submission = submission;
         this.runningTask = runningTask;
         this.runningTaskRegistry = runningTaskRegistry;
         this.taskStorage = taskStorage;
         this.taskExecutor = taskExecutor;
         this.artifactService = artifactService;
+        this.taskExtensionManager = taskExtensionManager;
     }
 
     @Override
@@ -59,18 +65,28 @@ final class TaskRunner<S extends TaskSpec> implements Runnable {
                 return;
             }
             bindExecutionContext();
-            taskExecutor.execute(submission.spec(), executionContext);
+            taskExtensionManager.runGuarded(submission.extensionContext(), () -> {
+                try (Chat2DBContext.StatementGuardScope ignored =
+                        Chat2DBContext.bindStatementGuard(taskExtensionManager.captureStatementGuard())) {
+                    taskExecutor.execute(submission.spec(), executionContext);
+                }
+            });
             ArtifactDraft draft = executionContext.artifactDraft();
             executionContext.finishArtifactWrites();
             logArtifactWritten(executionContext, draft);
             completeSuccessfully(draft);
         } catch (TaskCancelledException | CancellationException e) {
-            completeCancelled(executionContext.artifactDraft());
+            if (isCancellationRequested()) {
+                completeCancelled(executionContext.artifactDraft());
+            } else {
+                completeFailed(TaskErrorCode.TASK_INTERNAL_ERROR.name(), "Task execution failed", null, e,
+                        executionContext.artifactDraft());
+            }
         } catch (TaskExecutionException e) {
             completeFailed(e.getCode(), e.publicMessage(), e.getSafeReason(), e,
                     executionContext.artifactDraft());
         } catch (Throwable e) {
-            if (runningTask.cancellationToken().isCancelled() || Thread.currentThread().isInterrupted()) {
+            if (isCancellationRequested()) {
                 completeCancelled(executionContext.artifactDraft());
             } else {
                 completeFailed(TaskErrorCode.TASK_INTERNAL_ERROR.name(), "Task execution failed", null, e,
@@ -86,6 +102,10 @@ final class TaskRunner<S extends TaskSpec> implements Runnable {
                 runningTask.markFinished();
             }
         }
+    }
+
+    private boolean isCancellationRequested() {
+        return runningTask.cancellationToken().isCancelled();
     }
 
     private void logArtifactWritten(TaskExecutionContextImpl executionContext, ArtifactDraft draft) {
@@ -134,7 +154,14 @@ final class TaskRunner<S extends TaskSpec> implements Runnable {
                 return;
             }
             if (draft != null) {
-                artifactId = artifactService.publish(draft);
+                artifactId = artifactService.publish(draft, target -> taskStorage.appendEvent(TaskEvent.builder()
+                        .taskId(submission.taskId())
+                        .level(TaskEventLevel.INFO.name())
+                        .code(TaskEventCode.ARTIFACT_PUBLICATION_STARTED.name())
+                        .stage(TaskStage.FINALIZING.name())
+                        .message("Saving export file")
+                        .details(Map.of(TaskConstants.ARTIFACT_ID_DETAIL_KEY, target))
+                        .build()));
                 taskStorage.appendEvent(TaskEvent.builder()
                         .taskId(submission.taskId())
                         .level(TaskEventLevel.INFO.name())
@@ -234,16 +261,6 @@ final class TaskRunner<S extends TaskSpec> implements Runnable {
 
     private void completeCancelledLocked(ArtifactDraft draft) {
         artifactService.deleteDraft(draft);
-        Date now = new Date();
-        taskStorage.compareAndSetStatus(submission.taskId(), TaskStatus.RUNNING.name(),
-                TaskStatus.CANCELLED.name(),
-                TaskStatusPatch.builder()
-                        .stage(TaskStage.CANCELLED.name())
-                        .progressMessage("Task cancelled")
-                        .finishedAt(now)
-                        .updatedAt(now)
-                        .build(),
-                lifecycleEvent(TaskEventCode.TASK_CANCELLED.name(), TaskEventLevel.INFO.name(), "Task cancelled"));
     }
 
     private TaskEvent lifecycleEvent(String code, String level, String message) {
