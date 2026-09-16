@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/desktop_layout.sh"
+
 # Keep display versions separate from the numeric versions required by native installers.
 community_native_version() {
     local version="${1:-}"
@@ -21,7 +23,7 @@ community_native_version() {
         echo "Error: native version exceeds platform limits: ${version}" >&2
         return 1
     fi
-    printf '%s.%s.%s\n' "${major}" "${minor}" "${build}"
+    chat2db_jpackage_version "${version}"
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then

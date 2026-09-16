@@ -281,21 +281,6 @@ verify_flatlaf_runtime_dependency() {
   echo "[check] FlatLaf runtime dependency present: $(basename "${flatlaf_jar}")"
 }
 
-copy_dist() {
-  local platform="$1"
-  local target_dir="${JPACKAGE_INPUT_DIR}/${platform}"
-
-  mkdir -p "${target_dir}"
-  rm -rf "${target_dir}/dist" "${target_dir}/lib"
-  rm -f "${target_dir}/chat2db-community.jar"
-  cp -R "${CLIENT_DIR}/dist" "${target_dir}/dist"
-  cp -R "${COMMUNITY_LIB_DIR}" "${target_dir}/lib"
-  cp "${COMMUNITY_JAR}" "${target_dir}/chat2db-community.jar"
-  cp "${SOURCE_FILE_DIR}/version.json" "${target_dir}/version.json"
-  mkdir -p "${target_dir}/tools"
-  cp "${UPDATE_HELPER}" "${target_dir}/tools/chat2db-updater.jar"
-}
-
 zip_frontend_dist() {
   rm -f "${CLIENT_DIR}/dist.zip"
   if command -v zip >/dev/null 2>&1; then
@@ -366,9 +351,8 @@ stage_community_input() {
     '{version: $version, releaseEpoch: $releaseEpoch, buildSha: $buildSha}' \
     > "${SOURCE_FILE_DIR}/version.json"
 
-  copy_dist mac
-  copy_dist win
-  copy_dist linux
+  bash "${SCRIPT_DIR}/prepare_desktop_layout.sh" "${VERSION}" "${CLIENT_DIR}/dist" \
+    "${RELEASE_EPOCH}" "$(git -C "${ROOT_DIR}" rev-parse HEAD)" "${ROOT_DIR}"
 }
 
 stage_community_input

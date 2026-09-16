@@ -14,12 +14,12 @@ APP_NAME="Chat2DB Community"
 APP_IDENTIFIER="com.chat2db.community"
 PROTOCOL_NAME="chat2db-community"
 VENDOR_NAME="AiTa Technology (Hangzhou) Co., Ltd."
-MAIN_JAR="chat2db-community.jar"
-MAIN_CLASS="org.springframework.boot.loader.launch.PropertiesLauncher"
 APP_ICON_NAME="${APP_NAME}.icns"
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 PROJECT_ROOT=$(cd "${COMMUNITY_SOURCE_DIR:-${SCRIPT_DIR}/../..}" && pwd)
+source "${SCRIPT_DIR}/desktop_layout.sh"
+chat2db_load_desktop_layout "${PROJECT_ROOT}"
 source "${SCRIPT_DIR}/community-version.sh"
 NATIVE_VERSION=$(community_native_version "${APP_VERSION}")
 INPUT_DIR="${PROJECT_ROOT}/jpackage/input/mac"
@@ -27,7 +27,7 @@ RESOURCE_TEMPLATE_DIR="${INPUT_DIR}/../macres"
 RESOURCE_DIR="${PROJECT_ROOT}/jpackage/output/macres-community"
 INFO_PLIST_FILE="${RESOURCE_DIR}/Info.plist"
 MAIN_JAR_PATH="${INPUT_DIR}/${MAIN_JAR}"
-LIB_DIR="${INPUT_DIR}/lib"
+LIB_DIR="${INPUT_DIR}/runtime/lib"
 MAC_RUNTIME_IMAGE="${INPUT_DIR}/../runtime/mac/Home"
 COMMUNITY_ICON_FILE="${PROJECT_ROOT}/jpackage/input/icons/community/logo.icns"
 ICON_FILE="${COMMUNITY_ICON_FILE}"
@@ -36,6 +36,7 @@ ASSOCIATIONS_FILE="${OUTPUT_DIR}/sql-association-community.properties"
 MAC_SIGNING_IDENTITY="${MAC_SIGNING_IDENTITY:-}"
 
 validate_resources() {
+    chat2db_validate_desktop_input "${INPUT_DIR}"
     if [ ! -f "${MAIN_JAR_PATH}" ]; then
         echo "Error: Community application jar not found: ${MAIN_JAR_PATH}" >&2
         exit 1
@@ -110,17 +111,11 @@ package_application() {
         exit 1
     fi
 
+    chat2db_jpackage_arguments "${NATIVE_VERSION}" "${OUTPUT_DIR}" "${MAC_RUNTIME_IMAGE}"
     local args=(
+        "${CHAT2DB_JPACKAGE_ARGS[@]}"
         "--verbose"
         "--type" "dmg"
-        "--name" "${APP_NAME}"
-        "--app-version" "${NATIVE_VERSION}"
-        "--vendor" "${VENDOR_NAME}"
-        "--input" "${INPUT_DIR}"
-        "--main-jar" "${MAIN_JAR}"
-        "--main-class" "${MAIN_CLASS}"
-        "--dest" "${OUTPUT_DIR}"
-        "--runtime-image" "${MAC_RUNTIME_IMAGE}"
         "--file-associations" "${ASSOCIATIONS_FILE}"
         "--mac-sign"
         "--mac-signing-key-user-name" "${signing_identity}"
@@ -142,7 +137,6 @@ package_application() {
         "-Xdock:name=\"${APP_NAME}\""
         "-Dapple.laf.useScreenMenuBar=true"
         "-Dspring.profiles.active=release"
-        "-Dloader.path=lib"
         "-Dchat2db.mode=DESKTOP"
         "-Dchat2db.runtime.mode=community"
         "-Dchat2db.network.status=OFFLINE"
@@ -220,14 +214,14 @@ validate_packaged_dmg() {
         exit 1
     fi
 
-    if [ ! -f "${app_root}/dist/index.html" ]; then
+    if [ ! -f "${app_root}/runtime/dist/index.html" ]; then
         cleanup_mount
-        echo "Error: packaged frontend entry missing: Contents/app/dist/index.html" >&2
+        echo "Error: packaged frontend entry missing: Contents/app/runtime/dist/index.html" >&2
         exit 1
     fi
-    if [ -e "${app_root}/lib/dist/index.html" ]; then
+    if [ -e "${app_root}/runtime/lib/dist/index.html" ]; then
         cleanup_mount
-        echo "Error: invalid frontend path exists under external lib: Contents/app/lib/dist/index.html" >&2
+        echo "Error: invalid frontend path exists under external lib: Contents/app/runtime/lib/dist/index.html" >&2
         exit 1
     fi
     if [ ! -d "${app_root}/Frameworks/Chromium Embedded Framework.framework" ]; then
@@ -238,14 +232,14 @@ validate_packaged_dmg() {
 
     local flatlaf_jar
     local flatlaf_count
-    flatlaf_count=$(find "${app_root}/lib" -maxdepth 1 -type f \
+    flatlaf_count=$(find "${app_root}/runtime/lib" -maxdepth 1 -type f \
         -name "flatlaf-*.jar" -print | wc -l | tr -d '[:space:]')
     if [ "${flatlaf_count}" -ne 1 ]; then
         cleanup_mount
         echo "Error: expected exactly one FlatLaf runtime dependency in packaged external lib, found ${flatlaf_count}" >&2
         exit 1
     fi
-    flatlaf_jar=$(find "${app_root}/lib" -maxdepth 1 -type f \
+    flatlaf_jar=$(find "${app_root}/runtime/lib" -maxdepth 1 -type f \
         -name "flatlaf-*.jar" -print -quit)
 
     local flatlaf_index
@@ -276,7 +270,7 @@ validate_packaged_dmg() {
     rm -f "${flatlaf_index}"
 
     local jcef_jar
-    jcef_jar=$(find "${app_root}/lib" -maxdepth 1 -name "chat2db-community-jcef-*.jar" -print -quit)
+    jcef_jar=$(find "${app_root}/runtime/lib" -maxdepth 1 -name "chat2db-community-jcef-*.jar" -print -quit)
     if [ -z "${jcef_jar}" ]; then
         cleanup_mount
         echo "Error: chat2db-community-jcef jar missing from packaged external lib" >&2
