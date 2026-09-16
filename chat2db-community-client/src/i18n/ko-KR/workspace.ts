@@ -105,6 +105,7 @@ export default {
   'workspace.tableTitle.collate': '정렬 규칙',
   'workspace.tableTitle.dataLength': '데이터 길이',
   'workspace.tableTitle.createTime': '생성 시간',
+  'workspace.tableTitle.updateTime': '수정 시간',
   'workspace.menu.openAllData': '모든 데이터 열기',
   'workspace.searchConsole.placeholder': '콘솔 검색',
   'common.text.noSearchResult': '검색 결과가 없습니다',

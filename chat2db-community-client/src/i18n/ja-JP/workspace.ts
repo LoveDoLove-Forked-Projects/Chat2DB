@@ -105,6 +105,7 @@ export default {
   'workspace.tableTitle.collate': '照合',
   'workspace.tableTitle.dataLength': 'データ長',
   'workspace.tableTitle.createTime': '作成時間',
+  'workspace.tableTitle.updateTime': '更新時間',
   'workspace.menu.openAllData': 'すべてのデータを開く',
   'workspace.searchConsole.placeholder': 'コンソールを検索',
   'workspace.menu.showColumnComment': '列コメントを表示',
