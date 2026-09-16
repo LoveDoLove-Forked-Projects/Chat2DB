@@ -777,12 +777,22 @@ jobs:
       - resolve
       - stage_release
       - docker
-    if: ${{ always() && needs.resolve.outputs.create_release == 'true' && (needs.resolve.outputs.channel == 'beta' || needs.docker.result == 'success') }}
+    if: ${{ always() && needs.stage_release.result == 'success' && needs.resolve.outputs.create_release == 'true' && (needs.resolve.outputs.channel == 'beta' || needs.docker.result == 'success') }}
     environment: ${{ needs.resolve.outputs.channel == 'release' && 'community-release' || 'community-beta-signing' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    concurrency:
+      group: community-update-publication-${{ needs.resolve.outputs.channel }}
+      cancel-in-progress: false
     steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Download validated Beta index
+        if: ${{ needs.resolve.outputs.channel == 'beta' }}
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: community-release-bundle-${{ needs.resolve.outputs.version }}
+          path: release-assets
       - name: Publish validated Release
         shell: bash
         env:
@@ -798,3 +808,10 @@ jobs:
             gh release edit "${TAG_NAME}" --draft=false --latest
           fi
           test "$(gh release view "${TAG_NAME}" --json isDraft --jq '.isDraft')" = "false"
+      - name: Publish Beta update index
+        if: ${{ needs.resolve.outputs.channel == 'beta' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          BUILD_SHA: ${{ needs.resolve.outputs.build_sha }}
+        run: bash script/package/publish_beta_update_index.sh release-assets/release-index.json "${BUILD_SHA}"

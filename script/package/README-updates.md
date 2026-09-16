@@ -2,9 +2,25 @@
 
 Community desktop checks the stable index at
 `https://github.com/OtterMind/Chat2DB/releases/latest/download/release-index.json`.
+When **Receive Beta versions** is enabled, it also checks
+`https://github.com/OtterMind/Chat2DB/releases/download/community-beta/release-index.json`
+and selects the highest eligible Stable or Beta version. The preference is off
+by default and is saved across restarts.
 Each signed manifest points to a full package attached to the same versioned
 GitHub Release. The desktop verifies the product, platform, architecture,
 package type, version, release sequence, Ed25519 signature, size and SHA-256.
+
+## Application layout
+
+The native launcher runs `tools/chat2db-bootstrap.jar`. The bootstrap reads
+`runtime/launch.json` and launches `runtime/chat2db-community.jar` with
+`runtime/lib/`. Frontend assets live in `runtime/dist/`; `version.json` and
+`tools/chat2db-updater.jar` remain at the app root. The packaged JBR remains
+in the native platform's runtime directory.
+
+`stage_desktop_backend.xml` assembles backend files for all three platforms;
+`prepare_desktop_layout.sh` stages the frontend and release metadata. The same
+layout is used for installation and full-package updates.
 
 ## Build and release
 
@@ -53,10 +69,14 @@ avoid a native-version downgrade after installing a Beta.
 Manual Beta runs create a GitHub Pre-release with the installers and update
 resources after all platform jobs pass. They do not publish Docker images or
 stable/latest pointers. The release is explicitly marked prerelease and does
-not become the stable Community update source.
+not become the stable Community update source. After publishing the versioned
+release, the workflow updates `release-index.json` on the `community-beta`
+prerelease. This channel release holds only the index; its manifests and
+packages continue to point to immutable versioned releases. Publication is
+serialized and rejects an older or conflicting release sequence.
 Beta-tag pushes are rejected before signing/publication. Numeric Stable tags
-retain the formal release path. This does not add a Beta update feed to the
-installed Community client.
+retain the formal release path. Builds with `publish_release=false` do not
+change either update channel.
 
 For separate source and helper checkouts, `COMMUNITY_SOURCE_DIR` points to the
 application checkout; by default the packaging scripts use their own repository.
