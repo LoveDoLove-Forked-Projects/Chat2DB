@@ -36,15 +36,32 @@ class CockroachDBSqlBuilderTest {
     }
 
     @Test
-    void singleRowGuardUsesRowidForTablesWithoutPrimaryKey() {
+    void singleRowGuardUsesNativeLimitWithoutAssumingRowid() {
         bindCockroachMetadata();
         CockroachDBSqlBuilder builder = new CockroachDBSqlBuilder();
 
         String sql = builder.buildByQueryResult(queryResponse(SQLConstants.DELETE_KEYWORD));
 
-        assertEquals("DELETE FROM \"orders\" where rowid in (select rowid from \"orders\""
-                + " where \"id\" = '7' and \"name\" = 'Ada'  limit 1);\n", sql);
+        assertEquals("DELETE FROM \"orders\" where \"id\" = '7' and \"name\" = 'Ada'  LIMIT 1;\n", sql);
         assertFalse(sql.contains("ctid"));
+    }
+
+    @Test
+    void updateKeepsOriginalPredicateAndLimitsOneRow() {
+        bindCockroachMetadata();
+        QueryResponse response = queryResponse(SQLConstants.UPDATE_KEYWORD);
+        response.getOperations().get(0).setDataList(List.of("", "7", "Grace"));
+        assertEquals("UPDATE \"orders\" set \"name\" = 'Grace' where \"id\" = '7' and \"name\" = 'Ada'  LIMIT 1;\n",
+                new CockroachDBSqlBuilder().buildByQueryResult(response));
+    }
+
+    @Test
+    void explicitPrimaryKeyUsesTheExistingKeyPredicate() {
+        bindCockroachMetadata();
+        QueryResponse response = queryResponse(SQLConstants.DELETE_KEYWORD);
+        response.getHeaderList().get(1).setPrimaryKey(true);
+        assertEquals("DELETE FROM \"orders\" where \"id\" = '7' ;\n",
+                new CockroachDBSqlBuilder().buildByQueryResult(response));
     }
 
     @Test
