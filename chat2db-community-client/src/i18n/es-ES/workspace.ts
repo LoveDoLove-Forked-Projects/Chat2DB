@@ -106,6 +106,7 @@ export default {
   'workspace.tableTitle.collate': 'Intercalación',
   'workspace.tableTitle.dataLength': 'Longitud de datos',
   'workspace.tableTitle.createTime': 'Fecha de creación',
+  'workspace.tableTitle.updateTime': 'Fecha de actualización',
   'workspace.menu.openAllData': 'Abrir todos los datos',
   'workspace.searchConsole.placeholder': 'Buscar consola',
   'common.text.noSearchResult': 'No hay resultados de búsqueda',

@@ -106,6 +106,7 @@ export default {
   'workspace.tableTitle.collate': 'Collate',
   'workspace.tableTitle.dataLength': 'Data Length',
   'workspace.tableTitle.createTime': 'Create Time',
+  'workspace.tableTitle.updateTime': 'Update Time',
   'workspace.menu.openAllData': 'Open all Data',
   'workspace.searchConsole.placeholder': 'Search console',
   'common.text.noSearchResult': 'No search results',
