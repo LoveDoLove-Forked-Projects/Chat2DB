@@ -101,6 +101,7 @@ export default {
   'workspace.tableTitle.collate': '校对',
   'workspace.tableTitle.dataLength': '数据长度',
   'workspace.tableTitle.createTime': '创建时间',
+  'workspace.tableTitle.updateTime': '更新时间',
   'workspace.menu.openAllData': '打开全部数据',
   'workspace.searchConsole.placeholder': '搜索控制台',
   'workspace.menu.showColumnComment': '展示列注释',
