@@ -124,7 +124,7 @@ public class AiChatHistoryServiceImpl implements IAiChatHistoryService {
     private synchronized AiChatMessage addMessageLocal(String sessionId, Long userId, String role, String content,
                                                        String reasoningContent,
                                                        List<ChatAttachment> attachments) {
-        sessionId = canonicalSessionId(sessionId)
+        sessionId = canonicalSessionId(sessionId);
         if (!ownsSession(userId, sessionId)) {
             throw new BusinessException("ai.chat.history.sessionNotOwned", new Object[]{sessionId});
         }
