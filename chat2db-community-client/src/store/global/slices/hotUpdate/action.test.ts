@@ -56,6 +56,8 @@ async function run() {
     import('@/jcef'),
     import('@/constants/settings'),
   ]);
+  const { clientRuntime } = await import('@/client-runtime');
+  assert.equal(clientRuntime.supportsBetaUpdates, true);
   const originalApi = {
     appCheckUpdate: jcefApi.appCheckUpdate,
     triggerInstallation: jcefApi.triggerInstallation,
@@ -100,18 +102,29 @@ async function run() {
     };
 
     await state.updateAndRestartApp();
-    assert.equal(await state.handleCheckUpdate(), false);
+    assert.equal(await state.handleCheckUpdate(), true);
     await state.syncUpdatePreferences();
     await state.updateHotUpdateConfig('receiveBeta', true);
 
-    assert.equal(desktopBridgeCalls, 0);
-    assert.equal(state.updateDetail.status, UpdatedStatus.Updated);
+    assert.equal(desktopBridgeCalls, 5);
+    assert.equal(state.updateDetail.status, UpdatedStatus.Available);
     assert.equal(state.hotUpdateConfig.receiveBeta, true);
 
     await state.updateHotUpdateConfig('remindMe', false);
     assert.equal(state.hotUpdateConfig.remindMe, false);
 
-    console.log('Community hot update boundary tests passed');
+    let restarts = 0;
+    jcefApi.restartApp = async () => {
+      restarts += 1;
+      return true;
+    };
+    state.updateDetail.status = UpdatedStatus.Updated;
+    jcefApi.triggerInstallation = async () => false;
+    await state.updateAndRestartApp();
+    assert.equal(restarts, 0);
+    assert.equal(state.updateDetail.status, UpdatedStatus.UpdateFailed);
+
+    console.log('Community hot update integration tests passed');
   } finally {
     Object.assign(jcefApi, originalApi);
   }
