@@ -29,6 +29,9 @@ export interface ImportExportTaskDetails {
   updatedAt?: number | string;
 }
 
+/** CSV import execution mode; absent resolves to STANDARD on the backend. */
+export type ImportExecutionMode = 'FAST' | 'STANDARD';
+
 export interface ImportExportTaskEvent {
   eventId: number;
   taskId: number;
@@ -39,4 +42,23 @@ export interface ImportExportTaskEvent {
   message: string;
   details?: Record<string, unknown>;
   createdAt: number | string;
+}
+
+export interface ICsvOptions {
+  encoding: string;
+  delimiter: string;
+  quote: string;
+  escape: string;
+  newline: 'LF' | 'CRLF' | 'CR';
+  hasHeader: boolean;
+  emptyAsNull: boolean;
+  headerRow: number;
+  dataStartRow: number;
+  dataEndRow?: number;
+  dateOrder: 'YMD' | 'YDM' | 'MDY' | 'MYD' | 'DMY' | 'DYM';
+  dateTimeOrder: 'DATE_TIME' | 'TIME_DATE' | 'DATE_TIME_TIMEZONE' | 'TIME_DATE_TIMEZONE' | 'TIME_TIMEZONE_DATE';
+  dateDelimiter: string;
+  yearDelimiter: string;
+  timeDelimiter: string;
+  decimalSymbol: '.' | ',';
 }
