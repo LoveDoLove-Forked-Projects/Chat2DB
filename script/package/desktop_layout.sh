@@ -113,6 +113,20 @@ chat2db_validate_desktop_input() {
     fi
 }
 
+chat2db_update_java_options() {
+    local key_id="${CHAT2DB_UPDATE_KEY_ID:-}"
+    local public_key="${CHAT2DB_UPDATE_PUBLIC_KEY_B64:-}"
+    if { [ -n "${key_id}" ] && [ -z "${public_key}" ]; } || \
+       { [ -z "${key_id}" ] && [ -n "${public_key}" ]; }; then
+        echo "Error: CHAT2DB_UPDATE_KEY_ID and CHAT2DB_UPDATE_PUBLIC_KEY_B64 must be set together" >&2
+        return 1
+    fi
+    if [ -n "${key_id}" ]; then
+        printf '%s\n' "-Dchat2db.update.key-id=${key_id}"
+        printf '%s\n' "-Dchat2db.update.public-key=${public_key}"
+    fi
+}
+
 chat2db_capture_update_package() {
     local image_root="$1"
     local output_dir="$2"
