@@ -285,6 +285,7 @@ verify_flatlaf_runtime_dependency() {
 # manifest, so packaging must fail instead of shipping an unconfigured key.
 verify_bundled_update_key() {
   local jcef_jar
+  local jcef_count
   local extract_dir
   local key_file
 
@@ -297,12 +298,14 @@ verify_bundled_update_key() {
     exit 1
   fi
 
-  jcef_jar=$(find "${COMMUNITY_LIB_DIR}" -maxdepth 1 \
-    -name 'chat2db-community-jcef-*.jar' -print -quit)
-  if [ -z "${jcef_jar}" ]; then
-    echo "[error] chat2db-community-jcef jar not found: ${COMMUNITY_LIB_DIR}" >&2
+  jcef_count=$(find "${COMMUNITY_LIB_DIR}" -maxdepth 1 -type f \
+    -name 'chat2db-community-jcef-*.jar' -print | wc -l | tr -d '[:space:]')
+  if [ "${jcef_count}" -ne 1 ]; then
+    echo "[error] expected exactly one chat2db-community-jcef jar, found ${jcef_count}: ${COMMUNITY_LIB_DIR}" >&2
     exit 1
   fi
+  jcef_jar=$(find "${COMMUNITY_LIB_DIR}" -maxdepth 1 -type f \
+    -name 'chat2db-community-jcef-*.jar' -print -quit)
 
   extract_dir=$(mktemp -d)
   if ! (cd "${extract_dir}" && jar xf "${jcef_jar}" chat2db-update-keys.properties) \
