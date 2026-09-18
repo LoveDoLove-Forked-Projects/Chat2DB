@@ -153,6 +153,10 @@ jobs:
         run: |
           set -euo pipefail
           if [ "${EVENT_NAME}" = "push" ]; then
+            # actions/checkout fetches the tagged commit into the tag ref, which
+            # replaces the annotated tag object in this clone; fetch the tag
+            # itself before reading the release annotation.
+            git fetch --force origin "refs/tags/${TAG_NAME}:refs/tags/${TAG_NAME}"
             test "$(git cat-file -t "refs/tags/${TAG_NAME}")" = tag
             epoch=$(git for-each-ref "refs/tags/${TAG_NAME}" --format='%(contents)' | sed -n 's/^release_epoch: *//p')
           else
