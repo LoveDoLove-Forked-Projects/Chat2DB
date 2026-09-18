@@ -47,4 +47,43 @@ if chat2db_validate_desktop_input "${WORK_DIR}/jpackage/input/mac" 2>/dev/null; 
     echo 'Missing product JAR must fail validation' >&2
     exit 1
 fi
+
+# A stale JAR in the jpackage input root would be copied into the installed app.
+cp "${WORK_DIR}/tool.jar" "${WORK_DIR}/jpackage/input/win/stale-root.jar"
+if chat2db_validate_desktop_input "${WORK_DIR}/jpackage/input/win" 2>/dev/null; then
+    echo 'Root-level JAR must fail thin desktop validation' >&2
+    exit 1
+fi
+rm "${WORK_DIR}/jpackage/input/win/stale-root.jar"
+chat2db_validate_desktop_input "${WORK_DIR}/jpackage/input/win"
+
+# The launcher configuration is the only path that delivers the update signing key.
+APP_IMAGE="${WORK_DIR}/app image"
+mkdir -p "${APP_IMAGE}/lib/app"
+printf '[Application]\napp.classpath=$APPDIR/runtime/app.jar\n' > "${APP_IMAGE}/lib/app/Example App.cfg"
+chat2db_verify_launcher_update_options "${APP_IMAGE}"
+CHAT2DB_UPDATE_KEY_ID='test-key'
+CHAT2DB_UPDATE_PUBLIC_KEY_B64='dGVzdC1rZXk='
+if chat2db_verify_launcher_update_options "${APP_IMAGE}" 2>/dev/null; then
+    echo 'Launcher configuration without key options must fail validation' >&2
+    exit 1
+fi
+printf 'java-options=-Dchat2db.update.key-id=test-key\njava-options=-Dchat2db.update.public-key=dGVzdC1rZXk=\n' \
+    >> "${APP_IMAGE}/lib/app/Example App.cfg"
+chat2db_verify_launcher_update_options "${APP_IMAGE}"
+unset CHAT2DB_UPDATE_KEY_ID CHAT2DB_UPDATE_PUBLIC_KEY_B64
+chat2db_verify_launcher_update_options "${APP_IMAGE}"
+
+chat2db_verify_update_java_option_arguments --java-options -Xms128M
+CHAT2DB_UPDATE_KEY_ID='test-key'
+CHAT2DB_UPDATE_PUBLIC_KEY_B64='dGVzdC1rZXk='
+if chat2db_verify_update_java_option_arguments --java-options -Xms128M 2>/dev/null; then
+    echo 'jpackage arguments without key options must fail validation' >&2
+    exit 1
+fi
+chat2db_verify_update_java_option_arguments \
+    --java-options "-Dchat2db.update.key-id=test-key" \
+    --java-options "-Dchat2db.update.public-key=dGVzdC1rZXk="
+unset CHAT2DB_UPDATE_KEY_ID CHAT2DB_UPDATE_PUBLIC_KEY_B64
+
 echo 'Shared desktop layout tests passed.'

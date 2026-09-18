@@ -109,12 +109,37 @@ shared updater and stages `tools/chat2db-updater.jar` plus `version.json` in
 each native application. The helper is a standalone shaded artifact; the
 application depends on the ordinary updater module JAR.
 
-The desktop trusts the `chat2db-update-keys.properties` resource bundled in
-`runtime/lib/chat2db-community-jcef-*.jar` together with the
-`chat2db.update.key-id` and `chat2db.update.public-key` system properties.
-`package-community-jcef.sh` passes both values to the Maven build, which
-substitutes the resource placeholders, and packaging fails when a supplied key
-pair is not substituted.
+The desktop reads the update signing key from its launcher configuration: the
+`-Dchat2db.update.key-id` and `-Dchat2db.update.public-key` java options that
+`package-community-jcef.sh` derives from `COMMUNITY_UPDATE_KEY_ID` and
+`COMMUNITY_UPDATE_PUBLIC_KEY_B64` and the platform scripts pass to jpackage. A
+launcher configuration without those options can never verify a manifest, so
+each platform script fails the build when a supplied key pair is missing from
+the packaged application. No signing key is stored inside the application JARs.
+
+## Application layout
+
+Installation and full-package updates share one layout. A versioned-thin desktop
+application is laid out as follows, and both products keep this structure with
+product-specific names and values only:
+
+| Path | Content |
+| --- | --- |
+| `Contents/app/<App>.cfg` (Linux/Windows: `<App>.cfg` beside the launcher) | jpackage launcher configuration, including the update signing key options |
+| `app/runtime/<main jar>` | Thin launcher JAR, `chat2db-community.jar` for Community |
+| `app/runtime/launch.json` | Bootstrap contract: main JAR, main class, loader path, required paths |
+| `app/runtime/lib/` | All runtime dependencies |
+| `app/runtime/dist/` | Frontend assets |
+| `app/tools/chat2db-bootstrap.jar` | Native launcher entry point |
+| `app/tools/chat2db-updater.jar` | Standalone update helper |
+| `app/version.json` | `version`, `releaseEpoch`, `buildSha` |
+
+Product differences that are expected: the application, launcher configuration
+and main JAR names, the dependency set, product-specific resource files, the
+product identifier, the update source URL and the signing key material. The
+packaging scripts reject a stray JAR in the jpackage input root, because
+jpackage copies that directory into the application and a leftover file would
+ship inside the installed application.
 
 Windows packages are signed in order: MSI, then its Inno EXE wrapper. macOS
 updates contain an archive captured from the signed application in the
