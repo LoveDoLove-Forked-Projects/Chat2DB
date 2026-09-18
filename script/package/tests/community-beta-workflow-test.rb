@@ -89,10 +89,20 @@ class CommunityBetaWorkflowTest < Minitest::Test
     assert_equal '5.3.799', values['native_version']
   end
 
-  def test_beta_tag_cannot_reach_stable_publish
-    values, status, _ = metadata('', event: 'push', ref: 'refs/tags/v5.3.7-beta.3')
-    refute status.success?
-    assert_empty values
+  def test_beta_tag_publishes_a_prerelease_on_the_beta_channel
+    values, status, error = metadata('', event: 'push', ref: 'refs/tags/v5.3.7-beta.3', source: '')
+    assert status.success?, error
+    assert_equal({'version' => '5.3.7-beta.3', 'native_version' => '5.3.703',
+                  'update_channel' => 'BETA', 'tag_name' => 'v5.3.7-beta.3',
+                  'channel' => 'beta', 'create_release' => 'true', 'publish' => 'false',
+                  'prerelease' => 'true', 'latest' => 'false'}, values)
+  end
+
+  def test_release_epoch_comes_from_the_annotated_tag_on_tag_pushes
+    step = RESOLVE['steps'].find { |candidate| candidate['id'] == 'update_metadata' }
+    assert_equal '${{ github.event_name }}', step['env']['EVENT_NAME']
+    assert_includes step['run'], 'if [ "${EVENT_NAME}" = "push" ]'
+    refute step['env'].key?('PUBLISH')
   end
 
   def test_source_is_resolved_once_and_helpers_stay_on_workflow_commit
