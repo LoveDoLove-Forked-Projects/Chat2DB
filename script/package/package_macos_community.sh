@@ -165,8 +165,6 @@ package_application() {
 
     echo "Running: jpackage ${args[*]}"
     jpackage "${args[@]}"
-
-    chat2db_verify_launcher_update_options "${OUTPUT_DIR}/${APP_NAME}.app"
 }
 
 validate_packaged_dmg() {
@@ -190,6 +188,11 @@ validate_packaged_dmg() {
     if [ -z "${app_dir}" ]; then
         cleanup_mount
         echo "Error: packaged app not found in DMG: ${APP_NAME}.app" >&2
+        exit 1
+    fi
+
+    if ! chat2db_verify_launcher_update_options "${app_dir}"; then
+        cleanup_mount
         exit 1
     fi
 
