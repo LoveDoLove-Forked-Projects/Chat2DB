@@ -20,9 +20,9 @@ import ai.chat2db.community.updater.v2.state.UpdatePreferencesStore;
 import ai.chat2db.community.updater.v2.model.UpdateTransaction;
 import ai.chat2db.community.updater.v2.transport.UpdateTransport;
 import ai.chat2db.community.updater.v2.installation.UpdateWorkspaceInitializer;
+import ai.chat2db.community.jcef.update.DesktopRestartSupport;
 import ai.chat2db.community.jcef.update.DesktopUpdateCheckResult;
 import ai.chat2db.community.jcef.update.IDesktopUpdater;
-import ai.chat2db.community.jcef.update.Updater;
 import ai.chat2db.community.jcef.utils.OSOperateUtil;
 import ai.chat2db.community.jcef.utils.SingleInstanceUtil;
 import ai.chat2db.community.tools.console.ConsoleResult;
@@ -260,7 +260,7 @@ public final class FullPackageDesktopUpdater implements IDesktopUpdater {
             auditLog.status(UpdateAuditLog.STATUS_PENDING, "HANDOFF", "helper process started");
             auditLog.critical("HANDOFF", "STARTED", "helper process started; application will exit");
             helperStarted = true;
-            Updater.getInstance().exitCurrentProcessAfterResponse();
+            DesktopRestartSupport.exitCurrentProcessAfterResponse();
             return true;
         } catch (Exception exception) {
             ensureAuditOperation();
@@ -286,12 +286,12 @@ public final class FullPackageDesktopUpdater implements IDesktopUpdater {
         if (helperStarted) {
             return false;
         }
-        return Updater.getInstance().prepareRestart();
+        return DesktopRestartSupport.prepareRestart();
     }
 
     @Override
     public void exitCurrentProcessAfterResponse() {
-        Updater.getInstance().exitCurrentProcessAfterResponse();
+        DesktopRestartSupport.exitCurrentProcessAfterResponse();
     }
 
     @Override
