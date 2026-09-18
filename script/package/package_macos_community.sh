@@ -150,6 +150,14 @@ package_application() {
         args+=("--java-options" "${opt}")
     done
 
+    local update_options
+    update_options=$(chat2db_update_java_options) || return 1
+    while IFS= read -r opt; do
+        if [ -n "${opt}" ]; then
+            args+=("--java-options" "${opt}")
+        fi
+    done <<< "${update_options}"
+
     args+=(
         "--mac-package-identifier" "${APP_IDENTIFIER}"
         "--mac-app-category" "public.app-category.developer-tools"
@@ -157,6 +165,8 @@ package_application() {
 
     echo "Running: jpackage ${args[*]}"
     jpackage "${args[@]}"
+
+    chat2db_verify_launcher_update_options "${OUTPUT_DIR}/${APP_NAME}.app"
 }
 
 validate_packaged_dmg() {
