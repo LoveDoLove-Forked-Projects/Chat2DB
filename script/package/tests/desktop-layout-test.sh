@@ -86,4 +86,29 @@ chat2db_verify_update_java_option_arguments \
     --java-options "-Dchat2db.update.public-key=dGVzdC1rZXk="
 unset CHAT2DB_UPDATE_KEY_ID CHAT2DB_UPDATE_PUBLIC_KEY_B64
 
+# Studio packaging scripts turn this helper's output into jpackage options, so keep
+# it callable and keep its output shape stable.
+CHAT2DB_UPDATE_KEY_ID='test-key'
+CHAT2DB_UPDATE_PUBLIC_KEY_B64='dGVzdC1rZXk='
+update_options=$(chat2db_update_java_options)
+test "$(printf '%s\n' "${update_options}" | wc -l | tr -d ' ')" = 2
+printf '%s\n' "${update_options}" | grep -qx -- '-Dchat2db.update.key-id=test-key'
+printf '%s\n' "${update_options}" | grep -qx -- '-Dchat2db.update.public-key=dGVzdC1rZXk='
+
+unset CHAT2DB_UPDATE_PUBLIC_KEY_B64
+if chat2db_update_java_options >/dev/null 2>&1; then
+    echo 'Update key id without a public key must fail option generation' >&2
+    exit 1
+fi
+
+CHAT2DB_UPDATE_PUBLIC_KEY_B64='dGVzdC1rZXk='
+unset CHAT2DB_UPDATE_KEY_ID
+if chat2db_update_java_options >/dev/null 2>&1; then
+    echo 'Update public key without a key id must fail option generation' >&2
+    exit 1
+fi
+
+unset CHAT2DB_UPDATE_KEY_ID CHAT2DB_UPDATE_PUBLIC_KEY_B64
+test -z "$(chat2db_update_java_options)"
+
 echo 'Shared desktop layout tests passed.'
