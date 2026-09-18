@@ -281,6 +281,46 @@ verify_flatlaf_runtime_dependency() {
   echo "[check] FlatLaf runtime dependency present: $(basename "${flatlaf_jar}")"
 }
 
+# A desktop that cannot read its own update signing key rejects every release
+# manifest, so packaging must fail instead of shipping an unconfigured key.
+verify_bundled_update_key() {
+  local jcef_jar
+  local extract_dir
+  local key_file
+
+  if [ -z "${UPDATE_KEY_ID}" ] && [ -z "${UPDATE_PUBLIC_KEY}" ]; then
+    echo "[check] update signing key not supplied; bundled key stays unconfigured"
+    return
+  fi
+  if [ -z "${UPDATE_KEY_ID}" ] || [ -z "${UPDATE_PUBLIC_KEY}" ]; then
+    echo "[error] COMMUNITY_UPDATE_KEY_ID and COMMUNITY_UPDATE_PUBLIC_KEY_B64 must be set together" >&2
+    exit 1
+  fi
+
+  jcef_jar=$(find "${COMMUNITY_LIB_DIR}" -maxdepth 1 \
+    -name 'chat2db-community-jcef-*.jar' -print -quit)
+  if [ -z "${jcef_jar}" ]; then
+    echo "[error] chat2db-community-jcef jar not found: ${COMMUNITY_LIB_DIR}" >&2
+    exit 1
+  fi
+
+  extract_dir=$(mktemp -d)
+  if ! (cd "${extract_dir}" && jar xf "${jcef_jar}" chat2db-community-update-keys.properties); then
+    rm -rf "${extract_dir}"
+    echo "[error] cannot read the bundled update key from ${jcef_jar}" >&2
+    exit 1
+  fi
+  key_file="${extract_dir}/chat2db-community-update-keys.properties"
+  if ! grep -Fxq "keyId=${UPDATE_KEY_ID}" "${key_file}" || \
+     ! grep -Fxq "publicKey=${UPDATE_PUBLIC_KEY}" "${key_file}"; then
+    rm -rf "${extract_dir}"
+    echo "[error] bundled update signing key is not substituted in ${jcef_jar}; keep the chat2db-community-update-keys.properties resource filtered" >&2
+    exit 1
+  fi
+  rm -rf "${extract_dir}"
+  echo "[check] bundled update signing key present: ${UPDATE_KEY_ID}"
+}
+
 zip_frontend_dist() {
   rm -f "${CLIENT_DIR}/dist.zip"
   if command -v zip >/dev/null 2>&1; then
@@ -317,6 +357,7 @@ stage_community_input() {
   require_file "${COMMUNITY_LIB_ZIP}"
   verify_jcef_i18n_resources
   verify_flatlaf_runtime_dependency
+  verify_bundled_update_key
 
   if [ "${SKIP_FRONTEND:-false}" != "true" ]; then
     echo "[run] build Community frontend"
