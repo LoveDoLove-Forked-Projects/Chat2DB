@@ -76,9 +76,11 @@ release, the workflow updates `release-index.json` on the `community-beta`
 prerelease. This channel release holds only the index; its manifests and
 packages continue to point to immutable versioned releases. Publication is
 serialized and rejects an older or conflicting release sequence.
-Beta-tag pushes are rejected before signing/publication. Numeric Stable tags
-retain the formal release path. Builds with `publish_release=false` do not
-change either update channel.
+Pushing an annotated Beta tag takes the same route: it creates a prerelease on
+the Beta channel, requires `release_epoch` in the tag annotation, and never
+moves the stable `latest` pointer or the Docker images, so only clients that
+enabled Beta updates can see it. Numeric Stable tags retain the formal release
+path. Builds with `publish_release=false` do not change either update channel.
 
 For separate source and helper checkouts, `COMMUNITY_SOURCE_DIR` points to the
 application checkout; by default the packaging scripts use their own repository.

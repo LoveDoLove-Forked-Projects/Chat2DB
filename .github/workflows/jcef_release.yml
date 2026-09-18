@@ -1,5 +1,5 @@
 name: Build Community Desktop Release
-run-name: Community Desktop ${{ github.event_name == 'push' && 'release' || 'beta' }} ${{ inputs.version || github.ref_name }}
+run-name: Community Desktop ${{ (github.event_name == 'workflow_dispatch' || contains(github.ref_name, '-beta.')) && 'beta' || 'release' }} ${{ inputs.version || github.ref_name }}
 
 on:
   push:
@@ -73,11 +73,7 @@ jobs:
               exit 1
             fi
             version="${REF_NAME#v}"
-            channel=release
-            create_release=true
-            publish=true
-            prerelease=false
-            latest=true
+            tag_push=true
           else
             if [ "${GITHUB_REF}" != "refs/heads/main" ]; then
               echo "Beta builds can only run from the protected main branch: ${GITHUB_REF}" >&2
@@ -88,11 +84,7 @@ jobs:
               exit 1
             fi
             version="${INPUT_VERSION}"
-            channel=beta
-            create_release="${PUBLISH_RELEASE}"
-            publish=false
-            prerelease=true
-            latest=false
+            tag_push=false
           fi
 
           native_version=$(bash script/package/community-version.sh "${version}")
@@ -103,13 +95,33 @@ jobs:
           fi
           update_channel=STABLE
           if [[ "${version}" == *-beta.* ]]; then update_channel=BETA; fi
-          if [ "${publish}" = true ] && [ "${update_channel}" != STABLE ]; then
-            echo 'Beta tags do not publish stable releases. Use a manual Beta build from main.' >&2
-            exit 1
-          fi
-          if [ "${publish}" = false ] && [ "${update_channel}" != BETA ]; then
-            echo 'Manual Beta builds require a version ending in -beta.N.' >&2
-            exit 1
+
+          # A Beta tag publishes a prerelease on the Beta channel, so only clients
+          # that opted into Beta updates can see it. A numeric tag stays the
+          # formal release route that updates the stable channel and Docker.
+          if [ "${tag_push}" = true ]; then
+            create_release=true
+            if [ "${update_channel}" = BETA ]; then
+              channel=beta
+              publish=false
+              prerelease=true
+              latest=false
+            else
+              channel=release
+              publish=true
+              prerelease=false
+              latest=true
+            fi
+          else
+            if [ "${update_channel}" != BETA ]; then
+              echo 'Manual Beta builds require a version ending in -beta.N.' >&2
+              exit 1
+            fi
+            channel=beta
+            create_release="${PUBLISH_RELEASE}"
+            publish=false
+            prerelease=true
+            latest=false
           fi
 
           {
@@ -135,12 +147,12 @@ jobs:
         id: update_metadata
         shell: bash
         env:
+          EVENT_NAME: ${{ github.event_name }}
           TAG_NAME: ${{ steps.metadata.outputs.tag_name }}
-          PUBLISH: ${{ steps.metadata.outputs.publish }}
           INPUT_EPOCH: ${{ inputs.release_epoch }}
         run: |
           set -euo pipefail
-          if [ "${PUBLISH}" = true ]; then
+          if [ "${EVENT_NAME}" = "push" ]; then
             test "$(git cat-file -t "refs/tags/${TAG_NAME}")" = tag
             epoch=$(git for-each-ref "refs/tags/${TAG_NAME}" --format='%(contents)' | sed -n 's/^release_epoch: *//p')
           else

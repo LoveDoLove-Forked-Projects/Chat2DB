@@ -10,31 +10,34 @@ depend on what is already published stay a human responsibility.
 | Path | How it starts | Update channel | GitHub Release |
 | --- | --- | --- | --- |
 | Stable | Push an annotated `v<version>` tag | `STABLE` | Published and marked as the repository `latest` release |
-| Beta | Manual *Build Community Desktop Release* run from `main` | `BETA` | Only with `publish_release`, always as a prerelease with `latest=false` |
+| Beta | Push an annotated `v<version>-beta.<n>` tag, or run *Build Community Desktop Release* from `main` | `BETA` | A prerelease with `latest=false`; the manual run needs `publish_release=true` |
 
-A pushed tag always resolves to `channel=release`, `publish=true` and
-`latest=true`, so a Beta version cannot be released by pushing a tag: the run is
-rejected with `Beta tags do not publish stable releases. Use a manual Beta build
-from main.` Beta packages are produced by the manual run instead, and the manual
-run requires a version ending in `-beta.N` (`Manual Beta builds require a
-version ending in -beta.N.`) started from the protected `main` branch.
+A tag push creates the release itself: a numeric tag takes the Stable channel
+and the repository `latest` pointer, a `-beta.N` tag resolves to `channel=beta`,
+`prerelease=true`, `latest=false` and `publish=false`, so it creates a
+prerelease, leaves the stable index and the Docker images untouched, and only
+reaches clients that enabled Beta updates. Both tag routes require the annotated
+`release_epoch:` line. The manual run is the alternative for artwork-only
+builds: it requires `-beta.N` (`Manual Beta builds require a version ending in
+-beta.N.`) and the protected `main` branch, and publishes only with
+`publish_release=true`.
 
 ## Tag names
 
 - Stable: `v<major>.<minor>.<patch>`, for example `v5.3.7`. The major version
   must be at least 4; older numbers are rejected.
-- Beta source record: `v<major>.<minor>.<patch>-beta.<n>`, for example
-  `v5.3.7-beta.3`. Do not push it: a tag push starts the stable path and is
-  rejected. The manual run takes its code from `source_ref`, which must name a
-  branch, tag or commit that exists on the remote, so reference `main` or a
-  reviewed commit. When a Beta run publishes a prerelease it creates this tag on
-  the built commit itself (`gh release create` without `--verify-tag`), and that
-  API-created tag does not start another workflow run.
-- Beta build record: `<beta source record>-build.<n>`, for example
+- Beta: `v<major>.<minor>.<patch>-beta.<n>`, for example `v5.3.7-beta.3`. Push it
+  to publish the Beta prerelease and to update the Beta channel index. The manual
+  run builds the same version from `source_ref`, which must name a branch, tag or
+  commit that exists on the remote, so reference `main` or a reviewed commit.
+  When a manual run creates the release itself, it creates this tag on the built
+  commit (`gh release create` without `--verify-tag`), and that API-created tag
+  does not start another workflow run.
+- Beta build record: `<beta tag>-build.<n>`, for example
   `v5.3.7-beta.3-build.3`. It records which workflow commit produced a build and
   is created outside the workflow.
-- Stable releases use `--verify-tag`, so the annotated tag must exist on the
-  remote before the run creates the release.
+- A tag push always has its tag, so the release is created from it. A manual run
+  without an existing tag relies on `--target` instead.
 
 ## Required annotation
 
@@ -122,8 +125,9 @@ prevents the move, so publish each stable tag once.
 
 - The tag name starts with `v` and the major version is at least 4.
 - The tag is annotated and carries a positive `release_epoch:`.
-- A tag-triggered run publishes a stable, `latest` release; Beta versions are
-  rejected on that path.
+- A tag push derives its channel from the version: numeric tags publish a stable,
+  `latest` release on the Stable channel, `-beta.N` tags publish a prerelease on
+  the Beta channel and update the Beta index.
 - A manual run starts from `main`, needs an explicit `source_ref` and a
   `-beta.N` version, and never updates the stable `latest` pointer.
 - Every release carries exactly nine manifests (macOS arm64/x64, Windows x64,
