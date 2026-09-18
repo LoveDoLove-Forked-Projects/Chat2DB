@@ -21,7 +21,6 @@ import ai.chat2db.community.updater.v2.model.UpdateTransaction;
 import ai.chat2db.community.updater.v2.transport.UpdateTransport;
 import ai.chat2db.community.updater.v2.installation.UpdateWorkspaceInitializer;
 import ai.chat2db.community.jcef.update.DesktopUpdateCheckResult;
-import ai.chat2db.community.jcef.update.DesktopUpdateRecoveryStatus;
 import ai.chat2db.community.jcef.update.IDesktopUpdater;
 import ai.chat2db.community.jcef.update.Updater;
 import ai.chat2db.community.jcef.utils.OSOperateUtil;
@@ -311,16 +310,6 @@ public final class FullPackageDesktopUpdater implements IDesktopUpdater {
     @Override
     public synchronized boolean isBetaEnabled() {
         return preferencesStore.load().receiveBeta();
-    }
-
-    @Override
-    public DesktopUpdateRecoveryStatus recoveryStatus() {
-        return DesktopUpdateRecoveryStatus.none();
-    }
-
-    @Override
-    public boolean openRecoveryLog() {
-        return false;
     }
 
     private UpdateTransaction transition(UpdateTransaction transaction, UpdatePhaseEnum phase) {
