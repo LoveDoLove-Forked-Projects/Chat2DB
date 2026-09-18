@@ -33,7 +33,9 @@ release_epoch: 1
 
 Choose a sequence greater than the last published Community release. Include
 the source commit and release inputs in the annotation so the build is
-reproducible. Tag-triggered builds publish only after every platform's packages
+reproducible. `docs/guides/community-release-tags.md` documents the tag names,
+the full annotation template and how to read the published epochs before
+tagging. Tag-triggered builds publish only after every platform's packages
 and the Docker job succeed. Manual builds use the explicit `release_epoch`
 workflow input and upload Actions artifacts without publishing a Release.
 
