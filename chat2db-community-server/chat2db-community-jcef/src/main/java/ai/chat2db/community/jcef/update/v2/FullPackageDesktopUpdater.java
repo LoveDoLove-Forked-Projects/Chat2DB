@@ -164,6 +164,7 @@ public final class FullPackageDesktopUpdater implements IDesktopUpdater {
             transaction = transition(transaction, UpdatePhaseEnum.DOWNLOADING);
             Path packageFile = layout.cachedPackage(manifest.packageType());
             lastLoggedProgressBucket = -1;
+            progressReporter.reset();
             auditLog.critical("DOWNLOADING", "REQUEST",
                 "url=" + UpdateAuditLog.auditUrl(manifest.packageUrl())
                     + " expectedBytes=" + manifest.packageSize()
