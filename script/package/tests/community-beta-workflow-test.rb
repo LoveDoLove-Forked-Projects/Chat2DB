@@ -103,6 +103,13 @@ class CommunityBetaWorkflowTest < Minitest::Test
     assert_equal '${{ github.event_name }}', step['env']['EVENT_NAME']
     assert_includes step['run'], 'if [ "${EVENT_NAME}" = "push" ]'
     refute step['env'].key?('PUBLISH')
+    # Checkout replaces the annotated tag object with the tagged commit, so the
+    # tag ref must be fetched again before its type and annotation are read.
+    fetch_index = step['run'].index('git fetch --force origin "refs/tags/${TAG_NAME}:refs/tags/${TAG_NAME}"')
+    cat_file_index = step['run'].index('git cat-file -t "refs/tags/${TAG_NAME}"')
+    refute_nil fetch_index
+    refute_nil cat_file_index
+    assert_operator fetch_index, :<, cat_file_index
   end
 
   def test_source_is_resolved_once_and_helpers_stay_on_workflow_commit
