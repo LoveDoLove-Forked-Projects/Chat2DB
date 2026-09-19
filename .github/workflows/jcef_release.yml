@@ -824,10 +824,37 @@ jobs:
             gh release edit "${TAG_NAME}" --draft=false --latest
           fi
           test "$(gh release view "${TAG_NAME}" --json isDraft --jq '.isDraft')" = "false"
-      - name: Publish Beta update index
+      - name: Update Beta channel pointer
         if: ${{ needs.resolve.outputs.channel == 'beta' }}
+        shell: bash
         env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-          BUILD_SHA: ${{ needs.resolve.outputs.build_sha }}
-        run: bash script/package/publish_beta_update_index.sh release-assets/release-index.json "${BUILD_SHA}"
+          VERSION: ${{ needs.resolve.outputs.version }}
+          CHANNEL_BRANCH: community-beta-index
+        run: |
+          set -euo pipefail
+          test -s release-assets/release-index.json
+
+          # A published release cannot have its assets replaced, so the Beta channel pointer
+          # lives on a machine-owned branch that this workflow appends to.
+          tip=""
+          if git fetch --quiet origin "refs/heads/${CHANNEL_BRANCH}"; then
+            tip=$(git rev-parse FETCH_HEAD)
+          fi
+
+          blob=$(git hash-object -w release-assets/release-index.json)
+          tree=$(printf '100644 blob %s\trelease-index.json\n' "${blob}" | git mktree)
+          if [ -n "${tip}" ] && [ "$(git rev-parse "${tip}^{tree}")" = "${tree}" ]; then
+            echo "Beta channel pointer already carries ${VERSION}; nothing to publish."
+            exit 0
+          fi
+
+          commit_args=(-m "chore(beta): publish ${VERSION} update index")
+          if [ -n "${tip}" ]; then
+            commit_args+=(-p "${tip}")
+          fi
+          commit=$(git \
+            -c user.name='github-actions[bot]' \
+            -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            commit-tree "${tree}" "${commit_args[@]}")
+          git push origin "${commit}:refs/heads/${CHANNEL_BRANCH}"
+          echo "Published Beta channel pointer for ${VERSION}: ${commit}"
