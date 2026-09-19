@@ -140,15 +140,20 @@ class CommunityBetaWorkflowTest < Minitest::Test
     end
   end
 
-  def test_beta_index_is_published_only_after_the_version_release
+  def test_beta_channel_pointer_is_appended_after_the_version_release
     publish = WORKFLOW['jobs']['publish_release']
     steps = publish['steps']
     release = steps.index { |step| step['name'] == 'Publish validated Release' }
-    index = steps.index { |step| step['name'] == 'Publish Beta update index' }
-    assert_operator index, :>, release
-    assert_equal "${{ needs.resolve.outputs.channel == 'beta' }}", steps[index]['if']
+    pointer = steps.index { |step| step['name'] == 'Update Beta channel pointer' }
+    assert_operator pointer, :>, release
+    assert_equal "${{ needs.resolve.outputs.channel == 'beta' }}", steps[pointer]['if']
     assert_equal false, publish['concurrency']['cancel-in-progress']
     assert_includes publish['concurrency']['group'], 'needs.resolve.outputs.channel'
+    assert_equal 'community-beta-index', steps[pointer]['env']['CHANNEL_BRANCH']
+    refute_includes steps[pointer]['run'], '--force'
+    # A published release is immutable, so the workflow must never delete one.
+    commands = publish['steps'].map { |step| step['run'] }.compact.join("\n")
+    refute_includes commands, 'gh release delete'
   end
 
   def test_publish_release_is_a_boolean_dispatch_input

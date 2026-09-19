@@ -3,7 +3,7 @@
 Community desktop checks the stable index at
 `https://github.com/OtterMind/Chat2DB/releases/latest/download/release-index.json`.
 When **Receive Beta versions** is enabled, it also checks
-`https://github.com/OtterMind/Chat2DB/releases/download/community-beta/release-index.json`
+`https://raw.githubusercontent.com/OtterMind/Chat2DB/community-beta-index/release-index.json`
 and selects the highest eligible Stable or Beta version. The preference is off
 by default and is saved across restarts.
 Each signed manifest points to a full package attached to the same versioned
@@ -72,13 +72,16 @@ Manual Beta runs create a GitHub Pre-release with the installers and update
 resources after all platform jobs pass. They do not publish Docker images or
 stable/latest pointers. The release is explicitly marked prerelease and does
 not become the stable Community update source. After publishing the versioned
-release, the workflow updates `release-index.json` on the `community-beta`
-prerelease. This channel release holds only the index; its manifests and
-packages continue to point to immutable versioned releases. Publication is
-serialized and rejects an older or conflicting release sequence.
-Pushing an annotated Beta tag takes the same route: it creates a prerelease on
-the Beta channel, requires `release_epoch` in the tag annotation, and never
-moves the stable `latest` pointer or the Docker images, so only clients that
+release, the workflow appends `release-index.json` to the `community-beta-index`
+branch, which is the Beta channel pointer. A published release cannot have its
+assets replaced, so that branch is the only mutable part of the channel; the
+versioned release itself stays immutable. The branch is machine-owned: only the
+release workflow writes it, it is never merged into `main`, and it is never
+reviewed. A run whose index is already on the branch makes no commit. The
+workflow appends commits (no force-push) and fails when the pointer cannot be
+updated. Pushing an annotated Beta tag takes the same route: it creates a
+prerelease on the Beta channel, requires `release_epoch` in the tag annotation,
+and never moves the stable `latest` pointer or the Docker images, so only clients that
 enabled Beta updates can see it. Numeric Stable tags retain the formal release
 path. Builds with `publish_release=false` do not change either update channel.
 

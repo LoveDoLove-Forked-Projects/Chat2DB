@@ -104,7 +104,7 @@ annotation:
 
 ```bash
 curl -fsSL https://github.com/OtterMind/Chat2DB/releases/latest/download/release-index.json | jq .releaseEpoch
-curl -fsSL https://github.com/OtterMind/Chat2DB/releases/download/community-beta/release-index.json | jq .releaseEpoch
+curl -fsSL https://raw.githubusercontent.com/OtterMind/Chat2DB/community-beta-index/release-index.json | jq .releaseEpoch
 ```
 
 Pick a value greater than every published epoch and greater than the epoch of the
@@ -120,6 +120,28 @@ publishing marks the tag as `latest`, which moves both
 `releases/latest/download/release-index.json` and the download entry point back to
 the older release. Clients on a newer epoch skip that index, but nothing else
 prevents the move, so publish each stable tag once.
+
+The Stable channel pointer is GitHub's own `latest` marker, so every Stable
+release carries its index already. The Beta channel needs a pointer that changes
+on every release, which a published release cannot provide, so the Beta index
+lives on the machine-owned `community-beta-index` branch and is appended by the
+release workflow. This has consequences for anyone touching tags or releases:
+
+- **Never delete a release or a tag.** A published release is immutable, and
+  GitHub keeps its tag name reserved afterwards, so the name can never be used
+  again. One Community Beta channel was lost this way; the reserved name stays
+  unusable even after release immutability is disabled.
+- **The workflow token cannot create tags.** The `release-tags-owner-only`
+  ruleset restricts `refs/tags/**` creation, updates, and deletions to one team.
+  A release must therefore be created on a tag that already exists.
+- **The Beta index is published after the versioned release.** The workflow
+  appends the index to `community-beta-index`; the branch is never merged into
+  `main` and never reviewed.
+- **Stable `release_epoch` must exceed every published epoch.** Clients ignore an
+  index whose epoch is not greater than the installed one, so a Stable release
+  that reuses an epoch is invisible to desktops already on it. After the first
+  Beta shipped with epoch `1`, the next Stable tag needs `release_epoch: 2` or
+  higher.
 
 ## What the workflow checks
 
