@@ -33,13 +33,18 @@ class UpdateHelperMainTest {
     Path temporaryDirectory;
 
     @AfterEach
-    void awaitNormalCandidateExitBeforeDeletingItsWorkingDirectory() throws Exception {
+    void awaitSpawnedApplicationsExitBeforeDeletingTheWorkingDirectory() throws Exception {
         Path pidFile = temporaryDirectory.resolve("success-install/normal.pid");
         if (Files.isRegularFile(pidFile)) {
             ProcessHandle process = ProcessHandle.of(Long.parseLong(Files.readString(pidFile))).orElse(null);
             if (process != null) {
                 process.onExit().get(10, java.util.concurrent.TimeUnit.SECONDS);
             }
+        }
+        // A relaunched application uses the install target as its working directory, and Windows
+        // cannot delete a directory that a running process still uses.
+        for (ProcessHandle descendant : ProcessHandle.current().descendants().toList()) {
+            descendant.onExit().get(10, java.util.concurrent.TimeUnit.SECONDS);
         }
     }
 
