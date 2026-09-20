@@ -1,12 +1,15 @@
 package ai.chat2db.plugin.oracle.parser;
 
 import ai.chat2db.plugin.oracle.parser.base.PlSqlLexer;
+import ai.chat2db.spi.constant.SQLConstants;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.Token;
 import org.apache.commons.lang3.StringUtils;
 
 import java.util.List;
+
+import static ai.chat2db.plugin.oracle.constant.OracleExplainConstants.*;
 
 /**
  * Recognizes the Oracle {@code EXPLAIN PLAN} command and extracts the statement
@@ -18,12 +21,6 @@ import java.util.List;
  * the PL/SQL lexer instead of being rewritten with text patterns.
  */
 public final class OracleExplainParser {
-
-    private static final String EXPLAIN_KEYWORD = "EXPLAIN";
-    private static final String PLAN_KEYWORD = "PLAN";
-    private static final String FOR_KEYWORD = "FOR";
-    private static final String INTO_KEYWORD = "INTO";
-    private static final String STATEMENT_DELIMITER = ";";
 
     private OracleExplainParser() {
     }
@@ -81,7 +78,7 @@ public final class OracleExplainParser {
         }
         String explainedSql = sql.substring(tokens.get(firstTokenIndex).getStartIndex(),
                 tokens.get(lastTokenIndex).getStopIndex() + 1).trim();
-        if (explainedSql.endsWith(STATEMENT_DELIMITER)) {
+        if (explainedSql.endsWith(SQLConstants.SEMICOLON)) {
             explainedSql = explainedSql.substring(0, explainedSql.length() - 1).trim();
         }
         return StringUtils.isBlank(explainedSql) ? null : explainedSql;

@@ -18,6 +18,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import static ai.chat2db.plugin.oracle.constant.OracleExplainConstants.*;
+
 /**
  * Runs Oracle {@code EXPLAIN PLAN} and reads the resulting plan.
  *
@@ -26,16 +28,6 @@ import java.util.UUID;
  * separate query that renders those rows through {@code DBMS_XPLAN}.
  */
 final class OracleExplainClient {
-
-    private static final String PLAN_TABLE = "PLAN_TABLE";
-    private static final String PLAN_TABLE_PROBE_SQL = "SELECT 1 FROM " + PLAN_TABLE + " WHERE ROWNUM = 1";
-    private static final String EXPLAIN_PLAN_SQL =
-            "EXPLAIN PLAN SET STATEMENT_ID = '%s' INTO " + PLAN_TABLE + " FOR ";
-    private static final String DISPLAY_PLAN_SQL =
-            "SELECT PLAN_TABLE_OUTPUT FROM TABLE(DBMS_XPLAN.DISPLAY('" + PLAN_TABLE + "', ?, 'TYPICAL'))";
-    private static final String PLAN_ERROR_PREFIX = "Error:";
-    private static final String STATEMENT_ID_PREFIX = "CHAT2DB_";
-    private static final int STATEMENT_ID_MAX_LENGTH = 30;
 
     ExecuteResponse explain(Connection connection, String explainedSql, ExecutionContext executionContext)
             throws SQLException {
