@@ -27,12 +27,12 @@ public final class TelemetryStore {
         this.file = file;
     }
 
-    public synchronized String deviceId(String platformLabel) {
+    public synchronized String deviceId() {
         State state = read();
         if (state.deviceId() != null && !state.deviceId().isBlank()) {
             return state.deviceId();
         }
-        String deviceId = DeviceIdProvider.resolve(platformLabel);
+        String deviceId = DeviceIdProvider.resolve();
         write(new State(deviceId, state.cache()));
         return deviceId;
     }

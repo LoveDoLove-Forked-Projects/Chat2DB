@@ -77,9 +77,15 @@ public final class UsageTelemetryReporter implements TelemetrySink {
     /** Synchronous send, package private so tests can exercise it without the executor. */
     void send(Report report) {
         try {
-            String deviceId = store.deviceId(report.platformLabel());
+            String deviceId = store.deviceId();
             if (identified.compareAndSet(false, true)) {
-                post(TelemetryPayloads.identify(deviceId, report.language(), identityData(report)), report);
+                try {
+                    post(TelemetryPayloads.identify(deviceId, report.language(), identityData(report)), report);
+                } catch (Exception exception) {
+                    // A failed identify has to be retried, otherwise this process never links its device.
+                    identified.set(false);
+                    throw exception;
+                }
             }
             String tag = productTag(report);
             post(TelemetryPayloads.pageView(report.language(), tag, report.data()), report);

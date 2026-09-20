@@ -38,19 +38,19 @@ public final class DeviceIdProvider {
     private DeviceIdProvider() {
     }
 
-    public static String resolve(String platformLabel) {
+    public static String resolve() {
         String machineId = readMachineId();
         if (machineId == null || machineId.isBlank()) {
             return randomId();
         }
-        return derive(platformLabel, machineId);
+        return derive(machineId);
     }
 
-    static String derive(String platformLabel, String machineId) {
+    /** One machine, one device id: Community, Pro and Local on the same machine report the same value. */
+    static String derive(String machineId) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] value = (SALT + platformLabel + "\n" + machineId.trim().toLowerCase(Locale.ROOT))
-                .getBytes(StandardCharsets.UTF_8);
+            byte[] value = (SALT + machineId.trim().toLowerCase(Locale.ROOT)).getBytes(StandardCharsets.UTF_8);
             return MACHINE_PREFIX + HexFormat.of().formatHex(digest.digest(value));
         } catch (NoSuchAlgorithmException exception) {
             return randomId();

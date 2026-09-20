@@ -53,10 +53,13 @@ public final class DesktopUsageTelemetry {
             data.put("channel", betaChannel ? "BETA" : "STABLE");
             data.put("platform", platformLabel);
             data.put("arch", archLabel(RuntimePlatformDetector.architecture()));
-            data.put("osVersion", platformLabel + " " + System.getProperty("os.version", ""));
+            String osVersion = System.getProperty("os.version", "").trim();
+            data.put("osVersion", osVersion.isEmpty() ? platformLabel : platformLabel + " " + osVersion);
             data.put("locale", locale.toLanguageTag());
             data.put("timezone", ZoneId.systemDefault().getId());
-            data.put("region", locale.getCountry());
+            if (!locale.getCountry().isBlank()) {
+                data.put("region", locale.getCountry());
+            }
             data.put("activityDate", LocalDate.now().toString());
             data.put("activityHour", LocalTime.now().getHour());
             data.put("trigger", trigger.wireName());

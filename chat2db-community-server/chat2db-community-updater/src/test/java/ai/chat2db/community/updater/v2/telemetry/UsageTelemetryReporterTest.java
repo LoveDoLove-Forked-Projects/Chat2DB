@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -52,7 +53,31 @@ class UsageTelemetryReporterTest {
         assertFalse(sent.get(0).headers().containsKey("x-umami-cache"));
         assertEquals("cache-1", store.cache());
         assertEquals("cache-1", sent.get(2).headers().get("x-umami-cache"));
-        assertTrue(store.deviceId("macOS").startsWith("d1_") || store.deviceId("macOS").startsWith("r1_"));
+        assertTrue(store.deviceId().startsWith("d1_") || store.deviceId().startsWith("r1_"));
+    }
+
+    @Test
+    void identifyIsRetriedAfterAFailedAttempt() throws Exception {
+        List<Sent> sent = new ArrayList<>();
+        AtomicInteger attempts = new AtomicInteger();
+        TelemetryStore store = new TelemetryStore(temporaryDirectory.resolve("telemetry.json"));
+        UsageTelemetryReporter reporter = new UsageTelemetryReporter(store, (url, headers, body) -> {
+            sent.add(new Sent(url, headers, body));
+            if (attempts.incrementAndGet() == 1) {
+                throw new IllegalStateException("offline");
+            }
+            return new UsageTelemetryReporter.Response(200, "{}");
+        });
+
+        reporter.send(report());
+        reporter.send(report());
+
+        List<String> types = new ArrayList<>();
+        for (Sent request : sent) {
+            types.add(OBJECT_MAPPER.readTree(request.body()).path("type").asText());
+        }
+        assertEquals(List.of("identify", "identify", "event", "event"), types,
+            "the next report has to link the device again after a failed identify");
     }
 
     @Test

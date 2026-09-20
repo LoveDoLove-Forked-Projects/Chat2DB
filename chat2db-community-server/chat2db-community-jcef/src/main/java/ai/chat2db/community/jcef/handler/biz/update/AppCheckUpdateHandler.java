@@ -32,15 +32,15 @@ public class AppCheckUpdateHandler implements IJcefActionHandler {
                 ), callback);
     }
 
-    /**
-     * Reports the usage event that rides along this update check. Reporting is best effort: it must not
-     * change the update check response, so every failure is contained here.
-     */
     /** The updater owns the version file layout: {@code <app>/version.json}. */
     private String installedVersion() {
         return DesktopUpdaterRegistry.get().installedVersion();
     }
 
+    /**
+     * Reports the usage event that rides along this update check. Reporting is best effort: it must not
+     * change the update check response, so every failure is contained here.
+     */
     private void reportUsageCheck(DesktopUpdateCheckContext context, DesktopUpdateCheckResult checkResult) {
         try {
             DesktopUsageTelemetry.get().reportCheck(context.trigger(), context.offlineActivation(),
