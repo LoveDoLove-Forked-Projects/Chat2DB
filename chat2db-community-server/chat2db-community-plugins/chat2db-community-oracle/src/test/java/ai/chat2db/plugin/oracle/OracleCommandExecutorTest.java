@@ -156,11 +156,6 @@ class OracleCommandExecutorTest {
         assertTrue(failure.getMessage().contains("no readable plan"));
     }
 
-    private static List<ExecuteResponse> executeMulti(String sql, FakeOracle oracle) throws SQLException {
-        return OracleCommandExecutor.INSTANCE.executeMulti(new SimpleSqlStatement(sql), oracle.connection(), false,
-                null, null, null, null);
-    }
-
     @Test
     void streamingExplainShouldPublishThePlanRowsOnce() throws Exception {
         FakeOracle oracle = new FakeOracle();
@@ -179,6 +174,11 @@ class OracleCommandExecutorTest {
         // Row numbering is added by the streaming publish, so the plan sits in the second column.
         assertEquals("1", consumer.receivedRows.get(0).get(0).getValue());
         assertEquals("| Id | Operation |", consumer.receivedRows.get(0).get(1).getValue());
+    }
+
+    private static List<ExecuteResponse> executeMulti(String sql, FakeOracle oracle) throws SQLException {
+        return OracleCommandExecutor.INSTANCE.executeMulti(new SimpleSqlStatement(sql), oracle.connection(), false,
+                null, null, null, null);
     }
 
     private static final class CapturingResultConsumer implements ISqlExecutionResultConsumer {
