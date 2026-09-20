@@ -26,6 +26,7 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.DataInputStream;
+import java.io.IOException;
 import java.io.DataOutputStream;
 import java.lang.reflect.Field;
 import java.net.Socket;
@@ -43,10 +44,14 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class FullPackageDesktopUpdaterTest {
@@ -106,6 +111,60 @@ class FullPackageDesktopUpdaterTest {
         assertTrue(audit.contains("event=START"));
         assertTrue(audit.contains("event=SELECTED"));
         assertFalse(audit.contains("event=SUPPRESSED"));
+    }
+
+    @Test
+    void fallsBackToADirectHelperProcessWhenTheAgentCannotBeLoaded() throws Exception {
+        AtomicBoolean directStarted = new AtomicBoolean();
+        AtomicReference<String> reported = new AtomicReference<>();
+
+        Runnable cleanup = FullPackageDesktopUpdater.withDirectFallback(
+            () -> {
+                throw new IllegalStateException("Cannot load the update helper agent: exit=5");
+            },
+            () -> {
+                directStarted.set(true);
+                return null;
+            },
+            failure -> reported.set(failure.getMessage()));
+
+        assertNull(cleanup);
+        assertTrue(directStarted.get(), "a device where launchd refuses the agent must keep updating");
+        assertEquals("Cannot load the update helper agent: exit=5", reported.get());
+    }
+
+    @Test
+    void keepsTheAgentHelperWhenTheAgentLoads() throws Exception {
+        AtomicBoolean directStarted = new AtomicBoolean();
+        Runnable abort = () -> directStarted.set(true);
+
+        Runnable cleanup = FullPackageDesktopUpdater.withDirectFallback(
+            () -> abort,
+            () -> {
+                directStarted.set(true);
+                return null;
+            },
+            failure -> { });
+
+        assertSame(abort, cleanup);
+        assertFalse(directStarted.get(), "the fallback must not run when the agent loaded");
+    }
+
+    @Test
+    void reportsWhenBothLaunchPathsFail() {
+        IllegalStateException failure = assertThrows(IllegalStateException.class,
+            () -> FullPackageDesktopUpdater.withDirectFallback(
+                () -> {
+                    throw new IllegalStateException("agent failed");
+                },
+                () -> {
+                    throw new IOException("direct failed");
+                },
+                reported -> { }));
+
+        assertEquals("Cannot start the update helper", failure.getMessage());
+        assertEquals("direct failed", failure.getCause().getMessage());
+        assertEquals("agent failed", failure.getCause().getSuppressed()[0].getMessage());
     }
 
     @Test

@@ -415,15 +415,61 @@ public final class FullPackageDesktopUpdater implements IDesktopUpdater {
      */
     private Runnable startHelperProcess(List<String> helperCommand, Path workDirectory, Path stdout,
             Path stderr, String transactionId) throws Exception {
-        if (RuntimePlatformDetector.platform() == UpdatePlatformEnum.MACOS) {
-            return startHelperAsLaunchAgent(helperCommand, workDirectory, stdout, stderr, transactionId);
+        if (RuntimePlatformDetector.platform() != UpdatePlatformEnum.MACOS) {
+            startHelperDirectly(helperCommand, workDirectory, stdout);
+            return null;
         }
+        return withDirectFallback(
+            () -> startHelperAsLaunchAgent(helperCommand, workDirectory, stdout, stderr, transactionId),
+            () -> {
+                startHelperDirectly(helperCommand, workDirectory, stdout);
+                return null;
+            },
+            agentFailure -> auditLog.warn("HANDOFF", "AGENT_FALLBACK",
+                failureMessage(agentFailure) + "; starting the helper directly instead"));
+    }
+
+    private void startHelperDirectly(List<String> helperCommand, Path workDirectory, Path stdout)
+            throws IOException {
         new ProcessBuilder(helperCommand)
             .directory(workDirectory.toFile())
             .redirectErrorStream(true)
             .redirectOutput(stdout.toFile())
             .start();
-        return null;
+    }
+
+    /**
+     * Uses the launch agent when it can be loaded and falls back to starting the
+     * helper directly. A device where launchd refuses the agent (restricted
+     * session, managed policy) then keeps the previous behaviour instead of
+     * losing the update, and the handoff still waits for the helper to
+     * acknowledge, so a helper that dies with the application fails visibly.
+     */
+    static Runnable withDirectFallback(HelperLaunch agentLaunch, HelperLaunch directLaunch,
+            java.util.function.Consumer<Exception> onFallback) {
+        try {
+            return agentLaunch.start();
+        } catch (Exception agentFailure) {
+            try {
+                onFallback.accept(agentFailure);
+            } catch (RuntimeException ignored) {
+                // Reporting the fallback must not prevent the fallback itself.
+            }
+            try {
+                return directLaunch.start();
+            } catch (Exception directFailure) {
+                directFailure.addSuppressed(agentFailure);
+                throw new IllegalStateException("Cannot start the update helper", directFailure);
+            }
+        }
+    }
+
+    private void discardAgent(MacLaunchAgentHandoff handoff, String transactionId) {
+        try {
+            handoff.bootout(transactionId);
+        } catch (Exception bootoutFailure) {
+            auditLog.warn("HANDOFF", "ABORT_FAILED", failureMessage(bootoutFailure));
+        }
     }
 
     private void abortHelper(Runnable helperAbort) {
@@ -452,6 +498,7 @@ public final class FullPackageDesktopUpdater implements IDesktopUpdater {
                 + " agent=" + handoff.agentFile(transactionId)
                 + " stdout=" + stdout);
         if (bootstrapExit != 0) {
+            discardAgent(handoff, transactionId);
             throw new IllegalStateException("Cannot load the update helper agent: exit=" + bootstrapExit);
         }
         return () -> {
@@ -468,6 +515,12 @@ public final class FullPackageDesktopUpdater implements IDesktopUpdater {
      * Starts the prepared helper. The handoff owns the wait for the helper's
      * acknowledgement, so a starter that cannot be observed is a failed handoff.
      */
+    /** A launch attempt that either returns a cleanup action or throws. */
+    @FunctionalInterface
+    interface HelperLaunch {
+        Runnable start() throws Exception;
+    }
+
     interface HelperStarter {
         /**
          * @return an action that unloads a helper that never acknowledged, or

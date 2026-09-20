@@ -178,7 +178,11 @@ On macOS the helper is loaded as a per-transaction LaunchAgent
 `AbandonProcessGroup`. A helper spawned as a plain child of the application is
 reclaimed together with the application, which exits right after the handoff
 while the helper JVM is still starting, and `AbandonProcessGroup` keeps the
-relaunched application alive once the helper exits.
+relaunched application alive once the helper exits. When launchd refuses the
+agent, for example in a restricted session or under a managed policy, the
+handoff falls back to starting the helper directly and records
+`stage=HANDOFF event=AGENT_FALLBACK`; such a device keeps the previous
+behaviour instead of losing the update.
 
 Before the switch the installed package is moved aside to
 `<install target>.chat2db-previous` on the same volume, so the switch no longer
