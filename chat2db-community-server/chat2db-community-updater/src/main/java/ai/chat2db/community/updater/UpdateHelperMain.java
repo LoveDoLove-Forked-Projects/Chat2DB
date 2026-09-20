@@ -83,7 +83,7 @@ public final class UpdateHelperMain {
         }
         try {
             Path home = Path.of(System.getProperty("user.home"));
-            if (MacLaunchAgentHandoff.removeAgentFile(home, plan.transactionId())) {
+            if (MacLaunchAgentHandoff.removeAgentFile(home, plan.product())) {
                 audit.warn("HANDOFF", "AGENT_REMOVED", "the update helper agent was removed");
             }
         } catch (Exception agentRemovalFailure) {

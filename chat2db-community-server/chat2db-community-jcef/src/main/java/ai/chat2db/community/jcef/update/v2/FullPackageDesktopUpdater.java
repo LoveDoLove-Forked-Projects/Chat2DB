@@ -268,7 +268,7 @@ public final class FullPackageDesktopUpdater implements IDesktopUpdater {
             Path auditLogFile = layout.auditLogFile(preparedTransaction.transactionId());
             long ackOffset = UpdateHelperAck.offset(auditLogFile);
             Runnable helperAbort = helperStarter.start(helperCommand, workDirectory, helperStdout,
-                helperStderr, preparedTransaction.transactionId());
+                helperStderr);
             boolean helperAcknowledged = UpdateHelperAck.awaitSince(
                 auditLogFile, ackOffset, helperAckTimeout);
             auditLog.critical("HANDOFF", "ACK_WAIT",
@@ -450,12 +450,12 @@ public final class FullPackageDesktopUpdater implements IDesktopUpdater {
     }
 
     private Runnable startHelperProcess(List<String> helperCommand, Path workDirectory, Path stdout,
-            Path stderr, String transactionId) throws Exception {
+            Path stderr) throws Exception {
         if (RuntimePlatformDetector.platform() != UpdatePlatformEnum.MACOS) {
             return startHelperDirectly(helperCommand, workDirectory, stdout);
         }
         return withDirectFallback(
-            () -> startHelperAsLaunchAgent(helperCommand, workDirectory, stdout, stderr, transactionId),
+            () -> startHelperAsLaunchAgent(helperCommand, workDirectory, stdout, stderr),
             () -> startHelperDirectly(helperCommand, workDirectory, stdout),
             agentFailure -> auditLog.warn("HANDOFF", "AGENT_FALLBACK",
                 failureMessage(agentFailure) + "; starting the helper directly instead"));
@@ -507,9 +507,9 @@ public final class FullPackageDesktopUpdater implements IDesktopUpdater {
         }
     }
 
-    private void discardAgent(MacLaunchAgentHandoff handoff, String transactionId) {
+    private void discardAgent(MacLaunchAgentHandoff handoff) {
         try {
-            handoff.bootout(transactionId);
+            handoff.bootout(product);
         } catch (Exception bootoutFailure) {
             auditLog.warn("HANDOFF", "ABORT_FAILED", failureMessage(bootoutFailure));
         }
@@ -527,26 +527,21 @@ public final class FullPackageDesktopUpdater implements IDesktopUpdater {
     }
 
     private Runnable startHelperAsLaunchAgent(List<String> helperCommand, Path workDirectory,
-            Path stdout, Path stderr, String transactionId) throws Exception {
+            Path stdout, Path stderr) throws Exception {
         MacLaunchAgentHandoff handoff = MacLaunchAgentHandoff.forCurrentUser(
             Path.of(System.getProperty("user.home")), MacLaunchAgentHandoff.processRunner());
-        List<String> stale = handoff.bootoutStale(transactionId);
-        if (!stale.isEmpty()) {
-            auditLog.info("HANDOFF", "STALE_AGENTS", "unloaded=" + stale);
-        }
-        int bootstrapExit = handoff.bootstrap(
-            transactionId, helperCommand, workDirectory, stdout, stderr);
+        int bootstrapExit = handoff.bootstrap(product, helperCommand, workDirectory, stdout, stderr);
         auditLog.critical("HANDOFF", "BOOTSTRAP",
-            "launchctl bootstrap exit=" + bootstrapExit
-                + " agent=" + handoff.agentFile(transactionId)
+            "launchctl bootstrap/kickstart exit=" + bootstrapExit
+                + " agent=" + handoff.agentFile(product)
                 + " stdout=" + stdout);
         if (bootstrapExit != 0) {
-            discardAgent(handoff, transactionId);
+            discardAgent(handoff);
             throw new IllegalStateException("Cannot load the update helper agent: exit=" + bootstrapExit);
         }
         return () -> {
             try {
-                int bootoutExit = handoff.bootout(transactionId);
+                int bootoutExit = handoff.bootout(product);
                 if (bootoutExit != 0) {
                     auditLog.warn("HANDOFF", "ABORT_EXIT", "launchctl bootout exit=" + bootoutExit);
                 }
@@ -571,8 +566,8 @@ public final class FullPackageDesktopUpdater implements IDesktopUpdater {
          * @return an action that unloads a helper that never acknowledged, or
          *         null when the started helper needs no cleanup.
          */
-        Runnable start(List<String> helperCommand, Path workDirectory, Path stdout, Path stderr,
-            String transactionId) throws Exception;
+        Runnable start(List<String> helperCommand, Path workDirectory, Path stdout, Path stderr)
+            throws Exception;
     }
 
     private static String logTail(Path logFile) {

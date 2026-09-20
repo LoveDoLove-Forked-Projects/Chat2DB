@@ -4,6 +4,7 @@ import ai.chat2db.community.updater.v2.enums.UpdatePackageTypeEnum;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -121,6 +122,8 @@ class FullPackageSwitcherTest {
         Path stagedPackage = layout.stagedPackage(UpdatePackageTypeEnum.MACOS_APP_ARCHIVE);
         Path unreadable = stagedPackage.resolve("blocked.bin");
         Files.writeString(unreadable, "blocked");
+        assumeTrue(FileSystems.getDefault().supportedFileAttributeViews().contains("posix"),
+            "a copy failure is triggered with posix permissions");
         assumeTrue(unreadable.toFile().setReadable(false, false), "cannot make a file unreadable here");
         Files.setPosixFilePermissions(stagedPackage, java.nio.file.attribute.PosixFilePermissions.fromString("r-xr-xr-x"));
         FullPackageSwitcher switcher = new FullPackageSwitcher(layout);

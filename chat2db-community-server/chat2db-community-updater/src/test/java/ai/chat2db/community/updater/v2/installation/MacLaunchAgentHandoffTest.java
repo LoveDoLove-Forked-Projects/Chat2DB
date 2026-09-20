@@ -37,7 +37,8 @@ class MacLaunchAgentHandoffTest {
         assertTrue(plist.contains("<string>/cache/helper-runtime/bin/java</string>"));
         assertTrue(plist.contains("<string>-jar</string>"));
         assertTrue(plist.contains("<string>/cache/plan.json</string>"));
-        assertTrue(plist.contains("<key>WorkingDirectory</key>\n  <string>/cache/helper</string>"));
+        assertTrue(plist.contains("<key>WorkingDirectory</key>\n  <string>"
+            + Path.of("/cache/helper") + "</string>"));
         assertTrue(plist.contains("<key>StandardOutPath</key>"));
         assertTrue(plist.contains("<key>RunAtLoad</key>\n  <false/>"),
             "a plist that survives a crash must not replay the plan at the next login");
@@ -58,7 +59,7 @@ class MacLaunchAgentHandoffTest {
         MacLaunchAgentHandoff handoff = handoff(0, "501\n");
 
         int exitCode = handoff.bootstrap(
-            "tx-abc",
+            "LOCAL",
             List.of("/cache/helper-runtime/bin/java", "-jar", "/cache/chat2db-updater.jar", "/cache/plan.json"),
             temporaryDirectory.resolve("work"),
             temporaryDirectory.resolve("helper-stdout.log"),
@@ -66,14 +67,14 @@ class MacLaunchAgentHandoffTest {
         );
 
         assertEquals(0, exitCode);
-        Path agent = temporaryDirectory.resolve("Library/LaunchAgents/com.chat2db.updater.tx-abc.plist");
+        Path agent = temporaryDirectory.resolve("Library/LaunchAgents/com.chat2db.updater.local.plist");
         assertTrue(Files.isRegularFile(agent));
         assertEquals(
             List.of("/bin/launchctl", "bootstrap", "gui/501", agent.toString()),
             commands.get(commands.size() - 2)
         );
         assertEquals(
-            List.of("/bin/launchctl", "kickstart", "gui/501/com.chat2db.updater.tx-abc"),
+            List.of("/bin/launchctl", "kickstart", "gui/501/com.chat2db.updater.local"),
             commands.get(commands.size() - 1),
             "the agent is loaded without RunAtLoad and started explicitly"
         );
@@ -83,7 +84,7 @@ class MacLaunchAgentHandoffTest {
     void doesNotStartTheAgentWhenLoadingFails() throws Exception {
         MacLaunchAgentHandoff handoff = handoff(5, "501\n");
 
-        assertEquals(5, handoff.bootstrap("tx-load-fail", List.of("/bin/true"),
+        assertEquals(5, handoff.bootstrap("LOCAL", List.of("/bin/true"),
             temporaryDirectory.resolve("work"), temporaryDirectory.resolve("out"), temporaryDirectory.resolve("err")));
 
         assertFalse(commands.stream().anyMatch(command -> command.contains("kickstart")),
@@ -93,29 +94,29 @@ class MacLaunchAgentHandoffTest {
     @Test
     void removesTheAgentFileOfAFinishedTransaction() throws Exception {
         Path home = temporaryDirectory.resolve("home");
-        Path agent = MacLaunchAgentHandoff.agentFileFor(home, "tx-done");
+        Path agent = MacLaunchAgentHandoff.agentFileFor(home, "pro");
         Files.createDirectories(agent.getParent());
         Files.writeString(agent, "plist");
 
-        assertTrue(MacLaunchAgentHandoff.removeAgentFile(home, "tx-done"));
+        assertTrue(MacLaunchAgentHandoff.removeAgentFile(home, "pro"));
 
         assertFalse(Files.exists(agent));
-        assertFalse(MacLaunchAgentHandoff.removeAgentFile(home, "tx-done"),
+        assertFalse(MacLaunchAgentHandoff.removeAgentFile(home, "pro"),
             "removing an agent twice reports that nothing was left");
     }
 
     @Test
     void unloadsALeftoverJobOfTheSameTransactionBeforeBootstrapping() throws Exception {
         MacLaunchAgentHandoff handoff = handoff(0, "501\n");
-        Path agent = handoff.agentFile("tx-retry");
+        Path agent = handoff.agentFile("LOCAL");
         Files.createDirectories(agent.getParent());
         Files.writeString(agent, "stale-plist");
 
-        handoff.bootstrap("tx-retry", List.of("/bin/true"),
+        handoff.bootstrap("LOCAL", List.of("/bin/true"),
             temporaryDirectory.resolve("work"), temporaryDirectory.resolve("out"), temporaryDirectory.resolve("err"));
 
         assertEquals(
-            List.of("/bin/launchctl", "bootout", "gui/501/com.chat2db.updater.tx-retry"),
+            List.of("/bin/launchctl", "bootout", "gui/501/com.chat2db.updater.local"),
             commands.get(0),
             "a leftover job would make bootstrap fail on a retry");
         assertEquals(
@@ -127,80 +128,30 @@ class MacLaunchAgentHandoffTest {
     @Test
     void reportsAFailedBootstrapToTheCaller() throws Exception {
         MacLaunchAgentHandoff handoff = handoff(5, "501\n");
-        assertEquals(5, handoff.bootstrap("tx-fail", List.of("/bin/true"),
+        assertEquals(5, handoff.bootstrap("LOCAL", List.of("/bin/true"),
             temporaryDirectory.resolve("work"), temporaryDirectory.resolve("out"), temporaryDirectory.resolve("err")));
-    }
-
-    @Test
-    void unloadsAgentsFromEarlierTransactionsButKeepsTheCurrentOne() throws Exception {
-        Path agents = temporaryDirectory.resolve("Library/LaunchAgents");
-        Files.createDirectories(agents);
-        Path staleAgent = agents.resolve("com.chat2db.updater.tx-old.plist");
-        Files.writeString(staleAgent, "old");
-        ageAgent(staleAgent);
-        Files.writeString(agents.resolve("com.chat2db.updater.tx-current.plist"), "current");
-        Files.writeString(agents.resolve("com.google.keystone.agent.plist"), "unrelated");
-        MacLaunchAgentHandoff handoff = new MacLaunchAgentHandoff(agents, "501", runner());
-
-        List<String> removed = handoff.bootoutStale("tx-current");
-
-        assertEquals(List.of("com.chat2db.updater.tx-old"), removed);
-        assertFalse(Files.exists(agents.resolve("com.chat2db.updater.tx-old.plist")));
-        assertTrue(Files.exists(agents.resolve("com.chat2db.updater.tx-current.plist")));
-        assertTrue(Files.exists(agents.resolve("com.google.keystone.agent.plist")));
-        assertEquals(
-            List.of("/bin/launchctl", "bootout", "gui/501/com.chat2db.updater.tx-old"),
-            commands.get(commands.size() - 1)
-        );
-    }
-
-    @Test
-    void leavesARunningAgentAloneWhileCleaningUp() throws Exception {
-        Path agents = temporaryDirectory.resolve("Library/LaunchAgents");
-        Files.createDirectories(agents);
-        Path liveAgent = agents.resolve("com.chat2db.updater.tx-live.plist");
-        Files.writeString(liveAgent, "live");
-        ageAgent(liveAgent);
-        MacLaunchAgentHandoff handoff = new MacLaunchAgentHandoff(agents, "501", command ->
-            command.contains("list")
-                ? new MacLaunchAgentHandoff.CommandResult(0, "{\"Label\" = \"x\"; \"PID\" = 4242; }")
-                : new MacLaunchAgentHandoff.CommandResult(0, ""));
-
-        assertTrue(handoff.bootoutStale("tx-other").isEmpty(),
-            "another product may be updating from the same account right now");
-        assertTrue(Files.exists(agents.resolve("com.chat2db.updater.tx-live.plist")));
     }
 
     @Test
     void unloadsTheAgentOfAFailedHandoff() throws Exception {
         MacLaunchAgentHandoff handoff = handoff(0, "501\n");
-        Path agent = handoff.agentFile("tx-abort");
+        Path agent = handoff.agentFile("LOCAL");
         Files.createDirectories(agent.getParent());
         Files.writeString(agent, "plist");
 
-        handoff.bootout("tx-abort");
+        handoff.bootout("LOCAL");
 
         assertFalse(Files.exists(agent));
-        assertEquals(List.of("/bin/launchctl", "bootout", "gui/501/com.chat2db.updater.tx-abort"),
+        assertEquals(List.of("/bin/launchctl", "bootout", "gui/501/com.chat2db.updater.local"),
             commands.get(commands.size() - 1));
     }
 
     @Test
-    void keepsAnAgentThatWasWrittenMomentsAgo() throws Exception {
-        Path agents = temporaryDirectory.resolve("Library/LaunchAgents");
-        Files.createDirectories(agents);
-        Files.writeString(agents.resolve("com.chat2db.updater.tx-starting.plist"), "starting");
-        MacLaunchAgentHandoff handoff = new MacLaunchAgentHandoff(agents, "501", runner());
-
-        assertTrue(handoff.bootoutStale("tx-other").isEmpty(),
-            "a transaction that is still starting must not lose its helper");
-        assertTrue(Files.exists(agents.resolve("com.chat2db.updater.tx-starting.plist")));
-    }
-
-    @Test
-    void rejectsUnsafeTransactionIds() {
+    void oneStableLabelPerProduct() {
+        assertEquals("com.chat2db.updater.pro", MacLaunchAgentHandoff.label("PRO"));
+        assertEquals("com.chat2db.updater.local", MacLaunchAgentHandoff.label("local"));
         assertThrows(IllegalArgumentException.class, () -> MacLaunchAgentHandoff.label("../../evil"));
-        assertThrows(IllegalArgumentException.class, () -> MacLaunchAgentHandoff.label("tx/1"));
+        assertThrows(IllegalArgumentException.class, () -> MacLaunchAgentHandoff.label("pro/1"));
         assertThrows(IllegalArgumentException.class, () -> MacLaunchAgentHandoff.label(null));
     }
 

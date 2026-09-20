@@ -156,7 +156,7 @@ class FullPackageDesktopUpdaterTest {
         Files.writeString(layout.auditLogFile(prepared.transactionId()),
             "actor=HELPER stage=HANDOFF event=ACK outcome=PERSISTED\n", StandardOpenOption.CREATE);
         field("helperStarter").set(updater, (FullPackageDesktopUpdater.HelperStarter)
-            (command, workDirectory, stdout, stderr, id) -> null);
+            (command, workDirectory, stdout, stderr) -> null);
         Path fakeRuntime = Files.createDirectories(temporaryDirectory.resolve("fake-runtime-ack/bin"));
         Files.writeString(fakeRuntime.resolve("java"), "java");
         Path helperSource = layout.appDirectory().resolve("tools/chat2db-updater.jar");
@@ -251,7 +251,7 @@ class FullPackageDesktopUpdaterTest {
         AtomicBoolean helperStartRequested = new AtomicBoolean();
         AtomicBoolean helperUnloaded = new AtomicBoolean();
         field("helperStarter").set(updater, (FullPackageDesktopUpdater.HelperStarter)
-            (command, workDirectory, stdout, stderr, id) -> {
+            (command, workDirectory, stdout, stderr) -> {
                 helperStartRequested.set(true);
                 return () -> helperUnloaded.set(true);
             });
@@ -286,7 +286,7 @@ class FullPackageDesktopUpdaterTest {
         // A retry while the application is still running must reach the starter again instead of
         // being rejected as an invalid FAILED -> QUIESCING transition.
         field("helperStarter").set(updater, (FullPackageDesktopUpdater.HelperStarter)
-            (command, workDirectory, stdout, stderr, id) -> {
+            (command, workDirectory, stdout, stderr) -> {
                 throw new IllegalStateException("second attempt reached the starter");
             });
         boolean retried;
