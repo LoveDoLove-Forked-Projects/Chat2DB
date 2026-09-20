@@ -27,7 +27,7 @@ class FullPackageSwitcherTest {
 
         assertEquals("new", Files.readString(layout.installTarget().resolve("version.txt")));
         assertEquals("new", Files.readString(stagedPackage.resolve("version.txt")));
-        assertTrue(switcher.hasBackup(UpdatePackageTypeEnum.MACOS_APP_ARCHIVE),
+        assertTrue(Files.isDirectory(layout.previousPackage()),
             "the previous package must stay available until the candidate is healthy");
 
         switcher.commit("tx-1");
@@ -120,7 +120,7 @@ class FullPackageSwitcherTest {
         FullPackageSwitcher switcher = new FullPackageSwitcher(layout);
 
         assertFalse(switcher.rollback("tx-none", UpdatePackageTypeEnum.MACOS_APP_ARCHIVE));
-        assertFalse(switcher.hasBackup(UpdatePackageTypeEnum.MACOS_APP_ARCHIVE));
+        assertFalse(Files.exists(layout.previousPackage()));
     }
 
     @Test

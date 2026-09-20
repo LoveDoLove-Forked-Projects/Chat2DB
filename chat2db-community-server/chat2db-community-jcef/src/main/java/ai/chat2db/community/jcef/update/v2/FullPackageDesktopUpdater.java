@@ -45,6 +45,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 public final class FullPackageDesktopUpdater implements IDesktopUpdater {
 
@@ -446,7 +447,7 @@ public final class FullPackageDesktopUpdater implements IDesktopUpdater {
      * acknowledge, so a helper that dies with the application fails visibly.
      */
     static Runnable withDirectFallback(HelperLaunch agentLaunch, HelperLaunch directLaunch,
-            java.util.function.Consumer<Exception> onFallback) {
+            Consumer<Exception> onFallback) {
         try {
             return agentLaunch.start();
         } catch (Exception agentFailure) {

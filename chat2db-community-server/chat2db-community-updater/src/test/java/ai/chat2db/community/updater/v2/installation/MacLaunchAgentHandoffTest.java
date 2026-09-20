@@ -74,6 +74,26 @@ class MacLaunchAgentHandoffTest {
     }
 
     @Test
+    void unloadsALeftoverJobOfTheSameTransactionBeforeBootstrapping() throws Exception {
+        MacLaunchAgentHandoff handoff = handoff(0, "501\n");
+        Path agent = handoff.agentFile("tx-retry");
+        Files.createDirectories(agent.getParent());
+        Files.writeString(agent, "stale-plist");
+
+        handoff.bootstrap("tx-retry", List.of("/bin/true"),
+            temporaryDirectory.resolve("work"), temporaryDirectory.resolve("out"), temporaryDirectory.resolve("err"));
+
+        assertEquals(
+            List.of("/bin/launchctl", "bootout", "gui/501/com.chat2db.updater.tx-retry"),
+            commands.get(0),
+            "a leftover job would make bootstrap fail on a retry");
+        assertEquals(
+            List.of("/bin/launchctl", "bootstrap", "gui/501", agent.toString()),
+            commands.get(1));
+        assertTrue(Files.readString(agent).contains("<key>AbandonProcessGroup</key>"));
+    }
+
+    @Test
     void reportsAFailedBootstrapToTheCaller() throws Exception {
         MacLaunchAgentHandoff handoff = handoff(5, "501\n");
         assertEquals(5, handoff.bootstrap("tx-fail", List.of("/bin/true"),

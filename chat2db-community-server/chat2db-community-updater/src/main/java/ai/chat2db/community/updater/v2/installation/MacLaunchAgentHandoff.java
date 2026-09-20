@@ -84,6 +84,9 @@ public final class MacLaunchAgentHandoff {
      */
     public int bootstrap(String transactionId, List<String> helperCommand, Path workDirectory,
             Path stdout, Path stderr) throws Exception {
+        // A job left over from a crashed attempt of the same transaction would make
+        // bootstrap fail, so it is unloaded before the agent is written again.
+        bootout(transactionId);
         Path agent = agentFile(transactionId);
         Path parent = agent.getParent();
         if (parent != null) {

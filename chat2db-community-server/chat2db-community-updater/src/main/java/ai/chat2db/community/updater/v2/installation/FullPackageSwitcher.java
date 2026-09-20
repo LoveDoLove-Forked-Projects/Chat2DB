@@ -53,11 +53,6 @@ public final class FullPackageSwitcher {
         }
     }
 
-    /** Whether a backup of the previously installed package is still available. */
-    public boolean hasBackup(UpdatePackageTypeEnum packageType) {
-        return exists(layout.previousPackage(), packageType);
-    }
-
     /**
      * Restores the package that was installed before {@link #switchToCandidate}.
      * Returns false when no backup is left, for example after a committed
