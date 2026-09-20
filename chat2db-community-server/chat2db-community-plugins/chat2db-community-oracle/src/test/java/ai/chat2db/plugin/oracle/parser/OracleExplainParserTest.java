@@ -3,7 +3,9 @@ package ai.chat2db.plugin.oracle.parser;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class OracleExplainParserTest {
 
@@ -66,6 +68,16 @@ class OracleExplainParserTest {
     @Test
     void shouldIgnoreExplainIntoCustomPlanTable() {
         assertNull(OracleExplainParser.extractExplainedSql("EXPLAIN PLAN INTO plan_tab FOR select 1 from dual"));
+    }
+
+    @Test
+    void shouldRecognizeExplainPlanCommands() {
+        assertTrue(OracleExplainParser.isExplainPlan("EXPLAIN PLAN FOR select 1 from dual"));
+        assertTrue(OracleExplainParser.isExplainPlan("explain plan for select 1 from dual"));
+        assertTrue(OracleExplainParser.isExplainPlan("EXPLAIN PLAN INTO plan_tab FOR select 1 from dual"));
+        assertTrue(OracleExplainParser.isExplainPlan("EXPLAIN PLAN"));
+        assertFalse(OracleExplainParser.isExplainPlan("select 1 from dual"));
+        assertFalse(OracleExplainParser.isExplainPlan(null));
     }
 
     @Test

@@ -29,6 +29,13 @@ public final class OracleExplainParser {
     }
 
     /**
+     * Returns whether {@code sql} already is an {@code EXPLAIN PLAN} command.
+     */
+    public static boolean isExplainPlan(String sql) {
+        return explainPlanTokens(sql) != null;
+    }
+
+    /**
      * Returns the statement that {@code sql} explains, or {@code null} when
      * {@code sql} is not an explain command Chat2DB reads a plan for.
      *
@@ -37,19 +44,11 @@ public final class OracleExplainParser {
      * explain command.
      */
     public static String extractExplainedSql(String sql) {
-        if (StringUtils.isBlank(sql)) {
+        List<Token> tokens = explainPlanTokens(sql);
+        if (tokens == null) {
             return null;
         }
-        List<Token> tokens = tokenize(sql);
-        int index = nextValuableToken(tokens, 0);
-        if (!isKeyword(tokens, index, EXPLAIN_KEYWORD)) {
-            return null;
-        }
-        index = nextValuableToken(tokens, index + 1);
-        if (!isKeyword(tokens, index, PLAN_KEYWORD)) {
-            return null;
-        }
-        for (index = nextValuableToken(tokens, index + 1); index >= 0;
+        for (int index = nextValuableToken(tokens, 0); index >= 0;
                 index = nextValuableToken(tokens, index + 1)) {
             if (isKeyword(tokens, index, INTO_KEYWORD)) {
                 return null;
@@ -59,6 +58,19 @@ public final class OracleExplainParser {
             }
         }
         return null;
+    }
+
+    private static List<Token> explainPlanTokens(String sql) {
+        if (StringUtils.isBlank(sql)) {
+            return null;
+        }
+        List<Token> tokens = tokenize(sql);
+        int index = nextValuableToken(tokens, 0);
+        if (!isKeyword(tokens, index, EXPLAIN_KEYWORD)) {
+            return null;
+        }
+        index = nextValuableToken(tokens, index + 1);
+        return isKeyword(tokens, index, PLAN_KEYWORD) ? tokens : null;
     }
 
     private static String explainedSql(List<Token> tokens, String sql, int forIndex) {
