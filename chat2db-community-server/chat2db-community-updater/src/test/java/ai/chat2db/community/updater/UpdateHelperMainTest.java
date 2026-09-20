@@ -22,6 +22,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -126,6 +127,8 @@ class UpdateHelperMainTest {
 
     @Test
     void refusesToSwitchWhileAnotherInstanceIsStillRunning() throws Exception {
+        assumeFalse(System.getProperty("os.name", "").toLowerCase().contains("win"),
+            "the instance check reads other processes' command lines, which Windows does not expose");
         Fixture fixture = fixture(false, false);
         Path testClasses = Path.of(FakeCandidateMain.class.getProtectionDomain()
             .getCodeSource().getLocation().toURI());

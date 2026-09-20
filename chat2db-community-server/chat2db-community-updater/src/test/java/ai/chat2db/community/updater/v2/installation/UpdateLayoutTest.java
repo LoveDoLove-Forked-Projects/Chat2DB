@@ -43,11 +43,13 @@ class UpdateLayoutTest {
 
     @Test
     void keepsTheRollbackCopyNextToTheInstallTarget() {
-        Path installTarget = Path.of("/Applications/Chat2DB Community.app");
-        UpdateLayout layout = new UpdateLayout(installTarget, "COMMUNITY");
+        UpdateLayout layout = new UpdateLayout(Path.of("Applications", "Chat2DB Community.app"), "COMMUNITY");
 
-        assertEquals(Path.of("/Applications/Chat2DB Community.app.chat2db-previous"),
-            layout.previousPackage());
+        Path backup = layout.previousPackage();
+
+        assertEquals(layout.installTarget().resolveSibling("Chat2DB Community.app.chat2db-previous"), backup);
+        assertEquals("Chat2DB Community.app.chat2db-previous", backup.getFileName().toString());
+        assertEquals(layout.installTarget().getParent(), backup.getParent());
     }
 
     @Test
