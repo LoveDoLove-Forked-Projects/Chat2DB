@@ -6,6 +6,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Starts the desktop update helper as a per-transaction macOS LaunchAgent.
@@ -32,6 +33,7 @@ public final class MacLaunchAgentHandoff {
      * starting in another product, so it is not treated as stale yet.
      */
     private static final Duration STALE_AGENT_AGE = Duration.ofMinutes(10L);
+    private static final Duration LAUNCHCTL_TIMEOUT = Duration.ofSeconds(15L);
 
     private final Path launchAgentsDirectory;
     private final String userId;
@@ -52,12 +54,20 @@ public final class MacLaunchAgentHandoff {
         );
     }
 
+    /**
+     * A wedged launchd must not block the handoff: every launchctl call is bounded,
+     * and a timeout is reported as a failure so the caller can fall back.
+     */
     public static CommandRunner processRunner() {
         return command -> {
             Process process = new ProcessBuilder(command).redirectErrorStream(true).start();
+            if (!process.waitFor(LAUNCHCTL_TIMEOUT.toSeconds(), TimeUnit.SECONDS)) {
+                process.destroyForcibly();
+                process.waitFor(LAUNCHCTL_TIMEOUT.toSeconds(), TimeUnit.SECONDS);
+                return new CommandResult(-1, "launchctl timed out after " + LAUNCHCTL_TIMEOUT.toSeconds() + "s");
+            }
             String output = new String(process.getInputStream().readAllBytes());
-            int exitCode = process.waitFor();
-            return new CommandResult(exitCode, output);
+            return new CommandResult(process.exitValue(), output);
         };
     }
 
