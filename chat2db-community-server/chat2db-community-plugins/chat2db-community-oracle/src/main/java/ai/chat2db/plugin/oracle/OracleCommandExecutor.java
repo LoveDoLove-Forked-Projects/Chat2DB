@@ -45,7 +45,7 @@ public final class OracleCommandExecutor extends DefaultSQLExecutor {
 
         markStatementAsExplain(statement);
         Chat2DBContext.guardStatement(statement.getSql());
-        return explainClient.explain(connection, explainedSql, executionContext);
+        return List.of(explainClient.explain(connection, explainedSql, executionContext));
     }
 
     @Override
@@ -68,18 +68,16 @@ public final class OracleCommandExecutor extends DefaultSQLExecutor {
         markStatementAsExplain(statement);
         checkCanceled(cancellation);
         Chat2DBContext.guardStatement(statement.getSql());
-        List<ExecuteResponse> responses = explainClient.explain(connection, explainedSql, executionContext);
+        ExecuteResponse response = explainClient.explain(connection, explainedSql, executionContext);
         checkCanceled(cancellation);
 
-        for (ExecuteResponse response : responses) {
-            response.setPageNo(pageNo);
-            response.setPageSize(response.getDataList().size());
-            response.setHasNextPage(Boolean.FALSE);
-            response.setFuzzyTotal(Integer.toString(response.getDataList().size()));
-            publishMaterializedQueryResult(response, consumer, streamResultSequence, statementSequence, pageNo,
-                    pageSize);
-        }
-        return responses;
+        response.setPageNo(pageNo);
+        response.setPageSize(response.getDataList().size());
+        response.setHasNextPage(Boolean.FALSE);
+        response.setFuzzyTotal(Integer.toString(response.getDataList().size()));
+        publishMaterializedQueryResult(response, consumer, streamResultSequence, statementSequence, pageNo,
+                pageSize);
+        return List.of(response);
     }
 
     private void markStatementAsExplain(SimpleSqlStatement statement) {

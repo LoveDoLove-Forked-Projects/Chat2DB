@@ -12,7 +12,6 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
@@ -26,7 +25,6 @@ class OracleCommandExecutorTest {
 
     private static final String PROBE_SQL = "SELECT 1 FROM PLAN_TABLE WHERE ROWNUM = 1";
     private static final String DISPLAY_SQL_PREFIX = "SELECT PLAN_TABLE_OUTPUT FROM TABLE(DBMS_XPLAN.DISPLAY(";
-    private static final String PLAN_ROWS_SQL_PREFIX = "SELECT ID, PARENT_ID, DEPTH, OPERATION";
 
     @Test
     void allOracleSqlShouldUseOracleExecutor() {
@@ -34,19 +32,19 @@ class OracleCommandExecutorTest {
     }
 
     @Test
-    void explainShouldWriteThenReadThePlanBackAsTextAndRows() throws Exception {
+    void explainShouldReturnTheFormattedPlanAsTheOnlyResultSet() throws Exception {
         FakeOracle oracle = new FakeOracle();
 
         List<ExecuteResponse> results = executeMulti("EXPLAIN PLAN FOR select 1 from dual", oracle);
 
-        assertEquals(2, results.size());
-        assertEquals("PLAN_TABLE_OUTPUT", results.get(0).getHeaderList().get(0).getName());
-        assertEquals("| Id | Operation |", results.get(0).getDataList().get(0).get(0).getValue());
-        assertEquals("OPERATION", results.get(1).getHeaderList().get(3).getName());
-        assertEquals("TABLE ACCESS FULL", results.get(1).getDataList().get(0).get(3).getValue());
-        assertEquals(1, results.get(0).getResultSetId());
-        assertEquals(2, results.get(1).getResultSetId());
-        assertTrue(results.get(0).getSuccess());
+        assertEquals(1, results.size());
+        ExecuteResponse response = results.get(0);
+        assertTrue(response.getSuccess());
+        assertEquals("EXPLAIN", response.getSqlType());
+        assertEquals(1, response.getHeaderList().size());
+        assertEquals("PLAN_TABLE_OUTPUT", response.getHeaderList().get(0).getName());
+        assertEquals("| Id | Operation |", response.getDataList().get(0).get(0).getValue());
+        assertFalse(response.getHasNextPage());
     }
 
     @Test
@@ -59,8 +57,8 @@ class OracleCommandExecutorTest {
         String explainSql = oracle.explainSql();
         assertTrue(explainSql.startsWith("EXPLAIN PLAN SET STATEMENT_ID = 'CHAT2DB_"), explainSql);
         assertTrue(explainSql.endsWith("' INTO PLAN_TABLE FOR select 1 from dual"), explainSql);
-        assertTrue(oracle.preparedSql.stream().anyMatch(sql -> sql.startsWith(PLAN_ROWS_SQL_PREFIX)));
-        assertTrue(oracle.preparedSql.stream().anyMatch(sql -> sql.startsWith(DISPLAY_SQL_PREFIX)));
+        assertEquals(1, oracle.preparedSql.size());
+        assertTrue(oracle.preparedSql.get(0).startsWith(DISPLAY_SQL_PREFIX));
     }
 
     @Test
@@ -110,15 +108,14 @@ class OracleCommandExecutorTest {
     }
 
     @Test
-    void explainShouldStillReturnPlanRowsWhenDisplayPlanIsRejected() throws Exception {
+    void explainShouldRestoreAutoCommitWhenThePlanFails() {
         FakeOracle oracle = new FakeOracle();
         oracle.displayPlanRejected = true;
 
-        List<ExecuteResponse> results = executeMulti("EXPLAIN PLAN FOR select 1 from dual", oracle);
+        assertThrows(SQLException.class, () -> executeMulti("EXPLAIN PLAN FOR select 1 from dual", oracle));
 
-        assertEquals(1, results.size());
-        assertEquals("OPERATION", results.get(0).getHeaderList().get(3).getName());
-        assertEquals(1, results.get(0).getResultSetId());
+        assertTrue(oracle.autoCommit);
+        assertEquals(1, oracle.rollbackCount);
     }
 
     @Test
@@ -136,12 +133,23 @@ class OracleCommandExecutorTest {
     @Test
     void explainShouldReportAPlanThatWasNeverWritten() {
         FakeOracle oracle = new FakeOracle();
+        oracle.planUnavailable = true;
+
+        SQLException failure = assertThrows(SQLException.class,
+                () -> executeMulti("EXPLAIN PLAN FOR select 1 from dual", oracle));
+
+        assertTrue(failure.getMessage().contains("no readable plan"));
+    }
+
+    @Test
+    void explainShouldReportADisplayQueryThatReturnedNoRows() {
+        FakeOracle oracle = new FakeOracle();
         oracle.planRowsMissing = true;
 
         SQLException failure = assertThrows(SQLException.class,
                 () -> executeMulti("EXPLAIN PLAN FOR select 1 from dual", oracle));
 
-        assertTrue(failure.getMessage().contains("no plan rows"));
+        assertTrue(failure.getMessage().contains("no readable plan"));
     }
 
     private static List<ExecuteResponse> executeMulti(String sql, FakeOracle oracle) throws SQLException {
@@ -150,10 +158,9 @@ class OracleCommandExecutorTest {
     }
 
     /**
-     * Minimal JDBC stand in for the statements an Oracle explain issues: the
-     * plan table probe, the explain itself, and the two plan queries. Any other
-     * SQL falls back to an empty update so the default execution path stays
-     * reachable.
+     * Minimal JDBC stand in for the two statements an Oracle explain issues: the
+     * plan table probe, the explain itself, and the {@code DBMS_XPLAN} query that
+     * reads the plan back.
      */
     private static final class FakeOracle implements InvocationHandler {
 
@@ -165,6 +172,7 @@ class OracleCommandExecutorTest {
         private int rollbackCount;
         private boolean planTableMissing;
         private boolean displayPlanRejected;
+        private boolean planUnavailable;
         private boolean planRowsMissing;
 
         Connection connection() {
@@ -242,16 +250,7 @@ class OracleCommandExecutorTest {
                                 statementIds.add((String) args[1]);
                                 return null;
                             case "executeQuery":
-                                return planRows(sql);
-                            case "execute":
-                                return false;
-                            case "getUpdateCount":
-                                return -1;
-                            case "getMoreResults":
-                                return false;
-                            case "getWarnings":
-                                return null;
-                            case "setFetchSize":
+                                return plan(sql);
                             case "close":
                                 return null;
                             default:
@@ -261,26 +260,21 @@ class OracleCommandExecutorTest {
                     });
         }
 
-        private ResultSet planRows(String sql) throws SQLException {
-            if (sql.startsWith(DISPLAY_SQL_PREFIX)) {
-                if (displayPlanRejected) {
-                    throw new SQLException("ORA-00904: DBMS_XPLAN: invalid identifier");
-                }
-                return rows(List.of("PLAN_TABLE_OUTPUT"), List.of(List.of("| Id | Operation |")));
+        private ResultSet plan(String sql) throws SQLException {
+            if (!sql.startsWith(DISPLAY_SQL_PREFIX)) {
+                throw new UnsupportedOperationException("unexpected query: " + sql);
             }
-            if (sql.startsWith(PLAN_ROWS_SQL_PREFIX)) {
-                if (planRowsMissing) {
-                    return rows(List.of("ID", "PARENT_ID", "DEPTH", "OPERATION", "OPTIONS", "OBJECT_NAME",
-                            "OBJECT_TYPE", "COST", "CARDINALITY", "BYTES", "ACCESS_PREDICATES", "FILTER_PREDICATES"),
-                            List.of());
-                }
-                return rows(
-                        List.of("ID", "PARENT_ID", "DEPTH", "OPERATION", "OPTIONS", "OBJECT_NAME", "OBJECT_TYPE",
-                                "COST", "CARDINALITY", "BYTES", "ACCESS_PREDICATES", "FILTER_PREDICATES"),
-                        List.of(Arrays.asList("0", null, "0", "TABLE ACCESS FULL", "FULL", "DUAL", "TABLE", "2", "1",
-                                "2", null, null)));
+            if (displayPlanRejected) {
+                throw new SQLException("ORA-00904: DBMS_XPLAN: invalid identifier");
             }
-            throw new UnsupportedOperationException("unexpected query: " + sql);
+            if (planRowsMissing) {
+                return rows(List.of("PLAN_TABLE_OUTPUT"), List.of());
+            }
+            if (planUnavailable) {
+                return rows(List.of("PLAN_TABLE_OUTPUT"),
+                        List.of(List.of("Error: cannot fetch plan for statement_id 'CHAT2DB_missing'")));
+            }
+            return rows(List.of("PLAN_TABLE_OUTPUT"), List.of(List.of("| Id | Operation |")));
         }
 
         private ResultSet rows(List<String> columns, List<List<String>> data) {

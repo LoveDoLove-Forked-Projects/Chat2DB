@@ -6,6 +6,7 @@ import ai.chat2db.community.domain.api.model.result.ExecutionContext;
 import ai.chat2db.community.domain.api.model.result.Header;
 import ai.chat2db.community.domain.api.model.result.ResultCell;
 import ai.chat2db.spi.model.ExecutionTiming;
+import org.apache.commons.lang3.StringUtils;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -21,9 +22,8 @@ import java.util.UUID;
  * Runs Oracle {@code EXPLAIN PLAN} and reads the resulting plan.
  *
  * <p>{@code EXPLAIN PLAN ... FOR <statement>} writes plan rows into the plan
- * table and returns no result set, so the plan is read back with a separate
- * query: formatted text through {@code DBMS_XPLAN}, and the plan table rows
- * themselves for callers that need the per step columns.
+ * table and returns no result set at all, so the plan is read back with a
+ * separate query that renders those rows through {@code DBMS_XPLAN}.
  */
 final class OracleExplainClient {
 
@@ -33,13 +33,11 @@ final class OracleExplainClient {
             "EXPLAIN PLAN SET STATEMENT_ID = '%s' INTO " + PLAN_TABLE + " FOR ";
     private static final String DISPLAY_PLAN_SQL =
             "SELECT PLAN_TABLE_OUTPUT FROM TABLE(DBMS_XPLAN.DISPLAY('" + PLAN_TABLE + "', ?, 'TYPICAL'))";
-    private static final String PLAN_ROWS_SQL = "SELECT ID, PARENT_ID, DEPTH, OPERATION, OPTIONS, OBJECT_NAME,"
-            + " OBJECT_TYPE, COST, CARDINALITY, BYTES, ACCESS_PREDICATES, FILTER_PREDICATES FROM " + PLAN_TABLE
-            + " WHERE STATEMENT_ID = ? ORDER BY ID";
+    private static final String PLAN_ERROR_PREFIX = "Error:";
     private static final String STATEMENT_ID_PREFIX = "CHAT2DB_";
     private static final int STATEMENT_ID_MAX_LENGTH = 30;
 
-    List<ExecuteResponse> explain(Connection connection, String explainedSql, ExecutionContext executionContext)
+    ExecuteResponse explain(Connection connection, String explainedSql, ExecutionContext executionContext)
             throws SQLException {
         requirePlanTable(connection);
         String statementId = newStatementId();
@@ -56,20 +54,12 @@ final class OracleExplainClient {
             runExplainPlan(connection, statementId, explainedSql);
             long executeDurationNanos = ExecutionTiming.elapsedNanos(executeStartedNanos);
 
-            ResultTable planRows = queryRows(connection, PLAN_ROWS_SQL, statementId);
-            if (planRows.isEmpty()) {
-                throw new SQLException("Oracle EXPLAIN PLAN wrote no plan rows into " + PLAN_TABLE
+            ResultTable plan = queryPlan(connection, statementId);
+            if (plan.isUnavailable()) {
+                throw new SQLException("Oracle EXPLAIN PLAN wrote no readable plan into " + PLAN_TABLE
                         + " for statement id " + statementId);
             }
-            List<ExecuteResponse> responses = new ArrayList<>();
-            ResultTable planText = queryRowsQuietly(connection, DISPLAY_PLAN_SQL, statementId);
-            if (planText != null && !planText.isEmpty()) {
-                responses.add(buildResponse(planText, executionContext, startedAtEpochMs, executeDurationNanos,
-                        responses.size() + 1));
-            }
-            responses.add(buildResponse(planRows, executionContext, startedAtEpochMs, executeDurationNanos,
-                    responses.size() + 1));
-            return responses;
+            return buildResponse(plan, executionContext, startedAtEpochMs, executeDurationNanos);
         } finally {
             restoreTransaction(connection, transactionManaged);
         }
@@ -98,25 +88,12 @@ final class OracleExplainClient {
         return STATEMENT_ID_PREFIX + uniqueId.substring(0, STATEMENT_ID_MAX_LENGTH - STATEMENT_ID_PREFIX.length());
     }
 
-    private static ResultTable queryRows(Connection connection, String sql, String statementId) throws SQLException {
-        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+    private static ResultTable queryPlan(Connection connection, String statementId) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(DISPLAY_PLAN_SQL)) {
             statement.setString(1, statementId);
             try (ResultSet resultSet = statement.executeQuery()) {
                 return readTable(resultSet);
             }
-        }
-    }
-
-    /**
-     * Reads an optional plan representation. {@code DBMS_XPLAN} is not granted
-     * to every user, and the plan table rows are the authoritative result, so a
-     * rejected display query must not fail the whole explain.
-     */
-    private static ResultTable queryRowsQuietly(Connection connection, String sql, String statementId) {
-        try {
-            return queryRows(connection, sql, statementId);
-        } catch (SQLException e) {
-            return null;
         }
     }
 
@@ -142,13 +119,12 @@ final class OracleExplainClient {
     }
 
     private static ExecuteResponse buildResponse(ResultTable table, ExecutionContext executionContext,
-                                                 long startedAtEpochMs, long executeDurationNanos, int resultSetId) {
+                                                 long startedAtEpochMs, long executeDurationNanos) {
         return ExecuteResponse.builder()
                 .success(Boolean.TRUE)
                 .sqlType(SqlTypeEnum.EXPLAIN.name())
                 .headerList(table.headerList())
                 .dataList(table.dataList())
-                .resultSetId(resultSetId)
                 .hasNextPage(Boolean.FALSE)
                 .executionContext(executionContext)
                 .executionMetrics(ExecutionTiming.complete(ExecutionTiming.started(startedAtEpochMs),
@@ -176,8 +152,15 @@ final class OracleExplainClient {
 
     private record ResultTable(List<Header> headerList, List<List<ResultCell>> dataList) {
 
-        boolean isEmpty() {
-            return dataList.isEmpty();
+        /**
+         * {@code DBMS_XPLAN} answers an unknown statement id with a single
+         * {@code Error:} line instead of an empty result.
+         */
+        boolean isUnavailable() {
+            if (dataList.isEmpty() || dataList.get(0).isEmpty()) {
+                return true;
+            }
+            return StringUtils.startsWith(dataList.get(0).get(0).getValue(), PLAN_ERROR_PREFIX);
         }
     }
 }
