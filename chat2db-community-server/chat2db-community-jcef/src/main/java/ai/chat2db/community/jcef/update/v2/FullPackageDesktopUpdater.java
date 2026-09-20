@@ -510,17 +510,16 @@ public final class FullPackageDesktopUpdater implements IDesktopUpdater {
         };
     }
 
-
-    /**
-     * Starts the prepared helper. The handoff owns the wait for the helper's
-     * acknowledgement, so a starter that cannot be observed is a failed handoff.
-     */
     /** A launch attempt that either returns a cleanup action or throws. */
     @FunctionalInterface
     interface HelperLaunch {
         Runnable start() throws Exception;
     }
 
+    /**
+     * Starts the prepared helper. The handoff owns the wait for the helper's
+     * acknowledgement, so a starter that cannot be observed is a failed handoff.
+     */
     interface HelperStarter {
         /**
          * @return an action that unloads a helper that never acknowledged, or

@@ -96,6 +96,24 @@ class FullPackageSwitcherTest {
     }
 
     @Test
+    void swapsASingleFilePackageEvenWhenALeftoverBackupExists() throws Exception {
+        Path target = temporaryDirectory.resolve("Applications/Chat2DB.AppImage");
+        UpdateLayout layout = testLayout(target);
+        Files.createDirectories(target.getParent());
+        Files.writeString(target, "old-image");
+        Files.writeString(layout.previousPackage(), "leftover-image");
+        Path staged = layout.stagedPackage(UpdatePackageTypeEnum.LINUX_APPIMAGE);
+        Files.createDirectories(staged.getParent());
+        Files.writeString(staged, "new-image");
+        FullPackageSwitcher switcher = new FullPackageSwitcher(layout);
+
+        switcher.switchToCandidate("tx-image-leftover", UpdatePackageTypeEnum.LINUX_APPIMAGE);
+
+        assertEquals("new-image", Files.readString(target));
+        assertEquals("old-image", Files.readString(layout.previousPackage()));
+    }
+
+    @Test
     void rollbackWithoutBackupIsANoOp() throws Exception {
         UpdateLayout layout = prepareArchiveLayout("tx-none");
         Files.createDirectories(layout.installTarget());

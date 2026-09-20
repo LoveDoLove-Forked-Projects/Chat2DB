@@ -37,7 +37,7 @@ public final class FullPackageSwitcher {
         // A precondition, not a switch failure: the caller must not lose the only working copy.
         boolean leftoverBackup = exists(backup, packageType);
         if (leftoverBackup) {
-            requireUsableInstalledPackage(backup);
+            requireUsableInstalledPackage(backup, packageType);
         }
         try {
             if (leftoverBackup) {
@@ -95,15 +95,16 @@ public final class FullPackageSwitcher {
      * usable. Otherwise the backup may be the last working copy, for example
      * after a switch that was interrupted before the candidate was copied.
      */
-    private void requireUsableInstalledPackage(Path backup) {
-        if (Files.isRegularFile(layout.appDirectory().resolve("version.json"))) {
+    private void requireUsableInstalledPackage(Path backup, UpdatePackageTypeEnum packageType) {
+        if (packageType.singleFile() || Files.isRegularFile(layout.appDirectory().resolve("version.json"))) {
             return;
         }
         throw new IllegalStateException("A previous package backup exists and the installed package has no "
             + "version metadata; refusing to switch: " + backup);
     }
 
-    private void restoreQuietly(Path backup, Path currentPackage, UpdatePackageTypeEnum packageType) {        if (!exists(backup, packageType)) {
+    private void restoreQuietly(Path backup, Path currentPackage, UpdatePackageTypeEnum packageType) {
+        if (!exists(backup, packageType)) {
             return;
         }
         try {
@@ -120,13 +121,14 @@ public final class FullPackageSwitcher {
             : Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS);
     }
 
+    /**
+     * The backup lives next to the install target, so this is a rename on the same
+     * volume and never a partial copy. A copy fallback would make the backup look
+     * present while it is incomplete, and the restore path would then move that
+     * incomplete copy over the installed package.
+     */
     private static void movePackage(Path source, Path target) throws IOException {
-        try {
-            Files.move(source, target);
-        } catch (IOException moveFailure) {
-            copyPackage(source, target);
-            deleteRecursively(source);
-        }
+        Files.move(source, target);
     }
 
     private static void requirePackage(Path path, UpdatePackageTypeEnum type, String message) {

@@ -5,6 +5,9 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -81,7 +84,9 @@ class MacLaunchAgentHandoffTest {
     void unloadsAgentsFromEarlierTransactionsButKeepsTheCurrentOne() throws Exception {
         Path agents = temporaryDirectory.resolve("Library/LaunchAgents");
         Files.createDirectories(agents);
-        Files.writeString(agents.resolve("com.chat2db.updater.tx-old.plist"), "old");
+        Path staleAgent = agents.resolve("com.chat2db.updater.tx-old.plist");
+        Files.writeString(staleAgent, "old");
+        ageAgent(staleAgent);
         Files.writeString(agents.resolve("com.chat2db.updater.tx-current.plist"), "current");
         Files.writeString(agents.resolve("com.google.keystone.agent.plist"), "unrelated");
         MacLaunchAgentHandoff handoff = new MacLaunchAgentHandoff(agents, "501", runner());
@@ -102,7 +107,9 @@ class MacLaunchAgentHandoffTest {
     void leavesARunningAgentAloneWhileCleaningUp() throws Exception {
         Path agents = temporaryDirectory.resolve("Library/LaunchAgents");
         Files.createDirectories(agents);
-        Files.writeString(agents.resolve("com.chat2db.updater.tx-live.plist"), "live");
+        Path liveAgent = agents.resolve("com.chat2db.updater.tx-live.plist");
+        Files.writeString(liveAgent, "live");
+        ageAgent(liveAgent);
         MacLaunchAgentHandoff handoff = new MacLaunchAgentHandoff(agents, "501", command ->
             command.contains("list")
                 ? new MacLaunchAgentHandoff.CommandResult(0, "{\"Label\" = \"x\"; \"PID\" = 4242; }")
@@ -128,6 +135,18 @@ class MacLaunchAgentHandoffTest {
     }
 
     @Test
+    void keepsAnAgentThatWasWrittenMomentsAgo() throws Exception {
+        Path agents = temporaryDirectory.resolve("Library/LaunchAgents");
+        Files.createDirectories(agents);
+        Files.writeString(agents.resolve("com.chat2db.updater.tx-starting.plist"), "starting");
+        MacLaunchAgentHandoff handoff = new MacLaunchAgentHandoff(agents, "501", runner());
+
+        assertTrue(handoff.bootoutStale("tx-other").isEmpty(),
+            "a transaction that is still starting must not lose its helper");
+        assertTrue(Files.exists(agents.resolve("com.chat2db.updater.tx-starting.plist")));
+    }
+
+    @Test
     void rejectsUnsafeTransactionIds() {
         assertThrows(IllegalArgumentException.class, () -> MacLaunchAgentHandoff.label("../../evil"));
         assertThrows(IllegalArgumentException.class, () -> MacLaunchAgentHandoff.label("tx/1"));
@@ -140,6 +159,10 @@ class MacLaunchAgentHandoffTest {
             command -> new MacLaunchAgentHandoff.CommandResult(0, "502\n")));
         assertEquals("-1", MacLaunchAgentHandoff.currentUserId(
             command -> new MacLaunchAgentHandoff.CommandResult(1, "")));
+    }
+
+    private static void ageAgent(Path agent) throws Exception {
+        Files.setLastModifiedTime(agent, FileTime.from(Instant.now().minus(Duration.ofHours(1))));
     }
 
     private MacLaunchAgentHandoff handoff(int exitCode, String output) {

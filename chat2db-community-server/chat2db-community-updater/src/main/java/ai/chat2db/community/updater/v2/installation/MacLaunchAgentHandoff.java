@@ -2,6 +2,8 @@ package ai.chat2db.community.updater.v2.installation;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -24,6 +26,12 @@ public final class MacLaunchAgentHandoff {
 
     public static final String LABEL_PREFIX = "com.chat2db.updater.";
     public static final String AGENT_SUFFIX = ".plist";
+
+    /**
+     * An agent written moments ago may belong to a transaction that is still
+     * starting in another product, so it is not treated as stale yet.
+     */
+    private static final Duration STALE_AGENT_AGE = Duration.ofMinutes(10L);
 
     private final Path launchAgentsDirectory;
     private final String userId;
@@ -105,7 +113,7 @@ public final class MacLaunchAgentHandoff {
                     continue;
                 }
                 String label = name.substring(0, name.length() - AGENT_SUFFIX.length());
-                if (label.equals(keepLabel) || isLoaded(label)) {
+                if (label.equals(keepLabel) || isLoaded(label) || isRecent(entry)) {
                     continue;
                 }
                 runner.run(List.of("/bin/launchctl", "bootout", "gui/" + userId + "/" + label));
@@ -127,6 +135,16 @@ public final class MacLaunchAgentHandoff {
             .exitCode();
         Files.deleteIfExists(agentFile(transactionId));
         return exitCode;
+    }
+
+    private static boolean isRecent(Path agent) {
+        try {
+            return Files.getLastModifiedTime(agent).toInstant()
+                .isAfter(Instant.now().minus(STALE_AGENT_AGE));
+        } catch (Exception unreadable) {
+            // Never unload an agent whose age cannot be read.
+            return true;
+        }
     }
 
     private boolean isLoaded(String label) {
