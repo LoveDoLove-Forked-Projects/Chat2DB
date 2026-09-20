@@ -1,7 +1,10 @@
 package ai.chat2db.plugin.oracle;
 
+import ai.chat2db.community.domain.api.enums.plugin.SqlTypeEnum;
 import ai.chat2db.community.domain.api.model.result.ExecuteResponse;
+import ai.chat2db.community.domain.api.model.result.ResultCell;
 import ai.chat2db.community.domain.api.model.sql.SimpleSqlStatement;
+import ai.chat2db.community.domain.api.service.db.ISqlExecutionResultConsumer;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.InvocationHandler;
@@ -14,6 +17,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -155,6 +159,60 @@ class OracleCommandExecutorTest {
     private static List<ExecuteResponse> executeMulti(String sql, FakeOracle oracle) throws SQLException {
         return OracleCommandExecutor.INSTANCE.executeMulti(new SimpleSqlStatement(sql), oracle.connection(), false,
                 null, null, null, null);
+    }
+
+    @Test
+    void streamingExplainShouldPublishThePlanRowsOnce() throws Exception {
+        FakeOracle oracle = new FakeOracle();
+        CapturingResultConsumer consumer = new CapturingResultConsumer();
+
+        List<ExecuteResponse> results = OracleCommandExecutor.INSTANCE.executeMultiStreaming(
+                new SimpleSqlStatement("EXPLAIN PLAN FOR select 1 from dual"), oracle.connection(), false,
+                null, null, null, consumer, null, null, SqlTypeEnum.UNKNOWN,
+                "EXPLAIN PLAN FOR select 1 from dual", 1, 100, new AtomicInteger(), 1, null);
+
+        assertEquals(1, results.size());
+        assertEquals("EXPLAIN", results.get(0).getSqlType());
+        assertEquals(1, consumer.resultStartedCount);
+        assertEquals(1, consumer.rowsEventCount);
+        assertEquals(1, consumer.receivedRows.size());
+        // Row numbering is added by the streaming publish, so the plan sits in the second column.
+        assertEquals("1", consumer.receivedRows.get(0).get(0).getValue());
+        assertEquals("| Id | Operation |", consumer.receivedRows.get(0).get(1).getValue());
+    }
+
+    private static final class CapturingResultConsumer implements ISqlExecutionResultConsumer {
+
+        private int resultStartedCount;
+        private int rowsEventCount;
+        private final List<List<ResultCell>> receivedRows = new ArrayList<>();
+
+        @Override
+        public void statementStarted(String sql, String originalSql, String comment) {
+        }
+
+        @Override
+        public void resultStarted(ExecuteResponse result) {
+            resultStartedCount++;
+        }
+
+        @Override
+        public void rows(ExecuteResponse result, List<List<ResultCell>> rows) {
+            rowsEventCount++;
+            receivedRows.addAll(rows);
+        }
+
+        @Override
+        public void resultFinished(ExecuteResponse result) {
+        }
+
+        @Override
+        public void updateCount(ExecuteResponse result) {
+        }
+
+        @Override
+        public void statementFinished(String sql, long duration) {
+        }
     }
 
     /**
