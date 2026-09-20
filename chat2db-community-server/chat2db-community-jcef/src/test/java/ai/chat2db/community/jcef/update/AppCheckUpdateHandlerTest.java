@@ -89,8 +89,10 @@ class AppCheckUpdateHandlerTest {
         assertEquals("community", OBJECT_MAPPER.readTree(pageView.body()).path("payload").path("tag").asText());
 
         CapturedRequest event = awaitEvent();
-        assertTrue(event.userAgent().startsWith("Mozilla/5.0 (Macintosh;"), event.userAgent());
-        assertTrue(event.userAgent().contains("Chat2DB-Community/1.0"));
+        // The agent is platform specific, so only its shape is asserted here; the exact value per
+        // platform is covered in TelemetryPayloadsTest.
+        assertTrue(event.userAgent().startsWith("Mozilla/5.0 ("), event.userAgent());
+        assertTrue(event.userAgent().contains("Chat2DB-Community/1.0"), event.userAgent());
         assertTrue(event.body().contains("\"name\":\"update_check\""));
         assertTrue(event.body().contains("\"tag\":\"community\""));
         assertTrue(event.body().contains("\"trigger\":\"startup\""));
