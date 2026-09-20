@@ -39,7 +39,8 @@ class MacLaunchAgentHandoffTest {
         assertTrue(plist.contains("<string>/cache/plan.json</string>"));
         assertTrue(plist.contains("<key>WorkingDirectory</key>\n  <string>/cache/helper</string>"));
         assertTrue(plist.contains("<key>StandardOutPath</key>"));
-        assertTrue(plist.contains("<key>RunAtLoad</key>\n  <true/>"));
+        assertTrue(plist.contains("<key>RunAtLoad</key>\n  <false/>"),
+            "a plist that survives a crash must not replay the plan at the next login");
         assertTrue(plist.contains("<key>AbandonProcessGroup</key>\n  <true/>"),
             "without AbandonProcessGroup launchd kills the application the helper relaunches");
         assertTrue(plist.contains("<key>LimitLoadToSessionType</key>\n  <string>Aqua</string>"));
@@ -69,8 +70,38 @@ class MacLaunchAgentHandoffTest {
         assertTrue(Files.isRegularFile(agent));
         assertEquals(
             List.of("/bin/launchctl", "bootstrap", "gui/501", agent.toString()),
-            commands.get(commands.size() - 1)
+            commands.get(commands.size() - 2)
         );
+        assertEquals(
+            List.of("/bin/launchctl", "kickstart", "gui/501/com.chat2db.updater.tx-abc"),
+            commands.get(commands.size() - 1),
+            "the agent is loaded without RunAtLoad and started explicitly"
+        );
+    }
+
+    @Test
+    void doesNotStartTheAgentWhenLoadingFails() throws Exception {
+        MacLaunchAgentHandoff handoff = handoff(5, "501\n");
+
+        assertEquals(5, handoff.bootstrap("tx-load-fail", List.of("/bin/true"),
+            temporaryDirectory.resolve("work"), temporaryDirectory.resolve("out"), temporaryDirectory.resolve("err")));
+
+        assertFalse(commands.stream().anyMatch(command -> command.contains("kickstart")),
+            "a job that failed to load must not be started");
+    }
+
+    @Test
+    void removesTheAgentFileOfAFinishedTransaction() throws Exception {
+        Path home = temporaryDirectory.resolve("home");
+        Path agent = MacLaunchAgentHandoff.agentFileFor(home, "tx-done");
+        Files.createDirectories(agent.getParent());
+        Files.writeString(agent, "plist");
+
+        assertTrue(MacLaunchAgentHandoff.removeAgentFile(home, "tx-done"));
+
+        assertFalse(Files.exists(agent));
+        assertFalse(MacLaunchAgentHandoff.removeAgentFile(home, "tx-done"),
+            "removing an agent twice reports that nothing was left");
     }
 
     @Test

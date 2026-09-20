@@ -48,8 +48,11 @@ public final class FullPackageSwitcher {
             requirePackage(currentPackage, packageType, "Copied candidate package is missing");
             return backup;
         } catch (Exception exception) {
-            restoreQuietly(backup, currentPackage, packageType);
-            throw new IllegalStateException("Cannot switch full application package", exception);
+            if (restoreQuietly(backup, currentPackage, packageType)) {
+                throw new IllegalStateException("Cannot switch full application package", exception);
+            }
+            throw new IllegalStateException("Cannot switch full application package; the previous "
+                + "package is kept at " + backup, exception);
         }
     }
 
@@ -98,15 +101,24 @@ public final class FullPackageSwitcher {
             + "version metadata; refusing to switch: " + backup);
     }
 
-    private void restoreQuietly(Path backup, Path currentPackage, UpdatePackageTypeEnum packageType) {
+    /**
+     * Puts the moved-aside package back after a failed switch.
+     *
+     * @return true when the install target holds the previous package again, false
+     *         when the backup is still the only usable copy
+     */
+    private boolean restoreQuietly(Path backup, Path currentPackage, UpdatePackageTypeEnum packageType) {
         if (!exists(backup, packageType)) {
-            return;
+            return false;
         }
         try {
             deleteRecursively(currentPackage);
             movePackage(backup, currentPackage);
-        } catch (Exception ignored) {
+            requirePackage(currentPackage, packageType, "Restored package is missing");
+            return true;
+        } catch (Exception restoreFailure) {
             // The original failure stays primary; the backup is kept for recovery.
+            return false;
         }
     }
 

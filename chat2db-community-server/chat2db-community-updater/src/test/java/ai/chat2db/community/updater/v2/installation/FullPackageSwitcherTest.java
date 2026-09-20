@@ -7,6 +7,8 @@ import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -111,6 +113,30 @@ class FullPackageSwitcherTest {
 
         assertEquals("new-image", Files.readString(target));
         assertEquals("old-image", Files.readString(layout.previousPackage()));
+    }
+
+    @Test
+    void restoresTheInstallTargetWhenCopyingTheCandidateFails() throws Exception {
+        UpdateLayout layout = prepareArchiveLayout("tx-copy-failure");
+        Path stagedPackage = layout.stagedPackage(UpdatePackageTypeEnum.MACOS_APP_ARCHIVE);
+        Path unreadable = stagedPackage.resolve("blocked.bin");
+        Files.writeString(unreadable, "blocked");
+        assumeTrue(unreadable.toFile().setReadable(false, false), "cannot make a file unreadable here");
+        Files.setPosixFilePermissions(stagedPackage, java.nio.file.attribute.PosixFilePermissions.fromString("r-xr-xr-x"));
+        FullPackageSwitcher switcher = new FullPackageSwitcher(layout);
+        try {
+            IllegalStateException failure = assertThrows(IllegalStateException.class,
+                () -> switcher.switchToCandidate("tx-copy-failure", UpdatePackageTypeEnum.MACOS_APP_ARCHIVE));
+
+            assertTrue(failure.getMessage().contains("previous package is kept at")
+                    || failure.getMessage().contains("Cannot switch full application package"),
+                failure.getMessage());
+            assertEquals("old", Files.readString(layout.installTarget().resolve("version.txt")),
+                "a failed copy must not leave the install target without the previous package");
+        } finally {
+            Files.setPosixFilePermissions(stagedPackage, java.nio.file.attribute.PosixFilePermissions.fromString("rwxr-xr-x"));
+            unreadable.toFile().setReadable(true, false);
+        }
     }
 
     @Test

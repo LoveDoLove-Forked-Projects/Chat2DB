@@ -3,13 +3,16 @@ package ai.chat2db.community.updater;
 import ai.chat2db.community.updater.v2.runtime.UpdateStartupCoordinator;
 import ai.chat2db.community.updater.v2.audit.UpdateAuditLog;
 import ai.chat2db.community.updater.v2.installation.FullPackageSwitcher;
+import ai.chat2db.community.updater.v2.installation.MacLaunchAgentHandoff;
 import ai.chat2db.community.updater.v2.model.UpdateHealth;
 import ai.chat2db.community.updater.v2.model.UpdateHelperPlan;
 import ai.chat2db.community.updater.v2.installation.UpdateLayout;
 import ai.chat2db.community.updater.v2.enums.UpdatePackageTypeEnum;
 import ai.chat2db.community.updater.v2.enums.UpdatePhaseEnum;
+import ai.chat2db.community.updater.v2.enums.UpdatePlatformEnum;
 import ai.chat2db.community.updater.v2.model.UpdateTransaction;
 import ai.chat2db.community.updater.v2.runtime.InstalledAppVersionReader;
+import ai.chat2db.community.updater.v2.runtime.RuntimePlatformDetector;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.nio.file.Files;
@@ -53,7 +56,39 @@ public final class UpdateHelperMain {
         UpdateAuditLog audit = UpdateAuditLog.open(layout, plan.transactionId(), "HELPER");
         audit.versions(transaction.fromVersion(), transaction.toVersion());
         audit.critical("HANDOFF", "ACK", "helper accepted persisted plan");
-        return execute(plan, layout, transaction, audit);
+        try {
+            return execute(plan, layout, transaction, audit);
+        } finally {
+            removeHandoffLeftovers(plan, layout, audit);
+        }
+    }
+
+    /**
+     * Removes what could replay this transaction: the agent that started this
+     * helper and the plan it consumed. Deleting the agent file is enough because it
+     * is loaded without {@code RunAtLoad}; unloading the job would kill the
+     * application this helper relaunched.
+     */
+    private static void removeHandoffLeftovers(UpdateHelperPlan plan, UpdateLayout layout, UpdateAuditLog audit) {
+        try {
+            Path planFile = layout.workDirectory().resolve("plan.json");
+            if (Files.deleteIfExists(planFile)) {
+                audit.warn("HANDOFF", "PLAN_REMOVED", "the consumed helper plan was removed");
+            }
+        } catch (Exception planRemovalFailure) {
+            audit.warn("HANDOFF", "PLAN_REMOVE_FAILED", failureMessage(planRemovalFailure));
+        }
+        if (RuntimePlatformDetector.platform() != UpdatePlatformEnum.MACOS) {
+            return;
+        }
+        try {
+            Path home = Path.of(System.getProperty("user.home"));
+            if (MacLaunchAgentHandoff.removeAgentFile(home, plan.transactionId())) {
+                audit.warn("HANDOFF", "AGENT_REMOVED", "the update helper agent was removed");
+            }
+        } catch (Exception agentRemovalFailure) {
+            audit.warn("HANDOFF", "AGENT_REMOVE_FAILED", failureMessage(agentRemovalFailure));
+        }
     }
 
     private static int execute(UpdateHelperPlan plan, UpdateLayout layout,
@@ -62,7 +97,6 @@ public final class UpdateHelperMain {
         NativePackageInstaller nativeInstaller = new NativePackageInstaller();
         Process trialProcess = null;
         Process normalProcess = null;
-        boolean switched = false;
         Path healthFile = UpdateStartupCoordinator.healthFile(layout, plan.transactionId());
         try {
             audit.critical("QUIESCING", "WAIT_OLD_PROCESS", "pid=" + plan.oldProcessId());
@@ -88,7 +122,6 @@ public final class UpdateHelperMain {
                     "packageType=" + plan.packageType());
                 ensureNoOtherInstance(plan, layout, audit);
                 Path backup = switcher.switchToCandidate(plan.transactionId(), plan.packageType());
-                switched = true;
                 audit.critical("SWITCHING", "DIRECT_SWITCH_COMPLETE",
                     "packageType=" + plan.packageType() + " backup=" + backup);
             }
@@ -139,7 +172,9 @@ public final class UpdateHelperMain {
             audit.error(transaction.phase().name(), "UPDATE_FAILED", failure);
             stopFailedProcess(trialProcess, "STARTING_CANDIDATE", failure, audit);
             stopFailedProcess(normalProcess, "RESTARTING_NORMAL", failure, audit);
-            if (switched) {
+            if (!plan.packageType().nativeInstaller()) {
+                // Also runs when the switch itself failed: it may have moved the installed
+                // package aside before failing, and rollback() reports when no backup is left.
                 rollbackToPreviousPackage(switcher, plan, layout, audit, failure);
             }
             persistTerminalFailure(transaction, failure, audit);
@@ -161,7 +196,7 @@ public final class UpdateHelperMain {
             }
             audit.critical("ROLLING_BACK", "RESTORED",
                 "restored the previously installed package after " + failureMessage(failure));
-            Process previous = startApplication(plan, layout, null);
+            Process previous = startApplication(plan, layout, LaunchMode.PREVIOUS);
             audit.critical("ROLLING_BACK", "PROCESS_STARTED", "pid=" + previous.pid());
         } catch (Exception rollbackFailure) {
             audit.error("ROLLING_BACK", "ROLLBACK_FAILED", rollbackFailure);
@@ -284,6 +319,12 @@ public final class UpdateHelperMain {
                 UpdateStartupCoordinator.NORMAL_TRANSACTION_ENV,
                 plan.transactionId()
             );
+        } else {
+            // A restored previous package must not look like an update startup for a
+            // transaction that has already failed.
+            builder.environment().remove(UpdateStartupCoordinator.TRANSACTION_ENV);
+            builder.environment().remove(UpdateStartupCoordinator.NORMAL_TRANSACTION_ENV);
+            builder.environment().remove(UpdateStartupCoordinator.TARGET_VERSION_ENV);
         }
         return builder.start();
     }
@@ -412,7 +453,9 @@ public final class UpdateHelperMain {
 
     private enum LaunchMode {
         TRIAL,
-        NORMAL
+        NORMAL,
+        /** Relaunch of the restored previous package: no update coordination at all. */
+        PREVIOUS
     }
 
 }

@@ -32,6 +32,7 @@ import java.lang.reflect.Field;
 import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.DosFileAttributeView;
 import java.time.Duration;
 import java.security.KeyPair;
@@ -111,6 +112,66 @@ class FullPackageDesktopUpdaterTest {
         assertTrue(audit.contains("event=START"));
         assertTrue(audit.contains("event=SELECTED"));
         assertFalse(audit.contains("event=SUPPRESSED"));
+    }
+
+    @Test
+    void resumingAFailedTransactionKeepsItsIdentityAndClearsTheFailure() throws Exception {
+        FullPackageDesktopUpdater updater = new FullPackageDesktopUpdater(layout(),
+            "COMMUNITY", directPackageType(RuntimePlatformDetector.platform()),
+            new StubTransport(), new UpdateDiscoveryService(new StubTransport(),
+                new UpdateManifestVerifier(Map.of()), BASE));
+        UpdateAuditLog audit = UpdateAuditLog.open(layout(), "tx-retry-unit", "TEST");
+        field("auditLog").set(updater, audit);
+        UpdateTransaction failed = new UpdateTransaction("tx-retry-unit", "5.3.3", "5.3.4", 101L,
+            "a".repeat(64), UpdatePhaseEnum.FAILED, 10L, 20L, "helper did not acknowledge");
+
+        UpdateTransaction resumed = (UpdateTransaction) method("prepareForHandoff", UpdateTransaction.class)
+            .invoke(updater, failed);
+
+        assertEquals("tx-retry-unit", resumed.transactionId(), "the retry keeps one audit trail");
+        assertEquals(UpdatePhaseEnum.QUIESCING, resumed.phase());
+        assertNull(resumed.failureMessage());
+        assertEquals(101L, resumed.releaseEpoch());
+    }
+
+    @Test
+    void anEarlierAttemptsAcknowledgementDoesNotSatisfyTheNextHandoff() throws Exception {
+        UpdateLayout layout = layout();
+        UpdatePlatformEnum platform = RuntimePlatformDetector.platform();
+        UpdatePackageTypeEnum packageType = directPackageType(platform);
+        KeyPair keyPair = KeyPairGenerator.getInstance("Ed25519").generateKeyPair();
+        UpdateManifest manifest = signedManifest(keyPair, platform,
+            RuntimePlatformDetector.architecture(), packageType);
+        StubTransport transport = new StubTransport();
+        FullPackageDesktopUpdater updater = new FullPackageDesktopUpdater(layout, "COMMUNITY", packageType,
+            transport, new UpdateDiscoveryService(transport,
+                new UpdateManifestVerifier(Map.of("release", keyPair.getPublic())), BASE));
+        UpdateTransaction prepared = new UpdateTransaction("tx-stale-ack", "5.3.3", manifest.version(),
+            manifest.releaseEpoch(), manifest.packageSha256(), UpdatePhaseEnum.QUIESCING, 10, 20, null);
+        field("preparedTransaction").set(updater, prepared);
+        field("preparedManifest").set(updater, manifest);
+        field("auditLog").set(updater, UpdateAuditLog.open(layout, prepared.transactionId(), "TEST"));
+        field("helperAckTimeout").set(updater, Duration.ofMillis(300L));
+        Files.createDirectories(layout.logsDirectory());
+        Files.writeString(layout.auditLogFile(prepared.transactionId()),
+            "actor=HELPER stage=HANDOFF event=ACK outcome=PERSISTED\n", StandardOpenOption.CREATE);
+        field("helperStarter").set(updater, (FullPackageDesktopUpdater.HelperStarter)
+            (command, workDirectory, stdout, stderr, id) -> null);
+        Path fakeRuntime = Files.createDirectories(temporaryDirectory.resolve("fake-runtime-ack/bin"));
+        Files.writeString(fakeRuntime.resolve("java"), "java");
+        Path helperSource = layout.appDirectory().resolve("tools/chat2db-updater.jar");
+        Files.createDirectories(helperSource.getParent());
+        Files.writeString(helperSource, "helper");
+        String javaHome = System.getProperty("java.home");
+        boolean installed;
+        try {
+            System.setProperty("java.home", temporaryDirectory.resolve("fake-runtime-ack").toString());
+            installed = (boolean) method("installPreparedUpdate").invoke(updater);
+        } finally {
+            System.setProperty("java.home", javaHome);
+        }
+
+        assertFalse(installed, "a retry must wait for its own helper, not trust the previous ack");
     }
 
     @Test
@@ -221,6 +282,23 @@ class FullPackageDesktopUpdaterTest {
         assertTrue(log.contains("stage=HANDOFF event=ACK_WAIT"), log);
         assertTrue(log.contains("helperAck=false"), log);
         assertTrue(log.contains("stage=HANDOFF event=FAILED"), log);
+
+        // A retry while the application is still running must reach the starter again instead of
+        // being rejected as an invalid FAILED -> QUIESCING transition.
+        field("helperStarter").set(updater, (FullPackageDesktopUpdater.HelperStarter)
+            (command, workDirectory, stdout, stderr, id) -> {
+                throw new IllegalStateException("second attempt reached the starter");
+            });
+        boolean retried;
+        try {
+            System.setProperty("java.home", temporaryDirectory.resolve("fake-runtime").toString());
+            retried = (boolean) method("installPreparedUpdate").invoke(updater);
+        } finally {
+            System.setProperty("java.home", javaHome);
+        }
+        assertFalse(retried);
+        assertEquals("second attempt reached the starter",
+            ((UpdateTransaction) transactionField.get(updater)).failureMessage());
     }
 
     @Test
@@ -291,8 +369,8 @@ class FullPackageDesktopUpdaterTest {
         return field;
     }
 
-    private static java.lang.reflect.Method method(String name) throws Exception {
-        java.lang.reflect.Method method = FullPackageDesktopUpdater.class.getDeclaredMethod(name);
+    private static java.lang.reflect.Method method(String name, Class<?>... parameterTypes) throws Exception {
+        java.lang.reflect.Method method = FullPackageDesktopUpdater.class.getDeclaredMethod(name, parameterTypes);
         method.setAccessible(true);
         return method;
     }

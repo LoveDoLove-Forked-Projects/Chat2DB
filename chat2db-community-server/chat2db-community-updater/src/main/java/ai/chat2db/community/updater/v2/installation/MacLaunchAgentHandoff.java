@@ -24,8 +24,8 @@ import java.util.List;
  */
 public final class MacLaunchAgentHandoff {
 
-    public static final String LABEL_PREFIX = "com.chat2db.updater.";
-    public static final String AGENT_SUFFIX = ".plist";
+    static final String LABEL_PREFIX = "com.chat2db.updater.";
+    static final String AGENT_SUFFIX = ".plist";
 
     /**
      * An agent written moments ago may belong to a transaction that is still
@@ -61,13 +61,13 @@ public final class MacLaunchAgentHandoff {
         };
     }
 
-    public static String currentUserId(CommandRunner runner) throws Exception {
+    static String currentUserId(CommandRunner runner) throws Exception {
         CommandResult result = runner.run(List.of("/usr/bin/id", "-u"));
         String userId = result.output() == null ? "" : result.output().trim();
         return userId.isEmpty() ? "-1" : userId;
     }
 
-    public static String label(String transactionId) {
+    static String label(String transactionId) {
         if (transactionId == null || !transactionId.matches("[A-Za-z0-9._-]+")) {
             throw new IllegalArgumentException("Update transaction id contains unsafe label characters");
         }
@@ -76,6 +76,25 @@ public final class MacLaunchAgentHandoff {
 
     public Path agentFile(String transactionId) {
         return launchAgentsDirectory.resolve(label(transactionId) + AGENT_SUFFIX);
+    }
+
+    /** The agent file of a transaction, computed without touching launchd. */
+    public static Path agentFileFor(Path homeDirectory, String transactionId) {
+        return homeDirectory.resolve("Library").resolve("LaunchAgents")
+            .resolve(label(transactionId) + AGENT_SUFFIX);
+    }
+
+    /**
+     * Deletes the agent file of a finished transaction. Deleting the file is
+     * enough: the job has already run, a missing plist is not loaded at the next
+     * login, and unloading the job would kill the application it relaunched.
+     */
+    public static boolean removeAgentFile(Path homeDirectory, String transactionId) {
+        try {
+            return Files.deleteIfExists(agentFileFor(homeDirectory, transactionId));
+        } catch (Exception unremovable) {
+            return false;
+        }
     }
 
     /**
@@ -93,7 +112,14 @@ public final class MacLaunchAgentHandoff {
             Files.createDirectories(parent);
         }
         Files.writeString(agent, plist(label(transactionId), helperCommand, workDirectory, stdout, stderr));
-        return runner.run(List.of("/bin/launchctl", "bootstrap", "gui/" + userId, agent.toString()))
+        int loadExit = runner.run(List.of("/bin/launchctl", "bootstrap", "gui/" + userId, agent.toString()))
+            .exitCode();
+        if (loadExit != 0) {
+            return loadExit;
+        }
+        // The agent is loaded without RunAtLoad and started explicitly: a plist that
+        // survives a crash then does nothing at the next login.
+        return runner.run(List.of("/bin/launchctl", "kickstart", "gui/" + userId + "/" + label(transactionId)))
             .exitCode();
     }
 
@@ -116,7 +142,7 @@ public final class MacLaunchAgentHandoff {
                     continue;
                 }
                 String label = name.substring(0, name.length() - AGENT_SUFFIX.length());
-                if (label.equals(keepLabel) || isLoaded(label) || isRecent(entry)) {
+                if (label.equals(keepLabel) || isRunning(label) || isRecent(entry)) {
                     continue;
                 }
                 runner.run(List.of("/bin/launchctl", "bootout", "gui/" + userId + "/" + label));
@@ -131,6 +157,8 @@ public final class MacLaunchAgentHandoff {
      * Unloads this transaction's agent. It is used when the helper never
      * acknowledged: the helper cannot switch anything before the application
      * exits, so unloading it prevents a later switch the user was told failed.
+     * A non-zero exit code also means "this job was not loaded", which is normal
+     * on a first handoff.
      */
     public int bootout(String transactionId) throws Exception {
         int exitCode = runner.run(
@@ -150,7 +178,7 @@ public final class MacLaunchAgentHandoff {
         }
     }
 
-    private boolean isLoaded(String label) {
+    private boolean isRunning(String label) {
         try {
             CommandResult result = runner.run(List.of("/bin/launchctl", "list", label));
             return result.output() != null && result.output().contains("\"PID\"");
@@ -160,7 +188,7 @@ public final class MacLaunchAgentHandoff {
         }
     }
 
-    public static String plist(String label, List<String> helperCommand, Path workDirectory,
+    static String plist(String label, List<String> helperCommand, Path workDirectory,
             Path stdout, Path stderr) {
         StringBuilder arguments = new StringBuilder();
         for (String argument : helperCommand) {
@@ -184,7 +212,7 @@ public final class MacLaunchAgentHandoff {
             + "  <key>StandardErrorPath</key>\n"
             + "  <string>" + xmlEscape(stderr.toString()) + "</string>\n"
             + "  <key>RunAtLoad</key>\n"
-            + "  <true/>\n"
+            + "  <false/>\n"
             + "  <key>KeepAlive</key>\n"
             + "  <false/>\n"
             + "  <key>AbandonProcessGroup</key>\n"

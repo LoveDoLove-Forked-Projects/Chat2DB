@@ -171,26 +171,48 @@ both the trial and normal application report healthy startup.
 ### Handoff and rollback
 
 The application prepares the helper runtime, the helper JAR and `plan.json`, then
-waits until the helper acknowledges the persisted plan before it exits; a helper
-that never acknowledges fails the handoff and leaves the application running.
+waits up to 30 seconds for the helper to acknowledge the persisted plan before it
+exits, recording `stage=HANDOFF event=ACK_WAIT` with the helper console tail. A
+helper that never acknowledges fails the handoff with `stage=HANDOFF event=FAILED`
+and leaves the application running, so the failure is visible and the update can
+be retried against the same transaction.
+
 On macOS the helper is loaded as a per-transaction LaunchAgent
 (`~/Library/LaunchAgents/com.chat2db.updater.<transaction>.plist`) with
-`AbandonProcessGroup`. A helper spawned as a plain child of the application is
-reclaimed together with the application, which exits right after the handoff
-while the helper JVM is still starting, and `AbandonProcessGroup` keeps the
-relaunched application alive once the helper exits. When launchd refuses the
-agent, for example in a restricted session or under a managed policy, the
-handoff falls back to starting the helper directly and records
-`stage=HANDOFF event=AGENT_FALLBACK`; such a device keeps the previous
-behaviour instead of losing the update.
+`AbandonProcessGroup`. This matters because a helper spawned as a plain child of
+the application is reclaimed together with the application, which exits right
+after the handoff while the helper JVM is still starting, and
+`AbandonProcessGroup` keeps the relaunched application alive once the helper
+exits. The agent is loaded with `RunAtLoad` disabled and started with
+`launchctl kickstart`, so a plist that survives a crash cannot replay an outdated
+plan at the next login. The helper removes its own agent file and the consumed
+`plan.json` when it finishes, and the next transaction also unloads agents left
+by earlier ones; a plist written in the last ten minutes or a job that is still
+running is left alone, so two products updating at the same time do not unload
+each other.
+
+When launchd refuses the agent, for example in a restricted session or under a
+managed policy, the handoff records `stage=HANDOFF event=AGENT_FALLBACK` and
+starts the helper directly. That path keeps the previous timing behaviour: the
+helper can still be reclaimed together with the application, and the
+acknowledgement only proves that it started. A handoff that times out also ends
+the helper it started, so a helper that never acknowledged cannot switch
+anything later.
 
 Before the switch the installed package is moved aside to
 `<install target>.chat2db-previous` on the same volume, so the switch no longer
 deletes the only working copy. The transaction commits only after the trial and
 the relaunched application both report healthy startup, and that commit releases
-the backup. Any failure after the switch restores and relaunches the previous
-package and records `stage=ROLLING_BACK` in the product update log. The helper
-also refuses to switch while another instance of the installed application is
+the backup. For direct-replacement packages any failure after the switch
+restores and relaunches the previous package and records `stage=ROLLING_BACK`;
+when the restore itself fails, the failure message names the backup that still
+holds the last usable copy. Native installers (Windows EXE/MSI, DEB, RPM) have no
+backup and therefore no rollback. The helper also refuses to switch a
+direct-replacement package while another instance of the installed application is
 still running, because such an instance makes the trial candidate exit
-immediately. A transaction that fails without a rollback copy leaves the update
-log as the only record; installation and startup failures are appended to it.
+immediately.
+
+A rollback restores the package only: data and schema changes the candidate
+already applied while starting are not reverted. A transaction that fails
+otherwise leaves the update log as the only record; installation and startup
+failures are appended to it.

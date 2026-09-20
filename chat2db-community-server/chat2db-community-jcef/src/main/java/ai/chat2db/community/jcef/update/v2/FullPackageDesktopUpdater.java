@@ -19,6 +19,7 @@ import ai.chat2db.community.updater.v2.enums.UpdatePhaseEnum;
 import ai.chat2db.community.updater.v2.enums.UpdatePlatformEnum;
 import ai.chat2db.community.updater.v2.model.UpdatePreferences;
 import ai.chat2db.community.updater.v2.state.UpdatePreferencesStore;
+import ai.chat2db.community.updater.v2.state.UpdateStateMachine;
 import ai.chat2db.community.updater.v2.model.UpdateTransaction;
 import ai.chat2db.community.updater.v2.transport.UpdateTransport;
 import ai.chat2db.community.updater.v2.installation.UpdateWorkspaceInitializer;
@@ -226,7 +227,7 @@ public final class FullPackageDesktopUpdater implements IDesktopUpdater {
         }
         try {
             workspaceInitializer.ensureReady(RuntimePlatformDetector.platform());
-            preparedTransaction = transition(preparedTransaction, UpdatePhaseEnum.QUIESCING);
+            preparedTransaction = prepareForHandoff(preparedTransaction);
             auditLog.critical("HANDOFF", "PREPARE", "preparing updater helper runtime and plan");
             Path workDirectory = layout.workDirectory();
             Files.createDirectories(workDirectory);
@@ -264,10 +265,12 @@ public final class FullPackageDesktopUpdater implements IDesktopUpdater {
                 "helper plan persisted oldPid=" + ProcessHandle.current().pid());
             List<String> helperCommand = List.of(
                 javaExecutable.toString(), "-jar", helperCopy.toString(), planFile.toString());
+            Path auditLogFile = layout.auditLogFile(preparedTransaction.transactionId());
+            long ackOffset = UpdateHelperAck.offset(auditLogFile);
             Runnable helperAbort = helperStarter.start(helperCommand, workDirectory, helperStdout,
                 helperStderr, preparedTransaction.transactionId());
-            boolean helperAcknowledged = UpdateHelperAck.await(
-                layout.auditLogFile(preparedTransaction.transactionId()), helperAckTimeout);
+            boolean helperAcknowledged = UpdateHelperAck.awaitSince(
+                auditLogFile, ackOffset, helperAckTimeout);
             auditLog.critical("HANDOFF", "ACK_WAIT",
                 "helperAck=" + helperAcknowledged
                     + " stdoutTail=" + logTail(helperStdout)
@@ -412,31 +415,70 @@ public final class FullPackageDesktopUpdater implements IDesktopUpdater {
      * Loads the helper as a per-transaction LaunchAgent on macOS. A helper spawned
      * as a plain child of this application is reclaimed together with the
      * application, which exits right after the handoff and kills the helper before
-     * its JVM has started.
+     * its JVM has started. The agent is loaded without {@code RunAtLoad} and started
+     * with {@code kickstart}, so a plist that survives a crash cannot replay the
+     * plan at the next login.
      */
+    /**
+     * The first attempt moves the transaction to QUIESCING. A retry after a failed
+     * handoff has to resume from the phase the previous attempt reached: FAILED is
+     * terminal in the update state machine, so transitioning again would reject the
+     * retry the user just asked for while the application is still running.
+     */
+    private UpdateTransaction prepareForHandoff(UpdateTransaction transaction) {
+        if (UpdateStateMachine.isTerminal(transaction.phase())) {
+            auditLog.warn("HANDOFF", "RETRY",
+                "retrying transaction " + transaction.transactionId()
+                    + " after " + transaction.phase());
+            return new UpdateTransaction(
+                transaction.transactionId(),
+                transaction.fromVersion(),
+                transaction.toVersion(),
+                transaction.releaseEpoch(),
+                transaction.targetPackageSha256(),
+                UpdatePhaseEnum.QUIESCING,
+                transaction.createdAtEpochMillis(),
+                System.currentTimeMillis(),
+                null
+            );
+        }
+        if (transaction.phase() == UpdatePhaseEnum.QUIESCING) {
+            auditLog.warn("HANDOFF", "RETRY", "the helper never acknowledged; handing over again");
+            return transaction;
+        }
+        return transition(transaction, UpdatePhaseEnum.QUIESCING);
+    }
+
     private Runnable startHelperProcess(List<String> helperCommand, Path workDirectory, Path stdout,
             Path stderr, String transactionId) throws Exception {
         if (RuntimePlatformDetector.platform() != UpdatePlatformEnum.MACOS) {
-            startHelperDirectly(helperCommand, workDirectory, stdout);
-            return null;
+            return startHelperDirectly(helperCommand, workDirectory, stdout);
         }
         return withDirectFallback(
             () -> startHelperAsLaunchAgent(helperCommand, workDirectory, stdout, stderr, transactionId),
-            () -> {
-                startHelperDirectly(helperCommand, workDirectory, stdout);
-                return null;
-            },
+            () -> startHelperDirectly(helperCommand, workDirectory, stdout),
             agentFailure -> auditLog.warn("HANDOFF", "AGENT_FALLBACK",
                 failureMessage(agentFailure) + "; starting the helper directly instead"));
     }
 
-    private void startHelperDirectly(List<String> helperCommand, Path workDirectory, Path stdout)
+    /**
+     * Starts the helper as a child of this application and returns the action that
+     * ends it again. The abort matters on the direct path: a helper that never
+     * acknowledged keeps waiting for this process to exit and would otherwise
+     * perform the switch after the user was told the update failed.
+     */
+    private Runnable startHelperDirectly(List<String> helperCommand, Path workDirectory, Path stdout)
             throws IOException {
-        new ProcessBuilder(helperCommand)
+        Process helper = new ProcessBuilder(helperCommand)
             .directory(workDirectory.toFile())
             .redirectErrorStream(true)
             .redirectOutput(stdout.toFile())
             .start();
+        return () -> {
+            if (helper.isAlive()) {
+                helper.destroyForcibly();
+            }
+        };
     }
 
     /**
@@ -504,7 +546,10 @@ public final class FullPackageDesktopUpdater implements IDesktopUpdater {
         }
         return () -> {
             try {
-                handoff.bootout(transactionId);
+                int bootoutExit = handoff.bootout(transactionId);
+                if (bootoutExit != 0) {
+                    auditLog.warn("HANDOFF", "ABORT_EXIT", "launchctl bootout exit=" + bootoutExit);
+                }
             } catch (Exception bootoutFailure) {
                 auditLog.warn("HANDOFF", "ABORT_FAILED", failureMessage(bootoutFailure));
             }
