@@ -1,6 +1,7 @@
 package ai.chat2db.community.jcef.handler.biz.update;
 
 
+import ai.chat2db.community.jcef.update.DesktopUpdateCheckContext;
 import ai.chat2db.community.jcef.update.DesktopUpdateCheckResult;
 import ai.chat2db.community.jcef.update.DesktopUpdaterRegistry;
 import ai.chat2db.community.jcef.annotation.JcefAction;
@@ -9,6 +10,7 @@ import ai.chat2db.community.jcef.enums.UpdatedStatus;
 import ai.chat2db.community.jcef.handler.biz.IJcefActionHandler;
 import ai.chat2db.community.tools.console.ConsoleMessage;
 import ai.chat2db.community.tools.console.ConsoleResult;
+import ai.chat2db.community.updater.v2.telemetry.DesktopUsageTelemetry;
 import lombok.extern.slf4j.Slf4j;
 import org.cef.callback.CefQueryCallback;
 
@@ -20,11 +22,32 @@ import java.util.Map;
 public class AppCheckUpdateHandler implements IJcefActionHandler {
     @Override
     public void handle(ConsoleMessage consoleMessage, ConsoleResult wsResult, CefQueryCallback callback) throws Exception {
+        DesktopUpdateCheckContext context = DesktopUpdateCheckContext.parse(consoleMessage.getMessage());
         DesktopUpdateCheckResult checkResult = DesktopUpdaterRegistry.get().appCheckUpdate();
         log.info(checkResult.toString());
+        reportUsageCheck(context, checkResult);
         ResponseBuilder.buildSuccessJcef(
                 Map.of("data", Map.of("status", checkResult.needsUpdate() ? UpdatedStatus.Available.getName() : UpdatedStatus.NotAvailable.getName(),
                         "version", checkResult.needsUpdate() ? checkResult.version() : "")
                 ), callback);
+    }
+
+    /**
+     * Reports the usage event that rides along this update check. Reporting is best effort: it must not
+     * change the update check response, so every failure is contained here.
+     */
+    /** The updater owns the version file layout: {@code <app>/version.json}. */
+    private String installedVersion() {
+        return DesktopUpdaterRegistry.get().installedVersion();
+    }
+
+    private void reportUsageCheck(DesktopUpdateCheckContext context, DesktopUpdateCheckResult checkResult) {
+        try {
+            DesktopUsageTelemetry.get().reportCheck(context.trigger(), context.offlineActivation(),
+                    installedVersion(), DesktopUpdaterRegistry.get().isBetaEnabled(),
+                    checkResult.needsUpdate(), checkResult.version());
+        } catch (Exception exception) {
+            log.warn("usage reporting skipped: {}", exception.getMessage());
+        }
     }
 }
