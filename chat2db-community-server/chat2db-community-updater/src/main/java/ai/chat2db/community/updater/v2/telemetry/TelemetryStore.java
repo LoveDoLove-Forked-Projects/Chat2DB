@@ -1,26 +1,27 @@
 package ai.chat2db.community.updater.v2.telemetry;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
- * Local persistence for the desktop usage reporting: the device id and the Umami session cache token.
+ * On disk state for the desktop usage reporting: the device id, kept in the product config directory.
  *
- * <p>The file lives in the shared Chat2DB directory so all three desktop products report the same
- * device id. Every failure is tolerated: reporting must never affect the application.</p>
+ * <p>The Umami session token the server returns is only kept in memory: a new application start is a
+ * new visit, and the session itself is derived from the device, the user agent and the month.</p>
  */
 public final class TelemetryStore {
 
     private final Path file;
 
-    private final ObjectMapper objectMapper = new ObjectMapper()
-        .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
+    private volatile String sessionCache = "";
 
     public TelemetryStore() {
-        this(TelemetryConfig.storeFile());
+        this.file = null;
     }
 
     public TelemetryStore(Path file) {
@@ -28,51 +29,59 @@ public final class TelemetryStore {
     }
 
     public synchronized String deviceId() {
-        State state = read();
-        if (state.deviceId() != null && !state.deviceId().isBlank()) {
-            return state.deviceId();
+        String stored = read();
+        if (stored != null && !stored.isBlank()) {
+            return stored;
         }
         String deviceId = DeviceIdProvider.resolve();
-        write(new State(deviceId, state.cache()));
+        write(deviceId);
         return deviceId;
     }
 
-    public synchronized String cache() {
-        String cache = read().cache();
-        return cache == null ? "" : cache;
+    public String cache() {
+        return sessionCache;
     }
 
-    public synchronized void saveCache(String cache) {
-        if (cache == null || cache.isBlank()) {
+    public void saveCache(String cache) {
+        if (cache != null && !cache.isBlank()) {
+            sessionCache = cache;
+        }
+    }
+
+    private Path file() {
+        return file != null ? file : TelemetryConfig.storeFile();
+    }
+
+    private String read() {
+        Path path = file();
+        if (path == null || !Files.isRegularFile(path)) {
+            return null;
+        }
+        try {
+            State state = objectMapper.readValue(path.toFile(), State.class);
+            return state == null ? null : state.deviceId();
+        } catch (IOException exception) {
+            return null;
+        }
+    }
+
+    private void write(String deviceId) {
+        Path path = file();
+        if (path == null) {
             return;
         }
-        write(new State(read().deviceId(), cache));
-    }
-
-    private State read() {
-        if (!Files.isRegularFile(file)) {
-            return new State(null, null);
-        }
         try {
-            State state = objectMapper.readValue(file.toFile(), State.class);
-            return state == null ? new State(null, null) : state;
-        } catch (IOException exception) {
-            return new State(null, null);
-        }
-    }
-
-    private void write(State state) {
-        try {
-            Path parent = file.getParent();
+            Path parent = path.getParent();
             if (parent != null) {
                 Files.createDirectories(parent);
             }
-            objectMapper.writeValue(file.toFile(), state);
+            objectMapper.writeValue(path.toFile(), new State(deviceId));
         } catch (IOException ignored) {
             // Reporting state is best effort.
         }
     }
 
-    record State(String deviceId, String cache) {
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record State(String deviceId) {
     }
 }

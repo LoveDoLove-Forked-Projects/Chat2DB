@@ -39,31 +39,34 @@ public final class TelemetryConfig {
     /** The reporting request must never delay or fail an update check. */
     public static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(3L);
 
-    /** Device id and Umami session cache are shared by Community, Pro and Local. */
-    public static final String STORE_DIRECTORY = ".chat2db-shared";
+    public static final String STORE_FILE = "device_id.json";
 
-    public static final String STORE_FILE = "telemetry.json";
-
-    /** Endpoint override, used by tests and by pointing a build at a staging instance. */
-    public static final String ENDPOINT_PROPERTY = "chat2db.telemetry.endpoint";
-
-    /** Store override, used by tests so they never touch the real user profile. */
-    public static final String STORE_PROPERTY = "chat2db.telemetry.store";
+    /**
+     * Config directory of the running product, set by the caller that owns the runtime identity
+     * ({@code ConfigUtils.getBasePath() + "/config"}), so the file sits next to the product config.
+     */
+    private static volatile String configDirectory;
 
     private TelemetryConfig() {
     }
 
-    public static String endpoint() {
-        String override = System.getProperty(ENDPOINT_PROPERTY, "");
-        return override.isBlank() ? ENDPOINT : override;
+    public static void configDirectory(String directory) {
+        if (directory != null && !directory.isBlank()) {
+            configDirectory = directory;
+        }
     }
 
+    /**
+     * @return the state file inside the product config directory, or {@code null} while the caller has
+     *     not provided that directory; nothing is written in that case and the device id stays derived
+     *     from the machine
+     */
     public static Path storeFile() {
-        String override = System.getProperty(STORE_PROPERTY, "");
-        if (!override.isBlank()) {
-            return Path.of(override);
+        String directory = configDirectory;
+        if (directory == null || directory.isBlank()) {
+            return null;
         }
-        return Path.of(System.getProperty("user.home", "."), STORE_DIRECTORY, STORE_FILE);
+        return Path.of(directory, STORE_FILE);
     }
 
     public static String userAgent(String productLabel, String platformLabel) {

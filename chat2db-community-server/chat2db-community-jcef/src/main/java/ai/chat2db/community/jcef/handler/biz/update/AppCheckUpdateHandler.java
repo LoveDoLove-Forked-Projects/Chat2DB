@@ -9,11 +9,14 @@ import ai.chat2db.community.jcef.builder.ResponseBuilder;
 import ai.chat2db.community.jcef.enums.UpdatedStatus;
 import ai.chat2db.community.jcef.handler.biz.IJcefActionHandler;
 import ai.chat2db.community.tools.console.ConsoleMessage;
+import ai.chat2db.community.tools.util.ConfigUtils;
 import ai.chat2db.community.tools.console.ConsoleResult;
 import ai.chat2db.community.updater.v2.telemetry.DesktopUsageTelemetry;
+import ai.chat2db.community.updater.v2.telemetry.TelemetryConfig;
 import lombok.extern.slf4j.Slf4j;
 import org.cef.callback.CefQueryCallback;
 
+import java.io.File;
 import java.util.Map;
 
 
@@ -43,6 +46,8 @@ public class AppCheckUpdateHandler implements IJcefActionHandler {
      */
     private void reportUsageCheck(DesktopUpdateCheckContext context, DesktopUpdateCheckResult checkResult) {
         try {
+            // The reporting state lives next to the product config, never in a directory of its own.
+            TelemetryConfig.configDirectory(ConfigUtils.getBasePath() + File.separator + "config");
             DesktopUsageTelemetry.get().reportCheck(context.trigger(), context.offlineActivation(),
                     installedVersion(), DesktopUpdaterRegistry.get().isBetaEnabled(),
                     checkResult.needsUpdate(), checkResult.version());
