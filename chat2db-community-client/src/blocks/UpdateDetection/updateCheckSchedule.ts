@@ -11,6 +11,15 @@ export const updateCheckDelayMs = (round: number) => {
   return UPDATE_CHECK_INTERVAL_MINUTES[index] * 60 * 1000;
 };
 
+/** Wall clock time the next scheduled check is due at. */
+export const nextCheckDueAt = (now: number, round: number) => now + updateCheckDelayMs(round);
+
+/**
+ * A renderer that is hidden or napped by the OS does not run its timers, so a due check has to be
+ * recognised when the window becomes visible again instead of waiting for the frozen timer.
+ */
+export const isCheckDue = (now: number, dueAt: number) => dueAt > 0 && now >= dueAt;
+
 /** A version is announced only once per session, even though checks repeat. */
 export const shouldNotifyVersion = (version: string | undefined, lastNotifiedVersion: string) =>
   Boolean(version) && version !== lastNotifiedVersion;
