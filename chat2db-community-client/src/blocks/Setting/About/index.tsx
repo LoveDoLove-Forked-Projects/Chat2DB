@@ -43,7 +43,7 @@ export default function AboutUs() {
   };
 
   const checkUpdate = () => {
-    handleCheckUpdate().then((available) => {
+    handleCheckUpdate('manual').then((available) => {
       if (available) {
         return;
       }

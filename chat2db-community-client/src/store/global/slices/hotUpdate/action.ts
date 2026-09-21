@@ -1,7 +1,7 @@
 import { clientRuntime } from '@client-runtime';
 import { UpdatedStatus } from '@/constants/settings';
 import jcefApi from '@/jcef';
-import { IHotUpdateConfig } from '@/typings/settings';
+import { IHotUpdateConfig, UpdateCheckTrigger } from '@/typings/settings';
 import { isDesktop } from '@/utils/env';
 import produce from 'immer';
 import type { StateCreator } from 'zustand/vanilla';
@@ -11,7 +11,9 @@ export interface HotUpdateAction {
   // Update and restart the app
   updateAndRestartApp: () => void;
   // Check for updates
-  handleCheckUpdate: () => Promise<boolean>;
+  handleCheckUpdate: (trigger: UpdateCheckTrigger) => Promise<boolean>;
+  // Record whether the product was activated offline
+  setOfflineActivation: (value: boolean) => void;
   // Synchronize updater-owned preferences
   syncUpdatePreferences: () => Promise<void>;
   // Update hot update configuration
@@ -53,12 +55,17 @@ export const createHotUpdateAction: StateCreator<GlobalStore, [['zustand/devtool
       });
     }
   },
-  handleCheckUpdate: async () => {
+  setOfflineActivation: (value) => {
+    if (get().offlineActivation !== value) {
+      set({ offlineActivation: value });
+    }
+  },
+  handleCheckUpdate: async (trigger) => {
     if (!isDesktop || !clientRuntime.enableAutoUpdate) {
       return false;
     }
     try {
-      const res = await jcefApi.appCheckUpdate();
+      const res = await jcefApi.appCheckUpdate({ trigger, offlineActivation: get().offlineActivation });
       get().setUpdateDetail({
         status: res.status,
         version: res.version,
