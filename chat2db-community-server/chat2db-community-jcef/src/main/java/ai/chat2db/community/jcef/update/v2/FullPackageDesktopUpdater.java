@@ -176,12 +176,12 @@ public final class FullPackageDesktopUpdater implements IDesktopUpdater {
         }
     }
 
-    private UpdateEnvironment environment(InstalledAppVersion installed) {
+    private UpdateEnvironment environment(InstalledAppVersion installed, UpdateChannelEnum channel) {
         return new UpdateEnvironment(
             installed.version(),
             installed.releaseEpoch(),
             product,
-            UpdateChannelEnum.STABLE,
+            channel,
             RuntimePlatformDetector.platform(),
             RuntimePlatformDetector.architecture(),
             packageType,
@@ -214,7 +214,9 @@ public final class FullPackageDesktopUpdater implements IDesktopUpdater {
         }
         try {
             UpdateManifest manifest = remembered.manifest();
-            manifestVerifier.verify(manifest, environment(installed));
+            // The remembered manifest names its own channel: a beta update must verify as beta,
+            // exactly like the discovery does for the channel it queried.
+            manifestVerifier.verify(manifest, environment(installed, manifest.channel()));
             Path packageFile = layout.cachedPackage(manifest.packageType());
             if (!cachedPackageMatches(packageFile, manifest)) {
                 throw new IllegalStateException("Prepared update package is missing or does not match its manifest");

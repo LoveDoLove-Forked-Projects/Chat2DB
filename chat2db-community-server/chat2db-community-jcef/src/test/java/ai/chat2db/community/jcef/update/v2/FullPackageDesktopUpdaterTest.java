@@ -9,6 +9,7 @@ import ai.chat2db.community.updater.v2.model.ReleaseIndex;
 import ai.chat2db.community.updater.v2.model.ReleaseReference;
 import ai.chat2db.community.updater.v2.enums.ReleaseStatusEnum;
 import ai.chat2db.community.updater.v2.runtime.RuntimePlatformDetector;
+import ai.chat2db.community.updater.v2.state.PreparedUpdateStore;
 import ai.chat2db.community.updater.v2.enums.UpdateArchitectureEnum;
 import ai.chat2db.community.updater.v2.enums.UpdateChannelEnum;
 import ai.chat2db.community.updater.v2.discovery.UpdateDiscoveryService;
@@ -513,6 +514,34 @@ class FullPackageDesktopUpdaterTest {
         }
     }
 
+    @Test
+    void restoresAPreparedBetaUpdateAfterARestart() throws Exception {
+        try (TrustedKey key = new TrustedKey()) {
+            Fixture fixture = fixture(key);
+            UpdateManifest betaManifest = signedManifest(key.keyPair(), RuntimePlatformDetector.platform(),
+                RuntimePlatformDetector.architecture(), fixture.packageType(),
+                Files.size(fixture.packageFile()), sha256(fixture.packageFile()), TEST_KEY_ID,
+                UpdateChannelEnum.BETA);
+            Files.createDirectories(fixture.cachedPackage().getParent());
+            Files.copy(fixture.packageFile(), fixture.cachedPackage(), StandardCopyOption.REPLACE_EXISTING);
+            new PreparedUpdateStore(fixture.layout()).save("tx-beta-restore", betaManifest);
+
+            StubTransport offline = new StubTransport();
+            offline.disableJson();
+            FullPackageDesktopUpdater updater = new FullPackageDesktopUpdater(fixture.layout(), "COMMUNITY",
+                fixture.packageType(), offline,
+                new UpdateDiscoveryService(offline,
+                    new UpdateManifestVerifier(Map.of(TEST_KEY_ID, key.keyPair().getPublic())), BASE));
+
+            DesktopUpdateCheckResult check = updater.appCheckUpdate();
+
+            assertEquals(DesktopUpdateCheckResult.State.READY_TO_INSTALL, check.state(),
+                "a beta update that was downloaded must verify as beta in the next session");
+            assertEquals(betaManifest.version(), check.version());
+            assertEquals(0, offline.downloads());
+        }
+    }
+
     private static boolean anyAuditLogContains(UpdateLayout layout, String expected) throws IOException {
         if (!Files.isDirectory(layout.logsDirectory())) {
             return false;
@@ -783,8 +812,15 @@ class FullPackageDesktopUpdaterTest {
     private static UpdateManifest signedManifest(KeyPair keyPair, UpdatePlatformEnum platform,
             UpdateArchitectureEnum architecture, UpdatePackageTypeEnum packageType, long packageSize,
             String packageSha256, String keyId) throws Exception {
+        return signedManifest(keyPair, platform, architecture, packageType, packageSize, packageSha256, keyId,
+            UpdateChannelEnum.STABLE);
+    }
+
+    private static UpdateManifest signedManifest(KeyPair keyPair, UpdatePlatformEnum platform,
+            UpdateArchitectureEnum architecture, UpdatePackageTypeEnum packageType, long packageSize,
+            String packageSha256, String keyId, UpdateChannelEnum channel) throws Exception {
         UpdateManifest unsigned = new UpdateManifest(
-            2, 101, ReleaseStatusEnum.ACTIVE, "COMMUNITY", UpdateChannelEnum.STABLE, "5.3.4", "5.3.401", "sha",
+            2, 101, ReleaseStatusEnum.ACTIVE, "COMMUNITY", channel, "5.3.4", "5.3.401", "sha",
             platform, architecture, UpdateScopeEnum.FULL_PACKAGE, packageType,
             "https://cdn.example.com/package." + packageType.fileExtension(), packageSize, packageSha256,
             packageType.singleFile() ? "." : "bin/chat2db",
