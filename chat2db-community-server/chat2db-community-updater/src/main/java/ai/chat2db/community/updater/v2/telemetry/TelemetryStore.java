@@ -20,6 +20,8 @@ public final class TelemetryStore {
 
     private volatile String sessionCache = "";
 
+    private volatile String deviceId;
+
     public TelemetryStore() {
         this.file = null;
     }
@@ -29,13 +31,19 @@ public final class TelemetryStore {
     }
 
     public synchronized String deviceId() {
-        String stored = read();
-        if (stored != null && !stored.isBlank()) {
-            return stored;
+        String known = deviceId;
+        if (known != null && !known.isBlank()) {
+            return known;
         }
-        String deviceId = DeviceIdProvider.resolve();
-        write(deviceId);
-        return deviceId;
+        String stored = read();
+        String resolved = stored == null || stored.isBlank() ? DeviceIdProvider.resolve() : stored;
+        // Remember it for the process even when the file cannot be written, so every report of this
+        // run carries the same device.
+        deviceId = resolved;
+        if (stored == null || stored.isBlank()) {
+            write(resolved);
+        }
+        return resolved;
     }
 
     public String cache() {

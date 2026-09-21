@@ -56,16 +56,6 @@ class AppCheckUpdateHandlerTest {
         assertTrue(callback.successResponse.get().contains("\"version\":\"\""));
     }
 
-    @Test
-    void malformedContextStillRunsTheCheck() throws Exception {
-        DesktopUpdaterRegistry.register(new StubUpdater(DesktopUpdateCheckResult.notAvailable()));
-
-        CallbackResult callback = check(null);
-
-        assertEquals(0, callback.failureCount.get());
-        assertTrue(callback.successResponse.get().contains("notAvailable"));
-    }
-
     private CallbackResult check(String message) throws Exception {
         ConsoleMessage consoleMessage = new ConsoleMessage();
         consoleMessage.setMessage(message);

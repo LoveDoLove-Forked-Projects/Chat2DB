@@ -28,6 +28,17 @@ class TelemetryStoreTest {
     }
 
     @Test
+    void deviceIdStaysStableWhenTheFileCannotBeWritten() throws Exception {
+        // A directory at the file path makes every write fail.
+        Path file = temporaryDirectory.resolve("config").resolve("device_id.json");
+        Files.createDirectories(file);
+
+        TelemetryStore store = new TelemetryStore(file);
+
+        assertEquals(store.deviceId(), store.deviceId());
+    }
+
+    @Test
     void sessionCacheStaysInMemory() {
         TelemetryStore store = new TelemetryStore(temporaryDirectory.resolve("device_id.json"));
 
