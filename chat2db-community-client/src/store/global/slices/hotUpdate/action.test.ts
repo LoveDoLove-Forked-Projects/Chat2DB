@@ -66,6 +66,7 @@ async function run() {
   };
   const state: any = {
     updateDetail: { status: UpdatedStatus.Updated },
+    offlineActivation: false,
     hotUpdateConfig: {
       remindMe: true,
       autoDownload: false,
@@ -84,8 +85,10 @@ async function run() {
 
   try {
     let desktopBridgeCalls = 0;
-    jcefApi.appCheckUpdate = async () => {
+    let lastCheckRequest: any;
+    jcefApi.appCheckUpdate = async (request?: any) => {
       desktopBridgeCalls += 1;
+      lastCheckRequest = request;
       return { status: UpdatedStatus.Available, version: '5.3.1' } as any;
     };
     jcefApi.triggerInstallation = async () => {
@@ -102,11 +105,18 @@ async function run() {
     };
 
     await state.updateAndRestartApp();
-    assert.equal(await state.handleCheckUpdate(), true);
+    assert.equal(await state.handleCheckUpdate('startup'), true);
+    assert.deepEqual(lastCheckRequest, { trigger: 'startup', offlineActivation: false });
+
+    state.offlineActivation = true;
+    assert.equal(await state.handleCheckUpdate('scheduled'), true);
+    assert.deepEqual(lastCheckRequest, { trigger: 'scheduled', offlineActivation: true });
+    state.setOfflineActivation(false);
+
     await state.syncUpdatePreferences();
     await state.updateHotUpdateConfig('receiveBeta', true);
 
-    assert.equal(desktopBridgeCalls, 5);
+    assert.equal(desktopBridgeCalls, 6);
     assert.equal(state.updateDetail.status, UpdatedStatus.Available);
     assert.equal(state.hotUpdateConfig.receiveBeta, true);
 

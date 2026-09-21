@@ -100,6 +100,16 @@ public final class FullPackageDesktopUpdater implements IDesktopUpdater {
     }
 
     @Override
+    public String installedVersion() {
+        try {
+            return installedVersionReader.read().version();
+        } catch (Exception exception) {
+            // Reporting is best effort; a missing version file must not fail the update check path.
+            return "";
+        }
+    }
+
+    @Override
     public synchronized DesktopUpdateCheckResult appCheckUpdate() {
         beginAuditOperation();
         try {
