@@ -102,7 +102,7 @@ public final class UsageTelemetryReporter implements TelemetrySink {
         if (!cache.isBlank()) {
             headers.put(CACHE_HEADER, cache);
         }
-        Response response = poster.post(TelemetryConfig.endpoint(), headers, body);
+        Response response = poster.post(TelemetryConfig.ENDPOINT, headers, body);
         if (response != null && response.body() != null) {
             store.saveCache(TelemetryPayloads.cacheFromResponse(response.body()));
         }
