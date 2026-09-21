@@ -158,6 +158,15 @@ public final class UpdateLayout {
             : stagingDirectory().resolve("package." + packageType.fileExtension());
     }
 
+    /**
+     * Persisted description of a downloaded, staged update: the signed manifest plus
+     * the transaction it belongs to, so a later session can install it without
+     * downloading the package again.
+     */
+    public Path preparedUpdateFile() {
+        return updateWorkspace().resolve("prepared-update.json");
+    }
+
     public Path stagingDirectory() {
         return updateWorkspace().resolve("candidate");
     }

@@ -168,6 +168,26 @@ includes it. Test an installed version A updating to B; successfully building B
 alone does not verify automatic updates. The helper records success only after
 both the trial and normal application report healthy startup.
 
+### Download, staging and resume
+
+A check never discards a downloaded update. The updater remembers the signed manifest
+and its transaction in `<cache root>/update/prepared-update.json`, and the verified
+package stays in `<cache root>/update/package.<extension>`. A later session verifies the
+remembered manifest with the bundled key, checks the cached package against the size and
+SHA-256 that manifest names, and offers the update for installation without contacting
+the update source again, recording `stage=DISCOVERY event=PREPARED_UPDATE_RESTORED`. A
+remembered update whose release epoch no longer advances the installed one is spent and
+is dropped with `event=PREPARED_UPDATE_CONSUMED`. A manifest that no longer verifies or
+a package that changed is discarded with `event=PREPARED_UPDATE_DISCARDED` and is
+downloaded again.
+
+Downloading the same release twice reuses the verified package (`stage=DOWNLOADING
+event=CACHE_HIT`) and reuses the staging directory that was produced from exactly that
+package, which is recorded in `<cache root>/update/candidate/.source-sha256`; the staged
+content is re-validated before it is trusted. A download request for an update that is
+already prepared reports success and the completed progress instead of downloading it
+again, and an update check cannot discard a prepared update or a running download.
+
 ### Handoff and rollback
 
 The application prepares the helper runtime, the helper JAR and `plan.json`, then
@@ -177,8 +197,8 @@ helper that never acknowledges fails the handoff with `stage=HANDOFF event=FAILE
 and leaves the application running, so the failure is visible and the update can
 be retried against the same transaction.
 
-On macOS the helper is loaded as a per-transaction LaunchAgent
-(`~/Library/LaunchAgents/com.chat2db.updater.<transaction>.plist`) with
+On macOS the helper is loaded as a per-product LaunchAgent
+(`~/Library/LaunchAgents/com.chat2db.updater.<product>.plist`) with
 `AbandonProcessGroup`. This matters because a helper spawned as a plain child of
 the application is reclaimed together with the application, which exits right
 after the handoff while the helper JVM is still starting, and
