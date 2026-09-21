@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import {
   UPDATE_CHECK_INTERVAL_MINUTES,
+  isCheckDue,
+  nextCheckDueAt,
   nextNotifiedVersion,
   shouldNotifyVersion,
   updateCheckDelayMs,
@@ -28,5 +30,13 @@ assert.equal(nextNotifiedVersion(true, '5.3.9', '5.3.8'), '5.3.9', 'a newer vers
 assert.equal(nextNotifiedVersion(false, '5.3.8', ''), '', 'reminders disabled: nothing announced');
 assert.equal(nextNotifiedVersion(false, '5.3.8', '5.3.7'), '5.3.7', 'reminders disabled: marker untouched');
 assert.equal(nextNotifiedVersion(true, undefined, '5.3.7'), '5.3.7', 'missing version is not announced');
+
+assert.equal(nextCheckDueAt(1000, 0), 1000 + 30 * 60 * 1000, 'first round is due after 30 minutes');
+assert.equal(nextCheckDueAt(1000, 5), 1000 + 30 * 60 * 1000, 'the list repeats after the last round');
+
+assert.equal(isCheckDue(2000, 1000), true, 'a passed deadline is due');
+assert.equal(isCheckDue(1000, 1000), true, 'the exact deadline is due');
+assert.equal(isCheckDue(500, 1000), false, 'a future deadline is not due');
+assert.equal(isCheckDue(2000, 0), false, 'an unarmed schedule is never due');
 
 console.log('Update check schedule tests passed');
