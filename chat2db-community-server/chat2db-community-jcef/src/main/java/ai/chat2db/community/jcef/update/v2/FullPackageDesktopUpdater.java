@@ -21,8 +21,11 @@ import ai.chat2db.community.updater.v2.model.UpdatePreferences;
 import ai.chat2db.community.updater.v2.state.UpdatePreferencesStore;
 import ai.chat2db.community.updater.v2.state.UpdateStateMachine;
 import ai.chat2db.community.updater.v2.model.UpdateTransaction;
+import ai.chat2db.community.updater.v2.state.PreparedUpdateStore;
 import ai.chat2db.community.updater.v2.transport.UpdateTransport;
 import ai.chat2db.community.updater.v2.installation.UpdateWorkspaceInitializer;
+import ai.chat2db.community.updater.v2.verification.TrustedUpdateKeys;
+import ai.chat2db.community.updater.v2.verification.UpdateManifestVerifier;
 import ai.chat2db.community.jcef.update.DesktopRestartSupport;
 import ai.chat2db.community.jcef.update.DesktopUpdateCheckResult;
 import ai.chat2db.community.jcef.update.IDesktopUpdater;
@@ -33,6 +36,9 @@ import ai.chat2db.community.tools.util.ConfigUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.security.MessageDigest;
+import java.util.HexFormat;
 import java.nio.file.Files;
 import java.nio.file.FileVisitResult;
 import java.nio.file.LinkOption;
@@ -65,6 +71,8 @@ public final class FullPackageDesktopUpdater implements IDesktopUpdater {
     private final FullPackageStager packageStager;
     private final JcefUpdateProgressReporter progressReporter;
     private final ObjectMapper objectMapper;
+    private final PreparedUpdateStore preparedUpdateStore;
+    private final UpdateManifestVerifier manifestVerifier;
 
     private UpdateDiscoveryService.PendingUpdate pendingUpdate;
     private UpdateTransaction preparedTransaction;
@@ -97,6 +105,8 @@ public final class FullPackageDesktopUpdater implements IDesktopUpdater {
         this.packageStager = new FullPackageStager();
         this.progressReporter = new JcefUpdateProgressReporter();
         this.objectMapper = new ObjectMapper();
+        this.preparedUpdateStore = new PreparedUpdateStore(layout);
+        this.manifestVerifier = new UpdateManifestVerifier(TrustedUpdateKeys.load());
     }
 
     @Override
@@ -115,6 +125,13 @@ public final class FullPackageDesktopUpdater implements IDesktopUpdater {
         try {
             InstalledAppVersion installed = installedVersionReader.read();
             auditLog.versions(installed.version(), "");
+            String preparedVersion = reusePreparedUpdate(installed);
+            if (preparedVersion != null) {
+                auditLog.critical("DISCOVERY", "READY_TO_INSTALL",
+                    "version=" + preparedVersion + " prepared update reused, discovery skipped");
+                auditLog.status(UpdateAuditLog.STATUS_AVAILABLE, "DISCOVERY", "prepared update is ready to install");
+                return DesktopUpdateCheckResult.readyToInstall(preparedVersion);
+            }
             boolean receiveBeta = preferencesStore.load().receiveBeta();
             auditLog.critical("DISCOVERY", "START",
                 "installedVersion=" + installed.version()
@@ -150,18 +167,124 @@ public final class FullPackageDesktopUpdater implements IDesktopUpdater {
                     + " packageBytes=" + manifest.packageSize()
                     + " packageUrl=" + UpdateAuditLog.auditUrl(manifest.packageUrl()));
             auditLog.status(UpdateAuditLog.STATUS_AVAILABLE, "DISCOVERY", "update available");
-            return new DesktopUpdateCheckResult(true, pendingUpdate.manifest().version());
+            return DesktopUpdateCheckResult.available(pendingUpdate.manifest().version());
         } catch (Exception exception) {
-            pendingUpdate = null;
+            // A failed check must not discard a discovered update or a staged package.
             auditLog.error("DISCOVERY", "FAILED", exception);
             auditLog.status(UpdateAuditLog.STATUS_CHECK_FAILED, "DISCOVERY", failureMessage(exception));
             return DesktopUpdateCheckResult.notAvailable();
         }
     }
 
+    private UpdateEnvironment environment(InstalledAppVersion installed) {
+        return new UpdateEnvironment(
+            installed.version(),
+            installed.releaseEpoch(),
+            product,
+            UpdateChannelEnum.STABLE,
+            RuntimePlatformDetector.platform(),
+            RuntimePlatformDetector.architecture(),
+            packageType,
+            UPDATER_PROTOCOL_VERSION
+        );
+    }
+
+    /**
+     * Reports a downloaded update that is ready to install: either the one prepared in
+     * this session or, after a restart, the one remembered on disk. The remembered
+     * manifest is verified again with the bundled key and the cached package has to
+     * match it, so a package that was tampered with is never offered for installation.
+     */
+    private String reusePreparedUpdate(InstalledAppVersion installed) {
+        if (preparedTransaction != null && preparedManifest != null && !helperStarted) {
+            return preparedManifest.version();
+        }
+        PreparedUpdateStore.PreparedUpdate remembered = preparedUpdateStore.load().orElse(null);
+        if (remembered == null) {
+            return null;
+        }
+        if (remembered.manifest().releaseEpoch() <= installed.releaseEpoch()) {
+            // The remembered update was installed or superseded in the meantime: it is simply spent,
+            // which is the normal outcome after a successful installation.
+            auditLog.info("DISCOVERY", "PREPARED_UPDATE_CONSUMED",
+                "preparedVersion=" + remembered.manifest().version()
+                    + " installedVersion=" + installed.version());
+            preparedUpdateStore.clear();
+            return null;
+        }
+        try {
+            UpdateManifest manifest = remembered.manifest();
+            manifestVerifier.verify(manifest, environment(installed));
+            Path packageFile = layout.cachedPackage(manifest.packageType());
+            if (!cachedPackageMatches(packageFile, manifest)) {
+                throw new IllegalStateException("Prepared update package is missing or does not match its manifest");
+            }
+            packageStager.stage(packageFile, manifest, layout);
+            long now = System.currentTimeMillis();
+            preparedTransaction = new UpdateTransaction(
+                remembered.transactionId(),
+                installed.version(),
+                manifest.version(),
+                manifest.releaseEpoch(),
+                manifest.packageSha256(),
+                UpdatePhaseEnum.PRECHECKED,
+                now,
+                now,
+                null
+            );
+            preparedManifest = manifest;
+            auditLog.critical("DISCOVERY", "PREPARED_UPDATE_RESTORED",
+                "transactionId=" + remembered.transactionId()
+                    + " version=" + manifest.version()
+                    + " releaseEpoch=" + manifest.releaseEpoch()
+                    + " bytes=" + manifest.packageSize()
+                    + " sha256=" + manifest.packageSha256());
+            return manifest.version();
+        } catch (Exception unusable) {
+            auditLog.warn("DISCOVERY", "PREPARED_UPDATE_DISCARDED", failureMessage(unusable));
+            preparedUpdateStore.clear();
+            preparedTransaction = null;
+            preparedManifest = null;
+            return null;
+        }
+    }
+
+    private static boolean cachedPackageMatches(Path packageFile, UpdateManifest manifest) {
+        try {
+            if (!Files.isRegularFile(packageFile) || Files.size(packageFile) != manifest.packageSize()) {
+                return false;
+            }
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            try (InputStream input = Files.newInputStream(packageFile)) {
+                byte[] buffer = new byte[64 * 1024];
+                int read;
+                while ((read = input.read(buffer)) >= 0) {
+                    if (read > 0) {
+                        digest.update(buffer, 0, read);
+                    }
+                }
+            }
+            return HexFormat.of().formatHex(digest.digest()).equalsIgnoreCase(manifest.packageSha256());
+        } catch (Exception unreadable) {
+            return false;
+        }
+    }
+
     @Override
     public synchronized boolean triggerDownload(ConsoleResult consoleResult) {
-        if (pendingUpdate == null || helperStarted) {
+        if (helperStarted) {
+            return false;
+        }
+        if (preparedTransaction != null && preparedManifest != null) {
+            // Already downloaded and staged: report success instead of downloading again. The
+            // client still has to learn that the update is ready, so it gets the same completion
+            // the download path reports.
+            ensureAuditOperation();
+            auditLog.status(UpdateAuditLog.STATUS_PENDING, "DOWNLOADING", "package is already prepared");
+            progressReporter.completed(consoleResult);
+            return true;
+        }
+        if (pendingUpdate == null) {
             return false;
         }
         InstalledAppVersion installed = installedVersionReader.read();
@@ -187,18 +310,25 @@ public final class FullPackageDesktopUpdater implements IDesktopUpdater {
                 "url=" + UpdateAuditLog.auditUrl(manifest.packageUrl())
                     + " expectedBytes=" + manifest.packageSize()
                     + " expectedSha256=" + manifest.packageSha256());
-            transport.download(
-                manifest.packageUrl(),
-                packageFile,
-                manifest.packageSize(),
-                manifest.packageSha256(),
-                (downloaded, total) -> {
-                    progressReporter.progress(consoleResult, downloaded, total);
-                    logDownloadProgress(downloaded, total);
-                }
-            );
-            auditLog.critical("DOWNLOADING", "COMPLETE",
-                "bytes=" + manifest.packageSize() + " sha256=" + manifest.packageSha256());
+            if (cachedPackageMatches(packageFile, manifest)) {
+                auditLog.critical("DOWNLOADING", "CACHE_HIT",
+                    "bytes=" + manifest.packageSize() + " sha256=" + manifest.packageSha256()
+                        + " reused the package from an earlier download");
+            } else {
+                Files.deleteIfExists(packageFile);
+                transport.download(
+                    manifest.packageUrl(),
+                    packageFile,
+                    manifest.packageSize(),
+                    manifest.packageSha256(),
+                    (downloaded, total) -> {
+                        progressReporter.progress(consoleResult, downloaded, total);
+                        logDownloadProgress(downloaded, total);
+                    }
+                );
+                auditLog.critical("DOWNLOADING", "COMPLETE",
+                    "bytes=" + manifest.packageSize() + " sha256=" + manifest.packageSha256());
+            }
             transaction = transition(transaction, UpdatePhaseEnum.VERIFIED);
             transaction = transition(transaction, UpdatePhaseEnum.PRECHECKING);
             auditLog.info("PRECHECKING", "STAGE", "staging complete package for validation");
@@ -206,6 +336,7 @@ public final class FullPackageDesktopUpdater implements IDesktopUpdater {
             transaction = transition(transaction, UpdatePhaseEnum.PRECHECKED);
             preparedTransaction = transaction;
             preparedManifest = manifest;
+            preparedUpdateStore.save(transaction.transactionId(), manifest);
             progressReporter.completed(consoleResult);
             return true;
         } catch (Exception exception) {
@@ -359,10 +490,11 @@ public final class FullPackageDesktopUpdater implements IDesktopUpdater {
         if (auditLog != null && pendingUpdate != null && preparedTransaction == null && !helperStarted) {
             auditLog.status(UpdateAuditLog.STATUS_SUPERSEDED, "DISCOVERY", "new update check started");
         }
-        pendingUpdate = null;
-        preparedTransaction = null;
-        preparedManifest = null;
-        helperStarted = false;
+        // A downloaded and staged update survives a new check: discarding it would make the
+        // install step fail and would download the same package again.
+        if (preparedTransaction == null) {
+            pendingUpdate = null;
+        }
         auditLog = UpdateAuditLog.begin(layout, UUID.randomUUID().toString(), "APPLICATION");
     }
 

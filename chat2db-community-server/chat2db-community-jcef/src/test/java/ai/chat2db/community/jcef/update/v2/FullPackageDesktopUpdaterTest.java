@@ -1,6 +1,8 @@
 package ai.chat2db.community.jcef.update.v2;
 
+import ai.chat2db.community.jcef.update.DesktopUpdateCheckResult;
 import ai.chat2db.community.jcef.utils.SingleInstanceUtil;
+import ai.chat2db.community.tools.console.ConsoleResult;
 import ai.chat2db.community.updater.v2.model.InstalledAppVersion;
 import ai.chat2db.community.updater.v2.verification.ManifestCanonicalizer;
 import ai.chat2db.community.updater.v2.model.ReleaseIndex;
@@ -28,18 +30,23 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.DataOutputStream;
+import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.DosFileAttributeView;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.Signature;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -363,6 +370,283 @@ class FullPackageDesktopUpdaterTest {
         assertFalse(targetAttributes.readAttributes().isReadOnly());
     }
 
+    @Test
+    void reusesTheCachedPackageInsteadOfDownloadingItAgain() throws Exception {
+        try (TrustedKey key = new TrustedKey()) {
+            Fixture fixture = fixture(key);
+            FullPackageDesktopUpdater updater = fixture.updater(key);
+            Files.createDirectories(fixture.cachedPackage().getParent());
+            Files.copy(fixture.packageFile(), fixture.cachedPackage(), StandardCopyOption.REPLACE_EXISTING);
+
+            assertTrue(updater.appCheckUpdate().needsUpdate());
+            assertTrue(updater.triggerDownload(new ConsoleResult()));
+            assertTrue(updater.triggerDownload(new ConsoleResult()),
+                "a repeated download request for a prepared update must keep reporting success");
+
+            assertEquals(0, fixture.transport().downloads(),
+                "a package that is already in the cache must not be downloaded again");
+            assertTrue(Files.isRegularFile(fixture.layout().preparedUpdateFile()),
+                "a prepared update must be remembered so a restart can install it");
+            assertTrue(Files.exists(fixture.stagedCandidate()),
+                "the prepared package must be staged for the helper");
+        }
+    }
+
+    @Test
+    void downloadsThePackageWhenTheCacheDoesNotMatchTheManifest() throws Exception {
+        try (TrustedKey key = new TrustedKey()) {
+            Fixture fixture = fixture(key);
+            FullPackageDesktopUpdater updater = fixture.updater(key);
+            Files.createDirectories(fixture.cachedPackage().getParent());
+            Files.writeString(fixture.cachedPackage(), "truncated download");
+
+            assertTrue(updater.appCheckUpdate().needsUpdate());
+            assertTrue(updater.triggerDownload(new ConsoleResult()));
+
+            assertEquals(1, fixture.transport().downloads());
+            assertEquals(fixture.manifest().packageSha256(), sha256(fixture.cachedPackage()),
+                "the cached package must be replaced by the verified download");
+            assertTrue(Files.isRegularFile(fixture.layout().preparedUpdateFile()));
+        }
+    }
+
+    @Test
+    void keepsThePreparedUpdateAcrossUpdateChecks() throws Exception {
+        try (TrustedKey key = new TrustedKey()) {
+            Fixture fixture = fixture(key);
+            FullPackageDesktopUpdater updater = fixture.updater(key);
+            Files.createDirectories(fixture.cachedPackage().getParent());
+            Files.copy(fixture.packageFile(), fixture.cachedPackage(), StandardCopyOption.REPLACE_EXISTING);
+            assertTrue(updater.appCheckUpdate().needsUpdate());
+            assertTrue(updater.triggerDownload(new ConsoleResult()));
+
+            fixture.transport().disableJson();
+            DesktopUpdateCheckResult check = updater.appCheckUpdate();
+
+            assertEquals(DesktopUpdateCheckResult.State.READY_TO_INSTALL, check.state(),
+                "the check must report the prepared update instead of running discovery");
+            assertEquals(fixture.manifest().version(), check.version());
+            assertTrue(check.needsUpdate(), "an update that waits for its installation is still pending");
+            assertEquals(UpdatePhaseEnum.PRECHECKED,
+                ((UpdateTransaction) field("preparedTransaction").get(updater)).phase());
+        }
+    }
+
+    @Test
+    void offersAPreparedUpdateForInstallationAfterARestartWithoutNetwork() throws Exception {
+        try (TrustedKey key = new TrustedKey()) {
+            Fixture fixture = fixture(key);
+            FullPackageDesktopUpdater firstSession = fixture.updater(key);
+            Files.createDirectories(fixture.cachedPackage().getParent());
+            Files.copy(fixture.packageFile(), fixture.cachedPackage(), StandardCopyOption.REPLACE_EXISTING);
+            assertTrue(firstSession.appCheckUpdate().needsUpdate());
+            assertTrue(firstSession.triggerDownload(new ConsoleResult()));
+            Path stagedByTheFirstSession = fixture.layout().stagingDirectory().resolve("staged-already");
+            Files.writeString(stagedByTheFirstSession, "kept");
+
+            StubTransport offline = new StubTransport();
+            offline.disableJson();
+            FullPackageDesktopUpdater secondSession = new FullPackageDesktopUpdater(
+                fixture.layout(), "COMMUNITY", fixture.packageType(), offline,
+                new UpdateDiscoveryService(offline,
+                    new UpdateManifestVerifier(Map.of(TEST_KEY_ID, key.keyPair().getPublic())), BASE));
+
+            DesktopUpdateCheckResult check = secondSession.appCheckUpdate();
+
+            assertEquals(DesktopUpdateCheckResult.State.READY_TO_INSTALL, check.state(),
+                "a downloaded update must survive a restart and must not need the network again");
+            assertEquals(fixture.manifest().version(), check.version());
+            assertEquals(0, offline.downloads());
+            UpdateTransaction restored = (UpdateTransaction) field("preparedTransaction").get(secondSession);
+            assertEquals(UpdatePhaseEnum.PRECHECKED, restored.phase());
+            assertEquals(fixture.manifest().packageSha256(), restored.targetPackageSha256());
+            assertTrue(Files.exists(stagedByTheFirstSession),
+                "the staged package must be reused instead of being unpacked again");
+        }
+    }
+
+    @Test
+    void discardsAPreparedUpdateWhoseCachedPackageChanged() throws Exception {
+        try (TrustedKey key = new TrustedKey()) {
+            Fixture fixture = fixture(key);
+            FullPackageDesktopUpdater firstSession = fixture.updater(key);
+            Files.createDirectories(fixture.cachedPackage().getParent());
+            Files.copy(fixture.packageFile(), fixture.cachedPackage(), StandardCopyOption.REPLACE_EXISTING);
+            assertTrue(firstSession.appCheckUpdate().needsUpdate());
+            assertTrue(firstSession.triggerDownload(new ConsoleResult()));
+            Files.writeString(fixture.cachedPackage(), "tampered");
+
+            FullPackageDesktopUpdater secondSession = fixture.updater(key);
+            DesktopUpdateCheckResult check = secondSession.appCheckUpdate();
+
+            assertEquals(DesktopUpdateCheckResult.State.AVAILABLE, check.state(),
+                "a package that no longer matches its manifest must be downloaded again");
+            assertNull(field("preparedTransaction").get(secondSession));
+            assertFalse(Files.exists(fixture.layout().preparedUpdateFile()),
+                "a discarded prepared update must not be offered again");
+        }
+    }
+
+    @Test
+    void forgetsAPreparedUpdateThatWasInstalledInTheMeantime() throws Exception {
+        try (TrustedKey key = new TrustedKey()) {
+            Fixture fixture = fixture(key);
+            FullPackageDesktopUpdater firstSession = fixture.updater(key);
+            Files.createDirectories(fixture.cachedPackage().getParent());
+            Files.copy(fixture.packageFile(), fixture.cachedPackage(), StandardCopyOption.REPLACE_EXISTING);
+            assertTrue(firstSession.appCheckUpdate().needsUpdate());
+            assertTrue(firstSession.triggerDownload(new ConsoleResult()));
+
+            // The prepared release is now the installed one, exactly like after a successful update.
+            new ObjectMapper().writeValue(fixture.layout().appDirectory().resolve("version.json").toFile(),
+                new InstalledAppVersion(fixture.manifest().version(), fixture.manifest().releaseEpoch(),
+                    "installed"));
+
+            FullPackageDesktopUpdater secondSession = fixture.updater(key);
+            DesktopUpdateCheckResult check = secondSession.appCheckUpdate();
+
+            assertFalse(check.state() == DesktopUpdateCheckResult.State.READY_TO_INSTALL,
+                "a spent prepared update must not be offered for installation again");
+            assertFalse(Files.exists(fixture.layout().preparedUpdateFile()));
+            assertTrue(anyAuditLogContains(fixture.layout(), "event=PREPARED_UPDATE_CONSUMED"),
+                "a spent prepared update is cleared without being reported as a problem");
+        }
+    }
+
+    private static boolean anyAuditLogContains(UpdateLayout layout, String expected) throws IOException {
+        if (!Files.isDirectory(layout.logsDirectory())) {
+            return false;
+        }
+        try (var files = Files.list(layout.logsDirectory())) {
+            for (Path file : files.toList()) {
+                if (Files.readString(file).contains(expected)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static final String TEST_KEY_ID = "test-release-key";
+    private static final String TEST_KEY_ID_PROPERTY = "chat2db.update.key-id";
+    private static final String TEST_PUBLIC_KEY_PROPERTY = "chat2db.update.public-key";
+
+    /** Makes the bundled-key verification path trust a key this test owns. */
+    private static final class TrustedKey implements AutoCloseable {
+
+        private final KeyPair keyPair;
+        private final String previousKeyId;
+        private final String previousPublicKey;
+
+        TrustedKey() throws Exception {
+            keyPair = KeyPairGenerator.getInstance("Ed25519").generateKeyPair();
+            previousKeyId = System.getProperty(TEST_KEY_ID_PROPERTY);
+            previousPublicKey = System.getProperty(TEST_PUBLIC_KEY_PROPERTY);
+            System.setProperty(TEST_KEY_ID_PROPERTY, TEST_KEY_ID);
+            System.setProperty(TEST_PUBLIC_KEY_PROPERTY,
+                Base64.getEncoder().encodeToString(keyPair.getPublic().getEncoded()));
+        }
+
+        KeyPair keyPair() {
+            return keyPair;
+        }
+
+        @Override
+        public void close() {
+            restore(TEST_KEY_ID_PROPERTY, previousKeyId);
+            restore(TEST_PUBLIC_KEY_PROPERTY, previousPublicKey);
+        }
+
+        private static void restore(String name, String value) {
+            if (value == null) {
+                System.clearProperty(name);
+            } else {
+                System.setProperty(name, value);
+            }
+        }
+    }
+
+    private record Fixture(UpdateLayout layout, UpdateManifest manifest, Path packageFile,
+            StubTransport transport, UpdatePackageTypeEnum packageType) {
+
+        FullPackageDesktopUpdater updater(TrustedKey key) {
+            return new FullPackageDesktopUpdater(layout, "COMMUNITY", packageType, transport,
+                new UpdateDiscoveryService(transport,
+                    new UpdateManifestVerifier(Map.of(TEST_KEY_ID, key.keyPair().getPublic())), BASE));
+        }
+
+        Path cachedPackage() {
+            return layout.cachedPackage(packageType);
+        }
+
+        Path stagedCandidate() {
+            return layout.stagedPackage(packageType);
+        }
+    }
+
+    /** An online release that serves one package, so a download can always succeed. */
+    private Fixture fixture(TrustedKey key) throws Exception {
+        UpdateLayout layout = layout();
+        UpdatePlatformEnum platform = RuntimePlatformDetector.platform();
+        UpdatePackageTypeEnum packageType = directPackageType(platform);
+        Path packageFile = packageFor(packageType);
+        UpdateManifest manifest = signedManifest(key.keyPair(), platform,
+            RuntimePlatformDetector.architecture(), packageType, Files.size(packageFile),
+            sha256(packageFile), TEST_KEY_ID);
+        StubTransport transport = new StubTransport();
+        transport.setDownloadSource(packageFile);
+        String manifestUrl = BASE + "stable/5.3.4/manifest.json";
+        transport.put(BASE + "stable/latest_version.json", new ReleaseIndex(
+            2, 101, ReleaseStatusEnum.ACTIVE, UpdateChannelEnum.STABLE,
+            List.of(new ReleaseReference("5.3.4", platform, RuntimePlatformDetector.architecture(),
+                packageType, manifestUrl))
+        ));
+        transport.put(manifestUrl, manifest);
+        Files.createDirectories(layout.appDirectory());
+        new ObjectMapper().writeValue(layout.appDirectory().resolve("version.json").toFile(),
+            new InstalledAppVersion("5.3.3", 100, "installed"));
+        return new Fixture(layout, manifest, packageFile, transport, packageType);
+    }
+
+    private Path packageFor(UpdatePackageTypeEnum packageType) throws Exception {
+        if (packageType != UpdatePackageTypeEnum.MACOS_APP_ARCHIVE) {
+            Path single = temporaryDirectory.resolve("package." + packageType.fileExtension());
+            Files.writeString(single, "package-bytes");
+            if (packageType == UpdatePackageTypeEnum.LINUX_APPIMAGE) {
+                assertTrue(single.toFile().setExecutable(true, false));
+            }
+            return single;
+        }
+        Path source = temporaryDirectory.resolve("package-source");
+        Path launcher = source.resolve("package/bin/chat2db");
+        Files.createDirectories(launcher.getParent());
+        Files.writeString(launcher, "launcher");
+        assertTrue(launcher.toFile().setExecutable(true, false));
+        Path archive = temporaryDirectory.resolve("package.tar.gz");
+        Process process = new ProcessBuilder("tar", "-czf", archive.toString(),
+            "-C", source.toString(), "package").inheritIO().start();
+        assertEquals(0, process.waitFor());
+        return archive;
+    }
+
+    private static String sha256(Path file) throws IOException {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            try (InputStream input = Files.newInputStream(file)) {
+                byte[] buffer = new byte[64 * 1024];
+                int read;
+                while ((read = input.read(buffer)) >= 0) {
+                    if (read > 0) {
+                        digest.update(buffer, 0, read);
+                    }
+                }
+            }
+            return HexFormat.of().formatHex(digest.digest());
+        } catch (NoSuchAlgorithmException unsupported) {
+            throw new IllegalStateException("SHA-256 is not available", unsupported);
+        }
+    }
+
     private static Field field(String name) throws Exception {
         Field field = FullPackageDesktopUpdater.class.getDeclaredField(name);
         field.setAccessible(true);
@@ -493,12 +777,18 @@ class FullPackageDesktopUpdaterTest {
 
     private static UpdateManifest signedManifest(KeyPair keyPair, UpdatePlatformEnum platform,
             UpdateArchitectureEnum architecture, UpdatePackageTypeEnum packageType) throws Exception {
+        return signedManifest(keyPair, platform, architecture, packageType, 100, "a".repeat(64), "release");
+    }
+
+    private static UpdateManifest signedManifest(KeyPair keyPair, UpdatePlatformEnum platform,
+            UpdateArchitectureEnum architecture, UpdatePackageTypeEnum packageType, long packageSize,
+            String packageSha256, String keyId) throws Exception {
         UpdateManifest unsigned = new UpdateManifest(
             2, 101, ReleaseStatusEnum.ACTIVE, "COMMUNITY", UpdateChannelEnum.STABLE, "5.3.4", "5.3.401", "sha",
             platform, architecture, UpdateScopeEnum.FULL_PACKAGE, packageType,
-            "https://cdn.example.com/package." + packageType.fileExtension(), 100, "a".repeat(64),
+            "https://cdn.example.com/package." + packageType.fileExtension(), packageSize, packageSha256,
             packageType.singleFile() ? "." : "bin/chat2db",
-            3, 3, "https://example.com/notes", "release", null
+            3, 3, "https://example.com/notes", keyId, null
         );
         Signature signer = Signature.getInstance("Ed25519");
         signer.initSign(keyPair.getPrivate());
@@ -515,20 +805,57 @@ class FullPackageDesktopUpdaterTest {
 
     private static final class StubTransport implements UpdateTransport {
         private final Map<String, Object> values = new HashMap<>();
+        private final AtomicInteger downloads = new AtomicInteger();
+        private Path downloadSource;
+        private boolean jsonDisabled;
 
         void put(String url, Object value) {
             values.put(url, value);
         }
 
+        void setDownloadSource(Path downloadSource) {
+            this.downloadSource = downloadSource;
+        }
+
+        void disableJson() {
+            this.jsonDisabled = true;
+        }
+
+        int downloads() {
+            return downloads.get();
+        }
+
         @Override
         public <T> T getJson(String url, Class<T> type) {
+            if (jsonDisabled) {
+                throw new IllegalStateException("No update check may run while an update is prepared: " + url);
+            }
             return type.cast(values.get(url));
         }
 
         @Override
         public Path download(String url, Path destination, long expectedSize, String expectedSha256,
                 DownloadProgress listener) {
-            throw new UnsupportedOperationException();
+            downloads.incrementAndGet();
+            if (downloadSource == null) {
+                throw new UnsupportedOperationException("No download source is configured for " + url);
+            }
+            try {
+                Files.createDirectories(destination.getParent());
+                Files.copy(downloadSource, destination, StandardCopyOption.REPLACE_EXISTING);
+                long size = Files.size(destination);
+                listener.onBytes(size, expectedSize);
+                if (size != expectedSize) {
+                    throw new IllegalStateException("Update payload size mismatch: expected " + expectedSize
+                        + ", got " + size);
+                }
+                if (!sha256(destination).equalsIgnoreCase(expectedSha256)) {
+                    throw new IllegalStateException("Update payload SHA-256 mismatch");
+                }
+                return destination;
+            } catch (IOException exception) {
+                throw new IllegalStateException("Cannot download update payload: " + url, exception);
+            }
         }
     }
 }

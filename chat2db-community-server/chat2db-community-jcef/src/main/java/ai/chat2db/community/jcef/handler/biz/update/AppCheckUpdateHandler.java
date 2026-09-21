@@ -29,9 +29,16 @@ public class AppCheckUpdateHandler implements IJcefActionHandler {
         DesktopUpdateCheckResult checkResult = DesktopUpdaterRegistry.get().appCheckUpdate();
         log.info(checkResult.toString());
         reportUsageCheck(context, checkResult);
+        String status = switch (checkResult.state()) {
+            case AVAILABLE -> UpdatedStatus.Available.getName();
+            // A downloaded package that still has to be installed: the client shows the install action.
+            case READY_TO_INSTALL -> UpdatedStatus.Updated.getName();
+            case NOT_AVAILABLE -> UpdatedStatus.NotAvailable.getName();
+        };
         ResponseBuilder.buildSuccessJcef(
-                Map.of("data", Map.of("status", checkResult.needsUpdate() ? UpdatedStatus.Available.getName() : UpdatedStatus.NotAvailable.getName(),
-                        "version", checkResult.needsUpdate() ? checkResult.version() : "")
+                Map.of("data", Map.of("status", status,
+                        "version", checkResult.state() == DesktopUpdateCheckResult.State.NOT_AVAILABLE
+                                ? "" : String.valueOf(checkResult.version()))
                 ), callback);
     }
 

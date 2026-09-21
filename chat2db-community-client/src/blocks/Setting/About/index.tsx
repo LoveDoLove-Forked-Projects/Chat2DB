@@ -10,7 +10,7 @@ import { isDesktop } from '@/utils/env';
 import { openWebPage } from '@/utils/url';
 import { staticMessage } from '@chat2db/ui';
 import { Button, Checkbox, Progress } from 'antd';
-import { useMemo } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useStyles } from './style';
 
 // About Us
@@ -42,8 +42,19 @@ export default function AboutUs() {
     openWebPage(CHANGE_LOG_URL);
   };
 
-  const checkUpdate = () => {
-    handleCheckUpdate('manual').then((available) => {
+  const checkingRef = useRef(false);
+  const [checking, setChecking] = useState(false);
+
+  const checkUpdate = async () => {
+    // One click, one request, one message: a second click while the check runs is ignored here and
+    // reuses the running check inside the store.
+    if (checkingRef.current) {
+      return;
+    }
+    checkingRef.current = true;
+    setChecking(true);
+    try {
+      const available = await handleCheckUpdate('manual');
       if (available) {
         return;
       }
@@ -52,7 +63,10 @@ export default function AboutUs() {
         return;
       }
       staticMessage.info(i18n('setting.text.notAvailable'));
-    });
+    } finally {
+      checkingRef.current = false;
+      setChecking(false);
+    }
   };
 
   const triggerDownload = () => {
@@ -100,12 +114,12 @@ export default function AboutUs() {
         );
       default:
         return (
-          <Button onClick={checkUpdate} type="primary" size="small">
+          <Button onClick={checkUpdate} type="primary" size="small" loading={checking}>
             {i18n('setting.title.checkUpdate')}
           </Button>
         );
     }
-  }, [updateDetail, hotUpdateConfig]);
+  }, [updateDetail, hotUpdateConfig, checking]);
 
   return (
     <div>
