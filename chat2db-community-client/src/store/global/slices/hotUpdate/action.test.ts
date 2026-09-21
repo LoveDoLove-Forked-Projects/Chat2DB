@@ -161,6 +161,11 @@ async function run() {
     assert.equal(await state.handleCheckUpdate('scheduled'), true);
     assert.equal(state.updateDetail.status, UpdatedStatus.Updated);
 
+    // A check that cannot reach the update source reports a failure, not "no update".
+    state.updateDetail.status = UpdatedStatus.Default;
+    assert.equal(await state.handleCheckUpdate('manual'), false);
+    assert.equal(state.updateDetail.status, UpdatedStatus.UpdateFailed);
+
     jcefApi.appCheckUpdate = async () => ({ status: checkStatus, version: checkVersion }) as any;
 
     // A downloaded update is offered to the user instead of being reported as "no update".

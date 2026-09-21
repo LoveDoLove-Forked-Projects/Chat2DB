@@ -33,6 +33,9 @@ public class AppCheckUpdateHandler implements IJcefActionHandler {
             case AVAILABLE -> UpdatedStatus.Available.getName();
             // A downloaded package that still has to be installed: the client shows the install action.
             case READY_TO_INSTALL -> UpdatedStatus.Updated.getName();
+            // The check could not reach the update source: the client reports a failure instead of
+            // telling the user that no new version exists.
+            case CHECK_FAILED -> UpdatedStatus.UpdateFailed.getName();
             case NOT_AVAILABLE -> UpdatedStatus.NotAvailable.getName();
         };
         ResponseBuilder.buildSuccessJcef(

@@ -56,6 +56,17 @@ class AppCheckUpdateHandlerTest {
         assertTrue(callback.successResponse.get().contains("\"version\":\"\""));
     }
 
+    @Test
+    void reportsACheckFailureInsteadOfNoUpdate() throws Exception {
+        DesktopUpdaterRegistry.register(new StubUpdater(DesktopUpdateCheckResult.checkFailed()));
+
+        CallbackResult callback = check("{\"trigger\":\"manual\",\"offlineActivation\":true}");
+
+        assertEquals(0, callback.failureCount.get());
+        assertTrue(callback.successResponse.get().contains("\"status\":\"updateFailed\""),
+            callback.successResponse.get());
+    }
+
     private CallbackResult check(String message) throws Exception {
         ConsoleMessage consoleMessage = new ConsoleMessage();
         consoleMessage.setMessage(message);

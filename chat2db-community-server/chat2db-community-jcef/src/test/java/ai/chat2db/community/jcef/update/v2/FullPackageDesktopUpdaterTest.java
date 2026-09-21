@@ -20,8 +20,10 @@ import ai.chat2db.community.updater.v2.enums.UpdatePackageTypeEnum;
 import ai.chat2db.community.updater.v2.enums.UpdatePhaseEnum;
 import ai.chat2db.community.updater.v2.enums.UpdatePlatformEnum;
 import ai.chat2db.community.updater.v2.enums.UpdateScopeEnum;
+import ai.chat2db.community.updater.v2.model.UpdatePreferences;
 import ai.chat2db.community.updater.v2.model.UpdateTransaction;
 import ai.chat2db.community.updater.v2.audit.UpdateAuditLog;
+import ai.chat2db.community.updater.v2.transport.HttpsUpdateTransport;
 import ai.chat2db.community.updater.v2.transport.UpdateTransport;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -542,6 +544,72 @@ class FullPackageDesktopUpdaterTest {
         }
     }
 
+    @Test
+    void reportsAFailedCheckWhenTheUpdateSourceCannotBeReached() throws Exception {
+        try (TrustedKey key = new TrustedKey()) {
+            Fixture fixture = fixture(key);
+            UpdateLayout layout = fixture.layout();
+            Files.createDirectories(layout.supportRoot());
+            new ObjectMapper().writeValue(layout.preferencesFile().toFile(), new UpdatePreferences(true));
+            UpdatePlatformEnum platform = RuntimePlatformDetector.platform();
+            UpdateArchitectureEnum architecture = RuntimePlatformDetector.architecture();
+            String stableIndex = BASE + "stable/latest_version.json";
+            String betaIndex = BASE + "beta/latest_version.json";
+            String betaManifestUrl = BASE + "beta/5.3.4/manifest.json";
+            StubTransport transport = new StubTransport();
+            // The stable channel has no index yet while the beta channel cannot be reached, which is
+            // exactly the situation a user with a broken update source is in.
+            transport.failJson(stableIndex, missingResource(stableIndex));
+            transport.put(betaIndex, new ReleaseIndex(
+                2, 101, ReleaseStatusEnum.ACTIVE, UpdateChannelEnum.BETA,
+                List.of(new ReleaseReference("5.3.4", platform, architecture,
+                    fixture.packageType(), betaManifestUrl))
+            ));
+            transport.failJson(betaManifestUrl, unreachable(betaManifestUrl));
+            FullPackageDesktopUpdater updater = new FullPackageDesktopUpdater(layout, "COMMUNITY",
+                fixture.packageType(), transport,
+                new UpdateDiscoveryService(transport,
+                    new UpdateManifestVerifier(Map.of(TEST_KEY_ID, key.keyPair().getPublic())), BASE));
+
+            DesktopUpdateCheckResult check = updater.appCheckUpdate();
+
+            assertEquals(DesktopUpdateCheckResult.State.CHECK_FAILED, check.state(),
+                "a channel that cannot be reached is not a channel without a release");
+            assertFalse(check.needsUpdate(), "a failed check did not learn about any release");
+            assertTrue(anyAuditLogContains(layout, "stage=DISCOVERY event=RESULT outcome=CHECK_FAILED"));
+        }
+    }
+
+    @Test
+    void reportsNoUpdateWhenTheReleaseIndexIsNotPublished() throws Exception {
+        try (TrustedKey key = new TrustedKey()) {
+            Fixture fixture = fixture(key);
+            StubTransport transport = new StubTransport();
+            String stableIndex = BASE + "stable/latest_version.json";
+            transport.failJson(stableIndex, missingResource(stableIndex));
+            FullPackageDesktopUpdater updater = new FullPackageDesktopUpdater(fixture.layout(), "COMMUNITY",
+                fixture.packageType(), transport,
+                new UpdateDiscoveryService(transport,
+                    new UpdateManifestVerifier(Map.of(TEST_KEY_ID, key.keyPair().getPublic())), BASE));
+
+            DesktopUpdateCheckResult check = updater.appCheckUpdate();
+
+            assertEquals(DesktopUpdateCheckResult.State.NOT_AVAILABLE, check.state(),
+                "a channel that has not published its index yet simply has no update");
+            assertTrue(anyAuditLogContains(fixture.layout(), "stage=DISCOVERY event=RESULT outcome=NO_UPDATE"));
+        }
+    }
+
+    private static IllegalStateException missingResource(String url) {
+        return new IllegalStateException("Cannot fetch update metadata: " + url,
+            new HttpsUpdateTransport.MissingUpdateResourceException("Update server returned HTTP 404"));
+    }
+
+    private static IllegalStateException unreachable(String url) {
+        return new IllegalStateException("Cannot fetch update metadata: " + url,
+            new java.net.ConnectException("HTTP connect timed out"));
+    }
+
     private static boolean anyAuditLogContains(UpdateLayout layout, String expected) throws IOException {
         if (!Files.isDirectory(layout.logsDirectory())) {
             return false;
@@ -841,12 +909,17 @@ class FullPackageDesktopUpdaterTest {
 
     private static final class StubTransport implements UpdateTransport {
         private final Map<String, Object> values = new HashMap<>();
+        private final Map<String, RuntimeException> jsonFailures = new HashMap<>();
         private final AtomicInteger downloads = new AtomicInteger();
         private Path downloadSource;
         private boolean jsonDisabled;
 
         void put(String url, Object value) {
             values.put(url, value);
+        }
+
+        void failJson(String url, RuntimeException failure) {
+            jsonFailures.put(url, failure);
         }
 
         void setDownloadSource(Path downloadSource) {
@@ -865,6 +938,10 @@ class FullPackageDesktopUpdaterTest {
         public <T> T getJson(String url, Class<T> type) {
             if (jsonDisabled) {
                 throw new IllegalStateException("No update check may run while an update is prepared: " + url);
+            }
+            RuntimeException failure = jsonFailures.get(url);
+            if (failure != null) {
+                throw failure;
             }
             return type.cast(values.get(url));
         }

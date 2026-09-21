@@ -22,6 +22,7 @@ import ai.chat2db.community.updater.v2.state.UpdatePreferencesStore;
 import ai.chat2db.community.updater.v2.state.UpdateStateMachine;
 import ai.chat2db.community.updater.v2.model.UpdateTransaction;
 import ai.chat2db.community.updater.v2.state.PreparedUpdateStore;
+import ai.chat2db.community.updater.v2.transport.HttpsUpdateTransport;
 import ai.chat2db.community.updater.v2.transport.UpdateTransport;
 import ai.chat2db.community.updater.v2.installation.UpdateWorkspaceInitializer;
 import ai.chat2db.community.updater.v2.verification.TrustedUpdateKeys;
@@ -169,11 +170,35 @@ public final class FullPackageDesktopUpdater implements IDesktopUpdater {
             auditLog.status(UpdateAuditLog.STATUS_AVAILABLE, "DISCOVERY", "update available");
             return DesktopUpdateCheckResult.available(pendingUpdate.manifest().version());
         } catch (Exception exception) {
-            // A failed check must not discard a discovered update or a staged package.
+            // A failed check must not discard a discovered update or a staged package, and it must
+            // not be reported as "no update available" either: the user has to be able to tell a
+            // broken update source from a source that publishes no newer release.
+            boolean releaseNotPublished = isReleaseNotPublished(exception);
             auditLog.error("DISCOVERY", "FAILED", exception);
-            auditLog.status(UpdateAuditLog.STATUS_CHECK_FAILED, "DISCOVERY", failureMessage(exception));
-            return DesktopUpdateCheckResult.notAvailable();
+            auditLog.status(
+                releaseNotPublished ? UpdateAuditLog.STATUS_NO_UPDATE : UpdateAuditLog.STATUS_CHECK_FAILED,
+                "DISCOVERY", failureMessage(exception));
+            return releaseNotPublished
+                ? DesktopUpdateCheckResult.notAvailable()
+                : DesktopUpdateCheckResult.checkFailed();
         }
+    }
+
+    /**
+     * Whether the check failed only because the update source does not publish a release index or
+     * manifest yet. Every channel that was queried has to be missing, otherwise a real failure
+     * would be hidden behind a channel that is simply empty.
+     */
+    private static boolean isReleaseNotPublished(Throwable failure) {
+        if (!HttpsUpdateTransport.isMissingResource(failure)) {
+            return false;
+        }
+        for (Throwable suppressed : failure.getSuppressed()) {
+            if (!HttpsUpdateTransport.isMissingResource(suppressed)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private UpdateEnvironment environment(InstalledAppVersion installed, UpdateChannelEnum channel) {

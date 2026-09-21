@@ -59,7 +59,8 @@ export default function AboutUs() {
         return;
       }
       if (useGlobalStore.getState().updateDetail.status === UpdatedStatus.UpdateFailed) {
-        staticMessage.error(i18n('common.text.failure'));
+        // The check could not reach the update source, which is not the same as "no new version".
+        staticMessage.error(i18n('setting.text.checkUpdateFailed'));
         return;
       }
       staticMessage.info(i18n('setting.text.notAvailable'));
