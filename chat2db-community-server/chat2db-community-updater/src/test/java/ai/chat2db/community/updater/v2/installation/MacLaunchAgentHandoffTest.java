@@ -71,7 +71,8 @@ class MacLaunchAgentHandoffTest {
         assertTrue(Files.isRegularFile(agent));
         assertEquals(
             List.of("/bin/launchctl", "bootstrap", "gui/501", agent.toString()),
-            commands.get(commands.size() - 2)
+            commands.get(commands.size() - 2),
+            "a label that is not registered yet must be loaded once"
         );
         assertEquals(
             List.of("/bin/launchctl", "kickstart", "gui/501/com.chat2db.updater.local"),
@@ -81,48 +82,42 @@ class MacLaunchAgentHandoffTest {
     }
 
     @Test
+    void reusesTheRegistrationOfAnAlreadyLoadedAgent() throws Exception {
+        MacLaunchAgentHandoff handoff = new MacLaunchAgentHandoff(
+            temporaryDirectory.resolve("Library/LaunchAgents"), "501",
+            command -> {
+                commands.add(List.copyOf(command));
+                return new MacLaunchAgentHandoff.CommandResult(0, "501\n");
+            });
+
+        int exitCode = handoff.bootstrap("PRO", List.of("/bin/true"),
+            temporaryDirectory.resolve("work"), temporaryDirectory.resolve("out"), temporaryDirectory.resolve("err"));
+
+        assertEquals(0, exitCode);
+        assertTrue(commands.stream().anyMatch(command -> command.contains("list")),
+            "the handoff must check whether the label is already registered");
+        assertEquals(
+            List.of("/bin/launchctl", "kickstart", "gui/501/com.chat2db.updater.pro"),
+            commands.get(commands.size() - 1));
+        assertFalse(commands.stream().anyMatch(command -> command.contains("bootstrap")),
+            "re-registering the same label would report a new background item to the user");
+    }
+
+    @Test
     void doesNotStartTheAgentWhenLoadingFails() throws Exception {
-        MacLaunchAgentHandoff handoff = handoff(5, "501\n");
+        MacLaunchAgentHandoff handoff = new MacLaunchAgentHandoff(
+            temporaryDirectory.resolve("Library/LaunchAgents"), "501",
+            command -> {
+                commands.add(List.copyOf(command));
+                boolean listing = command.contains("list");
+                return new MacLaunchAgentHandoff.CommandResult(listing ? 113 : 5, "501\n");
+            });
 
         assertEquals(5, handoff.bootstrap("LOCAL", List.of("/bin/true"),
             temporaryDirectory.resolve("work"), temporaryDirectory.resolve("out"), temporaryDirectory.resolve("err")));
 
         assertFalse(commands.stream().anyMatch(command -> command.contains("kickstart")),
             "a job that failed to load must not be started");
-    }
-
-    @Test
-    void removesTheAgentFileOfAFinishedTransaction() throws Exception {
-        Path home = temporaryDirectory.resolve("home");
-        Path agent = MacLaunchAgentHandoff.agentFileFor(home, "pro");
-        Files.createDirectories(agent.getParent());
-        Files.writeString(agent, "plist");
-
-        assertTrue(MacLaunchAgentHandoff.removeAgentFile(home, "pro"));
-
-        assertFalse(Files.exists(agent));
-        assertFalse(MacLaunchAgentHandoff.removeAgentFile(home, "pro"),
-            "removing an agent twice reports that nothing was left");
-    }
-
-    @Test
-    void unloadsALeftoverJobOfTheSameTransactionBeforeBootstrapping() throws Exception {
-        MacLaunchAgentHandoff handoff = handoff(0, "501\n");
-        Path agent = handoff.agentFile("LOCAL");
-        Files.createDirectories(agent.getParent());
-        Files.writeString(agent, "stale-plist");
-
-        handoff.bootstrap("LOCAL", List.of("/bin/true"),
-            temporaryDirectory.resolve("work"), temporaryDirectory.resolve("out"), temporaryDirectory.resolve("err"));
-
-        assertEquals(
-            List.of("/bin/launchctl", "bootout", "gui/501/com.chat2db.updater.local"),
-            commands.get(0),
-            "a leftover job would make bootstrap fail on a retry");
-        assertEquals(
-            List.of("/bin/launchctl", "bootstrap", "gui/501", agent.toString()),
-            commands.get(1));
-        assertTrue(Files.readString(agent).contains("<key>AbandonProcessGroup</key>"));
     }
 
     @Test
@@ -179,7 +174,9 @@ class MacLaunchAgentHandoffTest {
     private MacLaunchAgentHandoff.CommandRunner runner(int exitCode, String output) {
         return command -> {
             commands.add(List.copyOf(command));
-            return new MacLaunchAgentHandoff.CommandResult(exitCode, output);
+            // A label that is not registered yet makes `launchctl list` fail.
+            boolean listing = command.contains("list");
+            return new MacLaunchAgentHandoff.CommandResult(listing ? 113 : exitCode, output);
         };
     }
 }

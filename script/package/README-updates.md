@@ -183,13 +183,14 @@ On macOS the helper is loaded as a per-transaction LaunchAgent
 the application is reclaimed together with the application, which exits right
 after the handoff while the helper JVM is still starting, and
 `AbandonProcessGroup` keeps the relaunched application alive once the helper
-exits. The agent is loaded with `RunAtLoad` disabled and started with
-`launchctl kickstart`, so a plist that survives a crash cannot replay an outdated
-plan at the next login. The helper removes its own agent file and the consumed
-`plan.json` when it finishes, and the next transaction also unloads agents left
-by earlier ones; a plist written in the last ten minutes or a job that is still
-running is left alone, so two products updating at the same time do not unload
-each other.
+exits. The agent uses one stable label per product and stays registered. It is loaded
+with `RunAtLoad` disabled and started with `launchctl kickstart`: macOS reports a
+newly registered background item to the user once, so registering the label again
+on every update, or unloading it after every update, would notify the user each
+time. Later updates reuse the loaded job and only rewrite the plist and kickstart
+it. Because `RunAtLoad` is disabled, the plist that stays behind cannot replay an
+outdated plan at the next login. The helper deletes the consumed `plan.json` when
+it finishes.
 
 When launchd refuses the agent, for example in a restricted session or under a
 managed policy, the handoff records `stage=HANDOFF event=AGENT_FALLBACK` and

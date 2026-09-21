@@ -17,11 +17,13 @@ import java.util.concurrent.TimeUnit;
  * helper under launchd removes that dependency, and {@code AbandonProcessGroup}
  * keeps the application the helper relaunches alive after the helper exits.</p>
  *
- * <p>The agent uses one stable label per product. A label per transaction would
- * register a new background item with macOS on every update, which the system
- * reports to the user and lists under login items. The agent is loaded with
- * {@code RunAtLoad} disabled and started with {@code kickstart}, so a plist that
- * survives a crash cannot replay an outdated plan at the next login.</p>
+ * <p>The agent uses one stable label per product and stays registered: a label
+ * per transaction, or unloading the job after every update, would register a new
+ * background item with macOS each time, which the system reports to the user and
+ * lists under login items. Later updates reuse the loaded job with
+ * {@code kickstart} instead of registering again. The agent is loaded with
+ * {@code RunAtLoad} disabled, so the plist that stays behind cannot replay an
+ * outdated plan at the next login.</p>
  *
  * <p>{@code launchctl submit} is deliberately not used: launchd kills the
  * remaining processes of a submitted job's process group when its main process
@@ -87,45 +89,37 @@ public final class MacLaunchAgentHandoff {
         return launchAgentsDirectory.resolve(label(product) + AGENT_SUFFIX);
     }
 
-    /** The agent file of a product, computed without touching launchd. */
-    public static Path agentFileFor(Path homeDirectory, String product) {
-        return homeDirectory.resolve("Library").resolve("LaunchAgents")
-            .resolve(label(product) + AGENT_SUFFIX);
-    }
-
     /**
-     * Deletes the agent file of a finished update. Deleting the file is enough:
-     * the job has already run, a missing plist is not loaded at the next login,
-     * and unloading the job would kill the application it relaunched.
-     */
-    public static boolean removeAgentFile(Path homeDirectory, String product) {
-        try {
-            return Files.deleteIfExists(agentFileFor(homeDirectory, product));
-        } catch (Exception unremovable) {
-            return false;
-        }
-    }
-
-    /**
-     * Writes the agent of this product and starts the helper. A job left over from
-     * a crashed attempt would make bootstrap fail, so the label is unloaded first.
+     * Makes sure the agent of this product is registered and starts the helper.
+     * The job is registered once and then reused: registering it again after every
+     * update would make macOS report a new background item to the user each time.
      */
     public int bootstrap(String product, List<String> helperCommand, Path workDirectory,
             Path stdout, Path stderr) throws Exception {
-        bootout(product);
         Path agent = agentFile(product);
         Path parent = agent.getParent();
         if (parent != null) {
             Files.createDirectories(parent);
         }
         Files.writeString(agent, plist(label(product), helperCommand, workDirectory, stdout, stderr));
-        int loadExit = runner.run(List.of("/bin/launchctl", "bootstrap", "gui/" + userId, agent.toString()))
-            .exitCode();
-        if (loadExit != 0) {
-            return loadExit;
+        if (!isLoaded(product)) {
+            int loadExit = runner.run(List.of("/bin/launchctl", "bootstrap", "gui/" + userId, agent.toString()))
+                .exitCode();
+            if (loadExit != 0) {
+                return loadExit;
+            }
         }
         return runner.run(List.of("/bin/launchctl", "kickstart", "gui/" + userId + "/" + label(product)))
             .exitCode();
+    }
+
+    /** Whether this product's agent is already registered with launchd. */
+    boolean isLoaded(String product) {
+        try {
+            return runner.run(List.of("/bin/launchctl", "list", label(product))).exitCode() == 0;
+        } catch (Exception unreadable) {
+            return false;
+        }
     }
 
     /**

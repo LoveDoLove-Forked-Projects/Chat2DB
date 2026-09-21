@@ -3,16 +3,13 @@ package ai.chat2db.community.updater;
 import ai.chat2db.community.updater.v2.runtime.UpdateStartupCoordinator;
 import ai.chat2db.community.updater.v2.audit.UpdateAuditLog;
 import ai.chat2db.community.updater.v2.installation.FullPackageSwitcher;
-import ai.chat2db.community.updater.v2.installation.MacLaunchAgentHandoff;
 import ai.chat2db.community.updater.v2.model.UpdateHealth;
 import ai.chat2db.community.updater.v2.model.UpdateHelperPlan;
 import ai.chat2db.community.updater.v2.installation.UpdateLayout;
 import ai.chat2db.community.updater.v2.enums.UpdatePackageTypeEnum;
 import ai.chat2db.community.updater.v2.enums.UpdatePhaseEnum;
-import ai.chat2db.community.updater.v2.enums.UpdatePlatformEnum;
 import ai.chat2db.community.updater.v2.model.UpdateTransaction;
 import ai.chat2db.community.updater.v2.runtime.InstalledAppVersionReader;
-import ai.chat2db.community.updater.v2.runtime.RuntimePlatformDetector;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.nio.file.Files;
@@ -64,10 +61,9 @@ public final class UpdateHelperMain {
     }
 
     /**
-     * Removes what could replay this transaction: the agent that started this
-     * helper and the plan it consumed. Deleting the agent file is enough because it
-     * is loaded without {@code RunAtLoad}; unloading the job would kill the
-     * application this helper relaunched.
+     * Removes the plan this helper consumed, so a later run cannot replay it. The
+     * agent file is kept: it is the registration the next update reuses, and it is
+     * loaded without {@code RunAtLoad}.
      */
     private static void removeHandoffLeftovers(UpdateHelperPlan plan, UpdateLayout layout, UpdateAuditLog audit) {
         try {
@@ -78,17 +74,8 @@ public final class UpdateHelperMain {
         } catch (Exception planRemovalFailure) {
             audit.warn("HANDOFF", "PLAN_REMOVE_FAILED", failureMessage(planRemovalFailure));
         }
-        if (RuntimePlatformDetector.platform() != UpdatePlatformEnum.MACOS) {
-            return;
-        }
-        try {
-            Path home = Path.of(System.getProperty("user.home"));
-            if (MacLaunchAgentHandoff.removeAgentFile(home, plan.product())) {
-                audit.warn("HANDOFF", "AGENT_REMOVED", "the update helper agent was removed");
-            }
-        } catch (Exception agentRemovalFailure) {
-            audit.warn("HANDOFF", "AGENT_REMOVE_FAILED", failureMessage(agentRemovalFailure));
-        }
+        // The agent file stays in place on purpose: it is the registration the next
+        // update reuses, and RunAtLoad is disabled so it cannot run on its own.
     }
 
     private static int execute(UpdateHelperPlan plan, UpdateLayout layout,
