@@ -28,6 +28,30 @@ public class SqlConstant {
                                              ORDER BY
                                                p.proname
                                              """;
+    public static String PROCEDURE_LIST_SQL = """
+                                             SELECT
+                                               p.proname,
+                                               n.nspname,
+                                               p.prokind
+                                             FROM
+                                               sys_catalog.sys_proc p
+                                               JOIN sys_catalog.sys_namespace n ON p.pronamespace = n.oid
+                                             WHERE
+                                               p.prokind = 'p'
+                                               AND lower(n.nspname) = lower(?)
+                                               AND NOT EXISTS (
+                                                 SELECT
+                                                   1
+                                                 FROM
+                                                   sys_catalog.sys_depend d
+                                                   JOIN sys_catalog.sys_extension e ON e.oid = d.refobjid
+                                                 WHERE
+                                                   d.objid = p.oid
+                                                   AND d.deptype = 'e'
+                                               )
+                                             ORDER BY
+                                               p.proname
+                                             """;
     public static String FUNCTION_SQL = """
                                         SELECT
                                           p.proname,

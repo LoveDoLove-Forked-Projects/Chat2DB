@@ -519,6 +519,25 @@ public class KingBaseMetaData extends DefaultMetaService implements IDbMetaData 
     }
 
     @Override
+    public List<Procedure> procedures(Connection connection, String databaseName, String schemaName) {
+        return DefaultSQLExecutor.getInstance().preExecute(connection, PROCEDURE_LIST_SQL, new String[]{schemaName}, resultSet -> {
+            List<Procedure> procedures = new ArrayList<>();
+            while (resultSet.next()) {
+                String procedureName = resultSet.getString("proname");
+                if (StringUtils.isBlank(procedureName)) {
+                    continue;
+                }
+                Procedure procedure = new Procedure();
+                procedure.setDatabaseName(databaseName);
+                procedure.setSchemaName(resultSet.getString("nspname"));
+                procedure.setProcedureName(procedureName.trim());
+                procedures.add(procedure);
+            }
+            return procedures;
+        });
+    }
+
+    @Override
     public Function function(Connection connection, @NotEmpty String databaseName, String schemaName,
                              String functionName) {
 
