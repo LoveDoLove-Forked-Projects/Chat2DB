@@ -28,6 +28,33 @@ public class SqlConstant {
                                              ORDER BY
                                                p.proname
                                              """;
+    public static String PROCEDURE_LIST_SQL = """
+                                             SELECT
+                                               p.proname,
+                                               n.nspname,
+                                               p.prokind
+                                             FROM
+                                               sys_catalog.sys_proc p
+                                               JOIN sys_catalog.sys_namespace n ON p.pronamespace = n.oid
+                                             WHERE
+                                               -- V8R6 and later tag procedures with 'p'. V8R3 tags every user
+                                               -- routine 'u', so a procedure is the void-returning one there
+                                               -- (2278 is the void type, a function returning int is 23).
+                                               (p.prokind = 'p' OR (p.prokind = 'u' AND p.prorettype = 2278))
+                                               AND lower(n.nspname) = lower(?)
+                                               AND NOT EXISTS (
+                                                 SELECT
+                                                   1
+                                                 FROM
+                                                   sys_catalog.sys_depend d
+                                                   JOIN sys_catalog.sys_extension e ON e.oid = d.refobjid
+                                                 WHERE
+                                                   d.objid = p.oid
+                                                   AND d.deptype = 'e'
+                                               )
+                                             ORDER BY
+                                               p.proname
+                                             """;
     public static String FUNCTION_SQL = """
                                         SELECT
                                           p.proname,
