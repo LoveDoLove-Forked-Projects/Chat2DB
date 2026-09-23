@@ -46,7 +46,7 @@ Chat2DB Community es un cliente de bases de datos gratuito y multiplataforma par
 La siguiente línea de funciones se publica como vista previa anticipada antes de llegar al canal Beta habitual:
 
 - **[Chat2DB Community 5.4.0-beta.1 (vista previa anticipada)](https://github.com/OtterMind/Chat2DB/releases/tag/v5.4.0-beta.1)** — instaladores para macOS, Windows y Linux.
-- Añade un entorno de agente local opcional con skills, servidores MCP externos y herramientas de archivo y terminal; actívelo en **Configuración → Agent**.
+- Añade un entorno de agente local opcional con skills, servidores MCP externos y herramientas de archivo y terminal; elige **Pi Agent** en el selector de runtime del campo de entrada de la IA para activarlo (la primera vez pide confirmación y descarga el entorno).
 - Esta vista previa no es la versión estable ni la Beta habitual: `Latest` sigue siendo la estable y la línea Beta habitual continúa con `5.3.8-beta.x`. Active **Recibir versiones Beta** en **Configuración → Acerca de** para recibirla en la aplicación.
 
 ## Inicio rápido
