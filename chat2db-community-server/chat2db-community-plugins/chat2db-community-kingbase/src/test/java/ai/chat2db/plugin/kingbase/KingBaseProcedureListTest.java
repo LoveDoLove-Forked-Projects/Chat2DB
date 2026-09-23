@@ -19,6 +19,7 @@ import java.util.List;
 import static ai.chat2db.plugin.kingbase.constant.SqlConstant.PROCEDURE_LIST_SQL;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class KingBaseProcedureListTest {
 
@@ -48,6 +49,8 @@ class KingBaseProcedureListTest {
 
         assertEquals(List.of(PROCEDURE_LIST_SQL), prepared);
         assertFalse(PROCEDURE_LIST_SQL.contains("||"), "KingbaseES rejects the driver's || based SPECIFIC_NAME");
+        assertTrue(PROCEDURE_LIST_SQL.contains("p.prokind = 'p'"), "V8R6 and later tag procedures with 'p'");
+        assertTrue(PROCEDURE_LIST_SQL.contains("p.prorettype = 2278"), "V8R3 tags every user routine 'u'");
         assertEquals(List.of("tetramdm"), bindings);
         assertEquals(2, procedures.size());
         assertEquals("p_sync_data", procedures.get(0).getProcedureName());

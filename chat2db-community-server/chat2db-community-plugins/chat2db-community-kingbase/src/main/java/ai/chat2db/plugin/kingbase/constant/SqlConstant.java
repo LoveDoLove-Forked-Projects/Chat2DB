@@ -37,7 +37,10 @@ public class SqlConstant {
                                                sys_catalog.sys_proc p
                                                JOIN sys_catalog.sys_namespace n ON p.pronamespace = n.oid
                                              WHERE
-                                               p.prokind = 'p'
+                                               -- V8R6 and later tag procedures with 'p'. V8R3 tags every user
+                                               -- routine 'u', so a procedure is the void-returning one there
+                                               -- (2278 is the void type, a function returning int is 23).
+                                               (p.prokind = 'p' OR (p.prokind = 'u' AND p.prorettype = 2278))
                                                AND lower(n.nspname) = lower(?)
                                                AND NOT EXISTS (
                                                  SELECT
