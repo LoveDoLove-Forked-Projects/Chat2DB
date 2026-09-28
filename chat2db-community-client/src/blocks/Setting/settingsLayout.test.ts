@@ -5,6 +5,7 @@ const read = (file: string) => readFileSync(file, 'utf8');
 const settingLayoutSource = read('src/blocks/Setting/SettingLayout.tsx');
 const settingSource = read('src/blocks/Setting/index.tsx');
 const clientExtensionSource = read('src/client-extension/community.tsx');
+const clientExtensionTypesSource = read('src/client-extension/types.ts');
 const baseSettingSource = read('src/blocks/Setting/BaseSetting/index.tsx');
 const editorSettingSource = read('src/blocks/Setting/EditorSetting/index.tsx');
 const terminalSettingSource = read('src/blocks/Setting/TerminalSetting/index.tsx');
@@ -31,6 +32,10 @@ assert.match(settingSource, /clientExtension\.settings\?\.items/);
 assert.match(settingSource, /body: <TerminalSetting \/>/);
 assert.match(settingSource, /body: <SqlxSetting \/>/);
 assert.match(settingSource, /clientRuntime\.showSqlxSetting/);
+// A product layer filters the entries for the current context, so the layout renders the filtered list.
+assert.match(settingSource, /clientExtension\.settings\?\.useItems/);
+assert.match(settingSource, /menus=\{visibleMenus\}/);
+assert.match(clientExtensionTypesSource, /useItems\?: \(items: readonly SettingMenuItem\[\]\)/);
 assert.doesNotMatch(clientExtensionSource, /settings:/);
 assert.doesNotMatch(settingSource, /Personal|Invite|PurchaseDetails|DeviceCer|License/);
 

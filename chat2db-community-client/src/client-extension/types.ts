@@ -99,6 +99,11 @@ export interface ClientExtension {
   mainPage: ClientMainPageExtension;
   settings?: {
     items?: (context: ClientSettingContext) => readonly SettingMenuItem[];
+    /**
+     * React hook used by a product layer to drop settings entries that do not apply to the current
+     * context, the way `useNavigationItems` filters the navigation.
+     */
+    useItems?: (items: readonly SettingMenuItem[]) => readonly SettingMenuItem[];
     about?: ReactNode;
   };
   navigationItems?: readonly ClientNavigationContribution[];
