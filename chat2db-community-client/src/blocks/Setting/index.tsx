@@ -18,6 +18,9 @@ import { isDesktop } from '@/utils/env';
 import ShortcutSetting from './ShortcutSetting';
 import TerminalSetting from './TerminalSetting';
 
+/** Product layers may filter the settings entries; the default keeps every entry. */
+const useUnfilteredSettingItems = (items: readonly SettingMenuItem[]) => items;
+
 function Setting() {
   const {
     settingPageActiveTab = 'basic',
@@ -124,14 +127,19 @@ function Setting() {
     return appendClientSettingMenuItems([...sharedItems, ...informationItems], clientItems);
   }, [language]);
 
+  // A product layer hides entries that do not apply to the current context, for example the SQLX
+  // entry inside a team workspace. The hook is always called, so its identity has a default.
+  const useSettingItems = clientExtension.settings?.useItems ?? useUnfilteredSettingItems;
+  const visibleMenus = useSettingItems(menusList);
+
   useEffect(() => {
-    if (settingPageActiveTab && !menusList.some((t) => t.code === settingPageActiveTab)) {
+    if (settingPageActiveTab && !visibleMenus.some((t) => t.code === settingPageActiveTab)) {
       setSettingPageActiveTab('basic');
     }
-  }, [menusList, settingPageActiveTab, setSettingPageActiveTab]);
+  }, [visibleMenus, settingPageActiveTab, setSettingPageActiveTab]);
 
   return (
-    <SettingLayout activeTab={settingPageActiveTab} menus={menusList} onActiveTabChange={setSettingPageActiveTab} />
+    <SettingLayout activeTab={settingPageActiveTab} menus={visibleMenus} onActiveTabChange={setSettingPageActiveTab} />
   );
 }
 
