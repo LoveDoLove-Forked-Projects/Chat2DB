@@ -77,6 +77,7 @@ interface ChatInputProps {
   // Hide selection database
   hideDatabaseSelect?: boolean;
   modelOptions?: Array<{ label: string; value: string; isDefault?: boolean }>;
+  onReloadModelOptions?: () => void;
   showCustomModelEntry?: boolean;
   onCustomModelClick?: () => void;
   customModelText?: string;
@@ -105,6 +106,7 @@ const AIChatInput = forwardRef((props: ChatInputProps, ref: ForwardedRef<ChatInp
     loading,
     hideDatabaseSelect,
     modelOptions,
+    onReloadModelOptions,
     showCustomModelEntry,
     onCustomModelClick,
     customModelText,
@@ -674,6 +676,7 @@ const AIChatInput = forwardRef((props: ChatInputProps, ref: ForwardedRef<ChatInp
             <div className={styles.bottomAddonsRight}>
               <AIModelSelect
                 options={modelOptions}
+                onReloadModelOptions={onReloadModelOptions}
                 showCustomModelEntry={showCustomModelEntry}
                 onCustomModelClick={onCustomModelClick}
                 customModelText={customModelText}

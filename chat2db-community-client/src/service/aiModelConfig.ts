@@ -198,8 +198,9 @@ export const testAIModelConfig = async (payload: IAIModelConfigSaveRequest) => {
 };
 
 export const listAvailableModelOptions = async (): Promise<IModelOptionItem[]> => {
+  // Preset models are optional: a failed fetch must not hide locally configured models.
   const presetOptions = clientRuntime.loadModelOptionsFromServer
-    ? (await aiStreamService.getModelOptions(undefined as void)) || []
+    ? (await aiStreamService.getModelOptions(undefined as void).catch(() => [])) || []
     : [];
 
   if (!clientRuntime.usesLocalPersistence) {
