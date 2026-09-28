@@ -908,9 +908,7 @@ export default function AI({ variant = 'page', onTableClick, onPinSql, onSession
         setSelectedModel(nextSelectedModel);
       }
     } catch (error: any) {
-      setModelOptions([]);
-      setModelOptionMap({});
-      setSelectedModel(null);
+      // Keep the current list on failure: a failed preset fetch must not drop local models.
       if (error?.errorCode !== ErrorCode.NeedLoggedIn) {
         feedback.error(i18n('stream.error.loadModelList'));
       }
@@ -2205,6 +2203,7 @@ export default function AI({ variant = 'page', onTableClick, onPinSql, onSession
                     : { minRows: 2, maxRows: 6 }
                 }
                 modelOptions={modelOptions}
+                onReloadModelOptions={loadModelOptions}
                 showCustomModelEntry={canManageCustomModels}
                 onCustomModelClick={canManageCustomModels ? () => setOpenSettings(true) : undefined}
                 customModelText={i18n('setting.modelConfig.entry')}
