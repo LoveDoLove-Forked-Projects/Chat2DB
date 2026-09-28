@@ -303,4 +303,6 @@ export default {
   'common.text.resultReleased': '결과가 해제됨',
   'common.text.executionCancelled': '실행이 취소됨',
   'common.text.executionCompleted': '실행 완료',
+  'common.button.retry': '다시 시도',
+  'common.text.tableDataNotLoaded': '테이블 데이터를 불러오지 못했습니다',
 };

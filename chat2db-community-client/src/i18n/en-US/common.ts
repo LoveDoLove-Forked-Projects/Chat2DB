@@ -303,4 +303,6 @@ export default {
   'common.text.creator': 'Creator',
   'common.text.singleUploadFileSize': 'The file size cannot exceed {1}M',
   'common.text.limitFileSize': 'Limit file size {1}M',
+  'common.button.retry': 'Retry',
+  'common.text.tableDataNotLoaded': 'Table data was not loaded',
 };

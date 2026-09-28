@@ -1269,7 +1269,10 @@ const WorkspaceTabs = memo(() => {
         }
         return t;
       }) || [];
-    setWorkspaceTabsState(list, workspaceTabSplitLayout);
+    // This handler is captured by the memoized tab bodies, which are no longer
+    // rebuilt on a tab switch. Let setWorkspaceTabsState read the current layout
+    // from the store instead of writing back the layout of an earlier render.
+    setWorkspaceTabsState(list);
   };
 
   const togglePinWorkspaceTab = (tab: ITabItem) => {
@@ -1988,9 +1991,12 @@ const WorkspaceTabs = memo(() => {
   };
 
   // Tab list.
+  // The active tab id must not be a dependency here: tab bodies stay mounted
+  // and own their own data loading, so rebuilding every body element on a tab
+  // switch re-renders (and previously re-requested) all open tabs.
   const workspaceTabItems = useMemo(() => {
     return getWorkspaceTabItems(workspaceTabList || []);
-  }, [workspaceTabList, activeConsoleId, dataSourceList]);
+  }, [workspaceTabList, dataSourceList]);
   const workspaceTabItemMap = useMemo(
     () => new Map(workspaceTabItems.map((item) => [item.key, item])),
     [workspaceTabItems],
