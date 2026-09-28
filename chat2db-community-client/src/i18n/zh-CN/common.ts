@@ -301,4 +301,6 @@ export default {
   'common.text.creator': '创建人',
   'common.text.singleUploadFileSize': '文件大小不能超过{1}M',
   'common.text.limitFileSize': '限制文件大小{1}M',
+  'common.button.retry': '重试',
+  'common.text.tableDataNotLoaded': '表数据未加载',
 };
