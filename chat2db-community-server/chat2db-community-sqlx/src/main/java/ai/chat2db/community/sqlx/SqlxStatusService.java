@@ -192,6 +192,9 @@ public final class SqlxStatusService implements SqlxBridge {
         settings.set(SystemSettingConstant.SQLX_BINARY_PATH, candidate.toString());
         settings.set(SystemSettingConstant.SQLX_VERSION, version.get());
         settings.set(SystemSettingConstant.SQLX_SOURCE, SqlxStatus.SOURCE_EXTERNAL);
+        // The note and the digest describe the download this page made, not the binary adopted here.
+        settings.set(SystemSettingConstant.SQLX_INSTALL_NOTE, "");
+        settings.set(SystemSettingConstant.SQLX_SHA256, "");
         probe(true);
         return snapshot();
     }
