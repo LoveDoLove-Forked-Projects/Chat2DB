@@ -12,7 +12,7 @@ import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { useStyles } from '../BaseSetting/style';
 import {
   SQLX_INSTALL_DOCS_URL,
-  SQLX_SKILL_COMMANDS,
+  SQLX_AGENT_COMMANDS,
   detectPlatform,
   manualInstallOptions,
   pathHintCommand,
@@ -654,7 +654,7 @@ export default function SqlxSetting() {
           </div>
         </div>
         <div className={styles.settingStack}>
-          {SQLX_SKILL_COMMANDS.map((option) => (
+          {SQLX_AGENT_COMMANDS.map((option) => (
             <div className={sqlxStyles.commandBox} key={option.label}>
               <div className={sqlxStyles.commandColumn}>
                 <div className={sqlxStyles.hint}>{option.label}</div>

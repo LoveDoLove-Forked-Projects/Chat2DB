@@ -322,7 +322,7 @@ export default {
   'setting.sqlx.section.datasource': '数据源',
   'setting.sqlx.section.datasourceDescribe': '把 Chat2DB 的数据源导入 SQLX',
   'setting.sqlx.section.agent': '给 AI Agent 使用',
-  'setting.sqlx.section.agentDescribe': '把 SQLX Skill 装到你使用的 Agent',
+  'setting.sqlx.section.agentDescribe': '装好下面的插件，SQLX CLI 和 Skill 会一起就绪',
   'setting.sqlx.section.comingSoon': '即将支持',
   'setting.sqlx.button.import': '导入到 SQLX',
   'setting.sqlx.section.requiresInstall': '请先安装 SQLX 命令行',

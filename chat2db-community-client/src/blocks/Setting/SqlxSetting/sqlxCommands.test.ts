@@ -4,7 +4,7 @@ import {
   SQLX_INSTALL_POWERSHELL_URL,
   SQLX_INSTALL_SCRIPT_URL,
   SQLX_NPX_INSTALL_COMMAND,
-  SQLX_SKILL_COMMANDS,
+  SQLX_AGENT_COMMANDS,
   SQLX_WINDOWS_ZIP_URL,
   manualInstallCommand,
   manualInstallOptions,
@@ -55,19 +55,23 @@ assert.equal(windowsOptions[2].command, SQLX_WINDOWS_ZIP_URL);
 assert.equal(unixOptions.length, 2, 'the archive row is Windows only');
 
 assert.deepEqual(
-  SQLX_SKILL_COMMANDS.map((option) => option.label),
+  SQLX_AGENT_COMMANDS.map((option) => option.label),
   ['Claude Code', 'Codex', 'dsh', 'pi'],
-  'the page lists one Skill command per supported agent',
+  'the page lists one complete installation per supported agent',
 );
 assert.deepEqual(
-  SQLX_SKILL_COMMANDS.map((option) => option.command),
+  SQLX_AGENT_COMMANDS.map((option) => option.command),
   [
-    'sqlx skill install --target claude',
-    'sqlx skill install --target codex',
-    'sqlx skill install --target dsh',
-    'sqlx skill install --target pi',
+    'claude plugin marketplace add OtterMind/sqlx@plugins\nclaude plugin install sqlx@ottermind',
+    'codex plugin marketplace add OtterMind/sqlx@plugins\ncodex plugin add sqlx@ottermind',
+    'dsh plugin --profile web add @ottermind/sqlx-dsh    # browser UI\ndsh plugin --profile tui add @ottermind/sqlx-dsh    # terminal UI',
+    'pi install npm:@ottermind/sqlx-pi',
   ],
-  'Skill commands stay verbatim so they can be pasted into a terminal',
+  'agent commands stay verbatim so they can be pasted into a terminal',
+);
+assert.ok(
+  SQLX_AGENT_COMMANDS.every((option) => !option.command.startsWith('sqlx skill install')),
+  'the page installs the agent integration, not only the Skill',
 );
 
 console.log('SQLX manual installation command tests passed');

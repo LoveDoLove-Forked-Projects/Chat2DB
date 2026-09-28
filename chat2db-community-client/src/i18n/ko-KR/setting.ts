@@ -328,7 +328,7 @@ export default {
   'setting.sqlx.section.datasource': '데이터 소스',
   'setting.sqlx.section.datasourceDescribe': 'Chat2DB 데이터 소스를 SQLX로 가져옵니다',
   'setting.sqlx.section.agent': 'AI 에이전트와 함께 사용',
-  'setting.sqlx.section.agentDescribe': '사용하는 에이전트에 SQLX Skill을 설치합니다',
+  'setting.sqlx.section.agentDescribe': '플러그인을 설치하면 SQLX CLI와 Skill이 함께 준비됩니다',
   'setting.sqlx.section.comingSoon': '곧 지원 예정',
   'setting.sqlx.button.import': 'SQLX로 가져오기',
   'setting.sqlx.section.requiresInstall': '먼저 SQLX 명령줄을 설치하세요',

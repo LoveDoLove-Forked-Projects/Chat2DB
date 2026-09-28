@@ -59,12 +59,34 @@ export function manualInstallOptions(platform: SqlxPlatform): SqlxManualInstallO
   ];
 }
 
-/** Skill installation for the agents SQLX supports; the CLI owns the target directories. */
-export const SQLX_SKILL_COMMANDS: SqlxManualInstallOption[] = [
-  { label: 'Claude Code', command: 'sqlx skill install --target claude' },
-  { label: 'Codex', command: 'sqlx skill install --target codex' },
-  { label: 'dsh', command: 'sqlx skill install --target dsh' },
-  { label: 'pi', command: 'sqlx skill install --target pi' },
+/**
+ * Complete installation for every agent SQLX supports: the plugin or extension installs the CLI and
+ * the Skill itself, so the page never asks for a separate CLI step first. Installing the Skill alone
+ * stays available through `sqlx skill install --target <agent>`.
+ */
+export const SQLX_AGENT_COMMANDS: SqlxManualInstallOption[] = [
+  {
+    label: 'Claude Code',
+    command: [
+      'claude plugin marketplace add OtterMind/sqlx@plugins',
+      'claude plugin install sqlx@ottermind',
+    ].join('\n'),
+  },
+  {
+    label: 'Codex',
+    command: [
+      'codex plugin marketplace add OtterMind/sqlx@plugins',
+      'codex plugin add sqlx@ottermind',
+    ].join('\n'),
+  },
+  {
+    label: 'dsh',
+    command: [
+      'dsh plugin --profile web add @ottermind/sqlx-dsh    # browser UI',
+      'dsh plugin --profile tui add @ottermind/sqlx-dsh    # terminal UI',
+    ].join('\n'),
+  },
+  { label: 'pi', command: 'pi install npm:@ottermind/sqlx-pi' },
 ];
 
 /** Command that puts the install directory on PATH when the desktop runtime cannot find `sqlx`. */

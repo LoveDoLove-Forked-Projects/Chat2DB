@@ -112,7 +112,7 @@ export function getSettingSearchItems(menuCode: string): SettingSearchItem[] {
         {
           targetId: 'sqlx.agent',
           title: i18n('setting.sqlx.section.agent'),
-          keywords: ['sqlx', 'skill', 'agent', 'claude', 'codex'],
+          keywords: ['sqlx', 'skill', 'agent', 'plugin', 'marketplace', 'claude', 'codex', 'dsh', 'pi'],
         },
       ];
     case 'networkProxy':

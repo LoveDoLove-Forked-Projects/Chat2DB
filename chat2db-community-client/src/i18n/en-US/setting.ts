@@ -328,7 +328,7 @@ export default {
   'setting.sqlx.section.datasource': 'Datasources',
   'setting.sqlx.section.datasourceDescribe': 'Import Chat2DB datasources into SQLX',
   'setting.sqlx.section.agent': 'Use with AI agents',
-  'setting.sqlx.section.agentDescribe': 'Install the SQLX Skill into the agents you use',
+  'setting.sqlx.section.agentDescribe': 'Install the plugin and the SQLX CLI and Skill come with it',
   'setting.sqlx.section.comingSoon': 'Coming soon',
   'setting.sqlx.button.import': 'Import into SQLX',
   'setting.sqlx.section.requiresInstall': 'Install the SQLX command line first',
