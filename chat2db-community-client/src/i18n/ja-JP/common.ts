@@ -304,4 +304,6 @@ export default {
   'common.text.creator': '作成者',
   'common.text.singleUploadFileSize': 'ファイルサイズは{1}Mを超えてはいけません',
   'common.text.limitFileSize': 'ファイルサイズは{1}Mを超えてはいけません',
+  'common.button.retry': '再試行',
+  'common.text.tableDataNotLoaded': 'テーブルデータが読み込まれていません',
 };

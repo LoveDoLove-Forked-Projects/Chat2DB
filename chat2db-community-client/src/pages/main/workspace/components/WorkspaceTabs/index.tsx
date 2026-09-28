@@ -1269,7 +1269,10 @@ const WorkspaceTabs = memo(() => {
         }
         return t;
       }) || [];
-    setWorkspaceTabsState(list, workspaceTabSplitLayout);
+    // This handler is captured by the memoized tab bodies, which are no longer
+    // rebuilt on a tab switch. Let setWorkspaceTabsState read the current layout
+    // from the store instead of writing back the layout of an earlier render.
+    setWorkspaceTabsState(list);
   };
 
   const togglePinWorkspaceTab = (tab: ITabItem) => {

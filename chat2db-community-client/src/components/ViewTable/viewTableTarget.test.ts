@@ -47,11 +47,28 @@ assert.notEqual(
   'a different table must produce a different target key',
 );
 
-// Adjacent identity fields must not be able to shift into each other.
+// The database type only decides how a result is rendered, not which table is
+// browsed, so it must not invalidate the loaded page.
+assert.equal(
+  getViewTableTargetKey({ ...params, databaseType: 'MYSQL' }),
+  getViewTableTargetKey(params),
+  'the database type must not change the target key',
+);
+
+// Adjacent fields keep their position because every key joins the same four
+// fields, so a name containing the separator cannot shift into the next field.
 assert.notEqual(
   getViewTableTargetKey({ dataSourceId: 1, databaseName: 'a', schemaName: 'b', tableName: 'c' }),
   getViewTableTargetKey({ dataSourceId: 1, databaseName: 'a\u0000b', tableName: 'c' }),
-  'identity fields must not collide when a name contains the separator',
+  'identity fields must not shift into each other',
+);
+
+// A missing field must occupy the same slot as an empty one, which the
+// import-target refresh listener relies on when it compares event details.
+assert.equal(
+  getViewTableTargetKey({ dataSourceId: 1, tableName: 'orders' }),
+  getViewTableTargetKey({ dataSourceId: 1, databaseName: '', schemaName: '', tableName: 'orders' }),
+  'missing and empty identity fields must produce the same target key',
 );
 
 assert.equal(getViewTableTargetKey(undefined), '', 'a missing params object has no target key');

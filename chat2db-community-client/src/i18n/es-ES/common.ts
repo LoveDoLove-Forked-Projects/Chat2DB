@@ -303,4 +303,6 @@ export default {
   'common.text.resultReleased': 'Resultado liberado',
   'common.text.executionCancelled': 'Ejecución cancelada',
   'common.text.executionCompleted': 'Ejecución completada',
+  'common.button.retry': 'Reintentar',
+  'common.text.tableDataNotLoaded': 'No se cargaron los datos de la tabla',
 };
