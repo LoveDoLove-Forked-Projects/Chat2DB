@@ -9,6 +9,7 @@ import SqlExecutionLoading from '@/components/SqlExecutionLoading';
 import { useStyles } from './style';
 import { beginLatestRequest, invalidateLatestRequest, isLatestRequest } from '@/utils/latestRequest';
 import { IMPORT_TARGET_TABLE_REFRESH_EVENT } from '@/store/importExport/taskCenterUtils';
+import { getViewTableTargetKey } from './viewTableTarget';
 
 interface IProps {
   className?: string;
@@ -27,39 +28,47 @@ const ViewTable = memo<IProps>((props) => {
   } = useViewTable();
   const { resultData: pagedResultData, executing: pagingExecuting, executePage, stopExecuteSQL: stopPaging } =
     useViewTablePaging();
+  // The workspace tab layer keeps every open tab mounted and rebuilds the tab
+  // bodies whenever unrelated workspace state changes, so `viewTableParams` is a
+  // new object on most parent renders. Loading is keyed on the table identity
+  // and reads the latest params from a ref, otherwise every tab switch re-issues
+  // the table browse request.
+  const viewTableParamsRef = useRef(viewTableParams);
+  const viewTableTargetKey = getViewTableTargetKey(viewTableParams);
+
+  useEffect(() => {
+    viewTableParamsRef.current = viewTableParams;
+  }, [viewTableParams]);
+
   const refreshCurrentTable = useCallback(() => {
-    if (viewTableParams) {
+    const params = viewTableParamsRef.current;
+    if (params) {
       const requestGeneration = beginLatestRequest(requestGenerationRef);
-      executeInitialTable(viewTableParams).then((data) => {
+      executeInitialTable(params).then((data) => {
         if (!isLatestRequest(requestGenerationRef, requestGeneration)) return;
-        const _resultDataList = processResultDataList(data, viewTableParams);
+        const _resultDataList = processResultDataList(data, params);
         setResultDataList(_resultDataList);
       });
     }
-  }, [executeInitialTable, viewTableParams]);
+  }, [executeInitialTable]);
 
   useEffect(() => {
     refreshCurrentTable();
     return () => {
       invalidateLatestRequest(requestGenerationRef);
     };
-  }, [refreshCurrentTable]);
+  }, [refreshCurrentTable, viewTableTargetKey]);
 
   useEffect(() => {
     const handleImportRefresh = (event: Event) => {
       const target = (event as CustomEvent<IViewTableParams>).detail;
-      if (
-        target?.dataSourceId === viewTableParams?.dataSourceId &&
-        target?.databaseName === viewTableParams?.databaseName &&
-        target?.schemaName === viewTableParams?.schemaName &&
-        target?.tableName === viewTableParams?.tableName
-      ) {
+      if (getViewTableTargetKey(target) === viewTableTargetKey) {
         refreshCurrentTable();
       }
     };
     window.addEventListener(IMPORT_TARGET_TABLE_REFRESH_EVENT, handleImportRefresh);
     return () => window.removeEventListener(IMPORT_TARGET_TABLE_REFRESH_EVENT, handleImportRefresh);
-  }, [refreshCurrentTable, viewTableParams]);
+  }, [refreshCurrentTable, viewTableTargetKey]);
 
   useEffect(() => {
     if (pagedResultData) {
