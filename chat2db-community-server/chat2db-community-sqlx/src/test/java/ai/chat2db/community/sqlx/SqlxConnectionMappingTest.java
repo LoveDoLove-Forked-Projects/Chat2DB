@@ -199,6 +199,42 @@ class SqlxConnectionMappingTest {
         assertFalse(SqlxConnectionMapping.sameTarget(null, stored));
     }
 
+    @Test
+    void informixAndGbase8sCarryTheirServerInstance() {
+        // Both drivers refuse to connect without the server instance, and SQLX only requires --service
+        // for Oracle, so dropping it here would import a connection that fails on the first query.
+        WorkspaceDataSource informix = mysql();
+        informix.setType("INFOMIX");
+        informix.setPort("9088");
+        informix.setUrl("jdbc:informix-sqli://db.example.com:9088/app");
+        informix.setServiceName("informix");
+        SqlxConnectionMapping.Mapped mapped = SqlxConnectionMapping.map(informix);
+        assertTrue(mapped.supported());
+        assertEquals("informix", mapped.connection().get("service"));
+        assertEquals("app", mapped.connection().get("database"));
+
+        // A URL that already carries the parameter block keeps the database name clean.
+        WorkspaceDataSource gbase = mysql();
+        gbase.setType("GBASE8S");
+        gbase.setPort("9088");
+        gbase.setUrl("jdbc:gbasedbt-sqli://db.example.com:9088/gbasedbt:GBASEDBTSERVER=gbase01;DB_LOCALE=en_US.819;");
+        gbase.setServiceName("");
+        SqlxConnectionMapping.Mapped fromUrl = SqlxConnectionMapping.map(gbase);
+        assertTrue(fromUrl.supported());
+        assertEquals("gbase01", fromUrl.connection().get("service"));
+        assertEquals("gbasedbt", fromUrl.connection().get("database"));
+
+        // The Oracle service keeps coming from the form field, and its database stays the SID.
+        WorkspaceDataSource oracle = mysql();
+        oracle.setType("ORACLE");
+        oracle.setUrl("jdbc:oracle:thin:@db.example.com:1521/ORCLPDB1");
+        oracle.setServiceName("ORCLPDB1");
+        oracle.setSid("ORCL");
+        SqlxConnectionMapping.Mapped thin = SqlxConnectionMapping.map(oracle);
+        assertEquals("ORCLPDB1", thin.connection().get("service"));
+        assertEquals("ORCL", thin.connection().get("database"));
+    }
+
     private static WorkspaceDataSource withPort(WorkspaceDataSource source, String port) {
         source.setPort(port);
         source.setUrl("jdbc:mysql://db.example.com:" + port + "/app?useSSL=false");

@@ -9,6 +9,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -27,6 +28,12 @@ public final class SqlxConnectionMapping {
 
     private static final int DOCUMENT_VERSION = 1;
     private static final Set<String> FILE_ENGINES = Set.of("sqlite", "duckdb");
+    /** Engines whose driver needs a server instance or a service name before it can connect. */
+    private static final Set<String> SERVICE_ENGINES = Set.of("oracle", "informix", "gbase8s");
+    /** The Informix-derived engines that address a named server instance. */
+    private static final Set<String> SERVER_INSTANCE_ENGINES = Set.of("informix", "gbase8s");
+    /** The {@code :KEY=value} block an Informix-derived JDBC URL appends after the database name. */
+    private static final Pattern SERVER_PARAMETER = Pattern.compile("(?i):([A-Za-z_][A-Za-z0-9_]*)=([^;]*)");
     private static final Pattern UUID = Pattern.compile(
             "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$");
     private static final Pattern TLS_REQUESTED = Pattern.compile(
@@ -112,7 +119,7 @@ public final class SqlxConnectionMapping {
         connection.put("host", source.getHost().trim());
         connection.put("port", port);
         connection.put("database", database(source, engine));
-        connection.put("service", "oracle".equals(engine) ? oracleService(source) : "");
+        connection.put("service", SERVICE_ENGINES.contains(engine) ? service(source, engine) : "");
         return new Mapped(connection, null, null);
     }
 
@@ -219,11 +226,43 @@ public final class SqlxConnectionMapping {
         if ("oracle".equals(engine)) {
             return firstNonBlank(source.getSid(), source.getServiceName(), urlPath(source.getUrl()));
         }
+        if (SERVER_INSTANCE_ENGINES.contains(engine)) {
+            return firstNonBlank(informixPath(source.getUrl()), source.getServiceName());
+        }
         return firstNonBlank(urlPath(source.getUrl()), source.getServiceName());
     }
 
-    private static String oracleService(WorkspaceDataSource source) {
-        return firstNonBlank(source.getServiceName(), source.getSid());
+    /**
+     * Oracle service name, or the Informix and GBase 8s server instance.
+     * <p>
+     * Chat2DB keeps that instance in the form's service field and appends it to the saved URL as
+     * {@code :INFORMIXSERVER=} or {@code :GBASEDBTSERVER=}. SQLX needs it as {@code --service},
+     * because both drivers refuse to connect without it even though the CLI does not require it.
+     */
+    private static String service(WorkspaceDataSource source, String engine) {
+        return firstNonBlank(source.getServiceName(), source.getSid(),
+                parameter(source.getUrl(), "gbase8s".equals(engine) ? "GBASEDBTSERVER" : "INFORMIXSERVER"));
+    }
+
+    /** Value of one {@code :KEY=value} parameter of an Informix-derived JDBC URL, or an empty string. */
+    static String parameter(String url, String key) {
+        if (isBlank(url)) {
+            return "";
+        }
+        Matcher matcher = SERVER_PARAMETER.matcher(url);
+        while (matcher.find()) {
+            if (matcher.group(1).equalsIgnoreCase(key)) {
+                return matcher.group(2).trim();
+            }
+        }
+        return "";
+    }
+
+    /** Database name of an Informix-derived URL, without the server parameter block that follows it. */
+    static String informixPath(String url) {
+        String path = urlPath(url);
+        Matcher matcher = SERVER_PARAMETER.matcher(path);
+        return (matcher.find() ? path.substring(0, matcher.start()) : path).trim();
     }
 
     /**
