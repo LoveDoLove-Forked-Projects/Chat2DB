@@ -550,6 +550,8 @@ export default function AI({ variant = 'page', onTableClick, onPinSql, onSession
   const messagesRef = useRef<IChatItem[]>([]);
   const currentRoundUserMessageIdRef = useRef<string | null>(null);
   const statusRef = useRef<SSERequestStatus>(SSERequestStatus.IDLE);
+  // Kept in a ref because the chunk handler is memoized without the request controls as dependencies.
+  const stopRequestRef = useRef<(() => void) | null>(null);
   const inProgressSessionRef = useRef<IInProgressSessionSnapshot | null>(null);
   const chatInputRef = useRef<ChatInputPropsRef>(null);
   const messageListRef = useRef<HTMLDivElement>(null);
@@ -867,6 +869,9 @@ export default function AI({ variant = 'page', onTableClick, onPinSql, onSession
         }
       }
       feedback.error(chunk.content || 'AI stream error');
+      // The error already arrived, so end the generation: otherwise the request stays in LOADING and the
+      // model logo keeps spinning next to the error message.
+      stopRequestRef.current?.();
     }
   }, []);
 
@@ -878,6 +883,10 @@ export default function AI({ variant = 'page', onTableClick, onPinSql, onSession
     },
     undefined,
   );
+
+  useEffect(() => {
+    stopRequestRef.current = stop;
+  }, [stop]);
 
   // Load the model list.
 
