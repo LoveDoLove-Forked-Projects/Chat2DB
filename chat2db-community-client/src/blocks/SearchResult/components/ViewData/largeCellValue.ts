@@ -36,14 +36,28 @@ export const LARGE_CELL_DOWNLOAD_FORMAT = {
 
 export const LARGE_CELL_ERROR_CODE = {
   TOKEN_EXPIRED: 'largeCellValue.tokenExpired',
+  TOKEN_FORBIDDEN: 'largeCellValue.tokenForbidden',
+  TOKEN_REQUIRED: 'largeCellValue.tokenRequired',
+  ROW_NOT_FOUND: 'largeCellValue.rowNotFound',
+  ROW_LOCATOR_REQUIRED: 'largeCellValue.rowLocatorRequired',
   FULL_VALUE_UNSUPPORTED: 'largeCellValue.fullValueUnsupported',
+  READ_FAILED: 'largeCellValue.readFailed',
+  DOWNLOAD_FAILED: 'largeCellValue.downloadFailed',
+  PARTIAL_PREVIEW_EDIT_REJECTED: 'largeCellValue.partialPreviewEditRejected',
+  UNSUPPORTED_FORMAT: 'largeCellValue.unsupportedFormat',
 } as const;
 
 export const LARGE_CELL_ERROR_MESSAGE = {
   TOKEN_EXPIRED: 'common.largeCellValue.error.tokenExpired',
+  TOKEN_FORBIDDEN: 'common.largeCellValue.error.tokenForbidden',
+  TOKEN_REQUIRED: 'common.largeCellValue.error.tokenRequired',
+  ROW_NOT_FOUND: 'common.largeCellValue.error.rowNotFound',
+  ROW_LOCATOR_REQUIRED: 'common.largeCellValue.error.rowLocatorRequired',
   LOAD_FAILED: 'common.largeCellValue.error.loadFailed',
   DOWNLOAD_FAILED: 'common.largeCellValue.error.downloadFailed',
   FULL_VALUE_UNSUPPORTED: 'common.largeCellValue.error.fullValueUnsupported',
+  PARTIAL_PREVIEW_EDIT_REJECTED: 'common.largeCellValue.error.partialPreviewEditRejected',
+  UNSUPPORTED_FORMAT: 'common.largeCellValue.error.unsupportedFormat',
 } as const;
 
 export const LARGE_CELL_TEXT_EDITOR_LIMIT = 10 * 1024 * 1024;
