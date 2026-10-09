@@ -9,7 +9,6 @@ import type { ResultCopyFormat } from '../../copyValues';
 import i18n from '@/i18n';
 import { copyToClipboard } from '@/utils';
 import { downloadLargeCellValue } from '@/utils/file';
-import { isDesktop } from '@/utils/env';
 import feedback from '@/utils/feedback';
 import {
   getLargeCellDownloadFormat,
@@ -351,12 +350,12 @@ const onContextmenuCell = (props: IOnContextmenuEvent) => {
         ? [
             [
               contextmenuMap[ContextmenuType.viewRowDetail],
-              ...(isDesktop ? [contextmenuMap[ContextmenuType.viewFullValue]] : []),
+              contextmenuMap[ContextmenuType.viewFullValue],
             ],
             [
               contextmenuMap[ContextmenuType.copy],
               contextmenuMap[ContextmenuType.copyRow],
-              ...(isDesktop && cellMeta.largeValueId ? [contextmenuMap[ContextmenuType.saveToFile]] : []),
+              ...(cellMeta.largeValueId ? [contextmenuMap[ContextmenuType.saveToFile]] : []),
             ],
           ]
         : [

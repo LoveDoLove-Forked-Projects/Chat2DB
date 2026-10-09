@@ -9,7 +9,7 @@ function assertEqual(actual: any, expected: any, message: string) {
   }
 }
 
-// 1) 后端所有错误码都必须有映射，否则会把 i18n key 直接展示给用户。
+// 1) Every backend error code must have a mapping, otherwise the raw i18n key reaches the user.
 for (const code of Object.values(LARGE_CELL_ERROR_CODE)) {
   const messageKey = getLargeCellMessageKey(code);
   if (!messageKey) {
@@ -20,10 +20,10 @@ for (const code of Object.values(LARGE_CELL_ERROR_CODE)) {
   }
 }
 
-// 2) 后端实际下发的 errorMessage 形如 "largeCellValue.tokenForbidden : no message."，也要能解析出映射。
+// 2) The backend sends errorMessage as "<i18n key> : no message.", which must also resolve.
 assertEqual(
-  getLargeCellMessageKey('largeCellValue.tokenForbidden : no message.'),
-  LARGE_CELL_ERROR_MESSAGE.TOKEN_FORBIDDEN,
+  getLargeCellMessageKey('largeCellValue.snapshotExpired : no message.'),
+  LARGE_CELL_ERROR_MESSAGE.SNAPSHOT_EXPIRED,
   'raw backend message resolves to a message key',
 );
 assertEqual(
@@ -32,23 +32,24 @@ assertEqual(
   'trimmed key resolves as well',
 );
 
-// 3) 未知错误码/文案不映射，交给上层走 fallback。
+// 3) Unknown codes and free text stay unmapped so the caller can fall back.
 assertEqual(getLargeCellMessageKey(undefined), undefined, 'undefined has no mapping');
 assertEqual(getLargeCellMessageKey('common.paramError'), undefined, 'unrelated code has no mapping');
 assertEqual(getLargeCellMessageKey('some custom backend text'), undefined, 'free text has no mapping');
 
-// 4) 映射表覆盖后端契约：后端当前抛出的 10 个 key 全部要有对应文案。
+// 4) The mapping must cover the backend contract, including the result snapshot keys.
 const BACKEND_KEYS = [
   'largeCellValue.tokenExpired',
-  'largeCellValue.tokenForbidden',
+  'largeCellValue.snapshotExpired',
   'largeCellValue.tokenRequired',
-  'largeCellValue.rowNotFound',
-  'largeCellValue.rowLocatorRequired',
   'largeCellValue.fullValueUnsupported',
   'largeCellValue.readFailed',
   'largeCellValue.downloadFailed',
   'largeCellValue.partialPreviewEditRejected',
   'largeCellValue.unsupportedFormat',
+  'largeCellValue.snapshotCellMissing',
+  'largeCellValue.snapshotReadFailed',
+  'largeCellValue.snapshotWriteFailed',
 ];
 for (const key of BACKEND_KEYS) {
   const messageKey = getLargeCellMessageKey(key);
