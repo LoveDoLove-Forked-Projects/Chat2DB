@@ -11,21 +11,11 @@ interface Props {
   value: IExcelOptions;
   sheets: string[];
   disabled: boolean;
-  activeKeys: string[];
-  onActiveKeysChange: (keys: string[]) => void;
   dataItems: CollapseProps['items'];
   onChange: (value: IExcelOptions) => void;
 }
 
-export default function ExcelOptionsSections({
-  value,
-  sheets,
-  disabled,
-  activeKeys,
-  onActiveKeysChange,
-  dataItems,
-  onChange,
-}: Props) {
+export default function ExcelOptionsSections({ value, sheets, disabled, dataItems, onChange }: Props) {
   const { styles } = useStyles();
   const update = (patch: Partial<IExcelOptions>) => onChange({ ...value, ...patch });
   const [columnRange, setColumnRange] = useState(value.columnRange);
@@ -40,8 +30,6 @@ export default function ExcelOptionsSections({
   };
   return (
     <OptionsSections
-      activeKeys={activeKeys}
-      onActiveKeysChange={onActiveKeysChange}
       items={[
         {
           key: 'sourceRows',

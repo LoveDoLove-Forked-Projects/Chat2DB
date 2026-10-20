@@ -466,6 +466,26 @@ export interface IImportTaskSubmitResult {
   taskId: number;
 }
 
+export interface IImportPreCheckIssue {
+  /** One-based position inside the sampled rows. */
+  rowNumber: number;
+  sourceColumn: string;
+  targetColumn: string;
+  value: string;
+  /** NUMBER, DATETIME, FORMAT or VALUE; the UI prefers this over the raw reason. */
+  reasonCode?: string | null;
+  reason: string;
+}
+
+/** Pre-flight facts for the confirm step; conflicts and type issues cover the sampled rows only. */
+export interface IImportPreCheck {
+  sampledRows: number;
+  conflictCheckable: boolean;
+  keyColumns: string[];
+  conflictingSampleRows: number;
+  typeMismatches: IImportPreCheckIssue[];
+}
+
 const uploadImportFile = createRequest<{ file: File }, string>('/api/rdb/import_preview/upload', {
   method: 'post',
   contentType: 'formData',
@@ -495,6 +515,21 @@ const getImportSheets = createRequest<
   string[]
 >('/api/rdb/import_preview/sheets', { method: 'post', errorLevel: false });
 
+const analyzeImport = createRequest<
+  {
+    dataSourceId: number;
+    databaseName: string;
+    schemaName?: string;
+    tableName: string;
+    fileId: string;
+    mappings: { sourceColumn: string | null; targetColumn: string }[];
+    csvOptions?: ICsvOptions;
+    excelOptions?: IExcelOptions;
+    jsonOptions?: IJsonOptions;
+  },
+  IImportPreCheck
+>('/api/rdb/import_preview/analyze', { method: 'post', errorLevel: false });
+
 const executeImportWithMapping = createRequest<
   {
     dataSourceId: number;
@@ -508,6 +543,8 @@ const executeImportWithMapping = createRequest<
     excelOptions?: IExcelOptions;
     jsonOptions?: IJsonOptions;
     mode?: import('@/typings/importExport').ImportExecutionMode;
+    duplicatePolicy?: import('@/typings/importExport').ImportDuplicatePolicy;
+    failurePolicy?: import('@/typings/importExport').ImportFailurePolicy;
   },
   IImportTaskSubmitResult
 >('/api/rdb/import_preview/execute', { method: 'post' });
@@ -633,6 +670,7 @@ export default {
   getImportPreview,
   getImportSheets,
   executeImportWithMapping,
+  analyzeImport,
   uploadImportFile,
   stageDesktopImportFile,
   getActiveTransactionList,

@@ -62,9 +62,12 @@ export const useStyles = createStyles(({ css, token, cx }) => {
     listWrapper: css`
       flex: 1;
       height: 0;
+      min-height: 0;
       padding: 8px;
-      overflow-y: auto;
-      overflow-x: hidden;
+      overflow: hidden;
+    `,
+    virtualList: css`
+      height: 100%;
     `,
     loadMoreIndicator: css`
       display: flex;
@@ -124,24 +127,53 @@ export const useStyles = createStyles(({ css, token, cx }) => {
       &:last-child {
         margin-bottom: 0;
       }
-
-      &:hover .task-item-actions,
-      &:focus-within .task-item-actions {
-        opacity: 1;
-        pointer-events: auto;
-      }
     `,
     taskItemHeader,
     taskCard: css`
       display: grid;
       grid-template-columns: minmax(0, 1fr) auto;
-      grid-template-rows: auto auto auto;
+      grid-template-rows: auto auto auto auto;
       column-gap: 8px;
       min-width: 0;
     `,
-    listItemLeft: css`
+    taskTypeIcon: css`
+      display: inline-flex;
+      flex: none;
+      align-items: center;
+      justify-content: center;
+      color: ${token.colorTextTertiary};
+    `,
+    taskTarget: css`
       grid-column: 1;
       grid-row: 2;
+      width: 100%;
+      min-width: 0;
+      overflow: hidden;
+      color: ${token.colorTextSecondary};
+      font-size: 12px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    `,
+    taskErrorSummary: css`
+      grid-column: 1 / -1;
+      grid-row: 4;
+      width: 100%;
+      min-width: 0;
+      margin-top: 4px;
+      overflow: hidden;
+      padding: 0;
+      border: 0;
+      background: none;
+      color: ${token.colorError};
+      cursor: pointer;
+      font-size: 12px;
+      text-align: left;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    `,
+    listItemLeft: css`
+      grid-column: 1;
+      grid-row: 3;
       width: 100%;
       min-width: 0;
       display: flex;
@@ -160,7 +192,7 @@ export const useStyles = createStyles(({ css, token, cx }) => {
     taskProgress: css`
       display: flex;
       grid-column: 1 / -1;
-      grid-row: 3;
+      grid-row: 5;
       gap: 8px;
       align-items: center;
       min-width: 0;
@@ -186,6 +218,9 @@ export const useStyles = createStyles(({ css, token, cx }) => {
       overflow-wrap: anywhere;
       font-variant-numeric: tabular-nums;
     `,
+    // Row actions stay visible and hit-testable: hiding them behind a hover-only reveal made
+    // them unreachable for pointer input that does not hover first (touch, and any automation
+    // whose hit-target check runs before the mouse moves), which silently dead-ended Cancel.
     taskActions: cx(
       'task-item-actions',
       css`
@@ -196,9 +231,6 @@ export const useStyles = createStyles(({ css, token, cx }) => {
         align-items: center;
         align-self: center;
         justify-content: flex-end;
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity 0.16s ease;
       `,
     ),
     deleteAction: css`

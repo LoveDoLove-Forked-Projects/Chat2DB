@@ -4,7 +4,7 @@ import { Upload, type UploadProps, GetProp } from 'antd';
 import { IconfontSvg, IconButton, staticMessage } from '@chat2db/ui';
 import i18n from '@/i18n';
 import { useUpdateEffect } from 'ahooks';
-import { customRequestOSS } from '@/utils/file';
+import { customRequestOSS, formatFileSize } from '@/utils/file';
 import { UploadTypeEnum } from '@/typings/upload';
 import { isDesktop } from '@/utils/env';
 import jcefApi from '@/jcef';
@@ -56,9 +56,10 @@ const UploadLocalFile = forwardRef((props: IProps, ref: ForwardedRef<UploadLocal
   };
 
   const renderFileItem = (filePath: FileUrl, index: number) => {
+    const size = filePath.file?.size;
     return (
       <div key={index} className={styles.fileItem}>
-        <span>{filePath.fileName}</span>
+        <span>{size ? `${filePath.fileName} · ${formatFileSize(size)}` : filePath.fileName}</span>
         <div className={styles.deleteIconBox}>
           <IconButton
             className={styles.deleteIcon}
@@ -155,7 +156,7 @@ const UploadLocalFile = forwardRef((props: IProps, ref: ForwardedRef<UploadLocal
           </div>
         </div>
       ) : null}
-      <div className={cx({ [styles.hiddenUploadDraggerBox]: !!fileList.length })}>
+      <div className={cx(styles.draggerFrame, { [styles.hiddenUploadDraggerBox]: !!fileList.length })}>
         {!isDesktop ? (
           <Upload.Dragger
             onChange={fileUploadOnChange}

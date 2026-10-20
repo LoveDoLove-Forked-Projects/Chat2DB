@@ -1,4 +1,4 @@
-import { Checkbox, Select, Table, Tooltip, type CollapseProps } from 'antd';
+import { Select, Switch, Table, Tooltip, type CollapseProps } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { TriangleAlert } from 'lucide-react';
 import { ImportUnmappedTarget, SKIP_IMPORT_SOURCE_FIELD } from '@/constants/importExport';
@@ -104,21 +104,20 @@ const useImportDataSections = (props: Props): CollapseProps['items'] => {
       width: '20%',
       render: (_, record) => {
         if (record.kind === 'source') {
-          return mapping[record.sourceColumn] === SKIP_IMPORT_SOURCE_FIELD
-            ? i18n('workspace.importExport.skipped')
-            : i18n('workspace.importExport.mapped');
+          const targetColumn = mapping[record.sourceColumn];
+          if (targetColumn === SKIP_IMPORT_SOURCE_FIELD) {
+            return i18n('workspace.importExport.skipped');
+          }
+          // The status column already says the column is mapped; the auto/manual origin tag was
+          // noise on every row, so only the mapping state is rendered.
+          return <span className={styles.mappingOrigin}>{i18n('workspace.importExport.mapped')}</span>;
         }
         if (blockedColumnNames.has(record.targetColumn.name)) {
           return (
             <span className={styles.requiredStatus}>{i18n('workspace.importExport.unmappedRequired')}</span>
           );
         }
-        if (record.targetColumn.autoIncrement) {
-          return i18n('workspace.importExport.unmappedAutoIncrement');
-        }
-        return unmappedTarget === ImportUnmappedTarget.NULL
-          ? i18n('workspace.importExport.unmappedNullValue')
-          : i18n('workspace.importExport.unmappedDefaultValue');
+        return <span className={styles.unmappedStatus}>{i18n('workspace.importExport.unmapped')}</span>;
       },
     },
   ];
@@ -139,13 +138,17 @@ const useImportDataSections = (props: Props): CollapseProps['items'] => {
       children: (
         <>
           <div className={styles.mappingControls}>
-            <Checkbox
+            <span className={styles.mappingControlLabel}>{emptyAsNullLabel}</span>
+            <Switch
+              size="small"
+              aria-label={emptyAsNullLabel}
               disabled={disabled || loading}
               checked={emptyAsNull}
-              onChange={(event) => onEmptyAsNullChange(event.target.checked)}
-            >
-              {emptyAsNullLabel}
-            </Checkbox>
+              onChange={onEmptyAsNullChange}
+            />
+            <span className={styles.mappingControlLabel}>
+              {i18n('workspace.importExport.wizard.summaryUnmapped')}
+            </span>
             <Select
               disabled={disabled || loading}
               className={styles.unmappedTargetSelect}
@@ -164,6 +167,7 @@ const useImportDataSections = (props: Props): CollapseProps['items'] => {
             className={cx(styles.mappingTable, styles.scrollableTable)}
             size="small"
             rowKey="key"
+            rowClassName={(record) => (record.kind === 'target' ? styles.mappingRowUnmapped : '')}
             columns={columns}
             dataSource={mappingRows}
             loading={loading}

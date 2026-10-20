@@ -1,8 +1,9 @@
 import { createStyles } from 'antd-style';
 
 export const useStyles = createStyles(({ css, cx, token }) => {
+  // The delete action is always visible and hit-testable; a hover-only reveal makes it
+  // unreachable for pointer input that does not hover first (touch, automation).
   const deleteIconBox = cx(css`
-    display: none;
     flex-shrink: 0;
   `);
   return {
@@ -12,14 +13,43 @@ export const useStyles = createStyles(({ css, cx, token }) => {
       align-items: center;
       gap: 8px;
       padding: 63px 0px;
-      border: 1px dashed ${token.colorBorder};
+      /* A filled block marks the drop target; the outline is reserved for hover and drag-over. */
+      border: 1px solid transparent;
       cursor: pointer;
       border-radius: 8px;
+      background: ${token.colorFillQuaternary};
+      transition:
+        background-color 0.16s ease,
+        border-color 0.16s ease;
+
       &:hover {
-        border-color: ${token.colorPrimary};
+        border-color: ${token.colorPrimaryBorder};
+        background: ${token.colorFillTertiary};
       }
+
+      /* antd marks the dragger while a file is dragged over it. */
+      '.ant-upload-drag-hover &' {
+        border-color: ${token.colorPrimary};
+        background: ${token.colorPrimaryBg};
+      }
+
       p {
         font-size: 14px;
+      }
+    `,
+    /**
+     * antd's `Upload.Dragger` draws its own dashed frame and padding; the filled block above is the
+     * only drop-target affordance, so the frame is neutralized instead of doubled.
+     */
+    draggerFrame: css`
+      .ant-upload-drag {
+        padding: 0;
+        border: none;
+        background: transparent;
+      }
+
+      .ant-upload-btn {
+        padding: 0 !important;
       }
     `,
     uploadDraggerIcon: css`
@@ -89,9 +119,6 @@ export const useStyles = createStyles(({ css, cx, token }) => {
       }
       &:hover {
         background-color: ${token.colorPrimaryBgHover};
-        .${deleteIconBox} {
-          display: block;
-        }
       }
     `,
     addIcon: css`

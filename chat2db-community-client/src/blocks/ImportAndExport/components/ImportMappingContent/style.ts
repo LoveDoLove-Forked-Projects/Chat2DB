@@ -74,18 +74,23 @@ export const useStyles = createStyles(({ css, token }) => ({
     padding: 4px 8px;
   `,
   sections: css`
+    display: flex;
     padding-top: 4px;
-
-    .ant-collapse-header {
-      min-height: 40px;
-      align-items: center !important;
-      padding: 6px 0 !important;
-      font-weight: 600;
-    }
-
-    .ant-collapse-content-box {
-      padding: 4px 0 10px !important;
-    }
+    flex-direction: column;
+    gap: 14px;
+  `,
+  sectionBlock: css`
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 6px;
+  `,
+  sectionHeading: css`
+    font-size: 14px;
+    font-weight: 600;
+  `,
+  sectionBody: css`
+    min-width: 0;
   `,
   csvFormatOptions: css`
     display: grid;
@@ -172,6 +177,30 @@ export const useStyles = createStyles(({ css, token }) => ({
   `,
   unmappedSource: css`
     color: ${token.colorTextSecondary};
+  `,
+  mappingControlLabel: css`
+    color: ${token.colorTextSecondary};
+    font-size: 12px;
+    white-space: nowrap;
+  `,
+  mappingOrigin: css`
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
+  `,
+  mappingOriginTag: css`
+    margin-inline-end: 0;
+    color: ${token.colorTextSecondary};
+    font-size: 11px;
+    line-height: 16px;
+  `,
+  unmappedStatus: css`
+    color: ${token.colorWarning};
+  `,
+  mappingRowUnmapped: css`
+    > td:first-child {
+      box-shadow: inset 3px 0 0 ${token.colorWarningBorder};
+    }
   `,
   requiredStatus: css`
     color: ${token.colorError};

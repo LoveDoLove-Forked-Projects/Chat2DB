@@ -31,3 +31,4 @@ export const DEFAULT_JSON_OPTIONS: IJsonOptions = {
   emptyAsNull: false,
 };
 export const DEFAULT_SQL_IMPORT_OPTIONS: ISqlImportOptions = { encoding: 'AUTO' };
+

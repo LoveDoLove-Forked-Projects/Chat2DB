@@ -14,16 +14,19 @@ import { useStyles } from './style';
 import { Progress, Spin } from 'antd';
 import importExportServices from '@/service/importExport';
 import { ImportExportTaskDetails, ImportExportTaskEvent } from '@/typings/importExport';
-import { ACTIVE_TASK_STATUSES, ImportExportTaskStatus } from '@/constants/importExport';
+import { ImportExportTaskStatus } from '@/constants/importExport';
 import i18n from '@/i18n';
 import { useImportExportStore } from '@/store/importExport';
 import {
+  ACTIVE_TASK_POLL_INTERVAL,
   mergeTaskEvents,
   TASK_EVENT_INITIAL_PAGE_SIZE,
   TASK_EVENT_PAGE_SIZE,
 } from '@/store/importExport/taskCenterUtils';
+import { getTaskEventPollDelay } from './pollSchedule';
 import { ConsoleOutputEmpty, ConsoleOutputMessageLine } from '@/components/ConsoleOutput';
 import { formatTaskEventMessage } from './eventMessage';
+import { buildTaskProgressSummary, formatRowsPerSecond } from '@/blocks/ImportAndExport/utils/taskArtifacts';
 
 interface IProps {
   className?: string;
@@ -122,8 +125,9 @@ const Log = (props: IProps) => {
       }
 
       const hasMoreNewEvents = eventsLoaded && newEvents.length === TASK_EVENT_PAGE_SIZE;
-      if (hasMoreNewEvents || ACTIVE_TASK_STATUSES.includes(details.status) || !eventsLoaded) {
-        timer = setTimeout(poll, hasMoreNewEvents ? 0 : eventsLoaded ? 1000 : 1500);
+      const pollDelay = getTaskEventPollDelay(details.status, eventsLoaded, hasMoreNewEvents);
+      if (pollDelay !== null) {
+        timer = setTimeout(poll, pollDelay);
         return;
       }
       getTaskList();
@@ -147,7 +151,7 @@ const Log = (props: IProps) => {
         setInitialLoading(false);
         onTaskChangeRef.current?.(details);
 
-        timer = setTimeout(poll, ACTIVE_TASK_STATUSES.includes(details.status) ? 1000 : 0);
+        timer = setTimeout(poll, ACTIVE_TASK_POLL_INTERVAL);
       } catch {
         if (!active) return;
         setEventsLoadFailed(true);
@@ -275,6 +279,15 @@ const Log = (props: IProps) => {
     taskDetails.status === ImportExportTaskStatus.SUCCESS
       ? 100
       : Math.min(100, Math.max(0, Number(taskDetails.progress) || 0));
+  // Rows come from the structured import checkpoint, the rate from that counter and the
+  // persisted timestamps; nothing is scraped out of the log text.
+  const progressSummary = buildTaskProgressSummary({
+    checkpointJson: taskDetails.checkpointJson,
+    startedAt: taskDetails.startedAt,
+    finishedAt: taskDetails.finishedAt,
+    status: taskDetails.status,
+    now: Date.now(),
+  });
   const progressStatus =
     taskDetails.status === ImportExportTaskStatus.SUCCESS
       ? 'success'
@@ -338,6 +351,13 @@ const Log = (props: IProps) => {
             {progress}%
           </span>
         </div>
+        {progressSummary && (
+          <div className={styles.progressSummary}>
+            {i18n('workspace.task.progress.rows', progressSummary.processedRows)}
+            {progressSummary.rowsPerSecond !== null &&
+              ` · ${i18n('workspace.task.progress.rate', formatRowsPerSecond(progressSummary.rowsPerSecond))}`}
+          </div>
+        )}
       </div>
     </div>
   );

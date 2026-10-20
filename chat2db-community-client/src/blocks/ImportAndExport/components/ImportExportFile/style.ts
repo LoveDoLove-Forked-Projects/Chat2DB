@@ -22,5 +22,14 @@ export const useStyles = createStyles(({ css }) => {
     form: css`
       padding-top: 20px;
     `,
+    exportCsvField: css`
+      display: flex;
+      min-width: 0;
+      flex-direction: column;
+      gap: 4px;
+    `,
+    customCharacterInput: css`
+      padding: 4px 8px;
+    `,
   };
 });
