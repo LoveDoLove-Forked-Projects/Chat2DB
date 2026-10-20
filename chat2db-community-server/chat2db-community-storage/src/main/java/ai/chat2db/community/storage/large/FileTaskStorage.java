@@ -40,6 +40,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 @Slf4j
 @Component
@@ -63,6 +64,13 @@ public class FileTaskStorage implements TaskStorage {
 
     // Only one sequence number per task is cached; event bodies remain on disk and are paged on demand.
     private final Map<Long, Long> lastEventSequences = new ConcurrentHashMap<>();
+
+    /**
+     * Guards the per-task event files only, so that polling {@code /api/tasks/events} never waits for
+     * task snapshot writes (and vice versa). Appends are not fsynced per event; the events file of a
+     * task is flushed once when the task reaches a terminal status.
+     */
+    private final ReentrantReadWriteLock eventFileLock = new ReentrantReadWriteLock();
 
     public FileTaskStorage() {
         this(new TaskSnapshotStorage());
@@ -133,7 +141,20 @@ public class FileTaskStorage implements TaskStorage {
     }
 
     @Override
-    public synchronized boolean compareAndSetStatus(Long taskId, String expectedStatus, String targetStatus,
+    public boolean compareAndSetStatus(Long taskId, String expectedStatus, String targetStatus,
+            TaskStatusPatch patch, TaskEvent lifecycleEvent) {
+        if (!commitStatusTransition(taskId, expectedStatus, targetStatus, patch, lifecycleEvent)) {
+            return false;
+        }
+        if (TaskStatus.isTerminal(targetStatus)) {
+            // Durability is required once per task, not once per event: the fsync happens after the
+            // transition is committed and outside the snapshot monitor, so it cannot stall readers.
+            forceEventFile(taskId);
+        }
+        return true;
+    }
+
+    private synchronized boolean commitStatusTransition(Long taskId, String expectedStatus, String targetStatus,
             TaskStatusPatch patch, TaskEvent lifecycleEvent) {
         Task current = snapshots.find(taskId);
         if (current == null || !expectedStatus.equals(current.getStatus())
@@ -150,6 +171,25 @@ public class FileTaskStorage implements TaskStorage {
         writeTransition(transition);
         commitTransition(transition, false);
         return true;
+    }
+
+    /**
+     * Flushes the task event file once, after the task reached a terminal status. Failure to flush is
+     * not fatal: the events are already written and readable, only their crash durability is weaker.
+     */
+    void forceEventFile(Long taskId) {
+        File file = eventsFile(taskId);
+        if (!file.isFile()) {
+            return;
+        }
+        eventFileLock.writeLock().lock();
+        try (FileChannel channel = FileChannel.open(file.toPath(), StandardOpenOption.WRITE)) {
+            channel.force(true);
+        } catch (IOException e) {
+            log.warn("Could not flush task events for task {}", taskId, e);
+        } finally {
+            eventFileLock.writeLock().unlock();
+        }
     }
 
     @Override
@@ -174,6 +214,53 @@ public class FileTaskStorage implements TaskStorage {
         return true;
     }
 
+    /**
+     * Writes the resume checkpoint through the regular atomic snapshot path. It deliberately does not
+     * produce a task event: a checkpoint is overwritten many times during one import, and the snapshot
+     * itself is already crash safe (temporary file plus atomic rename).
+     *
+     * <p>A terminal task is accepted on purpose: cancellation persists CANCELLED before the import
+     * stops, and the batches that are still in flight keep committing afterwards. Their final
+     * contiguous position can only be written once the workers have drained, which happens after the
+     * task already reached its terminal status.
+     */
+    @Override
+    public synchronized boolean saveCheckpoint(Long taskId, String checkpointJson) {
+        if (taskId == null || checkpointJson == null) {
+            return false;
+        }
+        Task current = snapshots.find(taskId);
+        if (current == null) {
+            return false;
+        }
+        Task updated = copy(current);
+        updated.setCheckpointJson(checkpointJson);
+        updated.setUpdatedAt(new Date());
+        snapshots.replaceStrict(taskId, updated);
+        return true;
+    }
+
+    /**
+     * Attaches the error artifact (its published absolute path) to any existing task. Terminal tasks
+     * are accepted on purpose: a failed or cancelled import keeps its error file, and the transition
+     * to the terminal status may race with the artifact registration.
+     */
+    @Override
+    public synchronized boolean attachErrorArtifact(Long taskId, String errorArtifactId) {
+        if (taskId == null || StringUtils.isBlank(errorArtifactId)) {
+            return false;
+        }
+        Task current = snapshots.find(taskId);
+        if (current == null) {
+            return false;
+        }
+        Task updated = copy(current);
+        updated.setErrorArtifactId(errorArtifactId);
+        updated.setUpdatedAt(new Date());
+        snapshots.replaceStrict(taskId, updated);
+        return true;
+    }
+
     @Override
     public synchronized TaskEvent appendEvent(TaskEvent event) {
         if (event == null || event.getTaskId() == null || snapshots.find(event.getTaskId()) == null) {
@@ -185,7 +272,7 @@ public class FileTaskStorage implements TaskStorage {
     }
 
     @Override
-    public synchronized List<TaskEvent> listEvents(Long taskId, long afterSequence, int limit) {
+    public List<TaskEvent> listEvents(Long taskId, long afterSequence, int limit) {
         int resultLimit = eventLimit(limit);
         File file = eventsFile(taskId);
         repairIncompleteTrailingEvent(file, taskId);
@@ -196,6 +283,7 @@ public class FileTaskStorage implements TaskStorage {
             return List.of();
         }
         List<TaskEvent> result = new ArrayList<>(resultLimit);
+        eventFileLock.readLock().lock();
         try (RandomAccessFile input = new RandomAccessFile(file, "r")) {
             long startOffset = afterSequence <= 0L ? 0L : findOffsetAfterSequence(input, taskId, afterSequence);
             input.seek(startOffset);
@@ -209,6 +297,8 @@ public class FileTaskStorage implements TaskStorage {
             return result;
         } catch (IOException e) {
             throw new IllegalStateException("Could not read task events", e);
+        } finally {
+            eventFileLock.readLock().unlock();
         }
     }
 
@@ -243,7 +333,7 @@ public class FileTaskStorage implements TaskStorage {
     }
 
     @Override
-    public synchronized List<TaskEvent> listEventsBefore(Long taskId, Long beforeSequence, int limit) {
+    public List<TaskEvent> listEventsBefore(Long taskId, Long beforeSequence, int limit) {
         int resultLimit = eventLimit(limit);
         File file = eventsFile(taskId);
         repairIncompleteTrailingEvent(file, taskId);
@@ -251,6 +341,7 @@ public class FileTaskStorage implements TaskStorage {
             return List.of();
         }
         List<TaskEvent> newestFirst = new ArrayList<>(resultLimit);
+        eventFileLock.readLock().lock();
         try (RandomAccessFile input = new RandomAccessFile(file, "r")) {
             long position = skipTrailingLineBreaks(input, input.length() - 1L);
             Long latestSequence = null;
@@ -272,6 +363,8 @@ public class FileTaskStorage implements TaskStorage {
             return List.copyOf(newestFirst);
         } catch (IOException e) {
             throw new IllegalStateException("Could not read task events", e);
+        } finally {
+            eventFileLock.readLock().unlock();
         }
     }
 
@@ -344,41 +437,48 @@ public class FileTaskStorage implements TaskStorage {
         Path eventFile = eventsFile(taskId).toPath();
         Path stagedEventFile = stagedEventsFile(taskId);
         boolean eventStaged = false;
+        // Staging the event file makes it invisible to readers for a moment; the event write lock
+        // keeps a concurrent /api/tasks/events poll from opening the file mid-move.
+        eventFileLock.writeLock().lock();
         try {
-            Files.deleteIfExists(transitionFile(taskId));
-            Files.deleteIfExists(stagedEventFile);
-            if (Files.exists(eventFile)) {
-                move(eventFile, stagedEventFile);
-                eventStaged = true;
-            }
-            snapshots.removeStrict(taskId);
-            if (commitAction != null) {
-                commitAction.run();
-            }
             try {
+                Files.deleteIfExists(transitionFile(taskId));
                 Files.deleteIfExists(stagedEventFile);
-            } catch (IOException cleanupFailure) {
-                log.warn("Could not delete staged events for deleted task {}", taskId, cleanupFailure);
-            }
-            lastEventSequences.remove(taskId);
-            return true;
-        } catch (Exception e) {
-            if (snapshots.find(taskId) == null) {
-                try {
-                    snapshots.restoreStrict(task);
-                } catch (RuntimeException rollbackFailure) {
-                    e.addSuppressed(rollbackFailure);
+                if (Files.exists(eventFile)) {
+                    move(eventFile, stagedEventFile);
+                    eventStaged = true;
                 }
-            }
-            if (eventStaged && Files.exists(stagedEventFile) && !Files.exists(eventFile)) {
-                try {
-                    move(stagedEventFile, eventFile);
-                } catch (IOException rollbackFailure) {
-                    e.addSuppressed(rollbackFailure);
+                snapshots.removeStrict(taskId);
+                if (commitAction != null) {
+                    commitAction.run();
                 }
+                try {
+                    Files.deleteIfExists(stagedEventFile);
+                } catch (IOException cleanupFailure) {
+                    log.warn("Could not delete staged events for deleted task {}", taskId, cleanupFailure);
+                }
+                lastEventSequences.remove(taskId);
+                return true;
+            } catch (Exception e) {
+                if (snapshots.find(taskId) == null) {
+                    try {
+                        snapshots.restoreStrict(task);
+                    } catch (RuntimeException rollbackFailure) {
+                        e.addSuppressed(rollbackFailure);
+                    }
+                }
+                if (eventStaged && Files.exists(stagedEventFile) && !Files.exists(eventFile)) {
+                    try {
+                        move(stagedEventFile, eventFile);
+                    } catch (IOException rollbackFailure) {
+                        e.addSuppressed(rollbackFailure);
+                    }
+                }
+                throw e instanceof RuntimeException runtimeException
+                        ? runtimeException : new RuntimeException(e);
             }
-            throw e instanceof RuntimeException runtimeException
-                    ? runtimeException : new RuntimeException(e);
+        } finally {
+            eventFileLock.writeLock().unlock();
         }
     }
 
@@ -432,19 +532,23 @@ public class FileTaskStorage implements TaskStorage {
     private void appendEventLine(TaskEvent event) {
         Path file = eventsFile(event.getTaskId()).toPath();
         byte[] bytes = (JSON.toJSONString(event) + System.lineSeparator()).getBytes(StandardCharsets.UTF_8);
+        eventFileLock.writeLock().lock();
         try {
             Files.createDirectories(file.toAbsolutePath().getParent());
+            // The bytes reach the page cache before the close returns, so any reader that opens the
+            // file afterwards sees this event; the fsync is deferred to the task's terminal status.
             try (FileChannel channel = FileChannel.open(file, StandardOpenOption.CREATE,
                     StandardOpenOption.WRITE, StandardOpenOption.APPEND)) {
                 ByteBuffer buffer = ByteBuffer.wrap(bytes);
                 while (buffer.hasRemaining()) {
                     channel.write(buffer);
                 }
-                channel.force(true);
             }
             lastEventSequences.put(event.getTaskId(), event.getSequence());
         } catch (IOException e) {
             throw new IllegalStateException("Could not append task event", e);
+        } finally {
+            eventFileLock.writeLock().unlock();
         }
     }
 
@@ -457,6 +561,7 @@ public class FileTaskStorage implements TaskStorage {
         if (!file.isFile()) {
             return null;
         }
+        eventFileLock.readLock().lock();
         try (BufferedReader reader = Files.newBufferedReader(file.toPath(), StandardCharsets.UTF_8)) {
             String line;
             while ((line = reader.readLine()) != null) {
@@ -468,6 +573,8 @@ public class FileTaskStorage implements TaskStorage {
             return null;
         } catch (IOException e) {
             throw new IllegalStateException("Could not inspect task events", e);
+        } finally {
+            eventFileLock.readLock().unlock();
         }
     }
 
@@ -482,6 +589,7 @@ public class FileTaskStorage implements TaskStorage {
             return 0L;
         }
         long lastSequence = 0L;
+        eventFileLock.readLock().lock();
         try (BufferedReader reader = Files.newBufferedReader(file.toPath(), StandardCharsets.UTF_8)) {
             String line;
             while ((line = reader.readLine()) != null) {
@@ -493,6 +601,8 @@ public class FileTaskStorage implements TaskStorage {
             return lastSequence;
         } catch (IOException e) {
             throw new IllegalStateException("Could not inspect task event sequence", e);
+        } finally {
+            eventFileLock.readLock().unlock();
         }
     }
 
@@ -513,10 +623,15 @@ public class FileTaskStorage implements TaskStorage {
         }
     }
 
+    /**
+     * Truncates a torn trailing event. Takes the event write lock itself, so it must not be called by
+     * a reader that already holds the read lock.
+     */
     private void repairIncompleteTrailingEvent(File file, Long taskId) {
         if (!file.isFile()) {
             return;
         }
+        eventFileLock.writeLock().lock();
         try (RandomAccessFile input = new RandomAccessFile(file, "rw")) {
             long length = input.length();
             if (length == 0) {
@@ -549,6 +664,8 @@ public class FileTaskStorage implements TaskStorage {
             lastEventSequences.remove(taskId);
         } catch (IOException e) {
             throw new IllegalStateException("Could not repair trailing task event", e);
+        } finally {
+            eventFileLock.writeLock().unlock();
         }
     }
 
@@ -620,11 +737,14 @@ public class FileTaskStorage implements TaskStorage {
 
     private void truncateEventFile(Long taskId, long length, long lastSequence) {
         File file = eventsFile(taskId);
+        eventFileLock.writeLock().lock();
         try (RandomAccessFile output = new RandomAccessFile(file, "rw")) {
             output.setLength(length);
             lastEventSequences.put(taskId, lastSequence);
         } catch (IOException e) {
             throw new IllegalStateException("Could not roll back task event append", e);
+        } finally {
+            eventFileLock.writeLock().unlock();
         }
     }
 
@@ -662,10 +782,12 @@ public class FileTaskStorage implements TaskStorage {
 
     private boolean isLegalTransition(String source, String target) {
         if (TaskStatus.PENDING.name().equals(source)) {
-            return TaskStatus.RUNNING.name().equals(target) || TaskStatus.FAILED.name().equals(target);
+            return TaskStatus.RUNNING.name().equals(target) || TaskStatus.FAILED.name().equals(target)
+                    || TaskStatus.CANCELLED.name().equals(target);
         }
         if (TaskStatus.RUNNING.name().equals(source)) {
-            return TaskStatus.SUCCESS.name().equals(target) || TaskStatus.FAILED.name().equals(target);
+            return TaskStatus.SUCCESS.name().equals(target) || TaskStatus.FAILED.name().equals(target)
+                    || TaskStatus.CANCELLED.name().equals(target);
         }
         if (LEGACY_CANCELLING_STATUS.equals(source)) {
             return TaskStatus.FAILED.name().equals(target);
@@ -715,6 +837,9 @@ public class FileTaskStorage implements TaskStorage {
         target.setErrorCode(copy.getErrorCode());
         target.setErrorMessage(copy.getErrorMessage());
         target.setArtifactId(copy.getArtifactId());
+        target.setSpecJson(copy.getSpecJson());
+        target.setCheckpointJson(copy.getCheckpointJson());
+        target.setErrorArtifactId(copy.getErrorArtifactId());
         target.setUserId(copy.getUserId());
         target.setOrganizationId(copy.getOrganizationId());
         target.setCreatedAt(copy.getCreatedAt());

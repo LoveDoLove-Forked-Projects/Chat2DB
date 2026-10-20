@@ -35,6 +35,25 @@ public class Task {
 
     private String artifactId;
 
+    /**
+     * Raw import/export parameter snapshot, kept so a finished task can seed a new task with the same
+     * configuration. Optional: legacy records and tasks created without a spec leave it {@code null}.
+     */
+    private String specJson;
+
+    /**
+     * Import resume checkpoint ({@code processedRows}, {@code targetTable}, {@code conflictPolicy}).
+     * Import tasks only; export tasks and legacy records leave it {@code null}.
+     */
+    private String checkpointJson;
+
+    /**
+     * Absolute path of the secondary error artifact listing rejected rows, as returned by
+     * {@code ArtifactService#publish}. The primary artifact stays in {@link #artifactId}; {@code null}
+     * when the task produced no error file.
+     */
+    private String errorArtifactId;
+
     private Long userId;
 
     private Long organizationId;

@@ -8,6 +8,7 @@ import ai.chat2db.community.domain.api.model.task.TaskEventCode;
 import ai.chat2db.community.domain.api.model.task.TaskEventLevel;
 import ai.chat2db.community.domain.api.model.task.TaskProgress;
 import ai.chat2db.community.domain.api.model.task.TaskQuery;
+import ai.chat2db.community.domain.api.model.task.TaskStage;
 import ai.chat2db.community.domain.api.model.task.TaskStatus;
 import ai.chat2db.community.domain.api.model.task.TaskStatusPatch;
 import ai.chat2db.community.domain.api.model.task.TaskTargetSnapshot;
@@ -27,16 +28,20 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.LongStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -509,6 +514,250 @@ class FileTaskStorageTest {
         FileUtil.del(eventFile);
         assertTrue(savedEventFile.renameTo(eventFile));
         assertEquals(List.of(1L), sequences(storage.listEvents(taskId, 0, 20)));
+    }
+
+    @Test
+    void appendedEventsAreImmediatelyReadableWithoutPerEventFlush() {
+        CountingFileTaskStorage storage = countingStorage();
+        Long taskId = create(storage, "task").getId();
+        for (int i = 0; i < 5; i++) {
+            TaskEvent event = event(TaskEventCode.BATCH_EXECUTED.name());
+            event.setTaskId(taskId);
+            storage.appendEvent(event);
+        }
+
+        assertEquals(0, storage.forceCount(), "an appended event must not fsync the whole event file");
+        assertEquals(List.of(1L, 2L, 3L, 4L, 5L, 6L), sequences(storage.listEvents(taskId, 0, 20)));
+        assertEquals(List.of(6L), sequences(storage.listEvents(taskId, 5, 20)));
+        assertEquals(0, storage.forceCount());
+    }
+
+    @Test
+    void terminalTransitionFlushesTheEventFileOnceAndKeepsEveryEvent() {
+        CountingFileTaskStorage storage = countingStorage();
+        Long taskId = create(storage, "task").getId();
+        assertTrue(start(storage, taskId));
+        TaskEvent completedEvent = event(TaskEventCode.QUERY_COMPLETED.name());
+        completedEvent.setTaskId(taskId);
+        storage.appendEvent(completedEvent);
+        assertEquals(0, storage.forceCount(), "only a terminal status flushes the event file");
+
+        assertTrue(storage.compareAndSetStatus(taskId, TaskStatus.RUNNING.name(), TaskStatus.SUCCESS.name(),
+                TaskStatusPatch.builder().artifactId("artifact").finishedAt(new Date()).build(),
+                event(TaskEventCode.TASK_SUCCEEDED.name())));
+
+        assertEquals(List.of(taskId), storage.forcedTaskIds());
+        FileTaskStorage reloaded = storage();
+        assertEquals(List.of(1L, 2L, 3L, 4L), sequences(reloaded.listEvents(taskId, 0, 20)));
+        assertEquals(TaskStatus.SUCCESS.name(), reloaded.get(taskId).orElseThrow().getStatus());
+        assertEquals(1, storage.forceCount());
+    }
+
+    @Test
+    void pendingAndRunningTasksCanBeCancelledAndCancelledIsTerminal() {
+        FileTaskStorage storage = storage();
+        Task queued = create(storage, "queued");
+        assertTrue(storage.compareAndSetStatus(queued.getId(), TaskStatus.PENDING.name(),
+                TaskStatus.CANCELLED.name(), cancelledPatch(), event(TaskEventCode.TASK_CANCELLED.name())));
+        assertEquals(TaskStatus.CANCELLED.name(), storage.get(queued.getId()).orElseThrow().getStatus());
+        assertFalse(storage.compareAndSetStatus(queued.getId(), TaskStatus.CANCELLED.name(),
+                TaskStatus.RUNNING.name(), TaskStatusPatch.builder().build(),
+                event(TaskEventCode.TASK_STARTED.name())));
+
+        Task running = create(storage, "running");
+        assertTrue(start(storage, running.getId()));
+        assertTrue(storage.compareAndSetStatus(running.getId(), TaskStatus.RUNNING.name(),
+                TaskStatus.CANCELLED.name(), cancelledPatch(), event(TaskEventCode.TASK_CANCELLED.name())));
+
+        Task cancelled = storage.get(running.getId()).orElseThrow();
+        assertEquals(TaskStatus.CANCELLED.name(), cancelled.getStatus());
+        assertEquals(TaskStage.CANCELLED.name(), cancelled.getStage());
+        assertNull(cancelled.getErrorCode());
+        assertNotNull(cancelled.getFinishedAt());
+        assertTrue(storage.listNonTerminalTasks().stream()
+                .noneMatch(task -> running.getId().equals(task.getId())));
+        assertEquals(List.of(1L, 2L, 3L), sequences(storage.listEvents(running.getId(), 0, 20)));
+    }
+
+    @Test
+    void pollingReaderObservesEveryEventWhileTheTaskThreadAppends() throws Exception {
+        FileTaskStorage storage = storage();
+        Long taskId = create(storage, "task").getId();
+        int appends = 60;
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        try {
+            Future<?> writer = executor.submit(() -> {
+                for (int i = 0; i < appends; i++) {
+                    TaskEvent event = event(TaskEventCode.BATCH_EXECUTED.name());
+                    event.setTaskId(taskId);
+                    storage.appendEvent(event);
+                }
+            });
+            List<Long> observed = new CopyOnWriteArrayList<>();
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5L);
+            while (observed.size() < appends + 1 && System.nanoTime() < deadline) {
+                long afterSequence = observed.isEmpty() ? 0L : observed.get(observed.size() - 1);
+                for (TaskEvent event : storage.listEvents(taskId, afterSequence, appends + 1)) {
+                    observed.add(event.getSequence());
+                }
+            }
+            writer.get(5L, TimeUnit.SECONDS);
+
+            List<Long> expected = LongStream.rangeClosed(1, appends + 1).boxed().toList();
+            assertEquals(expected, observed, "an incremental reader must see every event in order");
+            assertEquals(expected, sequences(storage.listEvents(taskId, 0, appends + 1)));
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void specJsonSurvivesSnapshotReloadAndIsNullWhenNotProvided() {
+        FileTaskStorage storage = storage();
+        String spec = "{\"format\":\"CSV\",\"conflictPolicy\":\"INSERT\"}";
+        Task input = task("with-spec");
+        input.setSpecJson(spec);
+        Task withSpec = storage.create(input, event(TaskEventCode.TASK_CREATED.name()));
+        Task withoutSpec = create(storage, "without-spec");
+
+        assertEquals(spec, withSpec.getSpecJson());
+        assertNull(withoutSpec.getSpecJson());
+        assertTrue(FileUtil.readUtf8String(detailFile(withSpec.getId())).contains("\"specJson\""));
+
+        FileTaskStorage reloaded = storage();
+        assertEquals(spec, reloaded.get(withSpec.getId()).orElseThrow().getSpecJson());
+        assertNull(reloaded.get(withoutSpec.getId()).orElseThrow().getSpecJson());
+    }
+
+    @Test
+    void checkpointIsPersistedForRunningAndTerminalTasks() {
+        FileTaskStorage storage = storage();
+        Task created = create(storage, "import");
+        Long taskId = created.getId();
+        assertNull(created.getCheckpointJson());
+
+        assertFalse(storage.saveCheckpoint(999_999L, "{\"processedRows\":1}"));
+        assertFalse(storage.saveCheckpoint(taskId, null));
+        assertTrue(storage.saveCheckpoint(taskId,
+                "{\"processedRows\":10,\"targetTable\":\"target\",\"conflictPolicy\":\"INSERT\"}"));
+        assertTrue(start(storage, taskId));
+
+        String checkpoint = "{\"processedRows\":120,\"targetTable\":\"target\",\"conflictPolicy\":\"INSERT\"}";
+        assertTrue(storage.saveCheckpoint(taskId, checkpoint));
+
+        Task running = storage.get(taskId).orElseThrow();
+        assertEquals(checkpoint, running.getCheckpointJson());
+        assertEquals(TaskConstants.STARTED_PROGRESS, running.getProgress());
+        assertEquals(checkpoint, storage().get(taskId).orElseThrow().getCheckpointJson());
+
+        assertTrue(storage.compareAndSetStatus(taskId, TaskStatus.RUNNING.name(), TaskStatus.CANCELLED.name(),
+                TaskStatusPatch.builder().finishedAt(new Date()).build(),
+                event(TaskEventCode.TASK_CANCELLED.name())));
+
+        // Cancellation persists the terminal status before the import stops, and the batches still
+        // in flight keep committing; their final position must remain writable.
+        String finalCheckpoint = "{\"processedRows\":999,\"targetTable\":\"target\",\"conflictPolicy\":\"INSERT\"}";
+        assertTrue(storage.saveCheckpoint(taskId, finalCheckpoint));
+        Task cancelled = storage.get(taskId).orElseThrow();
+        assertEquals(finalCheckpoint, cancelled.getCheckpointJson());
+        assertEquals(finalCheckpoint, storage().get(taskId).orElseThrow().getCheckpointJson());
+        assertEquals(List.of(1L, 2L, 3L), sequences(storage.listEvents(taskId, 0, 20)));
+    }
+
+    @Test
+    void errorArtifactIsAttachedWithoutReplacingThePrimaryArtifact() {
+        FileTaskStorage storage = storage();
+        Task created = create(storage, "import");
+        Long taskId = created.getId();
+        assertNull(created.getErrorArtifactId());
+
+        String errorArtifact = "/tmp/tasks/7/error-rows.csv";
+        String lateErrorArtifact = "/tmp/tasks/7/error-rows-late.csv";
+
+        assertFalse(storage.attachErrorArtifact(999_999L, errorArtifact));
+        assertFalse(storage.attachErrorArtifact(taskId, null));
+        assertFalse(storage.attachErrorArtifact(taskId, "  "));
+
+        assertTrue(start(storage, taskId));
+        assertTrue(storage.attachErrorArtifact(taskId, errorArtifact));
+        Task attached = storage.get(taskId).orElseThrow();
+        assertEquals(errorArtifact, attached.getErrorArtifactId());
+        assertNull(attached.getArtifactId());
+
+        assertTrue(storage.compareAndSetStatus(taskId, TaskStatus.RUNNING.name(), TaskStatus.SUCCESS.name(),
+                TaskStatusPatch.builder().artifactId("primary").finishedAt(new Date()).build(),
+                event(TaskEventCode.TASK_SUCCEEDED.name())));
+        assertEquals("primary", storage.get(taskId).orElseThrow().getArtifactId());
+
+        assertTrue(storage.attachErrorArtifact(taskId, lateErrorArtifact),
+                "an error file produced after the terminal transition must stay discoverable");
+        Task reloaded = storage().get(taskId).orElseThrow();
+        assertEquals("primary", reloaded.getArtifactId());
+        assertEquals(lateErrorArtifact, reloaded.getErrorArtifactId());
+    }
+
+    @Test
+    void legacySnapshotWithoutNewFieldsReadsBackWithNulls() {
+        String legacyJson = "{\"id\":42,\"type\":\"CSV_IMPORT\",\"name\":\"legacy\",\"status\":\"SUCCESS\","
+                + "\"progress\":100,\"stage\":\"finished\",\"artifactId\":\"legacy-artifact\","
+                + "\"createdAt\":1700000000000,\"finishedAt\":1700000000001}";
+        FileUtil.writeUtf8String("42\n", indexFile());
+        FileUtil.writeUtf8String(legacyJson, detailFile(42L));
+
+        FileTaskStorage storage = storage();
+        Task legacy = storage.get(42L).orElseThrow();
+
+        assertEquals("legacy", legacy.getName());
+        assertEquals(TaskStatus.SUCCESS.name(), legacy.getStatus());
+        assertEquals("legacy-artifact", legacy.getArtifactId());
+        assertNull(legacy.getSpecJson());
+        assertNull(legacy.getCheckpointJson());
+        assertNull(legacy.getErrorArtifactId());
+        assertEquals(1L, storage.list(query(1, 20)).getTotal());
+
+        assertTrue(storage.saveCheckpoint(42L, "{\"processedRows\":1}"));
+        assertEquals("{\"processedRows\":1}", storage.get(42L).orElseThrow().getCheckpointJson());
+        String legacyErrorArtifact = "/tmp/tasks/42/error-rows.csv";
+        assertTrue(storage.attachErrorArtifact(42L, legacyErrorArtifact));
+        assertEquals(legacyErrorArtifact, storage().get(42L).orElseThrow().getErrorArtifactId());
+    }
+
+    private TaskStatusPatch cancelledPatch() {
+        return TaskStatusPatch.builder()
+                .stage(TaskStage.CANCELLED.name())
+                .progressMessage("Task cancelled")
+                .finishedAt(new Date())
+                .build();
+    }
+
+    private CountingFileTaskStorage countingStorage() {
+        return new CountingFileTaskStorage(baseDir.getAbsolutePath());
+    }
+
+    private static final class CountingFileTaskStorage extends FileTaskStorage {
+
+        private final AtomicInteger forces = new AtomicInteger();
+
+        private final List<Long> forcedTaskIds = new CopyOnWriteArrayList<>();
+
+        private CountingFileTaskStorage(String storageBasePath) {
+            super(storageBasePath);
+        }
+
+        @Override
+        void forceEventFile(Long taskId) {
+            forcedTaskIds.add(taskId);
+            forces.incrementAndGet();
+            super.forceEventFile(taskId);
+        }
+
+        private int forceCount() {
+            return forces.get();
+        }
+
+        private List<Long> forcedTaskIds() {
+            return List.copyOf(forcedTaskIds);
+        }
     }
 
     private FileTaskStorage storage() {
