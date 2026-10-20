@@ -37,6 +37,16 @@ public interface TaskStorage {
     }
 
     /**
+     * Terminal tasks, including the ones whose artifacts may still occupy disk. Storages that can
+     * enumerate their history return it through {@link #listTasksForRecovery()}.
+     */
+    default List<Task> listTerminalTasks() {
+        return listTasksForRecovery().stream()
+                .filter(task -> task.getStatus() != null && TaskStatus.isTerminal(task.getStatus()))
+                .toList();
+    }
+
+    /**
      * Removes a terminal task while retaining enough storage state to roll back if the coordinated commit fails.
      */
     boolean deleteTerminalTask(Long taskId, Runnable commitAction);
