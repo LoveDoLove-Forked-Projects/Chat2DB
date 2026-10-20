@@ -65,13 +65,21 @@ final class TaskExecutionContextImpl implements TaskExecutionContext {
 
     @Override
     public void reportProgress(int progress, String stage, String message) {
-        checkCancelled();
-        this.stage.set(stage);
-        taskStorage.updateProgressIfRunning(taskId, TaskProgress.builder()
+        reportProgress(TaskProgress.builder()
                 .progress(progress)
                 .stage(stage)
                 .message(message)
                 .build());
+    }
+
+    @Override
+    public void reportProgress(TaskProgress progress) {
+        checkCancelled();
+        if (progress == null || progress.getProgress() == null) {
+            return;
+        }
+        this.stage.set(progress.getStage());
+        taskStorage.updateProgressIfRunning(taskId, progress);
     }
 
     @Override

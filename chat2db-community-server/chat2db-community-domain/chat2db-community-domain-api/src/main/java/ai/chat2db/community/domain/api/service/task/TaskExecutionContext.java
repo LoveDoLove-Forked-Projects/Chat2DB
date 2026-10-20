@@ -1,6 +1,7 @@
 package ai.chat2db.community.domain.api.service.task;
 
 import ai.chat2db.community.domain.api.model.task.ArtifactDraft;
+import ai.chat2db.community.domain.api.model.task.TaskProgress;
 import ai.chat2db.community.domain.api.service.db.ISqlExecutionStatementListener;
 
 import java.util.Map;
@@ -13,6 +14,16 @@ public interface TaskExecutionContext extends ISqlExecutionStatementListener {
     }
 
     void reportProgress(int progress, String stage, String message);
+
+    /**
+     * Reports progress with structured row counters and rate. The default keeps existing context
+     * implementations source compatible; contexts that persist task snapshots should override it.
+     */
+    default void reportProgress(TaskProgress progress) {
+        if (progress != null && progress.getProgress() != null) {
+            reportProgress(progress.getProgress(), progress.getStage(), progress.getMessage());
+        }
+    }
 
     void logInfo(String code, String message);
 

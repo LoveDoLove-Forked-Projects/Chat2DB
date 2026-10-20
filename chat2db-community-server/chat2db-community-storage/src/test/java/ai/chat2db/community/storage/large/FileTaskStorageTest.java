@@ -208,6 +208,60 @@ class FileTaskStorageTest {
     }
 
     @Test
+    void structuredProgressIsPersistedAndKeptByStageOnlyUpdates() {
+        FileTaskStorage storage = storage();
+        Task created = create(storage, "task");
+        Long taskId = created.getId();
+        assertTrue(start(storage, taskId));
+
+        assertTrue(storage.updateProgressIfRunning(taskId, TaskProgress.builder()
+                .progress(50)
+                .stage("importing")
+                .message("Imported 500 of 1000 rows")
+                .processedRows(500L)
+                .totalRows(1_000L)
+                .rowsPerSecond(125.5d)
+                .etaSeconds(4L)
+                .build()));
+        Task running = storage.get(taskId).orElseThrow();
+        assertEquals(500L, running.getProcessedRows());
+        assertEquals(1_000L, running.getTotalRows());
+        assertEquals(125.5d, running.getRowsPerSecond(), 0.001d);
+        assertEquals(4L, running.getEtaSeconds());
+
+        assertTrue(storage.updateProgressIfRunning(taskId, progress(60, "finalizing")));
+        Task finalizing = storage.get(taskId).orElseThrow();
+        assertEquals(60, finalizing.getProgress());
+        assertEquals(500L, finalizing.getProcessedRows(), "stage-only updates keep the row counters");
+        assertEquals(1_000L, finalizing.getTotalRows());
+        assertEquals(125.5d, finalizing.getRowsPerSecond(), 0.001d);
+        assertEquals(4L, finalizing.getEtaSeconds());
+    }
+
+    @Test
+    void listsTasksBeforeACursorWithoutRepeatingTheCursor() {
+        FileTaskStorage storage = storage();
+        Task first = create(storage, "first");
+        Task second = create(storage, "second");
+        Task third = create(storage, "third");
+
+        TaskQuery query = new TaskQuery();
+        query.setBeforeId(third.getId());
+        query.setPageSize(10);
+        PageResponse<Task> page = storage.list(query);
+
+        assertEquals(List.of(second.getId(), first.getId()),
+                page.getData().stream().map(Task::getId).toList());
+        assertEquals(0L, page.getTotal());
+        assertFalse(page.getHasNextPage());
+
+        query.setPageSize(1);
+        PageResponse<Task> firstPage = storage.list(query);
+        assertEquals(List.of(second.getId()), firstPage.getData().stream().map(Task::getId).toList());
+        assertTrue(firstPage.getHasNextPage());
+    }
+
+    @Test
     void terminalStatusRaceHasExactlyOneWinnerAndOneTerminalEvent() throws Exception {
         FileTaskStorage storage = storage();
         Task created = create(storage, "task");

@@ -1,8 +1,11 @@
 package ai.chat2db.community.domain.core.impl.task.imports;
 
 import ai.chat2db.community.domain.api.model.task.TaskConstants;
+import ai.chat2db.community.domain.api.model.task.TaskProgress;
 import ai.chat2db.community.domain.api.model.task.TaskStage;
 import ai.chat2db.community.domain.api.service.task.TaskExecutionContext;
+
+import java.util.function.LongSupplier;
 
 /**
  * Reports real import progress for one import run.
@@ -32,6 +35,8 @@ public final class ImportProgressReporter {
 
     private final Long totalRows;
 
+    private final LongSupplier nanoTime;
+
     private final long startedNanos;
 
     private long lastReportedRows = -1L;
@@ -43,9 +48,15 @@ public final class ImportProgressReporter {
     }
 
     public ImportProgressReporter(TaskExecutionContext context, Long totalRows) {
+        this(context, totalRows, System::nanoTime);
+    }
+
+    /** Test seam for the rate and ETA, which need a controllable elapsed time. */
+    ImportProgressReporter(TaskExecutionContext context, Long totalRows, LongSupplier nanoTime) {
         this.context = context;
         this.totalRows = totalRows != null && totalRows > 0L ? totalRows : null;
-        this.startedNanos = System.nanoTime();
+        this.nanoTime = nanoTime;
+        this.startedNanos = nanoTime.getAsLong();
     }
 
     /** Reports the rows processed so far; repeated calls without new rows are ignored. */
@@ -57,7 +68,22 @@ public final class ImportProgressReporter {
         lastReportedRows = rows;
         int progress = Math.max(lastProgress, progress(rows));
         lastProgress = progress;
-        context.reportProgress(progress, TaskStage.IMPORTING.name(), message(rows));
+        double elapsedSeconds = (nanoTime.getAsLong() - startedNanos) / 1_000_000_000.0d;
+        // A rate measured over less than a second is too noisy to show or to derive an ETA from.
+        Double rowsPerSecond = elapsedSeconds >= 1.0d ? rows / elapsedSeconds : null;
+        Long etaSeconds = null;
+        if (rowsPerSecond != null && rowsPerSecond > 0 && totalRows != null) {
+            etaSeconds = Math.max(0L, (long) Math.ceil((totalRows - rows) / rowsPerSecond));
+        }
+        context.reportProgress(TaskProgress.builder()
+                .progress(progress)
+                .stage(TaskStage.IMPORTING.name())
+                .message(message(rows, rowsPerSecond))
+                .processedRows(rows)
+                .totalRows(totalRows)
+                .rowsPerSecond(rowsPerSecond)
+                .etaSeconds(etaSeconds)
+                .build());
     }
 
     /** The highest percentage reported so far; never decreases. */
@@ -79,16 +105,15 @@ public final class ImportProgressReporter {
      * Keeps the processed row count in the second whitespace-separated token, which the task UI and
      * the progress assertions read.
      */
-    private String message(long rows) {
+    private String message(long rows, Double rowsPerSecond) {
         StringBuilder message = new StringBuilder("Imported ").append(rows);
         if (totalRows != null) {
             message.append(" of ").append(totalRows).append(" rows");
         } else {
             message.append(" rows (total unknown)");
         }
-        long elapsedSeconds = (System.nanoTime() - startedNanos) / 1_000_000_000L;
-        if (elapsedSeconds > 0L) {
-            message.append(", ").append(rows / elapsedSeconds).append(" rows/s");
+        if (rowsPerSecond != null) {
+            message.append(", ").append(Math.round(rowsPerSecond)).append(" rows/s");
         }
         return message.toString();
     }

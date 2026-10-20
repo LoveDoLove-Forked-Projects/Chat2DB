@@ -27,6 +27,18 @@ public class Task {
 
     private String progressMessage;
 
+    /** Source rows processed so far; null for tasks that do not report row counts. */
+    private Long processedRows;
+
+    /** Source rows expected in total; null when the task cannot know the total. */
+    private Long totalRows;
+
+    /** Measured throughput of the current run. */
+    private Double rowsPerSecond;
+
+    /** Estimated seconds remaining; null when the total or rate is unknown. */
+    private Long etaSeconds;
+
     private TaskTargetSnapshot target;
 
     private String errorCode;

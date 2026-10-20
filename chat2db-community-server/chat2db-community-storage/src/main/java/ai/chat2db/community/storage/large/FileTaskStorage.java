@@ -122,6 +122,26 @@ public class FileTaskStorage implements TaskStorage {
         int pageNo = Math.max(1, effectiveQuery.getPageNo() == null ? 1 : effectiveQuery.getPageNo());
         int pageSize = Math.max(1, effectiveQuery.getPageSize() == null
                 ? TaskConstants.DEFAULT_PAGE_SIZE : effectiveQuery.getPageSize());
+        if (effectiveQuery.getBeforeId() != null) {
+            List<Task> page = new ArrayList<>(pageSize);
+            for (Task task : snapshots.newestFirst()) {
+                if (task.getId() >= effectiveQuery.getBeforeId()) {
+                    continue;
+                }
+                if ((effectiveQuery.getStatus() != null
+                        && !Objects.equals(task.getStatus(), effectiveQuery.getStatus()))
+                        || !Objects.equals(task.getUserId(), effectiveQuery.getUserId())
+                        || !Objects.equals(task.getOrganizationId(), effectiveQuery.getOrganizationId())) {
+                    continue;
+                }
+                if (page.size() >= pageSize) {
+                    break;
+                }
+                page.add(copy(task));
+            }
+            // A cursor page has no meaningful total; hasNextPage falls back to "full page".
+            return PageResponse.of(List.copyOf(page), 0L, 1, pageSize);
+        }
         long offset = (long) (pageNo - 1) * pageSize;
         long total = 0L;
         List<Task> page = new ArrayList<>(pageSize);
@@ -209,6 +229,20 @@ public class FileTaskStorage implements TaskStorage {
         updated.setProgress(requested);
         updated.setStage(progress.getStage());
         updated.setProgressMessage(progress.getMessage());
+        // Stage-only updates leave the counters null; keep the last structured values instead of
+        // wiping the row count when an import moves into its finalizing stage.
+        if (progress.getProcessedRows() != null) {
+            updated.setProcessedRows(progress.getProcessedRows());
+        }
+        if (progress.getTotalRows() != null) {
+            updated.setTotalRows(progress.getTotalRows());
+        }
+        if (progress.getRowsPerSecond() != null) {
+            updated.setRowsPerSecond(progress.getRowsPerSecond());
+        }
+        if (progress.getEtaSeconds() != null) {
+            updated.setEtaSeconds(progress.getEtaSeconds());
+        }
         updated.setUpdatedAt(new Date());
         snapshots.replaceStrict(taskId, updated);
         return true;

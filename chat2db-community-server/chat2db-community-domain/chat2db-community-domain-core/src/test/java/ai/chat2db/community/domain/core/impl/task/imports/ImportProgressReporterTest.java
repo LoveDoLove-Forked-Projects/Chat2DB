@@ -1,6 +1,7 @@
 package ai.chat2db.community.domain.core.impl.task.imports;
 
 import ai.chat2db.community.domain.api.model.task.ArtifactDraft;
+import ai.chat2db.community.domain.api.model.task.TaskProgress;
 import ai.chat2db.community.domain.api.service.task.TaskCancelable;
 import ai.chat2db.community.domain.api.service.task.TaskExecutionContext;
 import org.junit.jupiter.api.Test;
@@ -9,6 +10,7 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -18,7 +20,9 @@ class ImportProgressReporterTest {
     @Test
     void knownTotalProgressIsLinearAndStopsBeforeCompletion() {
         RecordingContext context = new RecordingContext();
-        ImportProgressReporter reporter = new ImportProgressReporter(context, 1_000L);
+        AtomicLong clock = new AtomicLong();
+        ImportProgressReporter reporter = new ImportProgressReporter(context, 1_000L, clock::get);
+        clock.set(2_000_000_000L);
 
         reporter.report(100L);
         reporter.report(500L);
@@ -30,6 +34,10 @@ class ImportProgressReporterTest {
         assertTrue(context.messages().get(2).startsWith("Imported 1000 of 1000 rows"),
                 context.messages().get(2));
         assertEquals("IMPORTING", context.stages().get(2));
+        assertEquals(List.of(100L, 500L, 1_000L), context.processedRows());
+        assertEquals(List.of(1_000L, 1_000L, 1_000L), context.totalRows());
+        assertEquals(50.0d, context.rates().get(0), 0.001d);
+        assertEquals(18L, context.etas().get(0));
     }
 
     @Test
@@ -52,6 +60,8 @@ class ImportProgressReporterTest {
         assertTrue(context.messages().get(0).startsWith("Imported 1000 rows (total unknown)"),
                 context.messages().get(0));
         assertEquals(reporter.lastProgress(), context.progressValues().get(1));
+        assertEquals(List.of(1_000L, 1_000_000L), context.processedRows());
+        assertEquals(null, context.etas().get(0), "an unknown total has no ETA");
     }
 
     private static final class RecordingContext implements TaskExecutionContext {
@@ -62,11 +72,28 @@ class ImportProgressReporterTest {
 
         private final List<String> messages = new ArrayList<>();
 
+        private final List<Long> processedRows = new ArrayList<>();
+
+        private final List<Long> totalRows = new ArrayList<>();
+
+        private final List<Double> rates = new ArrayList<>();
+
+        private final List<Long> etas = new ArrayList<>();
+
         @Override
         public void reportProgress(int progress, String stage, String message) {
             progressValues.add(progress);
             stages.add(stage);
             messages.add(message);
+        }
+
+        @Override
+        public void reportProgress(TaskProgress progress) {
+            reportProgress(progress.getProgress(), progress.getStage(), progress.getMessage());
+            processedRows.add(progress.getProcessedRows());
+            totalRows.add(progress.getTotalRows());
+            rates.add(progress.getRowsPerSecond());
+            etas.add(progress.getEtaSeconds());
         }
 
         private List<Integer> progressValues() {
@@ -87,6 +114,22 @@ class ImportProgressReporterTest {
 
         private List<Long> reportedTotals() {
             return messages.stream().map(message -> Long.parseLong(message.split(" ")[3])).toList();
+        }
+
+        private List<Long> processedRows() {
+            return processedRows;
+        }
+
+        private List<Long> totalRows() {
+            return totalRows;
+        }
+
+        private List<Double> rates() {
+            return rates;
+        }
+
+        private List<Long> etas() {
+            return etas;
         }
 
         @Override
