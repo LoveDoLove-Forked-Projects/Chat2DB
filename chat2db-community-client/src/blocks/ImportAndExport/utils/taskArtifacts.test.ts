@@ -7,6 +7,7 @@ import {
   buildTaskProgressSummary,
   canDownloadErrorArtifact,
   canResumeTask,
+  formatEta,
   formatRowsPerSecond,
   isImportTaskType,
   parseProcessedRows,
@@ -52,7 +53,7 @@ test('derives the rate from the checkpoint and the persisted timestamps', () => 
       status: ImportExportTaskStatus.RUNNING,
       now: started + 10_000,
     }),
-    { processedRows: 33500, rowsPerSecond: 3350 },
+    { processedRows: 33500, totalRows: null, rowsPerSecond: 3350, etaSeconds: null },
   );
   // A finished task keeps the rate it ended with, even when the clock moved on.
   assert.deepEqual(
@@ -63,7 +64,7 @@ test('derives the rate from the checkpoint and the persisted timestamps', () => 
       status: ImportExportTaskStatus.CANCELLED,
       now: started + 60_000,
     }),
-    { processedRows: 1000, rowsPerSecond: 500 },
+    { processedRows: 1000, totalRows: null, rowsPerSecond: 500, etaSeconds: null },
   );
   assert.equal(
     buildTaskProgressSummary({ checkpointJson: null, startedAt: started, status: 'RUNNING', now: started + 1000 }),
@@ -71,8 +72,31 @@ test('derives the rate from the checkpoint and the persisted timestamps', () => 
   );
   assert.deepEqual(
     buildTaskProgressSummary({ checkpointJson: '{"processedRows":10}', startedAt: null, now: started }),
-    { processedRows: 10, rowsPerSecond: null },
+    { processedRows: 10, totalRows: null, rowsPerSecond: null, etaSeconds: null },
   );
+});
+
+test('uses the structured backend counters instead of parsing a checkpoint', () => {
+  const started = Date.parse('2026-10-09T20:57:47Z');
+  assert.deepEqual(
+    buildTaskProgressSummary({
+      processedRows: 500,
+      totalRows: 1000,
+      rowsPerSecond: 50,
+      etaSeconds: 10,
+      checkpointJson: '{"processedRows":1}',
+      startedAt: started,
+      status: ImportExportTaskStatus.RUNNING,
+      now: started + 60_000,
+    }),
+    { processedRows: 500, totalRows: 1000, rowsPerSecond: 50, etaSeconds: 10 },
+  );
+});
+
+test('formats a compact ETA', () => {
+  assert.equal(formatEta(42), '42s');
+  assert.equal(formatEta(185), '3m 5s');
+  assert.equal(formatEta(7800), '2h 10m');
 });
 
 test('keeps the rate readable and builds the artifact urls', () => {

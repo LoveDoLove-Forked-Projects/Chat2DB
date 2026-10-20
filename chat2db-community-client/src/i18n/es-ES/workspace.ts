@@ -222,7 +222,9 @@ export default {
   'workspace.task.resume.confirmReplay': 'El último lote que llegó a la base de datos después del checkpoint (≤ 500 filas) se vuelve a aplicar; si la tabla destino tiene una clave única se producirá un conflicto, así que cambia a la política de omisión o elimina ese rango primero.',
   'workspace.task.errorFile.download': 'Descargar archivo de errores',
   'workspace.task.progress.rows': '{1} fila(s) importada(s)',
+  'workspace.task.progress.rowsOfTotal': '{1} / {2} filas importadas',
   'workspace.task.progress.rate': '{1} filas/s',
+  'workspace.task.progress.eta': 'Quedan aprox. {1}',
   'workspace.task.reuse.unsupportedSpec':
     'Este tipo de tarea no se puede reabrir en el asistente de importación/exportación.',
   'workspace.text.startTime': 'Hora de inicio',

@@ -14,6 +14,11 @@ export interface ImportExportTaskDetails {
   progress: number;
   stage?: string;
   progressMessage?: string;
+  /** Structured counters reported by the backend; absent on legacy tasks. */
+  processedRows?: number | null;
+  totalRows?: number | null;
+  rowsPerSecond?: number | null;
+  etaSeconds?: number | null;
   target?: {
     dataSourceId?: number;
     databaseName?: string;

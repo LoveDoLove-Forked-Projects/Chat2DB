@@ -24,6 +24,8 @@ export interface TaskListParams {
   pageNo: number;
   pageSize: number;
   status?: string;
+  /** Cursor for the task center: return tasks older than this id. */
+  beforeId?: number;
 }
 
 export interface TaskSubmissionResponse {

@@ -26,7 +26,7 @@ import {
 import { getTaskEventPollDelay } from './pollSchedule';
 import { ConsoleOutputEmpty, ConsoleOutputMessageLine } from '@/components/ConsoleOutput';
 import { formatTaskEventMessage } from './eventMessage';
-import { buildTaskProgressSummary, formatRowsPerSecond } from '@/blocks/ImportAndExport/utils/taskArtifacts';
+import { buildTaskProgressSummary, formatEta, formatRowsPerSecond } from '@/blocks/ImportAndExport/utils/taskArtifacts';
 
 interface IProps {
   className?: string;
@@ -279,9 +279,13 @@ const Log = (props: IProps) => {
     taskDetails.status === ImportExportTaskStatus.SUCCESS
       ? 100
       : Math.min(100, Math.max(0, Number(taskDetails.progress) || 0));
-  // Rows come from the structured import checkpoint, the rate from that counter and the
-  // persisted timestamps; nothing is scraped out of the log text.
+  // Structured counters win; legacy tasks fall back to the import checkpoint and timestamps.
+  // Nothing is scraped out of the log text.
   const progressSummary = buildTaskProgressSummary({
+    processedRows: taskDetails.processedRows,
+    totalRows: taskDetails.totalRows,
+    rowsPerSecond: taskDetails.rowsPerSecond,
+    etaSeconds: taskDetails.etaSeconds,
     checkpointJson: taskDetails.checkpointJson,
     startedAt: taskDetails.startedAt,
     finishedAt: taskDetails.finishedAt,
@@ -353,9 +357,17 @@ const Log = (props: IProps) => {
         </div>
         {progressSummary && (
           <div className={styles.progressSummary}>
-            {i18n('workspace.task.progress.rows', progressSummary.processedRows)}
+            {progressSummary.totalRows !== null
+              ? i18n(
+                  'workspace.task.progress.rowsOfTotal',
+                  progressSummary.processedRows,
+                  progressSummary.totalRows,
+                )
+              : i18n('workspace.task.progress.rows', progressSummary.processedRows)}
             {progressSummary.rowsPerSecond !== null &&
               ` · ${i18n('workspace.task.progress.rate', formatRowsPerSecond(progressSummary.rowsPerSecond))}`}
+            {progressSummary.etaSeconds !== null && progressSummary.etaSeconds > 0 &&
+              ` · ${i18n('workspace.task.progress.eta', formatEta(progressSummary.etaSeconds))}`}
           </div>
         )}
       </div>

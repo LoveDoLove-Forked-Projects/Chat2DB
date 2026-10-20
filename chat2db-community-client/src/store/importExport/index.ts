@@ -218,15 +218,18 @@ export const createImportExportAction: StateCreator<
       });
   },
   loadMoreTasks: () => {
-    const { taskListHasNextPage, taskListLoadingMore, taskListPageNo } = get();
-    if (!taskListHasNextPage || taskListLoadingMore) {
+    const { taskListHasNextPage, taskListLoadingMore, taskList, taskListPageNo } = get();
+    if (!taskListHasNextPage || taskListLoadingMore || taskList.length === 0) {
       return Promise.resolve();
     }
+    // Cursor by the oldest loaded id, not an offset: a new task inserted while the user scrolls
+    // cannot shift the window and repeat or skip rows.
+    const beforeId = Math.min(...taskList.map((task) => task.id));
     const nextPageNo = taskListPageNo + 1;
     const loadMoreRequest = taskListRequestCoordinator.beginLoadMoreRequest();
     set({ taskListLoadingMore: true });
     return importExportServices
-      .getTaskList({ pageNo: nextPageNo, pageSize: TASK_CENTER_PAGE_SIZE })
+      .getTaskList({ pageNo: 1, pageSize: TASK_CENTER_PAGE_SIZE, beforeId })
       .then((page) => {
         if (!taskListRequestCoordinator.canApplyLoadMoreResponse(loadMoreRequest)) return;
         set({
@@ -262,8 +265,6 @@ export const createImportExportAction: StateCreator<
     const unreadCompletedTaskIds = state.unreadCompletedTaskIds.filter((id) => id !== taskId);
     set({
       taskList: state.taskList.filter((task) => task.id !== taskId),
-      // Removing an item shifts the server-side window, so rewind one page; re-read rows are merged by id.
-      taskListPageNo: Math.max(1, state.taskListPageNo - 1),
       taskListLoadingMore: false,
       unreadCompletedTaskIds,
       unreadCompletedTaskCount: unreadCompletedTaskIds.length,

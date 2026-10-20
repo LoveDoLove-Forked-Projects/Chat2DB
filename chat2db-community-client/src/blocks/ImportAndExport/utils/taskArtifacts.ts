@@ -55,27 +55,45 @@ const toTimestamp = (value?: number | string | null): number | null => {
   return Number.isFinite(timestamp) ? timestamp : null;
 };
 
+const isCount = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isFinite(value) && value >= 0;
+
 export interface TaskProgressSummary {
   processedRows: number;
+  totalRows: number | null;
   /** Null while the elapsed time is unknown or too short to be meaningful. */
   rowsPerSecond: number | null;
+  etaSeconds: number | null;
 }
 
 /**
- * Builds the one-line progress summary of a task. The reference time is the current time for a
- * running task and the persisted finish time for a finished one, so the rate stops moving once the
- * task is over.
+ * Builds the one-line progress summary of a task. Structured backend fields win; legacy tasks fall
+ * back to the persisted import checkpoint and the timestamps.
  */
 export const buildTaskProgressSummary = (input: {
+  processedRows?: number | null;
+  totalRows?: number | null;
+  rowsPerSecond?: number | null;
+  etaSeconds?: number | null;
   checkpointJson?: string | null;
   startedAt?: number | string | null;
   finishedAt?: number | string | null;
   status?: ImportExportTaskStatus | string | null;
   now: number;
 }): TaskProgressSummary | null => {
-  const processedRows = parseProcessedRows(input.checkpointJson);
+  const structured = isCount(input.processedRows);
+  const processedRows = structured ? (input.processedRows as number) : parseProcessedRows(input.checkpointJson);
   if (processedRows === null) {
     return null;
+  }
+  const totalRows = isCount(input.totalRows) ? input.totalRows : null;
+  if (structured) {
+    return {
+      processedRows,
+      totalRows,
+      rowsPerSecond: isCount(input.rowsPerSecond) ? input.rowsPerSecond : null,
+      etaSeconds: isCount(input.etaSeconds) ? input.etaSeconds : null,
+    };
   }
   const startedAt = toTimestamp(input.startedAt);
   const isActive =
@@ -83,9 +101,29 @@ export const buildTaskProgressSummary = (input: {
   const reference = isActive ? input.now : toTimestamp(input.finishedAt) ?? input.now;
   const elapsedSeconds = startedAt === null ? null : (reference - startedAt) / 1000;
   const rowsPerSecond = elapsedSeconds && elapsedSeconds > 0 ? processedRows / elapsedSeconds : null;
-  return { processedRows, rowsPerSecond };
+  const etaSeconds =
+    rowsPerSecond !== null && rowsPerSecond > 0 && totalRows !== null
+      ? Math.max(0, Math.ceil((totalRows - processedRows) / rowsPerSecond))
+      : null;
+  return { processedRows, totalRows, rowsPerSecond, etaSeconds };
 };
 
 /** One decimal below ten rows per second, none above it: "3.2 rows/s" but "120 rows/s". */
 export const formatRowsPerSecond = (rowsPerSecond: number): string =>
   rowsPerSecond >= 10 ? String(Math.round(rowsPerSecond)) : rowsPerSecond.toFixed(1);
+
+/** Compact remaining time: "42s", "3m 5s", "2h 10m". */
+export const formatEta = (seconds: number): string => {
+  const total = Math.max(0, Math.round(seconds));
+  if (total < 60) {
+    return `${total}s`;
+  }
+  const minutes = Math.floor(total / 60);
+  const rest = total % 60;
+  if (minutes < 60) {
+    return rest ? `${minutes}m ${rest}s` : `${minutes}m`;
+  }
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return remainingMinutes ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
+};

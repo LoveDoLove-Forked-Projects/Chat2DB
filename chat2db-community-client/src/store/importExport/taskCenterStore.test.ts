@@ -29,8 +29,9 @@ const deferred = <T>() => {
 };
 const page = (data: ImportExportTaskDetails[], hasNextPage = false): TaskPage => ({ data, hasNextPage });
 const tasks = Array.from({ length: 30 }, (_, index): ImportExportTaskDetails => ({
-  id: index + 1,
-  name: `task-${index + 1}`,
+  // Ids and timestamps both descend with the array; the backend lists newest first by id.
+  id: 30 - index,
+  name: `task-${30 - index}`,
   type: ImportExportTaskType.QUERY_RESULT_EXPORT,
   status: index === 0 ? ImportExportTaskStatus.RUNNING : ImportExportTaskStatus.SUCCESS,
   progress: index === 0 ? 50 : 100,
@@ -82,14 +83,14 @@ const createApi = (getTaskList: TaskApi['getTaskList'], overrides: Partial<TaskA
 const apiWith = (getTaskList: TaskApi['getTaskList']): TaskApi => createApi(getTaskList).api;
 const seed = (store: typeof useImportExportStore) => store.setState({
   taskList: tasks.slice(0, 10), taskListHasNextPage: true, taskListPageNo: 1, taskCenterOpen: true,
-  activeTaskIds: [1], activeTaskCount: 1,
+  activeTaskIds: [30], activeTaskCount: 1,
 });
 
 async function slowLoadSurvivesAutomaticPolling() {
   let polls = 0;
   const store = createStore(apiWith(async (params) => {
     if (params.status) return page(params.status === ImportExportTaskStatus.RUNNING ? [tasks[0]] : []);
-    if (params.pageNo > 1) {
+    if (params.beforeId !== undefined) {
       await new Promise((resolve) => setTimeout(resolve, 1200));
       return page(tasks.slice(10, 20));
     }
@@ -109,8 +110,10 @@ async function slowLoadSurvivesAutomaticPolling() {
 
 async function loadMoreAppendsPagesWithoutRefetchingLoadedPages() {
   const { requests, api } = createApi(async (params) => {
-    const start = (params.pageNo - 1) * TASK_CENTER_PAGE_SIZE;
-    return page(tasks.slice(start, start + TASK_CENTER_PAGE_SIZE), params.pageNo < 3);
+    const remaining = params.beforeId === undefined
+      ? tasks
+      : tasks.filter((task) => task.id < params.beforeId!);
+    return page(remaining.slice(0, params.pageSize), remaining.length > params.pageSize);
   });
   const store = createStore(api);
   try {
@@ -119,9 +122,9 @@ async function loadMoreAppendsPagesWithoutRefetchingLoadedPages() {
     await store.getState().loadMoreTasks();
     await store.getState().loadMoreTasks();
     assert.deepEqual(
-      requests.map((request) => [request.pageNo, request.pageSize]),
-      [[2, TASK_CENTER_PAGE_SIZE], [3, TASK_CENTER_PAGE_SIZE]],
-      'load more must fetch the next page instead of re-requesting the first pages with a bigger page size',
+      requests.map((request) => [request.pageNo, request.pageSize, request.beforeId]),
+      [[1, TASK_CENTER_PAGE_SIZE, 21], [1, TASK_CENTER_PAGE_SIZE, 11]],
+      'load more must use the oldest loaded id as a cursor instead of an offset',
     );
     assert.equal(store.getState().taskList.length, 30);
     assert.equal(new Set(store.getState().taskList.map((task) => task.id)).size, 30);
@@ -135,7 +138,7 @@ async function stalePageKeepsCompletionFromPolling() {
   const completed = { ...tasks[0], status: ImportExportTaskStatus.SUCCESS, progress: 100, updatedAt: 40000 };
   const { requests, api } = createApi(async (params) => {
     if (params.status) return page([]);
-    return params.pageNo > 1 ? load.promise : page([completed, ...tasks.slice(1, 10)], true);
+    return params.beforeId !== undefined ? load.promise : page([completed, ...tasks.slice(1, 10)], true);
   });
   const store = createStore(api);
   try {
@@ -145,7 +148,7 @@ async function stalePageKeepsCompletionFromPolling() {
     load.resolve(page(tasks.slice(10, 20)));
     await loading;
     assert.equal(store.getState().taskList.length, 20);
-    assert.equal(store.getState().taskList.find((task) => task.id === 1)?.status, ImportExportTaskStatus.SUCCESS);
+    assert.equal(store.getState().taskList.find((task) => task.id === 30)?.status, ImportExportTaskStatus.SUCCESS);
     assert.equal(store.getState().activeTaskCount, 0);
     assert.equal(
       requests.filter((request) => request.status).length,
@@ -162,7 +165,9 @@ async function slowRecoveryKeepsNewlyLoadedHistoryAndCompletion() {
   const store = createStore({
     getTaskList: async (params) => {
       if (params.status) return page([]);
-      return params.pageNo > 1 ? page([completed, ...tasks.slice(11, 20)]) : page(tasks.slice(1, 11), true);
+      return params.beforeId !== undefined
+        ? page([completed, ...tasks.slice(11, 20)])
+        : page(tasks.slice(1, 11), true);
     },
     getTaskDetails: async () => { requested.resolve(); return details.promise; },
     cancelTask: async () => false,
@@ -176,7 +181,7 @@ async function slowRecoveryKeepsNewlyLoadedHistoryAndCompletion() {
     await polling;
     assert.equal(store.getState().taskList.length, 20);
     assert.equal(store.getState().taskListPageNo, 2);
-    assert.equal(store.getState().taskList.find((task) => task.id === 1)?.status, ImportExportTaskStatus.SUCCESS);
+    assert.equal(store.getState().taskList.find((task) => task.id === 30)?.status, ImportExportTaskStatus.SUCCESS);
     assert.equal(store.getState().activeTaskCount, 0);
   } finally { store.getState().stopTaskListPolling(); }
 }
@@ -186,37 +191,39 @@ async function deletionRejectsOldPollingAndPagination() {
   const more = deferred<TaskPage>();
   const store = createStore(apiWith(async (params) => {
     if (params.status) return page([]);
-    return params.pageNo > 1 ? more.promise : recent.promise;
+    return params.beforeId !== undefined ? more.promise : recent.promise;
   }));
   try {
     seed(store);
     const loading = store.getState().loadMoreTasks();
     const polling = store.getState().getTaskList();
-    store.getState().removeTask(2);
+    store.getState().removeTask(29);
     recent.resolve(page(tasks.slice(0, 10), true));
     more.resolve(page(tasks.slice(10, 20)));
     await Promise.all([loading, polling]);
-    assert.equal(store.getState().taskList.some((task) => task.id === 2), false);
+    assert.equal(store.getState().taskList.some((task) => task.id === 29), false);
     assert.equal(store.getState().taskListLoadingMore, false);
   } finally { store.getState().stopTaskListPolling(); }
 }
 
-async function deletionRewindsThePageCursor() {
+async function deletionKeepsTheCursorOnTheRemainingOldestTask() {
   const { api } = createApi(async (params) => {
-    const start = (params.pageNo - 1) * TASK_CENTER_PAGE_SIZE;
-    return page(tasks.slice(start, start + TASK_CENTER_PAGE_SIZE), params.pageNo < 3);
+    const remaining = params.beforeId === undefined
+      ? tasks
+      : tasks.filter((task) => task.id < params.beforeId!);
+    return page(remaining.slice(0, params.pageSize), remaining.length > params.pageSize);
   });
   const store = createStore(api);
   try {
     seed(store);
     await store.getState().loadMoreTasks();
     assert.equal(store.getState().taskListPageNo, 2);
-    store.getState().removeTask(2);
-    assert.equal(store.getState().taskListPageNo, 1, 'deleting a row rewinds the cursor so the shifted window is re-read');
-    assert.equal(store.getState().taskList.some((task) => task.id === 2), false);
+    store.getState().removeTask(29);
+    assert.equal(store.getState().taskList.some((task) => task.id === 29), false);
     await store.getState().loadMoreTasks();
-    assert.equal(store.getState().taskListPageNo, 2);
-    assert.equal(store.getState().taskList.length, 19, 're-reading the shifted page must not duplicate rows');
+    assert.equal(store.getState().taskListPageNo, 3);
+    assert.equal(store.getState().taskList.length, 29, 'the cursor continues from the oldest remaining row');
+    assert.equal(new Set(store.getState().taskList.map((task) => task.id)).size, 29);
   } finally { store.getState().stopTaskListPolling(); }
 }
 
@@ -282,7 +289,7 @@ async function pollingConvergesToSinglePageRequestPerRound() {
     await store.getState().getTaskList();
     assert.equal(requests.length, 1, 'later rounds only refresh the recent page while active tasks stay visible');
     assert.deepEqual(requests[0], { pageNo: 1, pageSize: TASK_CENTER_PAGE_SIZE });
-    assert.equal(store.getState().taskList.find((task) => task.id === 1)?.status, ImportExportTaskStatus.SUCCESS);
+    assert.equal(store.getState().taskList.find((task) => task.id === 30)?.status, ImportExportTaskStatus.SUCCESS);
     assert.equal(store.getState().activeTaskCount, 0);
     assert.equal(store.getState().getTaskListTimer, null, 'polling stops when no active task remains');
   } finally { store.getState().stopTaskListPolling(); }
@@ -319,13 +326,13 @@ async function cancellationUpdatesTheRowAndKeepsThePollSchedule() {
     await store.getState().getTaskList();
     const scheduledPoll = store.getState().getTaskListTimer;
     assert.ok(scheduledPoll, 'a running task keeps the 1s polling timer scheduled');
-    assert.deepEqual(store.getState().activeTaskIds, [1]);
+    assert.deepEqual(store.getState().activeTaskIds, [30]);
 
-    assert.equal(await store.getState().cancelTask(1), true);
+    assert.equal(await store.getState().cancelTask(30), true);
 
-    assert.deepEqual(cancelRequests, [1]);
-    assert.deepEqual(refreshedTaskIds, [1], 'a successful cancellation refreshes the authoritative record');
-    const cancelledRow = store.getState().taskList.find((task) => task.id === 1);
+    assert.deepEqual(cancelRequests, [30]);
+    assert.deepEqual(refreshedTaskIds, [30], 'a successful cancellation refreshes the authoritative record');
+    const cancelledRow = store.getState().taskList.find((task) => task.id === 30);
     assert.equal(cancelledRow?.status, ImportExportTaskStatus.CANCELLED);
     assert.equal(cancelledRow?.finishedAt, 41000, 'the refreshed record replaces the optimistic row');
     assert.deepEqual(store.getState().activeTaskIds, [], 'the cancelled task leaves the active set');
@@ -353,15 +360,15 @@ async function concurrentCancellationClicksSendOneRequest() {
   const store = createStore(api);
   try {
     seed(store);
-    const firstClick = store.getState().cancelTask(1);
-    const secondClick = store.getState().cancelTask(1);
+    const firstClick = store.getState().cancelTask(30);
+    const secondClick = store.getState().cancelTask(30);
     assert.equal(cancelCalls, 1, 'a second click while the request is in flight must not send another request');
-    assert.deepEqual(store.getState().cancellingTaskIds, [1], 'the row is marked busy so the action can be disabled');
+    assert.deepEqual(store.getState().cancellingTaskIds, [30], 'the row is marked busy so the action can be disabled');
 
     pendingCancel.resolve(true);
     assert.deepEqual(await Promise.all([firstClick, secondClick]), [true, true]);
     assert.equal(cancelCalls, 1);
-    assert.equal(store.getState().taskList.find((task) => task.id === 1)?.status, ImportExportTaskStatus.CANCELLED);
+    assert.equal(store.getState().taskList.find((task) => task.id === 30)?.status, ImportExportTaskStatus.CANCELLED);
     assert.deepEqual(store.getState().cancellingTaskIds, []);
   } finally {
     store.getState().stopTaskListPolling();
@@ -391,10 +398,10 @@ async function cancellingATerminalTaskOnlyRefreshes() {
   const store = createStore(api);
   try {
     seed(store);
-    assert.equal(await store.getState().cancelTask(1), false, 'a terminal task reports that nothing changed');
+    assert.equal(await store.getState().cancelTask(30), false, 'a terminal task reports that nothing changed');
     assert.equal(cancelCalls, 1);
-    assert.deepEqual(refreshedTaskIds, [1], 'a false answer only refreshes the row instead of reporting an error');
-    assert.equal(store.getState().taskList.find((task) => task.id === 1)?.status, ImportExportTaskStatus.SUCCESS);
+    assert.deepEqual(refreshedTaskIds, [30], 'a false answer only refreshes the row instead of reporting an error');
+    assert.equal(store.getState().taskList.find((task) => task.id === 30)?.status, ImportExportTaskStatus.SUCCESS);
     assert.deepEqual(store.getState().activeTaskIds, [], 'the refreshed terminal row stops being tracked');
     assert.equal(store.getState().activeTaskCount, 0);
     assert.deepEqual(store.getState().cancellingTaskIds, []);
@@ -415,14 +422,14 @@ async function cancellationFailureCanBeRetried() {
   const store = createStore(api);
   try {
     seed(store);
-    await assert.rejects(store.getState().cancelTask(1), /cancel endpoint unavailable/);
-    assert.equal(store.getState().taskList.find((task) => task.id === 1)?.status, ImportExportTaskStatus.RUNNING);
+    await assert.rejects(store.getState().cancelTask(30), /cancel endpoint unavailable/);
+    assert.equal(store.getState().taskList.find((task) => task.id === 30)?.status, ImportExportTaskStatus.RUNNING);
     assert.deepEqual(store.getState().cancellingTaskIds, [], 'a failed request releases the row so the user can retry');
     assert.equal(store.getState().activeTaskCount, 1);
 
-    assert.equal(await store.getState().cancelTask(1), true);
+    assert.equal(await store.getState().cancelTask(30), true);
     assert.equal(cancelCalls, 2);
-    assert.equal(store.getState().taskList.find((task) => task.id === 1)?.status, ImportExportTaskStatus.CANCELLED);
+    assert.equal(store.getState().taskList.find((task) => task.id === 30)?.status, ImportExportTaskStatus.CANCELLED);
   } finally {
     store.getState().stopTaskListPolling();
   }
@@ -438,8 +445,8 @@ async function cancellationKeepsTheLocalTerminalStateWhenTheRefreshFails() {
   const store = createStore(api);
   try {
     seed(store);
-    assert.equal(await store.getState().cancelTask(1), true, 'a failed refresh must not fail the cancellation');
-    assert.equal(store.getState().taskList.find((task) => task.id === 1)?.status, ImportExportTaskStatus.CANCELLED);
+    assert.equal(await store.getState().cancelTask(30), true, 'a failed refresh must not fail the cancellation');
+    assert.equal(store.getState().taskList.find((task) => task.id === 30)?.status, ImportExportTaskStatus.CANCELLED);
     assert.deepEqual(store.getState().activeTaskIds, []);
     assert.equal(store.getState().activeTaskCount, 0);
     assert.deepEqual(store.getState().cancellingTaskIds, []);
@@ -507,7 +514,7 @@ async function legacyTasksCannotOpenTheWizard() {
     }
     assert.equal(store.getState().importExportDataBoundInfo, null, 'a disabled action must not open a wizard');
     assert.equal(store.getState().importExportPrefill, null);
-    assert.deepEqual(store.getState().taskList.map((task) => task.id), [2]);
+    assert.deepEqual(store.getState().taskList.map((task) => task.id), [29]);
   } finally {
     store.getState().stopTaskListPolling();
   }
@@ -531,7 +538,7 @@ async function damagedSpecsReportAnErrorAndKeepTheListRenderable() {
     assert.equal(store.getState().importExportPrefill, null);
     assert.deepEqual(
       store.getState().taskList.map((task) => task.id),
-      [31, 2],
+      [31, 29],
       'failing to restore must not disturb the rows the task center renders',
     );
   } finally {
@@ -572,7 +579,8 @@ async function closingTheWizardDropsTheStalePrefill() {
 async function run() {
   for (const scenario of [slowLoadSurvivesAutomaticPolling, loadMoreAppendsPagesWithoutRefetchingLoadedPages,
     stalePageKeepsCompletionFromPolling, slowRecoveryKeepsNewlyLoadedHistoryAndCompletion,
-    deletionRejectsOldPollingAndPagination, deletionRewindsThePageCursor, oldCloseResponseCannotFinishNewLoad,
+    deletionRejectsOldPollingAndPagination, deletionKeepsTheCursorOnTheRemainingOldestTask,
+    oldCloseResponseCannotFinishNewLoad,
     loadFailureCanRetryWithoutDuplicateRequests, pollingConvergesToSinglePageRequestPerRound,
     cancellationUpdatesTheRowAndKeepsThePollSchedule, concurrentCancellationClicksSendOneRequest,
     cancellingATerminalTaskOnlyRefreshes, cancellationFailureCanBeRetried,
