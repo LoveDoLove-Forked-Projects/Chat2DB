@@ -1,6 +1,8 @@
 package ai.chat2db.community.web.api.controller;
 
+import ai.chat2db.community.domain.api.model.db.ImportPreCheck;
 import ai.chat2db.community.domain.api.model.db.ImportPreview;
+import ai.chat2db.community.domain.api.service.db.IDbImportPreCheckService;
 import ai.chat2db.community.domain.api.service.db.IDbImportPreviewService;
 import ai.chat2db.community.domain.api.service.db.IDbMappedImportService;
 import ai.chat2db.community.domain.api.service.file.IImportFileStagingService;
@@ -10,6 +12,7 @@ import ai.chat2db.community.web.api.aspect.connection.ConnectionInfoAspect;
 import ai.chat2db.community.web.api.converter.db.DbImportWebConverter;
 import ai.chat2db.community.web.api.model.request.db.DesktopImportFileRequest;
 import ai.chat2db.community.web.api.model.request.db.ImportExecuteRequest;
+import ai.chat2db.community.web.api.model.request.db.ImportPreCheckRequest;
 import ai.chat2db.community.web.api.model.request.db.ImportPreviewRequest;
 import ai.chat2db.community.web.api.model.request.db.ImportSheetsRequest;
 import ai.chat2db.community.web.api.model.response.task.TaskSubmitResponse;
@@ -36,6 +39,8 @@ public class DbImportPreviewController {
 
     private final IDbMappedImportService mappedImportService;
 
+    private final IDbImportPreCheckService importPreCheckService;
+
     private final IImportFileStagingService importFileStagingService;
 
     private final DbImportWebConverter importWebConverter;
@@ -44,10 +49,12 @@ public class DbImportPreviewController {
 
     public DbImportPreviewController(IDbImportPreviewService importPreviewService,
             IDbMappedImportService mappedImportService,
+            IDbImportPreCheckService importPreCheckService,
             IImportFileStagingService importFileStagingService, DbImportWebConverter importWebConverter,
             ImportFileUploadAdapter importFileUploadAdapter) {
         this.importPreviewService = importPreviewService;
         this.mappedImportService = mappedImportService;
+        this.importPreCheckService = importPreCheckService;
         this.importFileStagingService = importFileStagingService;
         this.importWebConverter = importWebConverter;
         this.importFileUploadAdapter = importFileUploadAdapter;
@@ -79,5 +86,19 @@ public class DbImportPreviewController {
     public DataResult<TaskSubmitResponse> execute(@Valid @RequestBody ImportExecuteRequest request) {
         return DataResult.of(new TaskSubmitResponse(
                 mappedImportService.submit(importWebConverter.toMappedImportExecution(request))));
+    }
+
+    /**
+     * Pre-flight checks for the confirm step: total rows, sample primary-key conflicts and sample
+     * type mismatches. Read-only; nothing is imported.
+     * <p>
+     * Endpoint: {@code POST /api/rdb/import_preview/analyze}.
+     */
+    @PostMapping("/analyze")
+    public DataResult<ImportPreCheck> analyze(@Valid @RequestBody ImportPreCheckRequest request) {
+        return DataResult.of(importPreCheckService.analyze(request.getDataSourceId(),
+                request.getDatabaseName(), request.getSchemaName(), request.getTableName(),
+                importFileStagingService.resolve(request.getFileId()), request.getCsvOptions(),
+                request.getExcelOptions(), request.getJsonOptions(), request.getMappings()));
     }
 }
