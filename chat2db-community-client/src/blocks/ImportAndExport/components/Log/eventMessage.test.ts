@@ -26,6 +26,14 @@ const translations: Record<'zh' | 'en', Partial<Record<TaskEventMessageKey, stri
     'workspace.task.event.importRowsSkipped': '导入完成，{1} 行被跳过并记录到错误文件',
     'workspace.task.event.importBatchRowsSkipped': '本批次跳过 {2} 行，成功导入 {1} 行',
     'workspace.task.event.errorArtifactPublished': '错误行文件已保存',
+    'workspace.task.event.taskCancelled': '任务已取消',
+    'workspace.task.event.importResumeStarted': '从第 {1} 行继续导入；续跑按行号跳过，源文件需保持不变',
+    'workspace.task.event.importBatchRetry': '批次被拒绝，正在逐行重试（{1} 行）',
+    'workspace.task.event.rowsExportedFromTable': '已从表 {2} 导出 {1} 行',
+    'workspace.task.event.finalizingExport': '正在完成 {1} 导出文件',
+    'workspace.task.event.tableExportStarted': '正在导出表 {3}（{1}/{2}）',
+    'workspace.task.event.tableExportCompleted': '表 {3} 导出完成（{1}/{2}）',
+    'workspace.task.event.artifactPublished': '导出产物已发布',
   },
   en: {
     'workspace.task.event.taskCreated': 'Task created',
@@ -33,6 +41,9 @@ const translations: Record<'zh' | 'en', Partial<Record<TaskEventMessageKey, stri
     'workspace.task.event.importRowsSkipped': 'Import finished: {1} rejected rows were written to the error file',
     'workspace.task.event.importBatchRowsSkipped': 'Batch completed: {1} rows imported, {2} rejected',
     'workspace.task.event.errorArtifactPublished': 'Error file saved',
+    'workspace.task.event.taskCancelled': 'Task cancelled',
+    'workspace.task.event.importResumeStarted': 'Continuing import after row {1}',
+    'workspace.task.event.importBatchRetry': 'Batch rejected; retrying row by row ({1} rows)',
   },
 };
 
@@ -67,6 +78,48 @@ assert.equal(
   formatTaskEventMessage({ ...event('IMPORT_ROWS_SKIPPED', 'Batch completed with rejected rows'),
     details: { statementCount: 1000, importedRows: 998, rejectedRows: 2 } }, translate('en')),
   'Batch completed: 998 rows imported, 2 rejected',
+);
+assert.equal(
+  formatTaskEventMessage(event('TASK_CANCELLED', 'Task cancelled'), translate('zh')),
+  '任务已取消',
+);
+assert.equal(
+  formatTaskEventMessage({ ...event('IMPORT_RESUME_STARTED',
+    'Continuing import after row 4200; rows are skipped by position'), details: { resumeFromRow: 4200 } },
+  translate('zh')),
+  '从第 4200 行继续导入；续跑按行号跳过，源文件需保持不变',
+);
+assert.equal(
+  formatTaskEventMessage({ ...event('IMPORT_BATCH_RETRY', 'Retrying a rejected batch row by row'),
+    details: { statementCount: 1000 } }, translate('en')),
+  'Batch rejected; retrying row by row (1000 rows)',
+);
+assert.equal(
+  formatTaskEventMessage({ ...event('ROWS_EXPORTED', 'Exported 1000 rows from orders'),
+    details: { exportedRows: 1000, tableName: 'orders' } }, translate('zh')),
+  '已从表 orders 导出 1000 行',
+);
+assert.equal(
+  formatTaskEventMessage(event('FILE_FINALIZING', 'Finalizing CSV export file'), translate('zh')),
+  '正在完成 CSV 导出文件',
+);
+assert.equal(
+  formatTaskEventMessage(event('FILE_FINALIZING', 'Finalizing CSV export file from orders'), translate('zh')),
+  '正在完成 CSV 导出文件',
+);
+assert.equal(
+  formatTaskEventMessage({ ...event('TABLE_EXPORT_STARTED', 'Exporting table 1/2: orders'),
+    details: { tableName: 'orders', exportedTables: 1, totalTables: 2 } }, translate('zh')),
+  '正在导出表 orders（1/2）',
+);
+assert.equal(
+  formatTaskEventMessage({ ...event('TABLE_EXPORT_COMPLETED', 'Table export completed 2/2: users'),
+    details: { tableName: 'users', exportedTables: 2, totalTables: 2 } }, translate('zh')),
+  '表 users 导出完成（2/2）',
+);
+assert.equal(
+  formatTaskEventMessage(event('ARTIFACT_PUBLISHED', 'Artifact published'), translate('zh')),
+  '导出产物已发布',
 );
 assert.equal(
   formatTaskEventMessage(event('ERROR_ARTIFACT_PUBLISHED', 'Error artifact published'), translate('zh')),

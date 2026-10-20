@@ -7,6 +7,7 @@ const lifecycleMessageKeys = {
   TASK_CREATED: 'workspace.task.event.taskCreated',
   TASK_STARTED: 'workspace.task.event.taskStarted',
   TASK_SUCCEEDED: 'workspace.task.event.taskSucceeded',
+  TASK_CANCELLED: 'workspace.task.event.taskCancelled',
   IMPORT_PREPARING: 'workspace.task.event.importPreparing',
   TARGET_METADATA_LOADED: 'workspace.task.event.targetMetadataLoaded',
   IMPORT_COMPLETED: 'workspace.task.event.importCompleted',
@@ -21,6 +22,17 @@ const fixedMessageKeys = {
   'SQL batch executed': 'workspace.task.event.sqlBatchExecuted',
   'SQL statement executed': 'workspace.task.event.sqlStatementExecuted',
   'Error artifact published': 'workspace.task.event.errorArtifactPublished',
+  'Table data export started': 'workspace.task.event.exportStartedTable',
+  'Query result export started': 'workspace.task.event.exportStartedQuery',
+  'Database SQL export started': 'workspace.task.event.exportStartedSql',
+  'Reading query result': 'workspace.task.event.readingQueryResult',
+  'Export file written': 'workspace.task.event.exportFileWritten',
+  'Saving export file': 'workspace.task.event.savingExportFile',
+  'Artifact prepared': 'workspace.task.event.artifactPrepared',
+  'Artifact published': 'workspace.task.event.artifactPublished',
+  'Interrupted task artifacts cleaned': 'workspace.task.event.artifactCleanupCompleted',
+  'Task submission rejected': 'workspace.task.event.taskSubmissionRejected',
+  'Finalizing ZIP export archive': 'workspace.task.event.finalizingZip',
 } as const;
 
 export type TaskEventMessageKey =
@@ -33,9 +45,22 @@ export type TaskEventMessageKey =
   | 'workspace.task.event.batchExecuted'
   | 'workspace.task.event.importingRecords'
   | 'workspace.task.event.importRowsSkipped'
-  | 'workspace.task.event.importBatchRowsSkipped';
+  | 'workspace.task.event.importBatchRowsSkipped'
+  | 'workspace.task.event.importResumeStarted'
+  | 'workspace.task.event.importBatchRetry'
+  | 'workspace.task.event.readingTableData'
+  | 'workspace.task.event.rowsExported'
+  | 'workspace.task.event.rowsExportedFromTable'
+  | 'workspace.task.event.queryCompleted'
+  | 'workspace.task.event.finalizingExport'
+  | 'workspace.task.event.finalizingZip'
+  | 'workspace.task.event.tableExportStarted'
+  | 'workspace.task.event.tableExportCompleted';
 
 type Translate = (key: TaskEventMessageKey, ...args: Array<string | number>) => string;
+
+const isCount = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
 
 export const formatTaskEventMessage = (
   event: ImportExportTaskEvent,
@@ -59,19 +84,62 @@ export const formatTaskEventMessage = (
 
   const statementCount = event.details?.statementCount;
   const rejectedRows = event.details?.rejectedRows;
-  if (event.code === 'IMPORT_ROWS_SKIPPED' &&
-      typeof rejectedRows === 'number' && Number.isSafeInteger(rejectedRows) && rejectedRows >= 0) {
+  const resumeFromRow = event.details?.resumeFromRow;
+  const exportedRows = event.details?.exportedRows;
+  const tableName = event.details?.tableName;
+  const exportedTables = event.details?.exportedTables;
+  const totalTables = event.details?.totalTables;
+  if (event.code === 'IMPORT_ROWS_SKIPPED' && isCount(rejectedRows)) {
     if (message === 'Import finished with rejected rows') {
       return translate('workspace.task.event.importRowsSkipped', rejectedRows);
     }
-    if (typeof importedRows === 'number' && Number.isSafeInteger(importedRows) && importedRows >= 0) {
+    if (isCount(importedRows)) {
       return translate('workspace.task.event.importBatchRowsSkipped', importedRows, rejectedRows);
     }
   }
+  if (event.code === 'IMPORT_RESUME_STARTED' && isCount(resumeFromRow)) {
+    return translate('workspace.task.event.importResumeStarted', resumeFromRow);
+  }
+  if (event.code === 'IMPORT_BATCH_RETRY' && isCount(statementCount)) {
+    return translate('workspace.task.event.importBatchRetry', statementCount);
+  }
+  if (event.code === 'ROWS_EXPORTED' && isCount(exportedRows)) {
+    return typeof tableName === 'string' && tableName
+      ? translate('workspace.task.event.rowsExportedFromTable', exportedRows, tableName)
+      : translate('workspace.task.event.rowsExported', exportedRows);
+  }
+  if (event.code === 'QUERY_COMPLETED' && isCount(exportedRows)) {
+    return translate('workspace.task.event.queryCompleted', exportedRows);
+  }
+  if ((event.code === 'TABLE_EXPORT_STARTED' || event.code === 'TABLE_EXPORT_COMPLETED')
+      && isCount(exportedTables) && isCount(totalTables)
+      && typeof tableName === 'string' && tableName) {
+    return event.code === 'TABLE_EXPORT_STARTED'
+      ? translate('workspace.task.event.tableExportStarted', exportedTables, totalTables, tableName)
+      : translate('workspace.task.event.tableExportCompleted', exportedTables, totalTables, tableName);
+  }
+  const tableProgress = /^(Exporting table|Table export completed) (\d+)\/(\d+): (.+)$/.exec(message);
+  if (tableProgress) {
+    const [, action, current, total, table] = tableProgress;
+    return action === 'Exporting table'
+      ? translate('workspace.task.event.tableExportStarted', current, total, table)
+      : translate('workspace.task.event.tableExportCompleted', current, total, table);
+  }
+  if (event.code === 'QUERY_STARTED') {
+    const table = /^Reading table data from (.+)$/.exec(message)?.[1];
+    if (table) {
+      return translate('workspace.task.event.readingTableData', table);
+    }
+  }
+  if (event.code === 'FILE_FINALIZING') {
+    const format = /^Finalizing (.+?) export file(?:\s+from\s+.+)?$/.exec(message)?.[1];
+    if (format) {
+      return translate('workspace.task.event.finalizingExport', format);
+    }
+  }
   if (taskType === ImportExportTaskType.DATA_FILE_IMPORT &&
-      event.code === 'BATCH_EXECUTED' && message === 'SQL batch executed' &&
-      typeof statementCount === 'number' && Number.isSafeInteger(statementCount) && statementCount >= 0) {
-    if (typeof importedRows === 'number' && Number.isSafeInteger(importedRows) && importedRows >= statementCount) {
+      event.code === 'BATCH_EXECUTED' && message === 'SQL batch executed' && isCount(statementCount)) {
+    if (isCount(importedRows) && importedRows >= statementCount) {
       return translate('workspace.task.event.batchCompletedTotal', statementCount, importedRows);
     }
     return translate('workspace.task.event.batchCompletedRows', statementCount);
