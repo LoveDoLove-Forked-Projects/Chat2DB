@@ -20,6 +20,7 @@ const fixedMessageKeys = {
   'SQL file parsed': 'workspace.task.event.sqlFileParsed',
   'SQL batch executed': 'workspace.task.event.sqlBatchExecuted',
   'SQL statement executed': 'workspace.task.event.sqlStatementExecuted',
+  'Error artifact published': 'workspace.task.event.errorArtifactPublished',
 } as const;
 
 export type TaskEventMessageKey =
@@ -30,7 +31,9 @@ export type TaskEventMessageKey =
   | 'workspace.task.event.batchCompletedTotal'
   | 'workspace.task.event.batchCompletedRows'
   | 'workspace.task.event.batchExecuted'
-  | 'workspace.task.event.importingRecords';
+  | 'workspace.task.event.importingRecords'
+  | 'workspace.task.event.importRowsSkipped'
+  | 'workspace.task.event.importBatchRowsSkipped';
 
 type Translate = (key: TaskEventMessageKey, ...args: Array<string | number>) => string;
 
@@ -55,6 +58,16 @@ export const formatTaskEventMessage = (
   }
 
   const statementCount = event.details?.statementCount;
+  const rejectedRows = event.details?.rejectedRows;
+  if (event.code === 'IMPORT_ROWS_SKIPPED' &&
+      typeof rejectedRows === 'number' && Number.isSafeInteger(rejectedRows) && rejectedRows >= 0) {
+    if (message === 'Import finished with rejected rows') {
+      return translate('workspace.task.event.importRowsSkipped', rejectedRows);
+    }
+    if (typeof importedRows === 'number' && Number.isSafeInteger(importedRows) && importedRows >= 0) {
+      return translate('workspace.task.event.importBatchRowsSkipped', importedRows, rejectedRows);
+    }
+  }
   if (taskType === ImportExportTaskType.DATA_FILE_IMPORT &&
       event.code === 'BATCH_EXECUTED' && message === 'SQL batch executed' &&
       typeof statementCount === 'number' && Number.isSafeInteger(statementCount) && statementCount >= 0) {

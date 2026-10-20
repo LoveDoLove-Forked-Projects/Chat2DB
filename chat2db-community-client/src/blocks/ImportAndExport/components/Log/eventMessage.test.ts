@@ -23,10 +23,16 @@ const translations: Record<'zh' | 'en', Partial<Record<TaskEventMessageKey, stri
     'workspace.task.event.taskCreated': '任务已创建',
     'workspace.task.event.importPreparing': '正在准备导入数据',
     'workspace.task.event.batchExecuted': '已执行批量导入：{1} 条',
+    'workspace.task.event.importRowsSkipped': '导入完成，{1} 行被跳过并记录到错误文件',
+    'workspace.task.event.importBatchRowsSkipped': '本批次跳过 {2} 行，成功导入 {1} 行',
+    'workspace.task.event.errorArtifactPublished': '错误行文件已保存',
   },
   en: {
     'workspace.task.event.taskCreated': 'Task created',
     'workspace.task.event.batchExecuted': 'Imported batch: {1} rows',
+    'workspace.task.event.importRowsSkipped': 'Import finished: {1} rejected rows were written to the error file',
+    'workspace.task.event.importBatchRowsSkipped': 'Batch completed: {1} rows imported, {2} rejected',
+    'workspace.task.event.errorArtifactPublished': 'Error file saved',
   },
 };
 
@@ -51,6 +57,20 @@ assert.equal(
 assert.equal(
   formatTaskEventMessage(event('TASK_FAILED', 'CSV 存在从第 123 行开始未闭合的引号'), translate('en')),
   'CSV 存在从第 123 行开始未闭合的引号',
+);
+assert.equal(
+  formatTaskEventMessage({ ...event('IMPORT_ROWS_SKIPPED', 'Import finished with rejected rows'),
+    details: { rejectedRows: 1 } }, translate('zh')),
+  '导入完成，1 行被跳过并记录到错误文件',
+);
+assert.equal(
+  formatTaskEventMessage({ ...event('IMPORT_ROWS_SKIPPED', 'Batch completed with rejected rows'),
+    details: { statementCount: 1000, importedRows: 998, rejectedRows: 2 } }, translate('en')),
+  'Batch completed: 998 rows imported, 2 rejected',
+);
+assert.equal(
+  formatTaskEventMessage(event('ERROR_ARTIFACT_PUBLISHED', 'Error artifact published'), translate('zh')),
+  '错误行文件已保存',
 );
 
 // Format the same stored events using each locale, including switching languages.
