@@ -2,6 +2,12 @@ const DEFAULT_NAME_PREFIXES = [
   ['Import SQL file', 'workspace.task.name.importSql'],
   ['Import table data', 'workspace.task.name.importTable'],
   ['Export table data', 'workspace.task.name.exportTable'],
+  ['Export all query results as CSV', 'workspace.task.name.exportAllQueryResultsCsv'],
+  ['Export all query results as XLSX', 'workspace.task.name.exportAllQueryResultsXlsx'],
+  ['Export all query results as INSERT SQL', 'workspace.task.name.exportAllQueryResultsInsertSql'],
+  ['Export current page results as CSV', 'workspace.task.name.exportCurrentPageQueryResultsCsv'],
+  ['Export current page results as XLSX', 'workspace.task.name.exportCurrentPageQueryResultsXlsx'],
+  ['Export current page results as INSERT SQL', 'workspace.task.name.exportCurrentPageQueryResultsInsertSql'],
 ] as const;
 
 const WIZARD_IMPORT_NAME = /^Import (.+)$/;
@@ -10,6 +16,12 @@ export type TaskNameMessageKey =
   | 'workspace.task.name.importSql'
   | 'workspace.task.name.importTable'
   | 'workspace.task.name.exportTable'
+  | 'workspace.task.name.exportAllQueryResultsCsv'
+  | 'workspace.task.name.exportAllQueryResultsXlsx'
+  | 'workspace.task.name.exportAllQueryResultsInsertSql'
+  | 'workspace.task.name.exportCurrentPageQueryResultsCsv'
+  | 'workspace.task.name.exportCurrentPageQueryResultsXlsx'
+  | 'workspace.task.name.exportCurrentPageQueryResultsInsertSql'
   | 'workspace.task.name.importTarget';
 
 type Translate = (key: TaskNameMessageKey, ...args: Array<string | number>) => string;

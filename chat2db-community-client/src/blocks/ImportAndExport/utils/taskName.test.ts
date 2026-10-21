@@ -6,6 +6,12 @@ const zh: Record<TaskNameMessageKey, string> = {
   'workspace.task.name.importTable': '导入表数据',
   'workspace.task.name.exportTable': '导出表数据',
   'workspace.task.name.importTarget': '导入 {1}',
+  'workspace.task.name.exportAllQueryResultsCsv': '导出全部查询结果（CSV）',
+  'workspace.task.name.exportAllQueryResultsXlsx': '导出全部查询结果（XLSX）',
+  'workspace.task.name.exportAllQueryResultsInsertSql': '导出全部查询结果（INSERT SQL）',
+  'workspace.task.name.exportCurrentPageQueryResultsCsv': '导出当前页查询结果（CSV）',
+  'workspace.task.name.exportCurrentPageQueryResultsXlsx': '导出当前页查询结果（XLSX）',
+  'workspace.task.name.exportCurrentPageQueryResultsInsertSql': '导出当前页查询结果（INSERT SQL）',
 };
 
 const translate = (key: TaskNameMessageKey, ...args: Array<string | number>) =>
@@ -19,3 +25,15 @@ assert.equal(formatTaskName('Import table data - app.orders', translate), '导�
 assert.equal(formatTaskName('Export table data - app.orders', translate), '导出表数据 - app.orders');
 assert.equal(formatTaskName('Import orders', translate), '导入 orders');
 assert.equal(formatTaskName('用户自定义任务', translate), '用户自定义任务');
+assert.equal(formatTaskName('Export all query results as CSV - `app`.`orders`', translate),
+  '导出全部查询结果（CSV） - `app`.`orders`');
+assert.equal(formatTaskName('Export all query results as XLSX - `app`.`orders`', translate),
+  '导出全部查询结果（XLSX） - `app`.`orders`');
+assert.equal(formatTaskName('Export all query results as INSERT SQL - `app`.`orders`', translate),
+  '导出全部查询结果（INSERT SQL） - `app`.`orders`');
+assert.equal(formatTaskName('Export current page results as CSV - `app`.`orders`', translate),
+  '导出当前页查询结果（CSV） - `app`.`orders`');
+assert.equal(formatTaskName('Export current page results as XLSX - `app`.`orders`', translate),
+  '导出当前页查询结果（XLSX） - `app`.`orders`');
+assert.equal(formatTaskName('Export current page results as INSERT SQL - `app`.`orders`', translate),
+  '导出当前页查询结果（INSERT SQL） - `app`.`orders`');
