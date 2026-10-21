@@ -3,6 +3,7 @@ package ai.chat2db.community.domain.core.impl.task.export.excel;
 import ai.chat2db.community.domain.core.impl.task.export.BaseExporter;
 import ai.chat2db.community.domain.core.impl.task.export.ExportCellProcessorChain;
 import ai.chat2db.community.domain.core.impl.task.export.ExportProgressLogger;
+import ai.chat2db.community.domain.core.impl.task.export.ExportProgressReporter;
 import ai.chat2db.community.domain.core.impl.db.extension.SqlExecutionPolicyManager;
 import ai.chat2db.community.domain.api.model.task.ExportCsvOptions;
 import ai.chat2db.community.domain.api.model.task.ExportTaskSpec;
@@ -72,11 +73,13 @@ public abstract class BaseExcelExporter extends BaseExporter {
     }
 
     @Override
-    protected void singleExport(ExportTaskSpec spec, TaskExecutionContext context, String tableName, File file) {
+    protected void singleExport(ExportTaskSpec spec, TaskExecutionContext context, String tableName, File file,
+            ExportProgressReporter progressReporter) {
         ExcelTypeEnum excelType = getExcelType();
         SqlExecutionPlan executionPlan = getQueryPlan(spec, tableName);
         Connection connection = Chat2DBContext.getConnection();
-        ExportProgressLogger progressLogger = new ExportProgressLogger(context, excelType.name(), tableName);
+        ExportProgressLogger progressLogger = new ExportProgressLogger(context, excelType.name(), tableName,
+                progressReporter);
         progressLogger.queryStarted("Reading table data from " + tableName);
         DefaultSQLExecutor.getInstance().execute(connection, executionPlan.getSql(), BATCH_SIZE, resultSet ->
                 writeExcelData(resultSet, excelType, file, tableName, spec, executionPlan, context, progressLogger),
