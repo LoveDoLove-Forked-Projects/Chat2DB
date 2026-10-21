@@ -209,6 +209,7 @@ export default {
   'workspace.task.event.importingRecords': 'Importando {1} registros',
   'workspace.task.event.sqlFileReadStarted': 'Leyendo el archivo SQL de importación',
   'workspace.task.event.sqlFileParsed': 'Archivo SQL analizado',
+  'workspace.task.event.batchCompletedWithSkipped': 'Lote completado: {1} filas importadas, {2} omitidas, {3} importadas en total',
   'workspace.task.event.batchCompletedTotal': 'Lote completado: {1} filas importadas, {2} filas importadas en total',
   'workspace.task.event.csvImportSummary': 'Importación CSV completada: {1} filas importadas en {2} segundos',
   'workspace.task.event.csvImportFinished': 'Importación CSV completada',
@@ -227,8 +228,8 @@ export default {
   'workspace.task.resume.confirmSource': 'Continúa después del checkpoint; el archivo de origen debe permanecer sin cambios.',
   'workspace.task.resume.confirmReplay': 'El último lote que llegó a la base de datos después del checkpoint (≤ 500 filas) se vuelve a aplicar; si la tabla destino tiene una clave única se producirá un conflicto, así que cambia a la política de omisión o elimina ese rango primero.',
   'workspace.task.errorFile.download': 'Descargar archivo de errores',
-  'workspace.task.progress.rows': '{1} fila(s) importada(s)',
-  'workspace.task.progress.rowsOfTotal': '{1} / {2} filas importadas',
+  'workspace.task.progress.rows': '{1} fila(s) procesada(s)',
+  'workspace.task.progress.rowsOfTotal': '{1} / {2} filas procesadas',
   'workspace.task.progress.rate': '{1} filas/s',
   'workspace.task.progress.eta': 'Quedan aprox. {1}',
   'workspace.task.reuse.unsupportedSpec':

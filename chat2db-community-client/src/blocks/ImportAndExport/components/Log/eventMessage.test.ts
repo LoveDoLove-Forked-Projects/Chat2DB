@@ -141,6 +141,17 @@ for (const messages of [zhCN, enUS, jaJP, koKR, esES, zhCN]) {
   assert.equal(format(completedBatch), messages['workspace.task.event.batchCompletedRows'].replace('{1}', '20000'));
   assert.equal(format({ ...completedBatch, details: { statementCount: 20000, importedRows: 40000 } }),
     messages['workspace.task.event.batchCompletedTotal'].replace('{1}', '20000').replace('{2}', '40000'));
+  assert.equal(format({
+    ...completedBatch,
+    details: { statementCount: 20000, batchImportedRows: 20000, importedRows: 40000 },
+  }), messages['workspace.task.event.batchCompletedTotal'].replace('{1}', '20000').replace('{2}', '40000'));
+  assert.equal(format({
+    ...completedBatch,
+    details: { statementCount: 20000, batchImportedRows: 18000, importedRows: 18000 },
+  }), messages['workspace.task.event.batchCompletedWithSkipped']
+    .replace('{1}', '18000')
+    .replace('{2}', '2000')
+    .replace('{3}', '18000'));
   assert.equal(format({ ...csvSummary, details: { importedRows: 100000, elapsedMillis: 14321 } }),
     messages['workspace.task.event.csvImportSummary'].replace('{1}', '100000').replace('{2}', '14.32'));
   assert.equal(format({ ...csvSummary, details: { importedRows: 0, elapsedMillis: 0 } }),

@@ -50,6 +50,37 @@ class DefaultSQLExecutorParameterizedBatchTest {
     }
 
     @Test
+    void reportsStoredRowsAcrossChunks() throws Exception {
+        try (Connection connection = DriverManager.getConnection(
+                "jdbc:h2:mem:param_batch_counts;DB_CLOSE_DELAY=-1")) {
+            createRecordsTable(connection);
+
+            long stored = DefaultSQLExecutor.getInstance().executeParameterizedBatchWithCounts(connection,
+                    INSERT_ONE, integerRows(1200), null, null, 500);
+
+            assertEquals(1200L, stored);
+            assertEquals(1200, countRecords(connection));
+        }
+    }
+
+    @Test
+    void ignoredRowsAreNotCountedAsStored() throws Exception {
+        try (Connection connection = DriverManager.getConnection(
+                "jdbc:h2:mem:param_batch_ignore;MODE=MySQL;DB_CLOSE_DELAY=-1")) {
+            createRecordsTable(connection);
+            try (Statement statement = connection.createStatement()) {
+                statement.execute("INSERT INTO records VALUES (1)");
+            }
+
+            long stored = DefaultSQLExecutor.getInstance().executeParameterizedBatchWithCounts(connection,
+                    "INSERT IGNORE INTO records VALUES (?)", integerRows(3), null, null, 500);
+
+            assertEquals(2L, stored, "the duplicate key is skipped by the database, not stored");
+            assertEquals(3, countRecords(connection));
+        }
+    }
+
+    @Test
     void defaultChunkSizeIsUsedWhenNotSpecified() throws Exception {
         try (Connection connection = DriverManager.getConnection(
                 "jdbc:h2:mem:param_batch_chunk_default;DB_CLOSE_DELAY=-1")) {

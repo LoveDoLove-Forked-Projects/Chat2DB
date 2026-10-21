@@ -342,10 +342,11 @@ public final class ImportRowBatcher implements AutoCloseable {
         long started = System.nanoTime();
         int rows = batch.parameterRows().size();
         try {
-            ImportBatchTransactions.executeParameterizedBatch(retriesRejectedRows(), Chat2DBContext.getConnection(),
-                    batch.sqlTemplate(), batch.parameterRows(), context, this::checkActive);
+            long stored = ImportBatchTransactions.executeParameterizedBatch(retriesRejectedRows(),
+                    Chat2DBContext.getConnection(), batch.sqlTemplate(), batch.parameterRows(), context,
+                    this::checkActive);
             recordTuning(rows, System.nanoTime() - started);
-            reportBatchSuccess(batch);
+            reportBatchSuccess(batch, stored);
         } catch (RuntimeException | Error batchFailure) {
             if (retriesRejectedRows() && !(batchFailure instanceof TaskCancelledException)) {
                 // The rejected batch was rolled back as a whole, so retrying its rows one by one
@@ -388,9 +389,9 @@ public final class ImportRowBatcher implements AutoCloseable {
             checkActive();
             List<Object> row = batch.parameterRows().get(index);
             try {
-                ImportBatchTransactions.executeParameterizedBatch(false, Chat2DBContext.getConnection(),
-                        batch.sqlTemplate(), List.of(row), context, this::checkActive);
-                stored++;
+                stored += (int) ImportBatchTransactions.executeParameterizedBatch(false,
+                        Chat2DBContext.getConnection(), batch.sqlTemplate(), List.of(row), context,
+                        this::checkActive);
             } catch (TaskCancelledException e) {
                 throw e;
             } catch (RuntimeException | Error rowFailure) {
@@ -414,17 +415,17 @@ public final class ImportRowBatcher implements AutoCloseable {
         batchSizer.record(rows, elapsed);
     }
 
-    private synchronized void reportBatchSuccess(PendingBatch batch) {
-        importedCount.add(batch.parameterRows().size());
+    private synchronized void reportBatchSuccess(PendingBatch batch, long stored) {
+        importedCount.add(stored);
         consumedRows.add(batch.parameterRows().size());
-        reportCommit(batch, importedCount.sum(), batch.parameterRows().size());
+        reportCommit(batch, importedCount.sum(), batch.parameterRows().size(), stored);
     }
 
     /** Reports a batch the failure policy kept running: only some of its rows reached the table. */
     private synchronized void reportPartialSuccess(PendingBatch batch, int stored) {
         importedCount.add(stored);
         consumedRows.add(batch.parameterRows().size());
-        reportCommit(batch, importedCount.sum(), batch.parameterRows().size());
+        reportCommit(batch, importedCount.sum(), batch.parameterRows().size(), stored);
         context.logInfo("IMPORT_ROWS_SKIPPED", "Batch completed with rejected rows", Map.of(
                 "batch", batch.seq() + 1,
                 "statementCount", batch.parameterRows().size(),
@@ -432,7 +433,7 @@ public final class ImportRowBatcher implements AutoCloseable {
                 "rejectedRows", batch.parameterRows().size() - stored));
     }
 
-    private void reportCommit(PendingBatch batch, long imported, int consumedInBatch) {
+    private void reportCommit(PendingBatch batch, long imported, int consumedInBatch, long batchImported) {
         long processed = consumedRows.sum();
         if (checkpoints != null) {
             // Workers finish batches out of order, so the resume point may advance only across the
@@ -447,7 +448,8 @@ public final class ImportRowBatcher implements AutoCloseable {
         progressReporter.report(processed);
         context.logInfo("BATCH_EXECUTED", "SQL batch executed",
                 Map.of("batch", batch.seq() + 1, "statementCount", batch.parameterRows().size(),
-                        "importedRows", imported, "processedRows", processed));
+                        "batchImportedRows", batchImported, "importedRows", imported,
+                        "processedRows", processed));
     }
 
     private static int machineThreadCeiling() {

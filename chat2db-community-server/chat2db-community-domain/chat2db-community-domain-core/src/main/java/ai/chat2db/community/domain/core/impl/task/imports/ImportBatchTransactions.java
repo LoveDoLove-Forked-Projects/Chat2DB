@@ -28,12 +28,11 @@ public final class ImportBatchTransactions {
     private ImportBatchTransactions() {
     }
 
-    public static void executeParameterizedBatch(boolean transactional, Connection connection, String sql,
+    public static long executeParameterizedBatch(boolean transactional, Connection connection, String sql,
             List<List<Object>> parameterRows, ISqlExecutionStatementListener statementListener,
             Runnable checkCancelled) {
         if (!transactional || !canOwnTransaction(connection)) {
-            executeDirect(connection, sql, parameterRows, statementListener, checkCancelled);
-            return;
+            return executeDirect(connection, sql, parameterRows, statementListener, checkCancelled);
         }
         try {
             connection.setAutoCommit(false);
@@ -41,8 +40,9 @@ public final class ImportBatchTransactions {
             throw new IllegalStateException("Could not start the import batch transaction", e);
         }
         try {
-            executeDirect(connection, sql, parameterRows, statementListener, checkCancelled);
+            long stored = executeDirect(connection, sql, parameterRows, statementListener, checkCancelled);
             connection.commit();
+            return stored;
         } catch (RuntimeException | Error failure) {
             rollback(connection, failure);
             throw failure;
@@ -54,9 +54,9 @@ public final class ImportBatchTransactions {
         }
     }
 
-    private static void executeDirect(Connection connection, String sql, List<List<Object>> parameterRows,
+    private static long executeDirect(Connection connection, String sql, List<List<Object>> parameterRows,
             ISqlExecutionStatementListener statementListener, Runnable checkCancelled) {
-        DefaultSQLExecutor.getInstance().executeParameterizedBatch(connection, sql, parameterRows,
+        return DefaultSQLExecutor.getInstance().executeParameterizedBatchWithCounts(connection, sql, parameterRows,
                 statementListener, checkCancelled);
     }
 

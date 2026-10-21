@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.LongAdder;
 
 public final class ImportSqlExecutor {
 
@@ -26,6 +27,9 @@ public final class ImportSqlExecutor {
     private final ImportErrorRecorder errorRecorder;
 
     private final AtomicInteger batchSequence = new AtomicInteger();
+
+    /** Rows the driver stored, so the summary does not count rows ignored by a duplicate policy. */
+    private final LongAdder importedCount = new LongAdder();
 
     /**
      * One batch event per second is enough for the log panel; without this the standard and JSON
@@ -117,11 +121,13 @@ public final class ImportSqlExecutor {
         boolean retryRows = retriesRejectedRows();
         try {
             context.checkCancelled();
-            ImportBatchTransactions.executeParameterizedBatch(retryRows, Chat2DBContext.getConnection(),
+            long stored = ImportBatchTransactions.executeParameterizedBatch(retryRows, Chat2DBContext.getConnection(),
                     sqlTemplate, parameterRows, context, context::checkCancelled);
+            importedCount.add(stored);
+            // The commit position counts consumed source rows, including rows INSERT IGNORE skipped.
             commit(onCommitted, statementCount);
-            logBatchExecuted(batch, statementCount);
-            return statementCount;
+            logBatchExecuted(batch, statementCount, stored);
+            return (int) stored;
         } catch (TaskCancelledException e) {
             throw e;
         } catch (TaskExecutionException e) {
@@ -129,22 +135,25 @@ public final class ImportSqlExecutor {
                 recordRejectedBatch(rowNumbers, parameterRows, e);
                 throw e;
             }
-            return commitRetriedRows(sqlTemplate, rowNumbers, parameterRows, e, onCommitted);
+            return commitRetriedRows(batch, sqlTemplate, rowNumbers, parameterRows, e, onCommitted);
         } catch (Exception e) {
             TaskExecutionException failure = importFailure(e);
             if (!retryRows) {
                 recordRejectedBatch(rowNumbers, parameterRows, failure);
                 throw failure;
             }
-            return commitRetriedRows(sqlTemplate, rowNumbers, parameterRows, failure, onCommitted);
+            return commitRetriedRows(batch, sqlTemplate, rowNumbers, parameterRows, failure, onCommitted);
         }
     }
 
-    private int commitRetriedRows(String sqlTemplate, List<Long> rowNumbers, List<List<Object>> parameterRows,
-            Exception batchFailure, java.util.function.LongConsumer onCommitted) {
+    private int commitRetriedRows(int batch, String sqlTemplate, List<Long> rowNumbers,
+            List<List<Object>> parameterRows, Exception batchFailure,
+            java.util.function.LongConsumer onCommitted) {
         int stored = retryRejectedRows(sqlTemplate, rowNumbers, parameterRows, batchFailure);
+        importedCount.add(stored);
         // The rejected rows of this batch are recorded, so the position may move past the batch.
         commit(onCommitted, stored);
+        logBatchExecuted(batch, parameterRows.size(), stored);
         return stored;
     }
 
@@ -227,6 +236,15 @@ public final class ImportSqlExecutor {
         }
         context.logInfo(TaskEventCode.BATCH_EXECUTED.name(), "SQL batch executed",
                 Map.of("batch", batch, "statementCount", statementCount));
+    }
+
+    private void logBatchExecuted(int batch, int statementCount, long stored) {
+        if (!batchEventThrottle.tryAcquire(TaskEventCode.BATCH_EXECUTED.name())) {
+            return;
+        }
+        context.logInfo(TaskEventCode.BATCH_EXECUTED.name(), "SQL batch executed",
+                Map.of("batch", batch, "statementCount", statementCount,
+                        "batchImportedRows", stored, "importedRows", importedCount.sum()));
     }
 
     static TaskExecutionException importFailure(Exception error) {

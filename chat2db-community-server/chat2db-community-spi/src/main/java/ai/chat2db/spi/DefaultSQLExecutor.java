@@ -1901,6 +1901,18 @@ public class DefaultSQLExecutor implements ICommandExecutor {
     }
 
     /**
+     * Same as {@link #executeParameterizedBatch(Connection, String, List, ISqlExecutionStatementListener, Runnable)}
+     * but returns the number of rows the driver reports as stored.
+     */
+    public long executeParameterizedBatchWithCounts(Connection connection, String sql,
+                                          List<List<Object>> parameterRows,
+                                          ISqlExecutionStatementListener statementListener,
+                                          Runnable cancellationChecker) {
+        return executeParameterizedBatchWithCounts(connection, sql, parameterRows, statementListener,
+                cancellationChecker, DEFAULT_BATCH_CHUNK_SIZE);
+    }
+
+    /**
      * Executes one prepared statement shape with many parameter rows, chunked into JDBC batches:
      * one {@code PreparedStatement} per chunk, each chunk filled with {@code addBatch()} and flushed
      * with a single {@code executeBatch()}. Chunking bounds both the driver-side batch buffer and the
@@ -1913,13 +1925,29 @@ public class DefaultSQLExecutor implements ICommandExecutor {
     public void executeParameterizedBatch(Connection connection, String sql, List<List<Object>> parameterRows,
                                           ISqlExecutionStatementListener statementListener,
                                           Runnable cancellationChecker, int chunkSize) {
+        executeParameterizedBatchWithCounts(connection, sql, parameterRows, statementListener, cancellationChecker,
+                chunkSize);
+    }
+
+    /**
+     * Same as the void overload but returns the number of rows the driver reports as stored. A
+     * batch statement executed without an update count ({@link Statement#SUCCESS_NO_INFO}) counts
+     * as one row; zero means the driver skipped the statement, e.g. {@code INSERT IGNORE} on an
+     * existing key. This is what lets import summaries distinguish processed from stored rows.
+     */
+    public long executeParameterizedBatchWithCounts(Connection connection, String sql,
+                                          List<List<Object>> parameterRows,
+                                          ISqlExecutionStatementListener statementListener,
+                                          Runnable cancellationChecker, int chunkSize) {
         if (parameterRows == null || parameterRows.isEmpty()) {
-            return;
+            return 0L;
         }
         if (chunkSize < 1) {
             throw new IllegalArgumentException("chunkSize must be positive");
         }
         checkTaskCancellation(cancellationChecker);
+        long stored = 0L;
+        boolean rowCountAvailable = supportsRowCount(connection);
         try {
             for (int start = 0; start < parameterRows.size(); start += chunkSize) {
                 checkTaskCancellation(cancellationChecker);
@@ -1932,7 +1960,7 @@ public class DefaultSQLExecutor implements ICommandExecutor {
                             bindParameters(statement, parameterRows.get(index));
                             statement.addBatch();
                         }
-                        statement.executeBatch();
+                        stored += storedRows(statement.executeBatch(), connection, rowCountAvailable);
                     }
                 } finally {
                     notifyStatementClosed(statementListener, statement);
@@ -1942,6 +1970,63 @@ public class DefaultSQLExecutor implements ICommandExecutor {
         } catch (SQLException e) {
             checkTaskCancellation(cancellationChecker);
             throw new RuntimeException(e);
+        }
+        return stored;
+    }
+
+    /**
+     * MySQL rewrites a batch into one multi-row statement when {@code rewriteBatchedStatements} is
+     * on, and then reports {@link Statement#SUCCESS_NO_INFO} for every row. The batch's real
+     * affected-row count is still available from {@code ROW_COUNT()} on the same connection, which
+     * is what tells an {@code INSERT IGNORE} batch how many rows it actually stored.
+     */
+    private static boolean supportsRowCount(Connection connection) {
+        try {
+            String product = connection.getMetaData().getDatabaseProductName();
+            return product != null
+                    && (product.toLowerCase().contains("mysql") || product.toLowerCase().contains("mariadb"));
+        } catch (SQLException e) {
+            return false;
+        }
+    }
+
+    private static long storedRows(int[] updateCounts, Connection connection, boolean rowCountAvailable) {
+        if (updateCounts == null) {
+            return 0L;
+        }
+        long stored = 0L;
+        boolean unknownCountPresent = false;
+        for (int updateCount : updateCounts) {
+            if (updateCount > 0) {
+                stored += updateCount;
+            } else if (updateCount == Statement.SUCCESS_NO_INFO) {
+                unknownCountPresent = true;
+            }
+        }
+        if (!unknownCountPresent) {
+            return stored;
+        }
+        if (rowCountAvailable) {
+            long reported = readRowCount(connection);
+            if (reported >= 0L) {
+                return reported;
+            }
+        }
+        // Best effort for drivers that neither report counts nor expose ROW_COUNT().
+        for (int updateCount : updateCounts) {
+            if (updateCount == Statement.SUCCESS_NO_INFO) {
+                stored += 1L;
+            }
+        }
+        return stored;
+    }
+
+    private static long readRowCount(Connection connection) {
+        try (Statement statement = connection.createStatement();
+             ResultSet resultSet = statement.executeQuery("SELECT ROW_COUNT()")) {
+            return resultSet.next() ? Math.max(0L, resultSet.getLong(1)) : -1L;
+        } catch (SQLException e) {
+            return -1L;
         }
     }
 

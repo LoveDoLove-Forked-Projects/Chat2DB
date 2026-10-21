@@ -41,6 +41,7 @@ export type TaskEventMessageKey =
   | 'workspace.task.event.csvImportFinished'
   | 'workspace.task.event.csvImportSummary'
   | 'workspace.task.event.batchCompletedTotal'
+  | 'workspace.task.event.batchCompletedWithSkipped'
   | 'workspace.task.event.batchCompletedRows'
   | 'workspace.task.event.batchExecuted'
   | 'workspace.task.event.importingRecords'
@@ -83,6 +84,7 @@ export const formatTaskEventMessage = (
   }
 
   const statementCount = event.details?.statementCount;
+  const batchImportedRows = event.details?.batchImportedRows;
   const rejectedRows = event.details?.rejectedRows;
   const resumeFromRow = event.details?.resumeFromRow;
   const exportedRows = event.details?.exportedRows;
@@ -139,6 +141,14 @@ export const formatTaskEventMessage = (
   }
   if (taskType === ImportExportTaskType.DATA_FILE_IMPORT &&
       event.code === 'BATCH_EXECUTED' && message === 'SQL batch executed' && isCount(statementCount)) {
+    if (isCount(batchImportedRows)) {
+      const cumulative = isCount(importedRows) ? importedRows : batchImportedRows;
+      if (batchImportedRows >= statementCount) {
+        return translate('workspace.task.event.batchCompletedTotal', batchImportedRows, cumulative);
+      }
+      return translate('workspace.task.event.batchCompletedWithSkipped', batchImportedRows,
+          statementCount - batchImportedRows, cumulative);
+    }
     if (isCount(importedRows) && importedRows >= statementCount) {
       return translate('workspace.task.event.batchCompletedTotal', statementCount, importedRows);
     }
