@@ -84,63 +84,19 @@ export const useStyles = createStyles(({ css, token }) => ({
     overflow-wrap: anywhere;
     white-space: pre-wrap;
   `,
-  modeRow: css`
+  summaryModeRow: css`
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 10px;
-    margin-top: 16px;
   `,
   modeRisk: css`
     font-size: 12px;
     color: ${token.colorTextTertiary};
   `,
-  preCheckBox: css`
-    margin-top: 16px;
-    padding: 12px;
-    border: 1px solid ${token.colorBorderSecondary};
-    border-radius: 8px;
-    background: ${token.colorFillQuaternary};
-  `,
-  preCheckTitle: css`
-    margin-bottom: 8px;
-    font-size: 13px;
-    font-weight: 600;
-  `,
-  preCheckLine: css`
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px;
-    font-size: 12px;
-    color: ${token.colorTextSecondary};
-  `,
-  preCheckHint: css`
-    overflow-wrap: anywhere;
-    color: ${token.colorTextTertiary};
-  `,
-  preCheckGrid: css`
-    display: grid;
-    grid-template-columns: auto 1fr;
-    gap: 6px 12px;
-    font-size: 12px;
-    color: ${token.colorTextSecondary};
-  `,
-  preCheckLabel: css`
-    color: ${token.colorTextTertiary};
-    white-space: nowrap;
-  `,
-  preCheckIssues: css`
-    ul {
-      margin: 6px 0 0;
-      padding-left: 18px;
-    }
-
-    li {
-      overflow-wrap: anywhere;
-    }
-  `,
   policySection: css`
-    margin-top: 16px;
+    margin-top: 0;
+    margin-bottom: 16px;
   `,
   policyRow: css`
     display: flex;

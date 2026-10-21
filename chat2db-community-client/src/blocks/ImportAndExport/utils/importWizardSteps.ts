@@ -7,13 +7,12 @@
  * without mounting the component.
  */
 
-export type ImportWizardStepKey = 'file' | 'format' | 'mapping' | 'precheck' | 'confirm';
+export type ImportWizardStepKey = 'file' | 'format' | 'mapping' | 'confirm';
 
 export const IMPORT_WIZARD_STEPS: ImportWizardStepKey[] = [
   'file',
   'format',
   'mapping',
-  'precheck',
   'confirm',
 ];
 
@@ -21,9 +20,6 @@ export const IMPORT_WIZARD_LAST_STEP = IMPORT_WIZARD_STEPS.length - 1;
 
 /** The step that owns the preview request: entering it starts the preview for the current file. */
 export const IMPORT_WIZARD_FORMAT_STEP = 1;
-
-/** The step that runs the pre-check and owns the duplicate/failure policy controls. */
-export const IMPORT_WIZARD_PRECHECK_STEP = 3;
 
 /** Option edits are debounced so typing a delimiter does not send one request per keystroke. */
 export const IMPORT_PREVIEW_AUTO_LOAD_DELAY_MS = 300;
@@ -50,7 +46,6 @@ const IMPORT_WIZARD_STEP_TITLE_KEYS = {
   file: 'workspace.importExport.wizard.stepFile',
   format: 'workspace.importExport.wizard.stepFormat',
   mapping: 'workspace.importExport.wizard.stepMapping',
-  precheck: 'workspace.importExport.wizard.stepPrecheck',
   confirm: 'workspace.importExport.wizard.stepConfirm',
 } as const;
 

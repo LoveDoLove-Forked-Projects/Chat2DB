@@ -3,11 +3,7 @@ import { Alert, Button, Descriptions, Modal, Select, Spin } from 'antd';
 import { TriangleAlert } from 'lucide-react';
 import { staticMessage } from '@chat2db/ui';
 import i18n from '@/i18n';
-import sqlService, {
-  type IImportPreCheck,
-  type IImportPreCheckIssue,
-  type IImportPreview,
-} from '@/service/sql';
+import sqlService, { type IImportPreview } from '@/service/sql';
 import importExportServices, { type ImportTaskParams } from '@/service/importExport';
 import {
   ImportExportFileType,
@@ -50,7 +46,6 @@ import {
   IMPORT_PREVIEW_AUTO_LOAD_DELAY_MS,
   IMPORT_WIZARD_FORMAT_STEP,
   IMPORT_WIZARD_LAST_STEP,
-  IMPORT_WIZARD_PRECHECK_STEP,
   isImportWizardLastStep,
   shouldAutoLoadImportPreview,
   shouldLoadImportPreviewOnAdvance,
@@ -168,11 +163,6 @@ export default function ImportWizard({ restoredSpec, onSubmitted, onStepChange }
   const [mode, setMode] = useState<ImportExecutionMode>('STANDARD');
   const [duplicatePolicy, setDuplicatePolicy] = useState<ImportDuplicatePolicy>('INSERT');
   const [failurePolicy, setFailurePolicy] = useState<ImportFailurePolicy>('ABORT');
-  const [preCheck, setPreCheck] = useState<IImportPreCheck | null>(null);
-  const [preCheckStatus, setPreCheckStatus] = useState<'idle' | 'loading' | 'loaded' | 'failed'>('idle');
-  const [preCheckError, setPreCheckError] = useState<string | null>(null);
-  const [preCheckRetry, setPreCheckRetry] = useState(0);
-  const preCheckGeneration = useRef(0);
   const [executing, setExecuting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [templates, setTemplates] = useState<ImportTemplate[]>([]);
@@ -286,44 +276,6 @@ export default function ImportWizard({ restoredSpec, onSubmitted, onStepChange }
     setDuplicatePolicy(resolved.duplicatePolicy);
     setFailurePolicy(resolved.failurePolicy);
   }, [restoredSpec, databaseType]);
-
-  // The pre-check runs when the confirmation step becomes visible and whenever the target, file,
-  // format options or mapping change. A failed check never blocks the import; the user can retry.
-  useEffect(() => {
-    if (step !== IMPORT_WIZARD_PRECHECK_STEP || !previewRequired || !fileId
-        || dataSourceId == null || !databaseName || mappingParams.length === 0) {
-      preCheckGeneration.current += 1;
-      setPreCheck(null);
-      setPreCheckStatus('idle');
-      setPreCheckError(null);
-      return;
-    }
-    const generation = ++preCheckGeneration.current;
-    setPreCheckStatus('loading');
-    setPreCheckError(null);
-    sqlService
-      .analyzeImport({
-        dataSourceId,
-        databaseName,
-        schemaName,
-        tableName,
-        fileId,
-        mappings: mappingParams,
-        ...fileOptions,
-      })
-      .then((result) => {
-        if (generation !== preCheckGeneration.current) return;
-        setPreCheck(result);
-        setPreCheckStatus('loaded');
-      })
-      .catch((requestError) => {
-        if (generation !== preCheckGeneration.current) return;
-        setPreCheck(null);
-        setPreCheckError(resolveErrorMessage(requestError));
-        setPreCheckStatus('failed');
-      });
-  }, [step, previewRequired, fileId, dataSourceId, databaseName, schemaName, tableName,
-      mappingParams, fileOptions, preCheckRetry, resolveErrorMessage]);
 
   useEffect(() => {
     if (!fileId || !isExcel || dataSourceId == null || !databaseName) {
@@ -509,6 +461,9 @@ export default function ImportWizard({ restoredSpec, onSubmitted, onStepChange }
   const mappedTargetCount = Object.values(mapping).filter(
     (target) => target && target !== SKIP_IMPORT_SOURCE_FIELD,
   ).length;
+  const mappedPairs = Object.entries(mapping)
+    .filter(([, target]) => target && target !== SKIP_IMPORT_SOURCE_FIELD)
+    .map(([source, target]) => `${source} → ${target}`);
   const dataSectionItems = useImportDataSections({
     preview,
     mapping,
@@ -575,11 +530,7 @@ export default function ImportWizard({ restoredSpec, onSubmitted, onStepChange }
       }
     }
     setTargetTableNotice(null);
-    setStep((current) => {
-      const next = Math.min(current + 1, IMPORT_WIZARD_LAST_STEP);
-      // A SQL script has no preview, mapping or policies, so the pre-check step is skipped.
-      return !previewRequired && next === IMPORT_WIZARD_PRECHECK_STEP ? next + 1 : next;
-    });
+    setStep((current) => Math.min(current + 1, IMPORT_WIZARD_LAST_STEP));
   };
 
   const currentTemplateFormatOptions = (): ImportTemplateFormatOptions | undefined => {
@@ -832,21 +783,6 @@ export default function ImportWizard({ restoredSpec, onSubmitted, onStepChange }
     onStepChange?.(step);
   }, [onStepChange, step]);
 
-  const preCheckReasonText = (issue: IImportPreCheckIssue): string => {
-    const keys: Record<string, string> = {
-      NUMBER: 'workspace.importExport.precheck.reason.number',
-      DATETIME: 'workspace.importExport.precheck.reason.datetime',
-      FORMAT: 'workspace.importExport.precheck.reason.format',
-      VALUE: 'workspace.importExport.precheck.reason.value',
-    };
-    const key = issue.reasonCode ? keys[issue.reasonCode] : undefined;
-    return key ? i18n(key) : issue.reason;
-  };
-  const preCheckColumnLabel = (issue: IImportPreCheckIssue): string =>
-    issue.sourceColumn === issue.targetColumn
-      ? issue.targetColumn
-      : `${issue.sourceColumn} → ${issue.targetColumn}`;
-
   if (!importExportDataBoundInfo) {
     return null;
   }
@@ -956,149 +892,67 @@ export default function ImportWizard({ restoredSpec, onSubmitted, onStepChange }
             )}
           </div>
         )}
-        {step === IMPORT_WIZARD_PRECHECK_STEP && previewRequired && (
-          <div className={styles.stepPanel}>
-            <div className={styles.preCheckBox}>
-              <div className={styles.preCheckTitle}>
-                {i18n('workspace.importExport.precheck.title')}
-              </div>
-              {preCheckStatus === 'loading' && (
-                <div className={styles.preCheckLine}>
-                  <Spin size="small" />
-                  <span>{i18n('workspace.importExport.precheck.loading')}</span>
-                </div>
-              )}
-              {preCheckStatus === 'failed' && (
-                <div className={styles.preCheckLine}>
-                  <span>{i18n('workspace.importExport.precheck.failed')}</span>
-                  {preCheckError ? <span className={styles.preCheckHint}>{preCheckError}</span> : null}
-                  <Button
-                    size="small"
-                    type="link"
-                    disabled={executing}
-                    onClick={() => setPreCheckRetry((current) => current + 1)}
-                  >
-                    {i18n('workspace.importExport.precheck.retry')}
-                  </Button>
-                </div>
-              )}
-              {preCheckStatus === 'loaded' && preCheck && (
-                <>
-                  <div className={styles.preCheckGrid}>
-                    <span className={styles.preCheckLabel}>
-                      {i18n('workspace.importExport.precheck.conflictLabel')}
-                    </span>
-                    <span>
-                      {preCheck.conflictCheckable
-                        ? i18n(
-                            'workspace.importExport.precheck.conflicts',
-                            preCheck.conflictingSampleRows,
-                            preCheck.sampledRows,
-                            preCheck.keyColumns.join(', '),
-                          )
-                        : i18n('workspace.importExport.precheck.noKey')}
-                    </span>
-                    <span className={styles.preCheckLabel}>
-                      {i18n('workspace.importExport.precheck.mismatchLabel')}
-                    </span>
-                    <span>
-                      {preCheck.typeMismatches.length === 0
-                        ? i18n('workspace.importExport.precheck.noMismatch')
-                        : i18n(
-                            'workspace.importExport.precheck.mismatchCount',
-                            preCheck.typeMismatches.length,
-                          )}
-                    </span>
-                  </div>
-                  {preCheck.typeMismatches.length > 0 && (
-                    <div className={styles.preCheckIssues}>
-                      <ul>
-                        {preCheck.typeMismatches.slice(0, 5).map((issue, index) => (
-                          <li key={`${issue.rowNumber}-${issue.targetColumn}-${index}`}>
-                            {i18n(
-                              'workspace.importExport.precheck.issue',
-                              issue.rowNumber,
-                              preCheckColumnLabel(issue),
-                              issue.value,
-                              preCheckReasonText(issue),
-                            )}
-                          </li>
-                        ))}
-                      </ul>
-                      {preCheck.typeMismatches.length > 5 && (
-                        <div>
-                          {i18n(
-                            'workspace.importExport.precheck.moreMismatches',
-                            preCheck.typeMismatches.length - 5,
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-            <div className={styles.policySection}>
-              <div className={styles.sectionTitle}>{i18n('workspace.importExport.policy.title')}</div>
-              <div className={styles.policyRow}>
-                <div className={styles.policyField}>
-                  <span className={styles.policyLabel}>
-                    {i18n('workspace.importExport.policy.duplicateLabel')}
-                  </span>
-                  <Select<ImportDuplicatePolicy>
-                    className={styles.policySelect}
-                    size="small"
-                    value={duplicatePolicy}
-                    disabled={executing}
-                    onChange={setDuplicatePolicy}
-                    options={[
-                      {
-                        value: 'INSERT',
-                        label: i18n('workspace.importExport.policy.duplicateInsert'),
-                      },
-                      {
-                        value: 'IGNORE',
-                        label: i18n('workspace.importExport.policy.duplicateIgnore'),
-                        disabled: !supportsDuplicateIgnore(databaseType),
-                      },
-                    ]}
-                  />
-                </div>
-                <div className={styles.policyField}>
-                  <span className={styles.policyLabel}>
-                    {i18n('workspace.importExport.policy.failureLabel')}
-                  </span>
-                  <Select<ImportFailurePolicy>
-                    className={styles.policySelect}
-                    size="small"
-                    value={failurePolicy}
-                    disabled={executing}
-                    onChange={setFailurePolicy}
-                    options={[
-                      { value: 'ABORT', label: i18n('workspace.importExport.policy.failureAbort') },
-                      {
-                        value: 'SKIP_ERROR_ROWS',
-                        label: i18n('workspace.importExport.policy.failureSkip'),
-                      },
-                    ]}
-                  />
-                </div>
-              </div>
-              {duplicatePolicy === 'IGNORE' && (
-                <div className={styles.policyHint}>
-                  {i18n('workspace.importExport.policy.duplicateIgnoreHint')}
-                </div>
-              )}
-              {failurePolicy === 'SKIP_ERROR_ROWS' && (
-                <div className={styles.policyHint}>
-                  {i18n('workspace.importExport.policy.failureSkipHint')}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
         {step === IMPORT_WIZARD_LAST_STEP && (
           <div className={styles.stepPanel}>
+            {previewRequired && (
+              <div className={styles.policySection}>
+                <div className={styles.sectionTitle}>{i18n('workspace.importExport.policy.title')}</div>
+                <div className={styles.policyRow}>
+                  <div className={styles.policyField}>
+                    <span className={styles.policyLabel}>
+                      {i18n('workspace.importExport.policy.duplicateLabel')}
+                    </span>
+                    <Select<ImportDuplicatePolicy>
+                      className={styles.policySelect}
+                      size="small"
+                      value={duplicatePolicy}
+                      disabled={executing}
+                      onChange={setDuplicatePolicy}
+                      options={[
+                        {
+                          value: 'INSERT',
+                          label: i18n('workspace.importExport.policy.duplicateInsert'),
+                        },
+                        {
+                          value: 'IGNORE',
+                          label: i18n('workspace.importExport.policy.duplicateIgnore'),
+                          disabled: !supportsDuplicateIgnore(databaseType),
+                        },
+                      ]}
+                    />
+                  </div>
+                  <div className={styles.policyField}>
+                    <span className={styles.policyLabel}>
+                      {i18n('workspace.importExport.policy.failureLabel')}
+                    </span>
+                    <Select<ImportFailurePolicy>
+                      className={styles.policySelect}
+                      size="small"
+                      value={failurePolicy}
+                      disabled={executing}
+                      onChange={setFailurePolicy}
+                      options={[
+                        { value: 'ABORT', label: i18n('workspace.importExport.policy.failureAbort') },
+                        {
+                          value: 'SKIP_ERROR_ROWS',
+                          label: i18n('workspace.importExport.policy.failureSkip'),
+                        },
+                      ]}
+                    />
+                  </div>
+                </div>
+                {duplicatePolicy === 'IGNORE' && (
+                  <div className={styles.policyHint}>
+                    {i18n('workspace.importExport.policy.duplicateIgnoreHint')}
+                  </div>
+                )}
+                {failurePolicy === 'SKIP_ERROR_ROWS' && (
+                  <div className={styles.policyHint}>
+                    {i18n('workspace.importExport.policy.failureSkipHint')}
+                  </div>
+                )}
+              </div>
+            )}
             <Descriptions
               className={styles.summary}
               size="small"
@@ -1127,9 +981,14 @@ export default function ImportWizard({ restoredSpec, onSubmitted, onStepChange }
                 {
                   key: 'mapping',
                   label: i18n('workspace.importExport.wizard.summaryMapping'),
-                  children: previewRequired
-                    ? i18n('workspace.importExport.wizard.mappingCountValue', mappedTargetCount)
-                    : i18n('workspace.importExport.wizard.notApplicable'),
+                  children: previewRequired ? (
+                    <div className={styles.summaryValue}>
+                      <div>{i18n('workspace.importExport.wizard.mappingCountValue', mappedTargetCount)}</div>
+                      {mappedPairs.length > 0 && <div>{mappedPairs.join(' · ')}</div>}
+                    </div>
+                  ) : (
+                    i18n('workspace.importExport.wizard.notApplicable')
+                  ),
                 },
                 ...(appliedTemplateName
                   ? [
@@ -1175,14 +1034,33 @@ export default function ImportWizard({ restoredSpec, onSubmitted, onStepChange }
                       },
                     ]
                   : []),
+                ...(previewRequired
+                  ? [
+                      {
+                        key: 'mode',
+                        label: i18n('workspace.importExport.wizard.summaryMode'),
+                        children: (
+                          <div className={styles.summaryModeRow}>
+                            <span>
+                              {mode === 'FAST'
+                                ? i18n('workspace.importExport.ultraMode')
+                                : i18n('workspace.importExport.standardMode')}
+                            </span>
+                            {isCsv && (
+                              <>
+                                <ImportModeControl value={mode} onChange={setMode} disabled={executing} />
+                                <span className={styles.modeRisk}>
+                                  {i18n('workspace.importExport.ultraModeHint')}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        ),
+                      },
+                    ]
+                  : []),
               ]}
             />
-            {isCsv && previewRequired && (
-              <div className={styles.modeRow}>
-                <ImportModeControl value={mode} onChange={setMode} disabled={executing} />
-                <span className={styles.modeRisk}>{i18n('workspace.importExport.ultraModeHint')}</span>
-              </div>
-            )}
           </div>
         )}
       </div>
@@ -1199,14 +1077,7 @@ export default function ImportWizard({ restoredSpec, onSubmitted, onStepChange }
           {step > 0 && (
             <Button
               disabled={executing || loadingPreview}
-              onClick={() =>
-                setStep((current) => {
-                  const previous = Math.max(0, current - 1);
-                  return !previewRequired && previous === IMPORT_WIZARD_PRECHECK_STEP
-                    ? previous - 1
-                    : previous;
-                })
-              }
+              onClick={() => setStep((current) => Math.max(0, current - 1))}
             >
               {i18n('workspace.importExport.wizard.previous')}
             </Button>

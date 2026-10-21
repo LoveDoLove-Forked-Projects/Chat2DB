@@ -21,10 +21,10 @@ const state = (patch: Partial<ImportWizardGateState> = {}): ImportWizardGateStat
 });
 
 test('keeps the wizard order and marks the last step', () => {
-  assert.deepEqual(IMPORT_WIZARD_STEPS, ['file', 'format', 'mapping', 'precheck', 'confirm']);
-  assert.equal(IMPORT_WIZARD_LAST_STEP, 4);
-  assert.equal(isImportWizardLastStep(3), false);
-  assert.equal(isImportWizardLastStep(4), true);
+  assert.deepEqual(IMPORT_WIZARD_STEPS, ['file', 'format', 'mapping', 'confirm']);
+  assert.equal(IMPORT_WIZARD_LAST_STEP, 3);
+  assert.equal(isImportWizardLastStep(2), false);
+  assert.equal(isImportWizardLastStep(3), true);
 });
 
 test('requires a selected file before leaving the file step', () => {
@@ -53,19 +53,17 @@ test('loads the preview exactly when leaving the format step without one', () =>
   assert.equal(shouldLoadImportPreviewOnAdvance(2, state({ previewStatus: 'idle' })), false);
 });
 
-test('never blocks the pre-check or confirmation step', () => {
+test('never blocks the mapping or confirmation step', () => {
   assert.equal(canAdvanceImportWizard(2, state()), true);
   assert.equal(canAdvanceImportWizard(3, state()), true);
-  assert.equal(canAdvanceImportWizard(4, state()), true);
 });
 
 test('names the step the wizard is currently showing', () => {
   assert.equal(getImportWizardStepTitleKey(0), 'workspace.importExport.wizard.stepFile');
   assert.equal(getImportWizardStepTitleKey(1), 'workspace.importExport.wizard.stepFormat');
   assert.equal(getImportWizardStepTitleKey(2), 'workspace.importExport.wizard.stepMapping');
-  assert.equal(getImportWizardStepTitleKey(3), 'workspace.importExport.wizard.stepPrecheck');
-  assert.equal(getImportWizardStepTitleKey(4), 'workspace.importExport.wizard.stepConfirm');
-  assert.equal(getImportWizardStepTitleKey(5), null);
+  assert.equal(getImportWizardStepTitleKey(3), 'workspace.importExport.wizard.stepConfirm');
+  assert.equal(getImportWizardStepTitleKey(4), null);
 });
 
 test('starts the preview by itself on the format step', () => {
