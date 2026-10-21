@@ -35,6 +35,9 @@ public final class ImportProgressReporter {
 
     private final Long totalRows;
 
+    /** Source rows already stored before this run; progress is reported at absolute positions. */
+    private final long resumeOffset;
+
     private final LongSupplier nanoTime;
 
     private final long startedNanos;
@@ -44,24 +47,35 @@ public final class ImportProgressReporter {
     private int lastProgress = TaskConstants.STARTED_PROGRESS;
 
     public ImportProgressReporter(TaskExecutionContext context) {
-        this(context, null);
+        this(context, null, 0L);
     }
 
     public ImportProgressReporter(TaskExecutionContext context, Long totalRows) {
-        this(context, totalRows, System::nanoTime);
+        this(context, totalRows, 0L);
+    }
+
+    public ImportProgressReporter(TaskExecutionContext context, Long totalRows, long resumeOffset) {
+        this(context, totalRows, resumeOffset, System::nanoTime);
     }
 
     /** Test seam for the rate and ETA, which need a controllable elapsed time. */
     ImportProgressReporter(TaskExecutionContext context, Long totalRows, LongSupplier nanoTime) {
+        this(context, totalRows, 0L, nanoTime);
+    }
+
+    ImportProgressReporter(TaskExecutionContext context, Long totalRows, long resumeOffset,
+            LongSupplier nanoTime) {
         this.context = context;
         this.totalRows = totalRows != null && totalRows > 0L ? totalRows : null;
+        this.resumeOffset = Math.max(0L, resumeOffset);
         this.nanoTime = nanoTime;
         this.startedNanos = nanoTime.getAsLong();
     }
 
     /** Reports the rows processed so far; repeated calls without new rows are ignored. */
     public void report(long processedRows) {
-        long rows = Math.max(0L, processedRows);
+        long rowsInThisRun = Math.max(0L, processedRows);
+        long rows = resumeOffset + rowsInThisRun;
         if (rows <= lastReportedRows) {
             return;
         }
@@ -69,8 +83,8 @@ public final class ImportProgressReporter {
         int progress = Math.max(lastProgress, progress(rows));
         lastProgress = progress;
         double elapsedSeconds = (nanoTime.getAsLong() - startedNanos) / 1_000_000_000.0d;
-        // A rate measured over less than a second is too noisy to show or to derive an ETA from.
-        Double rowsPerSecond = elapsedSeconds >= 1.0d ? rows / elapsedSeconds : null;
+        // The rate measures this run, while the position and ETA use the absolute source row.
+        Double rowsPerSecond = elapsedSeconds >= 1.0d ? rowsInThisRun / elapsedSeconds : null;
         Long etaSeconds = null;
         if (rowsPerSecond != null && rowsPerSecond > 0 && totalRows != null) {
             etaSeconds = Math.max(0L, (long) Math.ceil((totalRows - rows) / rowsPerSecond));

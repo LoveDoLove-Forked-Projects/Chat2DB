@@ -128,23 +128,33 @@ public final class ImportRowBatcher implements AutoCloseable {
 
     public ImportRowBatcher(TaskExecutionContext context, ImportCheckpointWriter checkpoints,
             ImportErrorRecorder errors) {
+        this(context, checkpoints, errors, 0L);
+    }
+
+    public ImportRowBatcher(TaskExecutionContext context, ImportCheckpointWriter checkpoints,
+            ImportErrorRecorder errors, long resumeOffset) {
         this(context, machineThreadCeiling(), runnable -> {
             Thread thread = new Thread(runnable, "chat2db-import-" + context.taskId());
             thread.setDaemon(true);
             return thread;
-        }, checkpoints, errors);
+        }, checkpoints, errors, resumeOffset);
     }
 
     ImportRowBatcher(TaskExecutionContext context, int maxWorkers, ThreadFactory threadFactory) {
-        this(context, maxWorkers, threadFactory, null, null);
+        this(context, maxWorkers, threadFactory, null, null, 0L);
     }
 
     ImportRowBatcher(TaskExecutionContext context, int maxWorkers, ThreadFactory threadFactory,
             ImportCheckpointWriter checkpoints, ImportErrorRecorder errors) {
+        this(context, maxWorkers, threadFactory, checkpoints, errors, 0L);
+    }
+
+    ImportRowBatcher(TaskExecutionContext context, int maxWorkers, ThreadFactory threadFactory,
+            ImportCheckpointWriter checkpoints, ImportErrorRecorder errors, long resumeOffset) {
         this.checkpoints = checkpoints;
         this.errors = errors;
         this.context = context;
-        this.progressReporter = new ImportProgressReporter(context);
+        this.progressReporter = new ImportProgressReporter(context, null, resumeOffset);
         this.connectInfo = Chat2DBContext.getConnectInfo();
         this.requestContext = ContextUtils.queryContext();
         this.statementGuard = Chat2DBContext.captureStatementGuard();

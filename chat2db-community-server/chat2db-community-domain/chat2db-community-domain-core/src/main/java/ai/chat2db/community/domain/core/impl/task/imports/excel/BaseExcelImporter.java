@@ -3,6 +3,7 @@ package ai.chat2db.community.domain.core.impl.task.imports.excel;
 import ai.chat2db.community.domain.core.impl.task.imports.BaseImporter;
 import ai.chat2db.community.domain.core.impl.task.imports.ImportCheckpointWriter;
 import ai.chat2db.community.domain.core.impl.task.imports.ImportErrorRecorder;
+import ai.chat2db.community.domain.core.impl.task.imports.ImportResumability;
 import ai.chat2db.community.domain.core.impl.task.imports.ImportRowSkipper;
 import ai.chat2db.community.domain.core.impl.task.imports.ImportSqlExecutor;
 import ai.chat2db.community.domain.core.impl.task.imports.ImportProgressReporter;
@@ -120,7 +121,8 @@ public abstract class BaseExcelImporter extends BaseImporter {
             this.taskContext = taskContext;
             this.sqlExecutor = new ImportSqlExecutor(taskContext, errors);
             this.rowSqlBuilder = new ImportRowSqlBuilder(spec, columns);
-            this.progressReporter = new ImportProgressReporter(taskContext, configuredTotalRows(spec));
+            this.progressReporter = new ImportProgressReporter(taskContext, configuredTotalRows(spec),
+                    ImportResumability.resumeOffset(spec));
             this.checkpoints = checkpoints;
             this.errors = errors;
         }

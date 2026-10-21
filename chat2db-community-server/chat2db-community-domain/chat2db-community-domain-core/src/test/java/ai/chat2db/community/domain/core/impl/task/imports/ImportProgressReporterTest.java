@@ -64,6 +64,24 @@ class ImportProgressReporterTest {
         assertEquals(null, context.etas().get(0), "an unknown total has no ETA");
     }
 
+    @Test
+    void resumeOffsetReportsAbsoluteSourcePositions() {
+        RecordingContext context = new RecordingContext();
+        AtomicLong clock = new AtomicLong();
+        ImportProgressReporter reporter = new ImportProgressReporter(context, 10_000L, 7_000L, clock::get);
+        clock.set(2_000_000_000L);
+
+        reporter.report(1_000L);
+
+        assertEquals(List.of(80), context.progressValues());
+        assertEquals(List.of(8_000L), context.processedRows(), "the position includes the skipped prefix");
+        assertEquals(List.of(10_000L), context.totalRows());
+        assertEquals(500.0d, context.rates().get(0), 0.001d, "the rate measures only this run");
+        assertEquals(4L, context.etas().get(0));
+        assertTrue(context.messages().get(0).startsWith("Imported 8000 of 10000 rows"),
+                context.messages().get(0));
+    }
+
     private static final class RecordingContext implements TaskExecutionContext {
 
         private final List<Integer> progressValues = new ArrayList<>();

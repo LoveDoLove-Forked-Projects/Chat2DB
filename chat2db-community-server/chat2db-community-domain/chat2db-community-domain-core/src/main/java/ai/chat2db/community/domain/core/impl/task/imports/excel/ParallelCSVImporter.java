@@ -8,6 +8,7 @@ import ai.chat2db.community.domain.api.service.task.TaskExecutionContext;
 import ai.chat2db.community.domain.core.impl.task.imports.BaseImporter;
 import ai.chat2db.community.domain.core.impl.task.imports.ImportCheckpointWriter;
 import ai.chat2db.community.domain.core.impl.task.imports.ImportErrorRecorder;
+import ai.chat2db.community.domain.core.impl.task.imports.ImportResumability;
 import ai.chat2db.community.domain.core.impl.task.imports.ImportRowBatcher;
 import ai.chat2db.community.domain.core.impl.task.imports.ImportRowSkipper;
 import ai.chat2db.community.domain.core.impl.task.imports.ImportRowSqlBuilder;
@@ -35,7 +36,8 @@ final class ParallelCSVImporter extends BaseImporter {
         try {
             CsvImportReader.read(new File(spec.getSourceFile()), options, Integer.MAX_VALUE,
                     CSVImporter.mappedSourceColumnCount(spec),
-                    headers -> batcher[0] = createBatcher(context, headers, rowSqlBuilder, checkpoints, errors),
+                    headers -> batcher[0] = createBatcher(context, headers, rowSqlBuilder, checkpoints, errors,
+                            ImportResumability.resumeOffset(spec)),
                     (row, rowNumber) -> {
                         if (skipper.skipNext()) {
                             return;
@@ -80,8 +82,8 @@ final class ParallelCSVImporter extends BaseImporter {
 
     private ImportRowBatcher createBatcher(TaskExecutionContext context,
             Map<Integer, String> headers, ImportRowSqlBuilder rowSqlBuilder,
-            ImportCheckpointWriter checkpoints, ImportErrorRecorder errors) {
+            ImportCheckpointWriter checkpoints, ImportErrorRecorder errors, long resumeOffset) {
         rowSqlBuilder.acceptHead(headers);
-        return new ImportRowBatcher(context, checkpoints, errors);
+        return new ImportRowBatcher(context, checkpoints, errors, resumeOffset);
     }
 }

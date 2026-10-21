@@ -9,6 +9,7 @@ import ai.chat2db.community.domain.core.impl.task.imports.BaseImporter;
 import ai.chat2db.community.domain.core.impl.task.imports.ImportCheckpointWriter;
 import ai.chat2db.community.domain.core.impl.task.imports.ImportErrorRecorder;
 import ai.chat2db.community.domain.core.impl.task.imports.ImportProgressReporter;
+import ai.chat2db.community.domain.core.impl.task.imports.ImportResumability;
 import ai.chat2db.community.domain.core.impl.task.imports.ImportRowSkipper;
 import ai.chat2db.community.domain.core.impl.task.imports.ImportRowSqlBuilder;
 import ai.chat2db.community.domain.core.impl.task.imports.ImportSqlExecutor;
@@ -36,7 +37,8 @@ public class JSONImporter extends BaseImporter {
                     : spec.getColumnMappings().stream().map(mapping -> mapping.getSourceColumn()).toList();
             for (int index = 0; index < names.size(); index++) header.put(index, names.get(index));
             builder.acceptHead(header);
-            ImportProgressReporter progressReporter = new ImportProgressReporter(context);
+            ImportProgressReporter progressReporter = new ImportProgressReporter(context, null,
+                    ImportResumability.resumeOffset(spec));
             // Counts every source record, including the ones the failure policy rejects, so the
             // resumable position never lags behind an already-stored row.
             AtomicLong consumedRows = new AtomicLong();
