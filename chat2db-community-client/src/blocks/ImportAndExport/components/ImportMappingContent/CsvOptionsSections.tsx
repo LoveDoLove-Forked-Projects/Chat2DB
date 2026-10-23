@@ -11,11 +11,12 @@ import { useStyles } from './style';
 interface Props {
   value: ICsvOptions;
   disabled?: boolean;
+  fillHeight?: boolean;
   dataItems: CollapseProps['items'];
   onChange: (value: ICsvOptions) => void;
 }
 
-const CsvOptionsSections = ({ value, disabled, dataItems, onChange }: Props) => {
+const CsvOptionsSections = ({ value, disabled, fillHeight, dataItems, onChange }: Props) => {
   const { styles } = useStyles();
   const update = (patch: Partial<ICsvOptions>) => onChange({ ...value, ...patch });
   const characterProps = {
@@ -28,6 +29,7 @@ const CsvOptionsSections = ({ value, disabled, dataItems, onChange }: Props) => 
 
   return (
     <OptionsSections
+      fillHeight={fillHeight}
       items={[
         {
           key: 'csvFormat',

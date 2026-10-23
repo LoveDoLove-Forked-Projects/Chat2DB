@@ -7,6 +7,28 @@ export const useStyles = createStyles(({ css, cx, token }) => {
     flex-shrink: 0;
   `);
   return {
+    fillHeight: css`
+      display: flex;
+      height: 100%;
+      min-height: 226px;
+      flex-direction: column;
+
+      .ant-upload-drag,
+      .ant-upload-btn,
+      .ant-upload-drag-container {
+        height: 100%;
+      }
+    `,
+    grow: css`
+      flex: 1;
+      min-height: 0;
+    `,
+    fillDragger: css`
+      height: 100%;
+      justify-content: center;
+      padding: 24px;
+      box-sizing: border-box;
+    `,
     uploadDragger: css`
       display: flex;
       flex-direction: column;

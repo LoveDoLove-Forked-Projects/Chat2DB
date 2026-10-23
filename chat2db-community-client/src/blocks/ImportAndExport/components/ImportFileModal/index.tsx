@@ -11,7 +11,7 @@ import Log from '@/blocks/ImportAndExport/components/Log';
 import { ImportExportTaskDetails } from '@/typings/importExport';
 import ImportWizard from '@/blocks/ImportAndExport/components/ImportWizard';
 import TaskLogActions from '@/blocks/ImportAndExport/components/TaskLogActions';
-import { getImportWizardStepTitleKey } from '@/blocks/ImportAndExport/utils/importWizardSteps';
+import type { ImportWizardStepTitleKey } from '@/blocks/ImportAndExport/utils/importWizardSteps';
 import {
   IMPORT_TARGET_TABLE_REFRESH_EVENT,
   shouldRefreshImportTargetTable,
@@ -28,7 +28,7 @@ export default memo<IProps>((_props) => {
   const [taskId, setTaskId] = useState<number>();
   const [taskDetails, setTaskDetails] = useState<ImportExportTaskDetails>();
   /** The wizard reports its step so the dialog title can name it; null while it is not running. */
-  const [wizardStep, setWizardStep] = useState<number | null>(null);
+  const [wizardStepTitleKey, setWizardStepTitleKey] = useState<ImportWizardStepTitleKey | null>(null);
 
   const { importExportDataBoundInfo, importExportPrefill, setImportExportDataBoundInfo, getTaskList } =
     useImportExportStore((state) => {
@@ -46,12 +46,12 @@ export default memo<IProps>((_props) => {
     if (!importExportDataBoundInfo) {
       setTaskId(undefined);
       setTaskDetails(undefined);
-      setWizardStep(null);
+      setWizardStepTitleKey(null);
       previousTaskDetailsRef.current = undefined;
     }
   }, [importExportDataBoundInfo]);
 
-  /** Exports keep the single form; imports run through the four-step wizard. */
+  /** Exports keep the single form; imports use the file-format-specific wizard. */
   const handleRunExport = async () => {
     const params = importExportFileRef.current?.getValues();
     // The export form always builds a table export; anything else belongs to the import wizard.
@@ -122,9 +122,8 @@ export default memo<IProps>((_props) => {
   };
 
   // The import wizard has no step bar, so the dialog title names the step it is showing.
-  const wizardStepTitleKey = isImport && !taskId && wizardStep != null ? getImportWizardStepTitleKey(wizardStep) : null;
   const dialogTitle = isImport
-    ? wizardStepTitleKey
+    ? !taskId && wizardStepTitleKey
       ? `${i18n('workspace.menu.importData')} · ${i18n(wizardStepTitleKey)}`
       : i18n('workspace.menu.importData')
     : i18n('workspace.menu.exportData');
@@ -136,7 +135,7 @@ export default memo<IProps>((_props) => {
       cancelText={i18n('common.button.cancel')}
       title={dialogTitle}
       headerIconCode={isImport ? 'icon-upload' : 'icon-download'}
-      width={isImport ? 960 : undefined}
+      width={isImport ? 1020 : undefined}
       centered
       destroyOnClose
       footer={taskId ? logRenderFooter() : isImport ? null : renderFooter()}
@@ -148,7 +147,11 @@ export default memo<IProps>((_props) => {
       {taskId ? (
         <Log onTaskChange={handleTaskChange} taskId={taskId} />
       ) : isImport ? (
-        <ImportWizard restoredSpec={importExportPrefill} onSubmitted={handleSubmitted} onStepChange={setWizardStep} />
+        <ImportWizard
+          restoredSpec={importExportPrefill}
+          onSubmitted={handleSubmitted}
+          onStepTitleChange={setWizardStepTitleKey}
+        />
       ) : (
         <ImportExportFile ref={importExportFileRef} restoredSpec={importExportPrefill} setIsReady={setIsReady} />
       )}

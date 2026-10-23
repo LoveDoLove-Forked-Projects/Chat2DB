@@ -50,12 +50,22 @@ const IMPORT_WIZARD_STEP_TITLE_KEYS = {
 } as const;
 
 /** i18n key of the step name, for the wizard title; null when the step is out of range. */
-export type ImportWizardStepTitleKey = (typeof IMPORT_WIZARD_STEP_TITLE_KEYS)[ImportWizardStepKey];
+export type ImportWizardStepTitleKey =
+  | (typeof IMPORT_WIZARD_STEP_TITLE_KEYS)[ImportWizardStepKey]
+  | 'workspace.importExport.wizard.stepSqlConfirm';
 
-export const getImportWizardStepTitleKey = (step: number): ImportWizardStepTitleKey | null => {
+export const getImportWizardStepTitleKey = (step: number, isSql = false): ImportWizardStepTitleKey | null => {
+  if (isSql && step === IMPORT_WIZARD_LAST_STEP) return 'workspace.importExport.wizard.stepSqlConfirm';
   const stepKey = IMPORT_WIZARD_STEPS[step];
   return stepKey ? IMPORT_WIZARD_STEP_TITLE_KEYS[stepKey] : null;
 };
+
+/** SQL has only file selection and confirmation; its encoding is edited on confirmation. */
+export const getImportWizardNextStep = (step: number, isSql = false): number =>
+  isSql ? IMPORT_WIZARD_LAST_STEP : Math.min(step + 1, IMPORT_WIZARD_LAST_STEP);
+
+export const getImportWizardPreviousStep = (step: number, isSql = false): number =>
+  isSql ? 0 : Math.max(0, step - 1);
 
 export const isImportWizardLastStep = (step: number): boolean => step >= IMPORT_WIZARD_LAST_STEP;
 

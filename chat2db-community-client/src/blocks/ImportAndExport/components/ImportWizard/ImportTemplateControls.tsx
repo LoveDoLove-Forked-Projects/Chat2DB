@@ -10,8 +10,8 @@ interface IProps {
 }
 
 /**
- * Save entry point for the format preset of the wizard's format step, rendered next to the cancel
- * button of that step. A preset stores exactly the option group the step shows and the file type it
+ * Save entry point for the format preset of the wizard's format step, rendered in the format
+ * toolbar. A preset stores exactly the option group the step shows and the file type it
  * belongs to, so there is nothing else to pick here; storage access stays in
  * `utils/importTemplates`.
  */
@@ -35,7 +35,7 @@ export default function ImportTemplateControls({ fileType, disabled, onSave }: I
 
   return (
     <>
-      <Button disabled={disabled} onClick={openSave}>
+      <Button type="link" size="small" disabled={disabled} onClick={openSave}>
         {fileType
           ? i18n('workspace.importExport.template.saveTyped', fileType)
           : i18n('workspace.importExport.template.save')}

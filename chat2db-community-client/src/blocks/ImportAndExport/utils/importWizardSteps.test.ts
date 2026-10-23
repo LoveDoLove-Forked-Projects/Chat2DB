@@ -4,6 +4,8 @@ import {
   canAdvanceImportWizard,
   canPressImportWizardNext,
   getImportWizardStepTitleKey,
+  getImportWizardNextStep,
+  getImportWizardPreviousStep,
   IMPORT_WIZARD_LAST_STEP,
   IMPORT_WIZARD_STEPS,
   isImportWizardLastStep,
@@ -43,6 +45,27 @@ test('lets a SQL script import skip the preview requirement', () => {
   const sqlState = state({ fileSelected: true, previewRequired: false, previewStatus: 'idle' });
   assert.equal(canAdvanceImportWizard(1, sqlState), true);
   assert.equal(shouldLoadImportPreviewOnAdvance(1, sqlState), false);
+});
+
+test('SQL goes directly to confirmation and returns to its selected file', () => {
+  assert.equal(getImportWizardNextStep(0, true), IMPORT_WIZARD_LAST_STEP);
+  assert.equal(getImportWizardPreviousStep(IMPORT_WIZARD_LAST_STEP, true), 0);
+  assert.equal(getImportWizardNextStep(IMPORT_WIZARD_LAST_STEP, true), IMPORT_WIZARD_LAST_STEP);
+  assert.equal(getImportWizardPreviousStep(0, true), 0);
+  assert.equal(getImportWizardStepTitleKey(IMPORT_WIZARD_LAST_STEP, true),
+    'workspace.importExport.wizard.stepSqlConfirm');
+});
+
+test('data files retain format, mapping and confirmation in both directions', () => {
+  let step = 0;
+  const forward = [step];
+  for (let count = 0; count < 3; count += 1) {
+    step = getImportWizardNextStep(step);
+    forward.push(step);
+  }
+  assert.deepEqual(forward, [0, 1, 2, 3]);
+  assert.deepEqual(forward.map((current) => getImportWizardPreviousStep(current)), [0, 0, 1, 2]);
+  assert.equal(getImportWizardNextStep(IMPORT_WIZARD_LAST_STEP), IMPORT_WIZARD_LAST_STEP);
 });
 
 test('loads the preview exactly when leaving the format step without one', () => {

@@ -28,6 +28,7 @@ import type { ISqlImportOptions } from '@/typings/importExport';
 
 interface IProps {
   className?: string;
+  fillHeight?: boolean;
   /** Present when the wizard was opened from a finished task ("new from this configuration"). */
   restoredSpec?: RestoredTaskSpec | null;
   setIsReady?: (p: boolean) => void;
@@ -76,6 +77,8 @@ const exportTypeOptions = [
 
 const ImportExportFile = forwardRef((props: IProps, ref: ForwardedRef<ImportExportFileRef>) => {
   const {
+    className,
+    fillHeight = false,
     restoredSpec,
     setIsReady,
     onImportFileChange,
@@ -86,7 +89,7 @@ const ImportExportFile = forwardRef((props: IProps, ref: ForwardedRef<ImportExpo
     targetTableName,
     targetTableField,
   } = props;
-  const { styles } = useStyles();
+  const { styles, cx } = useStyles();
   const [form] = Form.useForm();
   const [internalSqlImportOptions, setInternalSqlImportOptions] = useState(
     () => restoredSpec?.sqlImportOptions ?? DEFAULT_SQL_IMPORT_OPTIONS,
@@ -210,7 +213,7 @@ const ImportExportFile = forwardRef((props: IProps, ref: ForwardedRef<ImportExpo
 
   return (
     <Form
-      className={styles.form}
+      className={cx(styles.form, className, fillHeight && styles.fillHeight)}
       layout="vertical"
       form={form}
       autoComplete="off"
@@ -228,6 +231,7 @@ const ImportExportFile = forwardRef((props: IProps, ref: ForwardedRef<ImportExpo
           type="info"
         />
       ) : null}
+      <div className={fillHeight ? styles.fileSettings : undefined}>
       <Form.Item
         label={`${i18n(
           isExport
@@ -243,6 +247,7 @@ const ImportExportFile = forwardRef((props: IProps, ref: ForwardedRef<ImportExpo
       <Form.Item label={`${i18n('workspace.importExport.fileType')}:`} name="exportType">
         <Select options={exportTypeOptions} />
       </Form.Item>
+      </div>
       {isExport && (
         // The header switch precedes the destination: it changes the file, the destination does not.
         <Form.Item label={`${i18n('workspace.importExport.containsHeader')}:`} name="containsHeader" valuePropName="checked">
@@ -285,8 +290,12 @@ const ImportExportFile = forwardRef((props: IProps, ref: ForwardedRef<ImportExpo
         </Form.Item>
       )}
       {isImport && (
-        <Form.Item>
-          <UploadLocalFile fileUrlListChange={handleSelectedFilesChange} accept={uploadLocalFileAccept} />
+        <Form.Item className={fillHeight ? styles.fileField : undefined}>
+          <UploadLocalFile
+            fillHeight={fillHeight}
+            fileUrlListChange={handleSelectedFilesChange}
+            accept={uploadLocalFileAccept}
+          />
         </Form.Item>
       )}
       {isImport && formValue.exportType === ImportExportFileType.SQL && !hideSqlImportOptions && (

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Button, Descriptions, Modal, Select, Spin } from 'antd';
+import { Alert, Button, Modal, Spin } from 'antd';
 import { TriangleAlert } from 'lucide-react';
 import { staticMessage } from '@chat2db/ui';
 import i18n from '@/i18n';
@@ -43,6 +43,9 @@ import {
 } from '@/blocks/ImportAndExport/utils/importTemplates';
 import {
   canPressImportWizardNext,
+  getImportWizardNextStep,
+  getImportWizardPreviousStep,
+  getImportWizardStepTitleKey,
   IMPORT_PREVIEW_AUTO_LOAD_DELAY_MS,
   IMPORT_WIZARD_FORMAT_STEP,
   IMPORT_WIZARD_LAST_STEP,
@@ -50,6 +53,7 @@ import {
   shouldAutoLoadImportPreview,
   shouldLoadImportPreviewOnAdvance,
   type ImportWizardPreviewStatus,
+  type ImportWizardStepTitleKey,
 } from '@/blocks/ImportAndExport/utils/importWizardSteps';
 import { planImportTargetTableSwitch } from '@/blocks/ImportAndExport/utils/importTargetTables';
 import {
@@ -62,12 +66,12 @@ import {
   getImportPreviewErrorMessage,
 } from '../ImportMappingContent/mapping';
 import { stageSelectedImportFile } from '../ImportMappingContent/fileStaging';
-import useImportDataSections from '../ImportMappingContent/ImportDataSections';
+import ImportDataPanels from '../ImportMappingContent/ImportDataPanels';
+import OptionsSections from '../ImportMappingContent/OptionsSections';
 import CsvOptionsSections from '../ImportMappingContent/CsvOptionsSections';
 import ExcelOptionsSections from '../ImportMappingContent/ExcelOptionsSections';
 import JsonOptionsSections from '../ImportMappingContent/JsonOptionsSections';
 import SqlImportOptionsFields from '../SqlImportOptionsFields';
-import ImportModeControl from '../ImportModeControl';
 import ImportExportFile, { type ImportExportFileRef } from '../ImportExportFile';
 import { prepareWebImportParams } from '../ImportFileModal/submission';
 import type { FileUrl } from '@/components/UploadLocalFile';
@@ -75,14 +79,16 @@ import { isDesktop } from '@/utils/env';
 import ImportTemplateControls from './ImportTemplateControls';
 import ImportTemplateSelect from './ImportTemplateSelect';
 import TargetTableSelect from './TargetTableSelect';
+import ImportPolicyFields from './ImportPolicyFields';
+import ImportSummary from './ImportSummary';
 import { useStyles } from './style';
 
 interface IProps {
   /** Prefill produced by "new from this configuration"; null for a regular import. */
   restoredSpec?: RestoredTaskSpec | null;
   onSubmitted: (taskId: number) => void;
-  /** Reports the visible step so the owner can name it in the dialog title. */
-  onStepChange?: (step: number) => void;
+  /** Reports a locale-independent key so the owner can name the visible step. */
+  onStepTitleChange?: (key: ImportWizardStepTitleKey | null) => void;
 }
 
 /** The one option group the current file format sends to the preview and execute endpoints. */
@@ -113,15 +119,15 @@ const describeCharacter = (value: string) => {
 };
 
 /**
- * Four-step import wizard: file, format options, mapping + preview, confirmation.
+ * Data files use four steps; SQL scripts edit their encoding directly on confirmation.
  *
  * The format step owns the preview request: it is sent when the step is entered or an option
  * changes, and the mapping step reuses it while the configuration stays the same. The file step can
  * switch the target table, which drops the mapping of the previous table and asks for a new preview.
  * Mapping templates live in the backend user data directory through `utils/importTemplates`.
  */
-export default function ImportWizard({ restoredSpec, onSubmitted, onStepChange }: IProps) {
-  const { styles } = useStyles();
+export default function ImportWizard({ restoredSpec, onSubmitted, onStepTitleChange }: IProps) {
+  const { styles, cx } = useStyles();
   const [modal, modalContextHolder] = Modal.useModal();
   const importExportFileRef = useRef<ImportExportFileRef>(null);
   const stagingRef = useRef<{ file: FileUrl; promise: Promise<string> } | null>(null);
@@ -461,24 +467,6 @@ export default function ImportWizard({ restoredSpec, onSubmitted, onStepChange }
   const mappedTargetCount = Object.values(mapping).filter(
     (target) => target && target !== SKIP_IMPORT_SOURCE_FIELD,
   ).length;
-  const mappedPairs = Object.entries(mapping)
-    .filter(([, target]) => target && target !== SKIP_IMPORT_SOURCE_FIELD)
-    .map(([source, target]) => `${source} → ${target}`);
-  const dataSectionItems = useImportDataSections({
-    preview,
-    mapping,
-    duplicateMappings,
-    blockedColumnNames: new Set(blockedColumns.map(({ name }) => name)),
-    unmappedTarget,
-    emptyAsNull,
-    emptyAsNullLabel: i18n(isJson ? 'workspace.importExport.emptyStringAsNull' : 'workspace.importExport.emptyAsNull'),
-    loading: loadingPreview,
-    disabled: executing,
-    onMappingChange: (sourceColumn, targetColumn) =>
-      setMapping((current) => ({ ...current, [sourceColumn]: targetColumn })),
-    onUnmappedTargetChange: setUnmappedTarget,
-    onEmptyAsNullChange: setEmptyAsNull,
-  });
   // A failed preview keeps the button clickable so the user can retry it by hand.
   const canPressNext = canPressImportWizardNext(step, gateState);
   // The format step reports parsing problems inline next to its own retry button.
@@ -530,7 +518,7 @@ export default function ImportWizard({ restoredSpec, onSubmitted, onStepChange }
       }
     }
     setTargetTableNotice(null);
-    setStep((current) => Math.min(current + 1, IMPORT_WIZARD_LAST_STEP));
+    setStep((current) => getImportWizardNextStep(current, isSql));
   };
 
   const currentTemplateFormatOptions = (): ImportTemplateFormatOptions | undefined => {
@@ -729,21 +717,21 @@ export default function ImportWizard({ restoredSpec, onSubmitted, onStepChange }
   const targetDisplay = [dataSourceName, databaseName, schemaName, isSql ? undefined : tableName]
     .filter(Boolean)
     .join('/');
-  const formatHighlights = useMemo(() => {
+  const formatHighlights = (() => {
     if (isCsv) {
       return [
-        { label: i18n('workspace.importExport.encoding'), value: csvOptions.encoding },
-        { label: i18n('workspace.importExport.delimiter'), value: describeCharacter(csvOptions.delimiter) },
-        { label: i18n('workspace.importExport.textQualifier'), value: describeCharacter(csvOptions.quote) },
+        { key: 'encoding', label: i18n('workspace.importExport.encoding'), value: csvOptions.encoding === 'AUTO' ? i18n('workspace.fileEncoding.autoDetect') : csvOptions.encoding },
+        { key: 'delimiter', label: i18n('workspace.importExport.delimiter'), value: describeCharacter(csvOptions.delimiter) },
+        { key: 'quote', label: i18n('workspace.importExport.textQualifier'), value: describeCharacter(csvOptions.quote) },
         {
-          label: i18n('workspace.importExport.sourceRows'),
+          key: 'header', label: i18n('workspace.importExport.sourceRows'),
           value: csvOptions.hasHeader
             ? `${i18n('workspace.importExport.headerRow')}: ${csvOptions.headerRow}`
             : i18n('workspace.importExport.noHeader'),
         },
-        { label: i18n('workspace.importExport.dataStartRow'), value: String(csvOptions.dataStartRow) },
+        { key: 'startRow', label: i18n('workspace.importExport.dataStartRow'), value: String(csvOptions.dataStartRow) },
         {
-          label: i18n('workspace.importExport.dataEndRow'),
+          key: 'endRow', label: i18n('workspace.importExport.dataEndRow'),
           value:
             csvOptions.dataEndRow == null ? i18n('workspace.importExport.endOfFile') : String(csvOptions.dataEndRow),
         },
@@ -752,47 +740,47 @@ export default function ImportWizard({ restoredSpec, onSubmitted, onStepChange }
     if (isExcel) {
       return [
         {
-          label: i18n('workspace.importExport.sheet'),
+          key: 'sheet', label: i18n('workspace.importExport.sheet'),
           value: sheets[excelOptions.sheetIndex] ?? String(excelOptions.sheetIndex),
         },
-        { label: i18n('workspace.importExport.columnRange'), value: excelOptions.columnRange || '-' },
+        { key: 'columnRange', label: i18n('workspace.importExport.columnRange'), value: excelOptions.columnRange || '-' },
         {
-          label: i18n('workspace.importExport.sourceRows'),
+          key: 'header', label: i18n('workspace.importExport.sourceRows'),
           value: excelOptions.hasHeader
             ? `${i18n('workspace.importExport.headerRow')}: ${excelOptions.headerRow}`
             : i18n('workspace.importExport.noHeader'),
         },
-        { label: i18n('workspace.importExport.dataStartRow'), value: String(excelOptions.dataStartRow) },
+        { key: 'startRow', label: i18n('workspace.importExport.dataStartRow'), value: String(excelOptions.dataStartRow) },
       ];
     }
     if (isJson) {
       return [
-        { label: i18n('workspace.importExport.encoding'), value: jsonOptions.encoding },
+        { key: 'encoding', label: i18n('workspace.importExport.encoding'), value: jsonOptions.encoding },
         {
-          label: i18n('workspace.importExport.jsonStructure'),
+          key: 'jsonStructure', label: i18n('workspace.importExport.jsonStructure'),
           value: i18n(`workspace.importExport.json${jsonOptions.structure}`),
         },
-        { label: i18n('workspace.importExport.jsonDataPath'), value: jsonOptions.dataPath },
+        { key: 'jsonPath', label: i18n('workspace.importExport.jsonDataPath'), value: jsonOptions.dataPath },
       ];
     }
-    return [{ label: i18n('workspace.importExport.encoding'), value: sqlImportOptions.encoding }];
-  }, [isCsv, isExcel, isJson, csvOptions, excelOptions, jsonOptions, sheets, sqlImportOptions]);
+    return [];
+  })();
 
   // The step bar is gone, so the dialog title names the step the user is looking at.
   useEffect(() => {
-    onStepChange?.(step);
-  }, [onStepChange, step]);
+    onStepTitleChange?.(getImportWizardStepTitleKey(step, isSql));
+  }, [onStepTitleChange, step, isSql]);
 
   if (!importExportDataBoundInfo) {
     return null;
   }
 
   return (
-    <div className={styles.container}>
+    <div className={cx(styles.container, isSql && styles.sqlContainer)}>
       {modalContextHolder}
-      <div className={styles.scrollContent}>
+      <div className={cx(styles.scrollContent, step === 2 && styles.mappingScrollContent)}>
         {stepError && <Alert className={styles.errorAlert} type="error" showIcon message={stepError} />}
-        <div className={styles.stepPanel} hidden={step !== 0}>
+        <div className={styles.fileStep} hidden={step !== 0}>
           {targetTableNotice && (
             <Alert
               className={styles.errorAlert}
@@ -802,6 +790,7 @@ export default function ImportWizard({ restoredSpec, onSubmitted, onStepChange }
             />
           )}
           <ImportExportFile
+            fillHeight
             ref={importExportFileRef}
             restoredSpec={restoredSpec}
             onImportFileChange={handleImportFileChange}
@@ -824,17 +813,25 @@ export default function ImportWizard({ restoredSpec, onSubmitted, onStepChange }
             }
           />
         </div>
-        {step === 1 && (
-          <div className={styles.stepPanel}>
-            {!isSql && (
-              <ImportTemplateSelect
-                templates={visibleTemplates}
-                fileType={fileFormat}
-                disabled={executing}
-                onApply={handleApplyTemplate}
-                onDelete={handleDeleteTemplate}
-              />
-            )}
+        {step === 1 && !isSql && (
+          <div className={styles.formatStep}>
+            <div className={styles.formatToolbar}>
+              <h3 className={styles.sectionTitle}>{fileFormat} · {i18n('workspace.importExport.wizard.stepFormat')}</h3>
+              <div className={styles.templateActions}>
+                <ImportTemplateControls
+                  disabled={executing || !previewReady}
+                  fileType={fileFormat}
+                  onSave={handleSaveTemplate}
+                />
+                <ImportTemplateSelect
+                  templates={visibleTemplates}
+                  fileType={fileFormat}
+                  disabled={executing}
+                  onApply={handleApplyTemplate}
+                  onDelete={handleDeleteTemplate}
+                />
+              </div>
+            </div>
             {/* Parsing reports itself through the options and the button state; only a failure
                 earns a line, with the way out next to it. */}
             {previewRequired && (previewError || stagingError) && (
@@ -846,13 +843,26 @@ export default function ImportWizard({ restoredSpec, onSubmitted, onStepChange }
               </div>
             )}
             {isCsv && (
-              <CsvOptionsSections value={csvOptions} disabled={executing} dataItems={[]} onChange={setCsvOptions} />
+              <CsvOptionsSections
+                fillHeight
+                value={csvOptions}
+                disabled={executing}
+                dataItems={[]}
+                onChange={setCsvOptions}
+              />
             )}
             {isJson && (
-              <JsonOptionsSections value={jsonOptions} disabled={executing} dataItems={[]} onChange={setJsonOptions} />
+              <JsonOptionsSections
+                fillHeight
+                value={jsonOptions}
+                disabled={executing}
+                dataItems={[]}
+                onChange={setJsonOptions}
+              />
             )}
             {isExcel && (
               <ExcelOptionsSections
+                fillHeight
                 value={excelOptions}
                 sheets={sheets}
                 disabled={executing}
@@ -860,24 +870,26 @@ export default function ImportWizard({ restoredSpec, onSubmitted, onStepChange }
                 onChange={setExcelOptions}
               />
             )}
-            {isSql && <SqlImportOptionsFields value={sqlImportOptions} onChange={setSqlImportOptions} />}
           </div>
         )}
-        {step === 2 && (
-          <div className={styles.stepPanel}>
-            {isSql ? (
-              <Alert type="info" showIcon message={i18n('workspace.importExport.wizard.sqlNoMapping')} />
-            ) : preview ? (
-              <>
-                {(dataSectionItems || []).map((item) =>
-                  item ? (
-                    <section key={String(item.key)} className={styles.sectionBlock}>
-                      <div className={styles.sectionTitle}>{item.label}</div>
-                      {item.children}
-                    </section>
-                  ) : null,
-                )}
-              </>
+        {step === 2 && !isSql && (
+          <div className={styles.mappingStep}>
+            {preview ? (
+              <ImportDataPanels
+                preview={preview}
+                mapping={mapping}
+                duplicateMappings={duplicateMappings}
+                blockedColumnNames={new Set(blockedColumns.map(({ name }) => name))}
+                unmappedTarget={unmappedTarget}
+                emptyAsNull={emptyAsNull}
+                emptyAsNullLabel={i18n(isJson
+                  ? 'workspace.importExport.emptyStringAsNull' : 'workspace.importExport.emptyAsNull')}
+                loading={loadingPreview}
+                disabled={executing}
+                onMappingChange={(source, target) => setMapping((current) => ({ ...current, [source]: target }))}
+                onUnmappedTargetChange={setUnmappedTarget}
+                onEmptyAsNullChange={setEmptyAsNull}
+              />
             ) : (
               <div className={styles.previewState}>
                 {previewError || stagingError ? (
@@ -885,180 +897,78 @@ export default function ImportWizard({ restoredSpec, onSubmitted, onStepChange }
                     <TriangleAlert size={24} />
                     <span>{previewError ?? stagingError}</span>
                   </div>
-                ) : (
-                  <Spin />
-                )}
+                ) : <Spin />}
               </div>
             )}
           </div>
         )}
         {step === IMPORT_WIZARD_LAST_STEP && (
           <div className={styles.stepPanel}>
-            {previewRequired && (
+            {isSql && (
               <div className={styles.policySection}>
-                <div className={styles.sectionTitle}>{i18n('workspace.importExport.policy.title')}</div>
-                <div className={styles.policyRow}>
-                  <div className={styles.policyField}>
-                    <span className={styles.policyLabel}>
-                      {i18n('workspace.importExport.policy.duplicateLabel')}
-                    </span>
-                    <Select<ImportDuplicatePolicy>
-                      className={styles.policySelect}
-                      size="small"
-                      value={duplicatePolicy}
-                      disabled={executing}
-                      onChange={setDuplicatePolicy}
-                      options={[
-                        {
-                          value: 'INSERT',
-                          label: i18n('workspace.importExport.policy.duplicateInsert'),
-                        },
-                        {
-                          value: 'IGNORE',
-                          label: i18n('workspace.importExport.policy.duplicateIgnore'),
-                          disabled: !supportsDuplicateIgnore(databaseType),
-                        },
-                      ]}
-                    />
-                  </div>
-                  <div className={styles.policyField}>
-                    <span className={styles.policyLabel}>
-                      {i18n('workspace.importExport.policy.failureLabel')}
-                    </span>
-                    <Select<ImportFailurePolicy>
-                      className={styles.policySelect}
-                      size="small"
-                      value={failurePolicy}
-                      disabled={executing}
-                      onChange={setFailurePolicy}
-                      options={[
-                        { value: 'ABORT', label: i18n('workspace.importExport.policy.failureAbort') },
-                        {
-                          value: 'SKIP_ERROR_ROWS',
-                          label: i18n('workspace.importExport.policy.failureSkip'),
-                        },
-                      ]}
-                    />
-                  </div>
-                </div>
-                {duplicatePolicy === 'IGNORE' && (
-                  <div className={styles.policyHint}>
-                    {i18n('workspace.importExport.policy.duplicateIgnoreHint')}
-                  </div>
-                )}
-                {failurePolicy === 'SKIP_ERROR_ROWS' && (
-                  <div className={styles.policyHint}>
-                    {i18n('workspace.importExport.policy.failureSkipHint')}
-                  </div>
-                )}
+                <OptionsSections
+                  fillHeight
+                  items={[{
+                    key: 'sqlFormat',
+                    label: i18n('workspace.importExport.wizard.stepFormat'),
+                    children: (
+                      <SqlImportOptionsFields
+                        value={sqlImportOptions}
+                        disabled={executing}
+                        onChange={setSqlImportOptions}
+                      />
+                    ),
+                  }]}
+                />
               </div>
             )}
-            <Descriptions
-              className={styles.summary}
-              size="small"
-              bordered
-              column={1}
+            {previewRequired && (
+              <ImportPolicyFields
+                duplicatePolicy={duplicatePolicy}
+                failurePolicy={failurePolicy}
+                mode={mode}
+                canIgnore={supportsDuplicateIgnore(databaseType)}
+                showMode={isCsv}
+                disabled={executing}
+                onDuplicatePolicyChange={setDuplicatePolicy}
+                onFailurePolicyChange={setFailurePolicy}
+                onModeChange={setMode}
+              />
+            )}
+            <ImportSummary
+              fileName={selectedFileName || '—'}
+              fileFormat={fileFormat ?? ''}
+              target={targetDisplay}
+              targetLabel={i18n(isSql
+                ? 'workspace.importExport.executionEnvironment' : 'workspace.importExport.wizard.summaryTarget')}
+              disabled={executing}
+              onEditSource={() => setStep(0)}
               items={[
-                { key: 'target', label: i18n('workspace.importExport.wizard.summaryTarget'), children: targetDisplay },
-                {
-                  key: 'file',
-                  label: i18n('workspace.importExport.wizard.summaryFile'),
-                  children: selectedFileName || '-',
-                },
-                {
-                  key: 'format',
-                  label: i18n('workspace.importExport.wizard.summaryFormat'),
-                  children: (
-                    <div className={styles.summaryValue}>
-                      {formatHighlights.map(({ label, value }) => (
-                        <div key={label}>
-                          {label}: {value}
-                        </div>
-                      ))}
-                    </div>
-                  ),
-                },
-                {
-                  key: 'mapping',
-                  label: i18n('workspace.importExport.wizard.summaryMapping'),
-                  children: previewRequired ? (
-                    <div className={styles.summaryValue}>
-                      <div>{i18n('workspace.importExport.wizard.mappingCountValue', mappedTargetCount)}</div>
-                      {mappedPairs.length > 0 && <div>{mappedPairs.join(' · ')}</div>}
-                    </div>
-                  ) : (
-                    i18n('workspace.importExport.wizard.notApplicable')
-                  ),
-                },
-                ...(appliedTemplateName
-                  ? [
-                      {
-                        key: 'template',
-                        label: i18n('workspace.importExport.wizard.summaryTemplate'),
-                        children: i18n('workspace.importExport.wizard.templateFrom', appliedTemplateName),
-                      },
-                    ]
-                  : []),
-                {
-                  key: 'unmapped',
-                  label: i18n('workspace.importExport.wizard.summaryUnmapped'),
-                  children: previewRequired
-                    ? `${i18n(
-                        unmappedTarget === ImportUnmappedTarget.NULL
-                          ? 'workspace.importExport.unmappedNull'
-                          : 'workspace.importExport.unmappedDefault',
-                      )} · ${
-                        emptyAsNull
-                          ? i18n('workspace.importExport.wizard.emptyAsNullOn')
-                          : i18n('workspace.importExport.wizard.emptyAsNullOff')
-                      }`
-                    : i18n('workspace.importExport.wizard.notApplicable'),
-                },
-                ...(previewRequired
-                  ? [
-                      {
-                        key: 'duplicatePolicy',
-                        label: i18n('workspace.importExport.wizard.summaryDuplicatePolicy'),
-                        children:
-                          duplicatePolicy === 'IGNORE'
-                            ? i18n('workspace.importExport.policy.duplicateIgnore')
-                            : i18n('workspace.importExport.policy.duplicateInsert'),
-                      },
-                      {
-                        key: 'failurePolicy',
-                        label: i18n('workspace.importExport.wizard.summaryFailurePolicy'),
-                        children:
-                          failurePolicy === 'SKIP_ERROR_ROWS'
-                            ? i18n('workspace.importExport.policy.failureSkip')
-                            : i18n('workspace.importExport.policy.failureAbort'),
-                      },
-                    ]
-                  : []),
-                ...(previewRequired
-                  ? [
-                      {
-                        key: 'mode',
-                        label: i18n('workspace.importExport.wizard.summaryMode'),
-                        children: (
-                          <div className={styles.summaryModeRow}>
-                            <span>
-                              {mode === 'FAST'
-                                ? i18n('workspace.importExport.ultraMode')
-                                : i18n('workspace.importExport.standardMode')}
-                            </span>
-                            {isCsv && (
-                              <>
-                                <ImportModeControl value={mode} onChange={setMode} disabled={executing} />
-                                <span className={styles.modeRisk}>
-                                  {i18n('workspace.importExport.ultraModeHint')}
-                                </span>
-                              </>
-                            )}
-                          </div>
-                        ),
-                      },
-                    ]
-                  : []),
+                ...formatHighlights,
+                ...(appliedTemplateName ? [{
+                  key: 'template',
+                  label: i18n('workspace.importExport.wizard.summaryTemplate'),
+                  value: appliedTemplateName,
+                }] : []),
+                ...(previewRequired ? [
+                  {
+                    key: 'unmapped',
+                    label: i18n('workspace.importExport.wizard.summaryUnmapped'),
+                    value: i18n(unmappedTarget === ImportUnmappedTarget.NULL
+                      ? 'workspace.importExport.unmappedNull' : 'workspace.importExport.unmappedDefault'),
+                  },
+                  {
+                    key: 'emptyAsNull',
+                    label: i18n('workspace.importExport.wizard.summaryEmpty'),
+                    value: i18n(emptyAsNull
+                      ? 'workspace.importExport.wizard.emptyAsNullOn' : 'workspace.importExport.wizard.emptyAsNullOff'),
+                  },
+                  {
+                    key: 'dateOrder',
+                    label: i18n('workspace.importExport.dateOrder'),
+                    value: isCsv ? csvOptions.dateOrder : isJson ? jsonOptions.dateOrder : excelOptions.dateOrder,
+                  },
+                ] : []),
               ]}
             />
           </div>
@@ -1069,15 +979,12 @@ export default function ImportWizard({ restoredSpec, onSubmitted, onStepChange }
           <Button disabled={executing} onClick={() => setImportExportDataBoundInfo(null)}>
             {i18n('common.button.cancel')}
           </Button>
-          {step === 1 && !isSql && preview ? (
-            <ImportTemplateControls disabled={executing} fileType={fileFormat} onSave={handleSaveTemplate} />
-          ) : null}
         </div>
         <div className={styles.footerRight}>
           {step > 0 && (
             <Button
               disabled={executing || loadingPreview}
-              onClick={() => setStep((current) => Math.max(0, current - 1))}
+              onClick={() => setStep((current) => getImportWizardPreviousStep(current, isSql))}
             >
               {i18n('workspace.importExport.wizard.previous')}
             </Button>
