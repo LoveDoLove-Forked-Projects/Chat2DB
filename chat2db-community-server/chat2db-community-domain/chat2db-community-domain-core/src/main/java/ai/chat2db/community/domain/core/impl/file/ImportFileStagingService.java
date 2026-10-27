@@ -16,6 +16,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -110,15 +111,11 @@ public class ImportFileStagingService implements IImportFileStagingService {
 
     @Override
     public String stage(File file, String originalFileName) {
-        validateSource(file, originalFileName);
+        Path source = validateSource(file, originalFileName);
         migrateLegacyFilesOnce();
         cleanupStagingFiles();
         String extension = ImportStagingFiles.extensionOf(originalFileName);
         try {
-            Path source = file.toPath().toRealPath(LinkOption.NOFOLLOW_LINKS);
-            if (!Files.isRegularFile(source, LinkOption.NOFOLLOW_LINKS) || !Files.isReadable(source)) {
-                throw new IOException("file is not readable");
-            }
             return stagingStore.store(source, extension);
         } catch (IOException e) {
             throw new BusinessException(ERROR_UNREADABLE, null, e);
@@ -262,15 +259,22 @@ public class ImportFileStagingService implements IImportFileStagingService {
         }
     }
 
-    private static void validateSource(File file, String originalFileName) {
-        if (file == null || !file.isFile() || !file.canRead()
+    private static Path validateSource(File file, String originalFileName) {
+        if (file == null
                 || !ImportStagingFiles.isAllowedExtension(ImportStagingFiles.extensionOf(originalFileName))) {
             throw new BusinessException(ERROR_UNREADABLE);
         }
-        if (file.length() > MAX_SIZE_BYTES) {
-            // A size rejection must say so; the generic unreadable message sent users hunting for a
-            // format problem that did not exist.
-            throw new BusinessException(ERROR_TOO_LARGE, new Object[]{MAX_SIZE_BYTES / (1024 * 1024)});
+        try {
+            Path source = file.toPath().toRealPath(LinkOption.NOFOLLOW_LINKS);
+            if (!Files.isRegularFile(source, LinkOption.NOFOLLOW_LINKS) || !Files.isReadable(source)) {
+                throw new BusinessException(ERROR_UNREADABLE);
+            }
+            if (Files.size(source) > MAX_SIZE_BYTES) {
+                throw new BusinessException(ERROR_TOO_LARGE, new Object[]{MAX_SIZE_BYTES / (1024 * 1024)});
+            }
+            return source;
+        } catch (IOException | InvalidPathException e) {
+            throw new BusinessException(ERROR_UNREADABLE, null, e);
         }
     }
 }

@@ -55,6 +55,37 @@ class ImportFileStagingServicePathTest {
     }
 
     @Test
+    void stagesASelectedFileThroughASymlinkedParent(@TempDir Path home) throws Exception {
+        System.setProperty("user.home", home.toString());
+        Path directory = Files.createDirectory(home.resolve("source"));
+        Files.writeString(directory.resolve("rows.csv"), "id\n1\n", StandardCharsets.UTF_8);
+        Path alias = Files.createSymbolicLink(home.resolve("source-alias"), directory);
+        ImportFileStagingService service = service();
+
+        String fileId = service.stage(alias.resolve("rows.csv").toFile(), "rows.csv");
+
+        assertEquals("id\n1\n", Files.readString(service.resolve(fileId).toPath(), StandardCharsets.UTF_8));
+    }
+
+    @Test
+    void rejectsInvalidSourcePaths(@TempDir Path home) throws Exception {
+        System.setProperty("user.home", home.toString());
+        Path source = Files.writeString(home.resolve("rows.csv"), "id\n1\n", StandardCharsets.UTF_8);
+        Path link = Files.createSymbolicLink(home.resolve("selected.csv"), source);
+        ImportFileStagingService service = service();
+
+        File[] invalidSources = {link.toFile(), home.toFile(), home.resolve("missing.csv").toFile(),
+                new File("invalid\0.csv"), null};
+        for (File invalid : invalidSources) {
+            BusinessException failure = assertThrows(BusinessException.class,
+                    () -> service.stage(invalid, "rows.csv"));
+            assertEquals("import.preview.fileUnreadable", failure.getCode());
+        }
+        assertEquals("id\n1\n", Files.readString(source, StandardCharsets.UTF_8));
+        assertTrue(Files.isSymbolicLink(link));
+    }
+
+    @Test
     void rejectsAnOversizedUploadWithTheSizeMessage(@TempDir Path realHome) throws Exception {
         System.setProperty("user.home", realHome.toString());
         ImportFileStagingService service = service();
