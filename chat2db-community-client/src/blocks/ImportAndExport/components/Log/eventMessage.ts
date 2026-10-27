@@ -38,6 +38,10 @@ const fixedMessageKeys = {
 export type TaskEventMessageKey =
   | (typeof lifecycleMessageKeys)[keyof typeof lifecycleMessageKeys]
   | (typeof fixedMessageKeys)[keyof typeof fixedMessageKeys]
+  | 'workspace.task.event.sqlBatchStarted'
+  | 'workspace.task.event.sqlBatchResult'
+  | 'workspace.task.event.sqlBatchFailed'
+  | 'workspace.task.event.sqlImportSummary'
   | 'workspace.task.event.csvImportFinished'
   | 'workspace.task.event.csvImportSummary'
   | 'workspace.task.event.batchCompletedTotal'
@@ -46,6 +50,7 @@ export type TaskEventMessageKey =
   | 'workspace.task.event.batchExecuted'
   | 'workspace.task.event.importingRecords'
   | 'workspace.task.event.importRowsSkipped'
+  | 'workspace.task.event.importRejectedRowsRecorded'
   | 'workspace.task.event.importBatchRowsSkipped'
   | 'workspace.task.event.importResumeStarted'
   | 'workspace.task.event.importBatchRetry'
@@ -71,6 +76,24 @@ export const formatTaskEventMessage = (
   const message = event.message?.replace(LEGACY_EVENT_TIMESTAMP, '').trim() || '-';
   const importedRows = event.details?.importedRows;
   const elapsedMillis = event.details?.elapsedMillis;
+  if (event.details?.sqlScript === true) {
+    const d = event.details;
+    if (event.code === 'SQL_BATCH_STARTED' && isCount(d.batch) && isCount(d.statementCount)) {
+      return translate('workspace.task.event.sqlBatchStarted', d.batch, d.statementCount);
+    }
+    if ((event.code === 'BATCH_EXECUTED' || event.code === 'IMPORT_BATCH_FAILED') &&
+        isCount(d.batch) && isCount(d.statementCount) && isCount(d.affectedRows) &&
+        isCount(d.unknownStatements) && isCount(d.completedStatements) && isCount(d.failedStatements)) {
+      return translate(event.code === 'BATCH_EXECUTED' ? 'workspace.task.event.sqlBatchResult'
+        : 'workspace.task.event.sqlBatchFailed', d.batch, d.statementCount, d.affectedRows,
+        d.unknownStatements, d.completedStatements, d.failedStatements);
+    }
+    if (event.code === 'IMPORT_SUMMARY' && isCount(d.batchCount) && isCount(d.statementCount) &&
+        isCount(d.affectedRows) && isCount(d.unknownStatements)) {
+      return translate('workspace.task.event.sqlImportSummary', d.batchCount, d.statementCount,
+        d.affectedRows, d.unknownStatements);
+    }
+  }
   if (event.code === 'IMPORT_SUMMARY') {
     if (typeof importedRows === 'number' && Number.isSafeInteger(importedRows) && importedRows >= 0 &&
         typeof elapsedMillis === 'number' && Number.isFinite(elapsedMillis) && elapsedMillis >= 0) {
@@ -92,8 +115,8 @@ export const formatTaskEventMessage = (
   const exportedTables = event.details?.exportedTables;
   const totalTables = event.details?.totalTables;
   if (event.code === 'IMPORT_ROWS_SKIPPED' && isCount(rejectedRows)) {
-    if (message === 'Import finished with rejected rows') {
-      return translate('workspace.task.event.importRowsSkipped', rejectedRows);
+    if (message === 'Import finished with rejected rows' || message === 'Rejected rows recorded') {
+      return translate('workspace.task.event.importRejectedRowsRecorded', rejectedRows);
     }
     if (isCount(importedRows)) {
       return translate('workspace.task.event.importBatchRowsSkipped', importedRows, rejectedRows);
@@ -172,3 +195,6 @@ export const formatTaskEventMessage = (
 
   return message;
 };
+
+export const shouldDisplayTaskEvent = (event: ImportExportTaskEvent): boolean =>
+  event.code !== 'SQL_BATCH_STARTED';

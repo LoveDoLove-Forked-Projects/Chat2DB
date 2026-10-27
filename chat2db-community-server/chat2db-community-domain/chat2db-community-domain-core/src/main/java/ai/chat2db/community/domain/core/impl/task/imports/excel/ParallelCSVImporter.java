@@ -4,6 +4,7 @@ import ai.chat2db.community.domain.api.model.metadata.TableColumn;
 import ai.chat2db.community.domain.api.model.task.CsvOptions;
 import ai.chat2db.community.domain.api.model.task.ImportTaskSpec;
 import ai.chat2db.community.domain.api.model.task.TaskCancelledException;
+import ai.chat2db.community.domain.api.model.task.TaskEventCode;
 import ai.chat2db.community.domain.api.service.task.TaskExecutionContext;
 import ai.chat2db.community.domain.core.impl.task.imports.BaseImporter;
 import ai.chat2db.community.domain.core.impl.task.imports.ImportCheckpointWriter;
@@ -54,6 +55,8 @@ final class ParallelCSVImporter extends BaseImporter {
                         batcher[0].accept(rowNumber, rowSqlBuilder.insertTemplate(), parameters);
                     },
                     context::checkCancelled);
+            // Already submitted batches may still be running; EOF precedes their final drain.
+            context.logInfo(TaskEventCode.FILE_READ_COMPLETED.name(), "Import file read completed");
             if (batcher[0] != null) {
                 batcher[0].flush();
             }

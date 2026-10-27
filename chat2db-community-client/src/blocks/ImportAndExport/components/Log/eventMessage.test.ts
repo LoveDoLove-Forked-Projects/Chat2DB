@@ -5,7 +5,7 @@ import jaJP from '@/i18n/ja-JP/workspace';
 import koKR from '@/i18n/ko-KR/workspace';
 import esES from '@/i18n/es-ES/workspace';
 import assert from 'node:assert/strict';
-import { formatTaskEventMessage, type TaskEventMessageKey } from './eventMessage';
+import { formatTaskEventMessage, shouldDisplayTaskEvent, type TaskEventMessageKey } from './eventMessage';
 import type { ImportExportTaskEvent } from '@/typings/importExport';
 
 const event = (code: string, message: string): ImportExportTaskEvent => ({
@@ -24,6 +24,7 @@ const translations: Record<'zh' | 'en', Partial<Record<TaskEventMessageKey, stri
     'workspace.task.event.importPreparing': '正在准备导入数据',
     'workspace.task.event.batchExecuted': '已执行批量导入：{1} 条',
     'workspace.task.event.importRowsSkipped': '导入完成，{1} 行被跳过并记录到错误文件',
+    'workspace.task.event.importRejectedRowsRecorded': '已将 {1} 行异常数据记录到错误文件',
     'workspace.task.event.importBatchRowsSkipped': '本批次跳过 {2} 行，成功导入 {1} 行',
     'workspace.task.event.errorArtifactPublished': '错误行文件已保存',
     'workspace.task.event.taskCancelled': '任务已取消',
@@ -72,7 +73,7 @@ assert.equal(
 assert.equal(
   formatTaskEventMessage({ ...event('IMPORT_ROWS_SKIPPED', 'Import finished with rejected rows'),
     details: { rejectedRows: 1 } }, translate('zh')),
-  '导入完成，1 行被跳过并记录到错误文件',
+  '已将 1 行异常数据记录到错误文件',
 );
 assert.equal(
   formatTaskEventMessage({ ...event('IMPORT_ROWS_SKIPPED', 'Batch completed with rejected rows'),
@@ -166,3 +167,32 @@ for (const messages of [zhCN, enUS, jaJP, koKR, esES, zhCN]) {
     messages['workspace.task.event.sqlBatchExecuted']);
   assert.equal(format(event('CUSTOM_EVENT', 'driver message')), 'driver message');
 }
+
+// New SQL script events retain row/statement distinctions and support all locales.
+for (const dictionary of [zhCN, enUS, jaJP, koKR, esES]) {
+  const t = (key: TaskEventMessageKey, ...args: Array<string | number>) =>
+    args.reduce<string>((message, value, index) => message.replace(`{${index + 1}}`, String(value)), dictionary[key]);
+  const batch = { ...event('BATCH_EXECUTED', 'SQL batch executed'), details: {
+    sqlScript: true, batch: 2, statementCount: 1, affectedRows: 10, unknownStatements: 0,
+    completedStatements: 1, failedStatements: 0,
+  } };
+  assert.equal(formatTaskEventMessage(batch, t, ImportExportTaskType.SQL_FILE_IMPORT),
+    t('workspace.task.event.sqlBatchResult', 2, 1, 10, 0, 1, 0));
+  assert.equal(formatTaskEventMessage({ ...batch, code: 'IMPORT_BATCH_FAILED', details: {
+    ...batch.details, unknownStatements: 1, completedStatements: 0,
+  } }, t, ImportExportTaskType.SQL_FILE_IMPORT),
+    t('workspace.task.event.sqlBatchFailed', 2, 1, 10, 1, 0, 0));
+  assert.equal(formatTaskEventMessage({ ...batch, code: 'IMPORT_SUMMARY', details: {
+    ...batch.details, batchCount: 2,
+  } }, t, ImportExportTaskType.SQL_FILE_IMPORT),
+    t('workspace.task.event.sqlImportSummary', 2, 1, 10, 0));
+  assert.equal(formatTaskEventMessage({ ...batch, code: 'SQL_BATCH_STARTED' }, t),
+    t('workspace.task.event.sqlBatchStarted', 2, 1));
+}
+
+assert.equal(shouldDisplayTaskEvent(event('SQL_BATCH_STARTED', 'SQL batch submitted')), false);
+assert.equal(shouldDisplayTaskEvent(event('BATCH_EXECUTED', 'SQL batch executed')), true);
+assert.equal(shouldDisplayTaskEvent(event('IMPORT_BATCH_FAILED', 'SQL batch failed')), true);
+
+assert.equal(formatTaskEventMessage({ ...event('IMPORT_ROWS_SKIPPED', 'Rejected rows recorded'),
+  details: { rejectedRows: 1 } }, translate('zh')), '已将 1 行异常数据记录到错误文件');

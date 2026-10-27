@@ -25,7 +25,7 @@ import {
 } from '@/store/importExport/taskCenterUtils';
 import { getTaskEventPollDelay } from './pollSchedule';
 import { ConsoleOutputEmpty, ConsoleOutputMessageLine } from '@/components/ConsoleOutput';
-import { formatTaskEventMessage } from './eventMessage';
+import { formatTaskEventMessage, shouldDisplayTaskEvent } from './eventMessage';
 import { buildTaskProgressSummary, formatEta, formatRowsPerSecond } from '@/blocks/ImportAndExport/utils/taskArtifacts';
 
 interface IProps {
@@ -195,7 +195,7 @@ const Log = (props: IProps) => {
       const scrollInfo = virtualListRef.current?.getScrollInfo();
       if (scrollInfo) {
         scrollRestoreRef.current = {
-          anchorSequence: earliestSequence,
+          anchorSequence: currentEvents.find(shouldDisplayTaskEvent)?.sequence ?? earliestSequence,
           scrollTop: scrollInfo.y,
         };
       }
@@ -230,7 +230,8 @@ const Log = (props: IProps) => {
     }
 
     if (followLatest && events.length) {
-      virtualList.scrollTo({ index: events.length - 1, align: 'bottom' });
+      const latestVisible = events.filter(shouldDisplayTaskEvent).at(-1);
+      if (latestVisible) virtualList.scrollTo({ key: latestVisible.sequence, align: 'bottom' });
     }
   }, [events, followLatest, viewportSize?.height]);
 
@@ -274,7 +275,7 @@ const Log = (props: IProps) => {
           },
         ]
       : [];
-  const visibleEvents = events.length ? events : fallbackErrorEvent;
+  const visibleEvents = (events.length ? events : fallbackErrorEvent).filter(shouldDisplayTaskEvent);
   const progress =
     taskDetails.status === ImportExportTaskStatus.SUCCESS
       ? 100

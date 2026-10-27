@@ -1,4 +1,4 @@
-import { memo, type KeyboardEvent, type ReactNode, type UIEvent, useEffect, useRef, useState } from 'react';
+import { memo, type KeyboardEvent, type ReactNode, type UIEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useSize } from 'ahooks';
 import VirtualList from 'rc-virtual-list';
 import { useStyles } from './style';
@@ -11,6 +11,7 @@ import importExportServices from '@/service/importExport';
 import { useImportExportStore } from '@/store/importExport';
 import { canCancelTask } from '@/store/importExport/taskCenterUtils';
 import { hasSavedTaskSpec } from '@/blocks/ImportAndExport/utils/restoreTaskSpec';
+import { groupTaskAttempts } from '../../utils/taskAttempts';
 import { formatTaskName } from '@/blocks/ImportAndExport/utils/taskName';
 import {
   buildTaskArtifactUrl,
@@ -128,6 +129,14 @@ export default memo<TaskCenterProps>(({ headerLeading }) => {
   }));
   const openUnifiedConfirmationModal = useGlobalStore((state) => state.openUnifiedConfirmationModal);
   const { resumeTask, resumeContextHolder } = useTaskResume();
+  const taskGroups = useMemo(() => groupTaskAttempts(taskList), [taskList]);
+  useEffect(() => {
+    if (taskListHasNextPage && !taskListLoadingMore && viewportSize?.height &&
+        taskGroups.length * TASK_CENTER_ITEM_ESTIMATED_HEIGHT < viewportSize.height) {
+      void loadMoreTasks().catch(() => undefined);
+    }
+  }, [taskGroups.length, taskList.length, taskListHasNextPage,
+    taskListLoadingMore, viewportSize?.height, loadMoreTasks]);
   const hasRunningTask = taskList.some((task) => task.status === ImportExportTaskStatus.RUNNING);
 
   useEffect(() => {
@@ -223,16 +232,20 @@ export default memo<TaskCenterProps>(({ headerLeading }) => {
 
       <div className={styles.listWrapper} ref={listWrapperRef}>
         {taskList.length ? (
+          // Virtual height compensation scrolls expanding cards out of view.
+          // Use normal scrolling and retain paged loading for the task history.
           <VirtualList
             className={styles.virtualList}
-            data={taskList}
+            data={taskGroups}
             height={Math.max(1, Math.round(viewportSize?.height || 1))}
             itemHeight={TASK_CENTER_ITEM_ESTIMATED_HEIGHT}
+            virtual={false}
             itemKey="id"
             onScroll={handleListScroll}
             showScrollBar="optional"
           >
-            {(item) => {
+            {(group) => {
+              const item = group.latest;
               const isActive = ACTIVE_TASK_STATUSES.includes(item.status);
               const isCancellable = canCancelTask(item.status);
               const isCancelling = cancellingTaskIds.includes(item.id);
@@ -285,7 +298,7 @@ export default memo<TaskCenterProps>(({ headerLeading }) => {
                         title={
                           <div className={styles.timingTooltip}>
                             <div>
-                              {i18n('workspace.text.taskName')}: {formatTaskName(item.name, i18n)}
+                              {i18n('workspace.text.taskName')}: {formatTaskName(group.name, i18n)}
                             </div>
                             <div>
                               {i18n('workspace.text.taskStatus')}: {statusLabel}
@@ -302,10 +315,30 @@ export default memo<TaskCenterProps>(({ headerLeading }) => {
                           </div>
                         }
                       >
-                        <span className={styles.taskName}>{formatTaskName(item.name, i18n)}</span>
+                        <span className={styles.taskName}>{formatTaskName(group.name, i18n)}</span>
                       </Tooltip>
                     </div>
                     {targetLabel && <div className={styles.taskTarget}>{targetLabel}</div>}
+                    {group.resumeCount > 0 && (
+                      <details className={styles.attemptHistory} onClick={(event) => event.stopPropagation()}>
+                        <summary>{i18n('workspace.task.resume.history', group.resumeCount)}</summary>
+                        {group.attempts.map((attempt) => (
+                          <button key={attempt.id} type="button" onClick={() => openLogModal(attempt.id)}>
+                            {formatTaskTime(attempt.startedAt, 'YYYY-MM-DD HH:mm:ss')} · {' '}
+                            {i18n(TASK_STATUS_I18N_KEYS[attempt.status])}
+                          </button>
+                        ))}
+                        {group.attempts.length <= group.resumeCount && taskListHasNextPage && (
+                          <button
+                            type="button"
+                            disabled={taskListLoadingMore}
+                            onClick={() => void loadMoreTasks().catch(() => undefined)}
+                          >
+                            {i18n('workspace.task.resume.loadHistory')}
+                          </button>
+                        )}
+                      </details>
+                    )}
                     <div className={styles.listItemLeft}>
                       <time>{startTime}</time>
                       <span aria-hidden>{isActive ? '·' : '-'}</span>
@@ -409,7 +442,7 @@ export default memo<TaskCenterProps>(({ headerLeading }) => {
                           {item.status === ImportExportTaskStatus.SUCCESS && item.artifactId && (
                             <IconButton
                               code={isDesktop ? 'icon-folder' : 'icon-download'}
-                              title={i18n('workspace.text.openFile')}
+                              title={i18n(isDesktop ? 'workspace.text.openFile' : 'workspace.task.export.download')}
                               tooltipPlacement="left"
                               size={{ boxSize: 18, iconSize: 13, borderRadius: 3 }}
                               onClick={(e) => {
@@ -434,7 +467,7 @@ export default memo<TaskCenterProps>(({ headerLeading }) => {
                           <IconButton
                             className={styles.deleteAction}
                             icon={Trash2}
-                            title={i18n('common.button.delete')}
+                            title={i18n(group.resumeCount > 0 ? 'workspace.task.resume.deleteAttempt' : 'common.button.delete')}
                             tooltipPlacement="left"
                             size={{ boxSize: 18, iconSize: 13, borderRadius: 3 }}
                             onClick={(e) => {

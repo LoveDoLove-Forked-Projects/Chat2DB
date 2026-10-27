@@ -217,6 +217,9 @@ class ImportFailurePolicyTest {
                 () -> new CSVImporter().run(spec, context));
 
         assertTrue(failure.publicMessage().contains("import.value.invalidValue"), failure.publicMessage());
+        assertTrue(storage.events.stream().anyMatch(event -> "Rejected rows recorded".equals(event.getMessage())));
+        assertTrue(storage.events.stream().noneMatch(event -> "Import finished with rejected rows".equals(event.getMessage())),
+                "closing the error file during an aborted import must not announce import completion");
         ArtifactDraft errorDraft = context.errorArtifactDraft();
         assertNotNull(errorDraft);
         List<String> lines = readErrorRows(errorDraft);

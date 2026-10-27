@@ -19,6 +19,7 @@ const state = (patch: Partial<ImportWizardGateState> = {}): ImportWizardGateStat
   fileSelected: false,
   previewRequired: true,
   previewStatus: 'idle',
+  mappingValid: true,
   ...patch,
 });
 
@@ -76,7 +77,7 @@ test('loads the preview exactly when leaving the format step without one', () =>
   assert.equal(shouldLoadImportPreviewOnAdvance(2, state({ previewStatus: 'idle' })), false);
 });
 
-test('never blocks the mapping or confirmation step', () => {
+test('valid mappings may advance and confirmation remains available', () => {
   assert.equal(canAdvanceImportWizard(2, state()), true);
   assert.equal(canAdvanceImportWizard(3, state()), true);
 });
@@ -149,4 +150,11 @@ test('keeps the next button on the format step clickable after a failed preview'
   assert.equal(canPressImportWizardNext(0, state({ fileSelected: true })), true);
   assert.equal(canPressImportWizardNext(2, state()), true);
   assert.equal(canPressImportWizardNext(3, state()), true);
+});
+
+test('blocks leaving mapping until corrected, while keeping SQL unaffected', () => {
+  assert.equal(canPressImportWizardNext(2, state({ mappingValid: false })), false);
+  assert.equal(canAdvanceImportWizard(2, state({ mappingValid: false })), false);
+  assert.equal(canPressImportWizardNext(2, state({ mappingValid: true })), true);
+  assert.equal(canAdvanceImportWizard(2, state({ previewRequired: false, mappingValid: false })), true);
 });

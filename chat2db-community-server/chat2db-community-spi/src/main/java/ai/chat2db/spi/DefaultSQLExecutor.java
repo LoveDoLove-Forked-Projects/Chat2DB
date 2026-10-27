@@ -1856,6 +1856,13 @@ public class DefaultSQLExecutor implements ICommandExecutor {
     public void executeJdbcBatchInsert(Connection connection, List<String> sqls,
                                       ISqlExecutionStatementListener statementListener,
                                       Runnable cancellationChecker, int chunkSize) {
+        executeJdbcBatchInsertWithReport(connection, sqls, statementListener, cancellationChecker, chunkSize, null);
+    }
+
+    /** Reports every actual JDBC chunk without changing transaction ownership or cancellation. */
+    public void executeJdbcBatchInsertWithReport(Connection connection, List<String> sqls,
+            ISqlExecutionStatementListener statementListener, Runnable cancellationChecker, int chunkSize,
+            JdbcBatchObserver observer) {
         if (sqls == null || sqls.isEmpty()) {
             return;
         }
@@ -1874,7 +1881,21 @@ public class DefaultSQLExecutor implements ICommandExecutor {
                         for (int index = start; index < end; index++) {
                             statement.addBatch(sqls.get(index));
                         }
-                        statement.executeBatch();
+                        List<String> chunk = List.copyOf(sqls.subList(start, end));
+                        if (observer != null) observer.started(chunk);
+                        long started = System.nanoTime();
+                        int[] counts;
+                        try {
+                            counts = statement.executeBatch();
+                        } catch (SQLException failure) {
+                            int[] partial = failure instanceof java.sql.BatchUpdateException batchFailure
+                                    ? batchFailure.getUpdateCounts() : new int[0];
+                            if (observer != null) observer.completed(chunk, partial, false,
+                                    (System.nanoTime() - started) / 1_000_000);
+                            throw failure;
+                        }
+                        if (observer != null) observer.completed(chunk, counts, true,
+                                (System.nanoTime() - started) / 1_000_000);
                     }
                 } finally {
                     notifyStatementClosed(statementListener, statement);
@@ -1885,6 +1906,11 @@ public class DefaultSQLExecutor implements ICommandExecutor {
             checkTaskCancellation(cancellationChecker);
             throw new RuntimeException(e);
         }
+    }
+
+    public interface JdbcBatchObserver {
+        void started(List<String> statements);
+        void completed(List<String> statements, int[] updateCounts, boolean successful, long elapsedMillis);
     }
 
     /**

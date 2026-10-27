@@ -44,7 +44,7 @@ public class DbImportTemplateController {
      * @param fileType optional {@code TaskFileFormat} name; absent lists every file type.
      * @return list result containing the stored templates.
      */
-    @GetMapping
+    @GetMapping("")
     public ListResult<DbImportTemplateResponse> list(
             @RequestParam(value = "fileType", required = false) String fileType) {
         List<DbImportTemplateResponse> responses =
@@ -60,7 +60,7 @@ public class DbImportTemplateController {
      * @param request template to store; the name identifies it.
      * @return list result containing the templates stored after the save.
      */
-    @PostMapping
+    @PostMapping("")
     public ListResult<DbImportTemplateResponse> save(@Valid @RequestBody DbImportTemplateSaveRequest request) {
         List<DbImportTemplateResponse> responses = importTemplateWebConverter.importTemplateList2response(
                 importTemplateService.upsert(importTemplateWebConverter.request2importTemplate(request)));
@@ -75,7 +75,7 @@ public class DbImportTemplateController {
      * @param request delete payload carrying the template name and, optionally, its file type.
      * @return list result containing the templates stored after the delete.
      */
-    @DeleteMapping
+    @DeleteMapping("")
     public ListResult<DbImportTemplateResponse> delete(@Valid DbImportTemplateDeleteRequest request) {
         List<DbImportTemplateResponse> responses = importTemplateWebConverter.importTemplateList2response(
                 importTemplateService.delete(request.getName(), request.getFileType()));

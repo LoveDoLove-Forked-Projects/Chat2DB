@@ -81,13 +81,35 @@ class TaskServiceImplResumeTest {
         assertEquals("CSV", resumed.getFormat());
         assertEquals("TARGET_ROWS", resumed.getTarget().getTableName());
         assertEquals(1, resumed.getColumnMappings().size());
-        assertEquals("import (resumed)", resumed.getTaskName());
+        assertEquals("import", resumed.getTaskName());
+        assertEquals(1L, resumed.getResumeRootTaskId());
+        assertEquals(1L, resumed.getResumeParentTaskId());
+        assertEquals(1, resumed.getResumeAttempt());
+        assertEquals("import", resumed.getResumeRootTaskName());
 
         Task source = storage.get(1L).orElseThrow();
         assertEquals(TaskStatus.FAILED.name(), source.getStatus());
         assertEquals(CHECKPOINT, source.getCheckpointJson());
         // The new task stores its own spec, so a second resume has a self-contained source.
         assertNotNull(storage.get(resumedId).orElseThrow().getSpecJson());
+    }
+
+    @Test
+    void repeatedResumePreservesRootAndIncrementsAttemptWithoutRenaming() throws Exception {
+        ImportTaskSpec original = spec(writeCsv("ROW_ID,ROW_NAME\n1,ok\n"));
+        original.setResumeRootTaskId(1L);
+        original.setResumeAttempt(2);
+        original.setResumeRootTaskName("original import");
+        ResumeStorage storage = new ResumeStorage(task(7L, TaskStatus.CANCELLED.name(),
+                TaskServiceImpl.specJson(original), CHECKPOINT, null));
+        AtomicReference<TaskSpec> submitted = new AtomicReference<>();
+        service(storage, submitted).resumeImport(7L);
+        ImportTaskSpec resumed = (ImportTaskSpec) submitted.get();
+        assertEquals(1L, resumed.getResumeRootTaskId());
+        assertEquals(7L, resumed.getResumeParentTaskId());
+        assertEquals(3, resumed.getResumeAttempt());
+        assertEquals("original import", resumed.getTaskName());
+        assertEquals(TaskStatus.CANCELLED.name(), storage.get(7L).orElseThrow().getStatus());
     }
 
     @Test

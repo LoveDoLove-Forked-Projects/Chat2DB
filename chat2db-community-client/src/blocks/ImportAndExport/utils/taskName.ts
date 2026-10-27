@@ -2,6 +2,10 @@ const DEFAULT_NAME_PREFIXES = [
   ['Import SQL file', 'workspace.task.name.importSql'],
   ['Import table data', 'workspace.task.name.importTable'],
   ['Export table data', 'workspace.task.name.exportTable'],
+  ['Export database structure', 'workspace.task.name.exportDatabaseStructure'],
+  ['Export database data', 'workspace.task.name.exportDatabaseData'],
+  ['Export database structure and data', 'workspace.task.name.exportDatabaseStructureAndData'],
+  ['Export database SQL', 'workspace.task.name.exportDatabaseSql'],
   ['Export all query results as CSV', 'workspace.task.name.exportAllQueryResultsCsv'],
   ['Export all query results as XLSX', 'workspace.task.name.exportAllQueryResultsXlsx'],
   ['Export all query results as INSERT SQL', 'workspace.task.name.exportAllQueryResultsInsertSql'],
@@ -16,6 +20,10 @@ export type TaskNameMessageKey =
   | 'workspace.task.name.importSql'
   | 'workspace.task.name.importTable'
   | 'workspace.task.name.exportTable'
+  | 'workspace.task.name.exportDatabaseStructure'
+  | 'workspace.task.name.exportDatabaseData'
+  | 'workspace.task.name.exportDatabaseStructureAndData'
+  | 'workspace.task.name.exportDatabaseSql'
   | 'workspace.task.name.exportAllQueryResultsCsv'
   | 'workspace.task.name.exportAllQueryResultsXlsx'
   | 'workspace.task.name.exportAllQueryResultsInsertSql'

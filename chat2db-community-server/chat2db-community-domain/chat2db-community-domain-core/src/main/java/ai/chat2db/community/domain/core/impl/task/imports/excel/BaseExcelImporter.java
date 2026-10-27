@@ -39,6 +39,7 @@ public abstract class BaseExcelImporter extends BaseImporter {
             ExcelImportReader.read(new File(spec.getSourceFile()), options, Integer.MAX_VALUE,
                     CSVImporter.mappedSourceColumnCount(spec), listener::acceptHead,
                     skippedRows(skipper, listener), context::checkCancelled);
+            context.logInfo(TaskEventCode.FILE_READ_COMPLETED.name(), "Import file read completed");
             listener.finish();
             context.checkCancelled();
             checkpoints.flush();

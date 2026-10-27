@@ -455,7 +455,7 @@ export interface IImportPreview {
     dataType: string;
     nullable: boolean;
     autoIncrement: boolean;
-    defaultValue: string | null;
+    defaultValue?: string | null;
     comment: string | null;
   }[];
   suggestedMapping: { sourceColumn: string; targetColumn: string }[];

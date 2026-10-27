@@ -20,9 +20,11 @@ import type {
   ImportFailurePolicy,
   ISqlImportOptions,
 } from '@/typings/importExport';
+import { useTreeStore } from '@/store/tree';
 import { useImportExportStore } from '@/store/importExport';
 import type { RestoredTaskSpec } from '@/blocks/ImportAndExport/utils/restoreTaskSpec';
 import {
+  buildImportPreviewKey,
   DEFAULT_EXCEL_OPTIONS,
   DEFAULT_JSON_OPTIONS,
   DEFAULT_SQL_IMPORT_OPTIONS,
@@ -30,7 +32,6 @@ import {
 import {
   buildCsvOptionsForTaskSubmit,
   DEFAULT_CSV_OPTIONS,
-  inferImportFileFormat,
 } from '@/blocks/ImportAndExport/utils/csvOptions';
 import {
   deleteImportTemplate,
@@ -63,6 +64,7 @@ import {
 import {
   buildInitialImportMapping,
   getDuplicateImportMappings,
+  getRequiredUnmappedImportColumns,
   getImportPreviewErrorMessage,
 } from '../ImportMappingContent/mapping';
 import { stageSelectedImportFile } from '../ImportMappingContent/fileStaging';
@@ -79,6 +81,8 @@ import { isDesktop } from '@/utils/env';
 import ImportTemplateControls from './ImportTemplateControls';
 import ImportTemplateSelect from './ImportTemplateSelect';
 import TargetTableSelect from './TargetTableSelect';
+import SelectBoundInfo, { type BoundInfo } from '@/components/SelectBoundInfo';
+import { isSqlImportEnvironmentReady } from '../../utils/importSqlEnvironment';
 import ImportPolicyFields from './ImportPolicyFields';
 import ImportSummary from './ImportSummary';
 import { useStyles } from './style';
@@ -98,10 +102,11 @@ interface ResolvedFileOptions {
   excelOptions?: IExcelOptions;
 }
 
-/** Formats the preview endpoint can parse into rows and columns. */
-const isPreviewableFileName = (fileName: string) => /\.(csv|xls|xlsx|json)$/i.test(fileName);
-
 const CSV_CHARACTER_I18N_KEYS: Record<string, Parameters<typeof i18n>[0]> = {
+  '/': 'workspace.importExport.delimiterSlash',
+  '-': 'workspace.importExport.delimiterDash',
+  '.': 'workspace.importExport.delimiterDot',
+  ':': 'workspace.importExport.delimiterColon',
   ',': 'workspace.importExport.delimiterComma',
   ';': 'workspace.importExport.delimiterSemicolon',
   '\t': 'workspace.importExport.delimiterTab',
@@ -142,6 +147,18 @@ export default function ImportWizard({ restoredSpec, onSubmitted, onStepTitleCha
   }));
 
   const [step, setStep] = useState(0);
+  const [selectedSqlEnvironment, setSqlExecutionEnvironment] = useState<BoundInfo>(
+    () => ({ ...importExportDataBoundInfo }),
+  );
+  const dataSources = useTreeStore((state) => state.dataSourceList);
+  const sqlExecutionEnvironment = useMemo(() => {
+    const source = dataSources?.find((item) => item.extraParams.dataSourceId === selectedSqlEnvironment.dataSourceId);
+    return {
+      ...selectedSqlEnvironment,
+      databaseType: selectedSqlEnvironment.databaseType ?? source?.extraParams.databaseType,
+      dataSourceName: selectedSqlEnvironment.dataSourceName || source?.originalTitle,
+    };
+  }, [selectedSqlEnvironment, dataSources]);
   const [importFile, setImportFile] = useState<FileUrl>();
   // The bound table is only the starting point: the file step can switch the import target.
   const [tableName, setTableName] = useState(() => importExportDataBoundInfo?.tableName || '');
@@ -179,12 +196,13 @@ export default function ImportWizard({ restoredSpec, onSubmitted, onStepTitleCha
   const schemaName = importExportDataBoundInfo?.schemaName;
   const dataSourceName = importExportDataBoundInfo?.dataSourceName;
   const selectedFileName = importFile?.fileName || importFile?.file?.name || importFile?.filePath || '';
-  const fileFormat = selectedFileName ? inferImportFileFormat(selectedFileName) : fileType;
+  // File selection synchronizes this type with the visible selector and submit parameters.
+  const fileFormat = fileType;
   const isCsv = fileFormat === ImportExportFileType.CSV;
   const isJson = fileFormat === ImportExportFileType.JSON;
   const isExcel = fileFormat === ImportExportFileType.XLS || fileFormat === ImportExportFileType.XLSX;
   const isSql = fileFormat === ImportExportFileType.SQL;
-  const previewRequired = importFile != null && isPreviewableFileName(selectedFileName);
+  const previewRequired = importFile != null && !isSql;
   const emptyAsNull = isCsv ? csvOptions.emptyAsNull : isJson ? jsonOptions.emptyAsNull : excelOptions.emptyAsNull;
   const setEmptyAsNull = (value: boolean) => {
     if (isCsv) setCsvOptions((current) => ({ ...current, emptyAsNull: value }));
@@ -220,7 +238,7 @@ export default function ImportWizard({ restoredSpec, onSubmitted, onStepTitleCha
     [mapping],
   );
   const currentPreviewKey = useMemo(
-    () => JSON.stringify({ dataSourceId, databaseName, schemaName, tableName, fileId, ...fileOptions }),
+    () => buildImportPreviewKey({ dataSourceId, databaseName, schemaName, tableName, fileId, ...fileOptions }),
     [dataSourceId, databaseName, schemaName, tableName, fileId, fileOptions],
   );
   const previewReady = preview !== null && loadedPreviewKey === currentPreviewKey;
@@ -351,7 +369,7 @@ export default function ImportWizard({ restoredSpec, onSubmitted, onStepTitleCha
         return null;
       }
       const requestOptions = resolveFileOptions(overrides);
-      const requestKey = JSON.stringify({
+      const requestKey = buildImportPreviewKey({
         dataSourceId,
         databaseName,
         schemaName,
@@ -452,23 +470,20 @@ export default function ImportWizard({ restoredSpec, onSubmitted, onStepTitleCha
     [],
   );
 
-  const blockedColumns = useMemo(() => {
-    if (!preview) return [];
-    return preview.targetColumns.filter(
-      (column) =>
-        !column.nullable &&
-        !column.autoIncrement &&
-        !Object.values(mapping).includes(column.name) &&
-        (unmappedTarget === ImportUnmappedTarget.NULL ||
-          (column.defaultValue === null && unmappedTarget === ImportUnmappedTarget.DEFAULT)),
-    );
-  }, [preview, mapping, unmappedTarget]);
+  const blockedColumns = useMemo(
+    () => getRequiredUnmappedImportColumns(preview?.targetColumns ?? [], mapping, unmappedTarget),
+    [preview, mapping, unmappedTarget],
+  );
   const duplicateMappings = getDuplicateImportMappings(mapping);
   const mappedTargetCount = Object.values(mapping).filter(
     (target) => target && target !== SKIP_IMPORT_SOURCE_FIELD,
   ).length;
   // A failed preview keeps the button clickable so the user can retry it by hand.
-  const canPressNext = canPressImportWizardNext(step, gateState);
+  const mappingValid = previewReady && mappedTargetCount > 0 && blockedColumns.length === 0 &&
+    Object.keys(duplicateMappings).length === 0;
+  const sqlEnvironmentReady = isSqlImportEnvironmentReady(sqlExecutionEnvironment);
+  const canPressNext = canPressImportWizardNext(step, { ...gateState, mappingValid }) &&
+    (!isSql || sqlEnvironmentReady);
   // The format step reports parsing problems inline next to its own retry button.
   const stepError =
     error ??
@@ -508,7 +523,7 @@ export default function ImportWizard({ restoredSpec, onSubmitted, onStepTitleCha
   };
 
   const handleNext = async () => {
-    if (executing || loadingPreview) {
+    if (executing || loadingPreview || (step === 2 && previewRequired && !mappingValid)) {
       return;
     }
     if (shouldLoadImportPreviewOnAdvance(step, gateState)) {
@@ -629,7 +644,7 @@ export default function ImportWizard({ restoredSpec, onSubmitted, onStepTitleCha
 
   const submitScriptImport = async () => {
     const params = importExportFileRef.current?.getValues();
-    if (!params || !('sourceFile' in params)) {
+    if (!params || !('sourceFile' in params) || !sqlEnvironmentReady) {
       return;
     }
     const selectedFile = importFile?.file;
@@ -714,9 +729,19 @@ export default function ImportWizard({ restoredSpec, onSubmitted, onStepTitleCha
     }
   };
 
-  const targetDisplay = [dataSourceName, databaseName, schemaName, isSql ? undefined : tableName]
+  const targetDisplay = (isSql
+    ? [sqlExecutionEnvironment.dataSourceName, sqlExecutionEnvironment.databaseName, sqlExecutionEnvironment.schemaName]
+    : [dataSourceName, databaseName, schemaName, tableName])
     .filter(Boolean)
     .join('/');
+  const valueFormatOptions = isCsv ? csvOptions : isJson ? jsonOptions : excelOptions;
+  const dateTimeOrderKeys = {
+    DATE_TIME: 'workspace.importExport.dateFirst',
+    TIME_DATE: 'workspace.importExport.timeFirst',
+    DATE_TIME_TIMEZONE: 'workspace.importExport.dateTimeTimezone',
+    TIME_DATE_TIMEZONE: 'workspace.importExport.timeDateTimezone',
+    TIME_TIMEZONE_DATE: 'workspace.importExport.timeTimezoneDate',
+  } as const;
   const formatHighlights = (() => {
     if (isCsv) {
       return [
@@ -779,7 +804,9 @@ export default function ImportWizard({ restoredSpec, onSubmitted, onStepTitleCha
     <div className={cx(styles.container, isSql && styles.sqlContainer)}>
       {modalContextHolder}
       <div className={cx(styles.scrollContent, step === 2 && styles.mappingScrollContent)}>
-        {stepError && <Alert className={styles.errorAlert} type="error" showIcon message={stepError} />}
+        {stepError && (
+          <Alert className={styles.errorAlert} type="error" showIcon message={stepError} />
+        )}
         <div className={styles.fileStep} hidden={step !== 0}>
           {targetTableNotice && (
             <Alert
@@ -799,6 +826,16 @@ export default function ImportWizard({ restoredSpec, onSubmitted, onStepTitleCha
             onSqlImportOptionsChange={setSqlImportOptions}
             hideSqlImportOptions
             targetTableName={tableName}
+            sqlExecutionEnvironment={sqlExecutionEnvironment}
+            executionEnvironmentField={
+              <fieldset className={styles.executionEnvironment} disabled={executing}>
+                <SelectBoundInfo
+                  boundInfo={sqlExecutionEnvironment}
+                  requireDataSource
+                  onChangeDBInfo={setSqlExecutionEnvironment}
+                />
+              </fieldset>
+            }
             targetTableField={
               dataSourceId == null || !databaseName ? undefined : (
                 <TargetTableSelect
@@ -886,8 +923,11 @@ export default function ImportWizard({ restoredSpec, onSubmitted, onStepTitleCha
                   ? 'workspace.importExport.emptyStringAsNull' : 'workspace.importExport.emptyAsNull')}
                 loading={loadingPreview}
                 disabled={executing}
-                onMappingChange={(source, target) => setMapping((current) => ({ ...current, [source]: target }))}
-                onUnmappedTargetChange={setUnmappedTarget}
+                onMappingChange={(source, target) => {
+                  setError(null);
+                  setMapping((current) => ({ ...current, [source]: target }));
+                }}
+                onUnmappedTargetChange={(value) => { setError(null); setUnmappedTarget(value); }}
                 onEmptyAsNullChange={setEmptyAsNull}
               />
             ) : (
@@ -966,7 +1006,27 @@ export default function ImportWizard({ restoredSpec, onSubmitted, onStepTitleCha
                   {
                     key: 'dateOrder',
                     label: i18n('workspace.importExport.dateOrder'),
-                    value: isCsv ? csvOptions.dateOrder : isJson ? jsonOptions.dateOrder : excelOptions.dateOrder,
+                    value: valueFormatOptions.dateOrder,
+                  },
+                  {
+                    key: 'dateTimeOrder', label: i18n('workspace.importExport.dateTimeOrder'),
+                    value: i18n(dateTimeOrderKeys[valueFormatOptions.dateTimeOrder]),
+                  },
+                  {
+                    key: 'dateDelimiter', label: i18n('workspace.importExport.dateDelimiter'),
+                    value: describeCharacter(valueFormatOptions.dateDelimiter),
+                  },
+                  {
+                    key: 'yearDelimiter', label: i18n('workspace.importExport.yearDelimiter'),
+                    value: describeCharacter(valueFormatOptions.yearDelimiter),
+                  },
+                  {
+                    key: 'timeDelimiter', label: i18n('workspace.importExport.timeDelimiter'),
+                    value: describeCharacter(valueFormatOptions.timeDelimiter),
+                  },
+                  {
+                    key: 'decimalSymbol', label: i18n('workspace.importExport.decimalSymbol'),
+                    value: describeCharacter(valueFormatOptions.decimalSymbol),
                   },
                 ] : []),
               ]}
@@ -993,7 +1053,9 @@ export default function ImportWizard({ restoredSpec, onSubmitted, onStepTitleCha
             <Button
               type="primary"
               loading={executing}
-              disabled={previewRequired && (!previewReady || !fileId || mappedTargetCount === 0)}
+              disabled={isSql
+                ? !sqlEnvironmentReady
+                : previewRequired && (!mappingValid || !fileId)}
               onClick={execute}
             >
               {i18n('common.button.execute')}

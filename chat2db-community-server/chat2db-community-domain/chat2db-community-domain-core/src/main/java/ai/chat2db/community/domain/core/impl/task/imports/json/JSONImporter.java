@@ -4,6 +4,7 @@ import ai.chat2db.community.domain.api.model.metadata.TableColumn;
 import ai.chat2db.community.domain.api.model.task.JsonOptions;
 import ai.chat2db.community.domain.api.model.task.ImportTaskSpec;
 import ai.chat2db.community.domain.api.model.task.TaskCancelledException;
+import ai.chat2db.community.domain.api.model.task.TaskEventCode;
 import ai.chat2db.community.domain.api.service.task.TaskExecutionContext;
 import ai.chat2db.community.domain.core.impl.task.imports.BaseImporter;
 import ai.chat2db.community.domain.core.impl.task.imports.ImportCheckpointWriter;
@@ -66,6 +67,7 @@ public class JSONImporter extends BaseImporter {
                     executeBatch(executor, builder, batch, rowNumbers, consumedRows, progressReporter, checkpoints);
                 }
             }, context::checkCancelled);
+            context.logInfo(TaskEventCode.FILE_READ_COMPLETED.name(), "Import file read completed");
             executeBatch(executor, builder, batch, rowNumbers, consumedRows, progressReporter, checkpoints);
             checkpoints.flush();
         } catch (RuntimeException | Error failure) {

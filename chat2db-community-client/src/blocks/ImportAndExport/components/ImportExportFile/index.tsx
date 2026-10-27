@@ -3,6 +3,7 @@ import { DEFAULT_SQL_IMPORT_OPTIONS } from '../../utils/importOptions';
 import {
   memo,
   useMemo,
+  useRef,
   useState,
   forwardRef,
   ForwardedRef,
@@ -11,7 +12,7 @@ import {
   useEffect,
 } from 'react';
 import { useStyles } from './style';
-import UploadLocalFile, { type FileUrl } from '@/components/UploadLocalFile';
+import UploadLocalFile, { type FileUrl, type UploadLocalFileRef } from '@/components/UploadLocalFile';
 import SingleCharacterSelect from '@/components/SingleCharacterSelect';
 import { Alert, Form, Input, Select, Switch } from 'antd';
 import i18n from '@/i18n';
@@ -19,11 +20,13 @@ import { useImportExportStore } from '@/store/importExport';
 import { IconButton } from '@chat2db/ui';
 import { ImportExportType, ImportExportFileType, ImportExportTaskType } from '@/constants/importExport';
 import { ExportTaskParams, ImportTaskParams } from '@/service/importExport';
-import { isDesktop, isDevelopment } from '@/utils/env';
+import { isDesktop } from '@/utils/env';
 import jcefApi from '@/jcef';
-import { hasSelectedImportFile } from './selection';
+import { hasSelectedImportFile, resolveSelectedImportFileType } from './selection';
 import { buildExportTaskParams, DEFAULT_EXPORT_FORM_VALUE, ExportFormValue } from './exportParams';
 import type { RestoredTaskSpec } from '@/blocks/ImportAndExport/utils/restoreTaskSpec';
+import type { BoundInfo } from '@/components/SelectBoundInfo';
+import { sqlImportEnvironmentTarget } from '../../utils/importSqlEnvironment';
 import type { ISqlImportOptions } from '@/typings/importExport';
 
 interface IProps {
@@ -50,6 +53,8 @@ interface IProps {
    * step; the export path keeps the bound table row.
    */
   targetTableField?: ReactNode;
+  sqlExecutionEnvironment?: BoundInfo;
+  executionEnvironmentField?: ReactNode;
 }
 
 export interface ImportExportFileRef {
@@ -88,6 +93,8 @@ const ImportExportFile = forwardRef((props: IProps, ref: ForwardedRef<ImportExpo
     hideSqlImportOptions,
     targetTableName,
     targetTableField,
+    sqlExecutionEnvironment,
+    executionEnvironmentField,
   } = props;
   const { styles, cx } = useStyles();
   const [form] = Form.useForm();
@@ -100,6 +107,7 @@ const ImportExportFile = forwardRef((props: IProps, ref: ForwardedRef<ImportExpo
     setInternalSqlImportOptions(value);
     onSqlImportOptionsChange?.(value);
   };
+  const uploadRef = useRef<UploadLocalFileRef>(null);
   const [selectedFiles, setSelectedFiles] = useState<FileUrl[]>([]);
   // The export directory is a desktop concept; a restored spec never seeds it on web.
   const [exportLocation, setExportLocation] = useState<string>(() =>
@@ -121,6 +129,7 @@ const ImportExportFile = forwardRef((props: IProps, ref: ForwardedRef<ImportExpo
   const isSqlImport = isImport && formValue.exportType === ImportExportFileType.SQL;
   // A SQL script runs in the bound environment, so only a data file has a switchable target table.
   const showTargetTableField = isImport && !isSqlImport && targetTableField != null;
+  const showExecutionEnvironmentField = isSqlImport && executionEnvironmentField != null;
 
   useEffect(() => {
     if (importExportDataBoundInfo) {
@@ -141,16 +150,18 @@ const ImportExportFile = forwardRef((props: IProps, ref: ForwardedRef<ImportExpo
 
   // Gets the corresponding file type based on the export type
   const uploadLocalFileAccept = useMemo(() => {
+    // Keep this stable while detecting a selected file: accept changes clear UploadLocalFile.
+    if (isImport) return exportTypeOptions.map(({ accept }) => accept).join(',');
     return formValue.exportType
       ? exportTypeOptions.find((item) => item.value === formValue.exportType)?.accept
       : '';
-  }, [formValue.exportType]);
+  }, [formValue.exportType, isImport]);
 
   useEffect(() => {
     if (isExport) {
-      setIsReady?.(!isDesktop || !!exportLocation || !!formValue.fileUrl);
+      setIsReady?.(!isDesktop || !!exportLocation);
     }
-  }, [exportLocation, formValue]);
+  }, [isExport, exportLocation, setIsReady]);
 
   useEffect(() => {
     if (isImport) {
@@ -161,6 +172,12 @@ const ImportExportFile = forwardRef((props: IProps, ref: ForwardedRef<ImportExpo
   const handleSelectedFilesChange = (files: FileUrl[]) => {
     setSelectedFiles(files);
     if (isImport) {
+      const detectedType = resolveSelectedImportFileType(files[0], formValue.exportType);
+      if (detectedType !== formValue.exportType) {
+        form.setFieldsValue({ exportType: detectedType });
+        setFormValue((current) => ({ ...current, exportType: detectedType }));
+        onFileTypeChange?.(detectedType);
+      }
       onImportFileChange?.(files[0]);
     }
   };
@@ -169,11 +186,12 @@ const ImportExportFile = forwardRef((props: IProps, ref: ForwardedRef<ImportExpo
     getValues: () => {
       if (!importExportDataBoundInfo) return null;
       const { dataSourceId, databaseName, schemaName, tableName } = importExportDataBoundInfo;
+      const importFormat = resolveSelectedImportFileType(selectedFiles[0], formValue.exportType);
       const commonValues = {
         dataSourceId,
         databaseName,
         schemaName,
-        format: formValue.exportType,
+        format: isImport ? importFormat : formValue.exportType,
       };
       if (isExport) {
         return buildExportTaskParams(importExportDataBoundInfo, formValue, exportLocation);
@@ -181,13 +199,16 @@ const ImportExportFile = forwardRef((props: IProps, ref: ForwardedRef<ImportExpo
       return {
         ...commonValues,
         taskType:
-          formValue.exportType === ImportExportFileType.SQL
+          importFormat === ImportExportFileType.SQL
             ? ImportExportTaskType.SQL_FILE_IMPORT
             : ImportExportTaskType.DATA_FILE_IMPORT,
         // The wizard can change the import target, so its controlled value wins over the bound one.
         tableName: targetTableName || tableName,
         sourceFile: selectedFiles[0]?.filePath || '',
-        ...(formValue.exportType === ImportExportFileType.SQL ? { sqlImportOptions } : {}),
+        ...(importFormat === ImportExportFileType.SQL ? {
+          sqlImportOptions,
+          ...(sqlExecutionEnvironment ? sqlImportEnvironmentTarget(sqlExecutionEnvironment) : {}),
+        } : {}),
         // SQL-script imports have no mapping step, so a restored task keeps the policies it ran with;
         // mapped imports take them from the wizard's confirm step instead.
         ...(restoredSpec?.importPolicies ?? {}),
@@ -202,6 +223,11 @@ const ImportExportFile = forwardRef((props: IProps, ref: ForwardedRef<ImportExpo
     });
     if (changedValues.exportType) {
       onFileTypeChange?.(allValues.exportType);
+      if (isImport && changedValues.exportType !== formValue.exportType) {
+        setSelectedFiles([]);
+        onImportFileChange?.(undefined);
+        uploadRef.current?.resetFileList();
+      }
     }
   };
 
@@ -240,9 +266,10 @@ const ImportExportFile = forwardRef((props: IProps, ref: ForwardedRef<ImportExpo
             ? 'workspace.importExport.executionEnvironment'
             : 'workspace.importExport.targetTable',
         )}:`}
-        name={showTargetTableField ? undefined : 'tableNameDisplay'}
+        name={showTargetTableField || showExecutionEnvironmentField ? undefined : 'tableNameDisplay'}
       >
-        {showTargetTableField ? targetTableField : <Input autoComplete="off" disabled />}
+        {showExecutionEnvironmentField ? executionEnvironmentField
+          : showTargetTableField ? targetTableField : <Input autoComplete="off" disabled />}
       </Form.Item>
       <Form.Item label={`${i18n('workspace.importExport.fileType')}:`} name="exportType">
         <Select options={exportTypeOptions} />
@@ -279,11 +306,19 @@ const ImportExportFile = forwardRef((props: IProps, ref: ForwardedRef<ImportExpo
       {isExport && isDesktop && (
         <Form.Item label={`${i18n('workspace.importExport.exportLocation')}:`} name="exportLocation">
           <div className={styles.exportLocationBox}>
-            <Input autoComplete="off" disabled value={exportLocation} />
+            <Input
+              autoComplete="off"
+              readOnly
+              value={exportLocation}
+              placeholder={i18n('workspace.importExport.selectDirectory')}
+              onClick={handleSelectExportLocation}
+            />
             <IconButton
               className={styles.iconButton}
               size={{ boxSize: 30, iconSize: 22, borderRadius: 6 }}
               code="icon-folder"
+              title={i18n('workspace.importExport.selectDirectory')}
+              aria-label={i18n('workspace.importExport.selectDirectory')}
               onClick={handleSelectExportLocation}
             />
           </div>
@@ -292,6 +327,7 @@ const ImportExportFile = forwardRef((props: IProps, ref: ForwardedRef<ImportExpo
       {isImport && (
         <Form.Item className={fillHeight ? styles.fileField : undefined}>
           <UploadLocalFile
+            ref={uploadRef}
             fillHeight={fillHeight}
             fileUrlListChange={handleSelectedFilesChange}
             accept={uploadLocalFileAccept}
@@ -300,11 +336,6 @@ const ImportExportFile = forwardRef((props: IProps, ref: ForwardedRef<ImportExpo
       )}
       {isImport && formValue.exportType === ImportExportFileType.SQL && !hideSqlImportOptions && (
         <SqlImportOptionsFields value={sqlImportOptions} onChange={updateSqlImportOptions} />
-      )}
-      {isDevelopment && isExport && (
-        <Form.Item label="File URL" name="fileUrl">
-          <Input autoComplete="off" />
-        </Form.Item>
       )}
     </Form>
   );

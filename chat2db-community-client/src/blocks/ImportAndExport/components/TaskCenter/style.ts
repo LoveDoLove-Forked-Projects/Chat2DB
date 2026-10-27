@@ -18,6 +18,33 @@ export const useStyles = createStyles(({ css, token, cx }) => {
     white-space: nowrap;
   `);
   return {
+    attemptHistory: css`
+      grid-column: 1 / -1;
+      grid-row: 6;
+      min-width: 0;
+      margin: 4px 0;
+      color: ${token.colorTextSecondary};
+      font-size: 12px;
+
+      summary {
+        cursor: pointer;
+      }
+
+      button {
+        display: block;
+        padding: 2px 0;
+        border: 0;
+        background: transparent;
+        color: ${token.colorPrimary};
+        cursor: pointer;
+        font: inherit;
+
+        &:disabled {
+          color: ${token.colorTextDisabled};
+          cursor: wait;
+        }
+      }
+    `,
     taskName,
     taskStatusIcon: css`
       display: inline-flex;

@@ -55,6 +55,15 @@ export const useStyles = createStyles(({ css, token }) => ({
   sectionTitle: css`margin: 0; font-size: 14px; font-weight: 500;`,
   errorAlert: css`flex: none; margin-bottom: 12px;`,
   targetTableSelect: css`width: 100%;`,
+  executionEnvironment: css`
+    min-width: 0;
+    margin: 0;
+    padding: 3px 8px;
+    border: 1px solid ${token.colorBorder};
+    border-radius: ${token.borderRadius}px;
+    > div { flex-wrap: wrap; }
+    &:disabled { pointer-events: none; opacity: 0.65; }
+  `,
   parseStatus: css`
     display: flex;
     min-height: 22px;

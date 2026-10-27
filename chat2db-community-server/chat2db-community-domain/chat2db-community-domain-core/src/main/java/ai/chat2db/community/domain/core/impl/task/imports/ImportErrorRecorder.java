@@ -115,7 +115,7 @@ public final class ImportErrorRecorder implements Closeable {
         }
         try {
             context.logInfo(TaskEventCode.IMPORT_ROWS_SKIPPED.name(),
-                    "Import finished with rejected rows",
+                    "Rejected rows recorded",
                     Map.of("rejectedRows", rejectedRows, "errorFile", ImportErrorFileWriter.FILE_NAME));
         } catch (RuntimeException | Error ignored) {
             // The import result has already been decided.

@@ -55,4 +55,10 @@ assert.equal(browserDownload.exportPath, '/tmp/fallback.json', 'the export path 
 assert.equal(browserDownload.encoding, undefined, 'only a CSV export carries CSV output options');
 assert.equal(browserDownload.delimiter, undefined, 'only a CSV export carries CSV output options');
 
+assert.equal(buildExportTaskParams(boundInfo, DEFAULT_EXPORT_FORM_VALUE, '').exportPath, undefined,
+  'web exports let the backend manage the artifact without a user-entered file URL');
+assert.equal(buildExportTaskParams(boundInfo, { ...DEFAULT_EXPORT_FORM_VALUE, fileUrl: '/tmp/old.csv' },
+  '/tmp/selected-directory').exportPath, '/tmp/selected-directory',
+'the selected desktop directory takes precedence over a legacy form value');
+
 console.log('export task params carry the header option to the backend request');

@@ -91,7 +91,11 @@ public class TaskServiceImpl implements TaskService {
             throw new DataNotFoundException();
         }
         ImportTaskSpec spec = resumedSpec(source.getSpecJson(), source.getCheckpointJson());
-        spec.setTaskName(StringUtils.defaultIfBlank(source.getName(), spec.getTaskType()) + " (resumed)");
+        spec.setResumeRootTaskId(spec.getResumeRootTaskId() == null ? source.getId() : spec.getResumeRootTaskId());
+        spec.setResumeParentTaskId(source.getId());
+        spec.setResumeAttempt(spec.getResumeAttempt() == null ? 1 : spec.getResumeAttempt() + 1);
+        spec.setResumeRootTaskName(StringUtils.defaultIfBlank(spec.getResumeRootTaskName(), source.getName()));
+        spec.setTaskName(StringUtils.defaultIfBlank(spec.getResumeRootTaskName(), spec.getTaskType()));
         // A resume request carries only the task id, so unlike a normal import request nothing has
         // bound the connection of the original target. Resolving it here keeps the resumed run on
         // the same database instead of submitting a task that executes without a context.

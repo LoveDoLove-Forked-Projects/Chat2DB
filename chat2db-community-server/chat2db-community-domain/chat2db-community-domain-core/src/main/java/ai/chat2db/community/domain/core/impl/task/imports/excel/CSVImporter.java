@@ -4,6 +4,7 @@ import ai.chat2db.community.domain.api.model.metadata.TableColumn;
 import ai.chat2db.community.domain.api.model.task.CsvOptions;
 import ai.chat2db.community.domain.api.model.task.ImportTaskSpec;
 import ai.chat2db.community.domain.api.model.task.TaskExecutionMode;
+import ai.chat2db.community.domain.api.model.task.TaskEventCode;
 import ai.chat2db.community.domain.api.service.task.TaskExecutionContext;
 import ai.chat2db.community.domain.core.impl.task.imports.IImportStrategy;
 import ai.chat2db.community.domain.core.impl.task.imports.ImportCheckpointWriter;
@@ -36,6 +37,8 @@ public class CSVImporter extends BaseExcelImporter implements IImportStrategy {
                             listener.acceptRow(row, rowNumber);
                         }
                     }, context::checkCancelled);
+            // EOF is reached before finish submits the remaining, partially filled batch.
+            context.logInfo(TaskEventCode.FILE_READ_COMPLETED.name(), "Import file read completed");
             listener.finish();
             checkpoints.flush();
         } catch (RuntimeException | Error failure) {

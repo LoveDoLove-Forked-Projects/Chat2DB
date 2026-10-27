@@ -32,6 +32,8 @@ export interface ImportWizardGateState {
   /** Plain SQL script imports have no preview and no column mapping. */
   previewRequired: boolean;
   previewStatus: ImportWizardPreviewStatus;
+  /** Mapping must be valid before a data-file import reaches confirmation. */
+  mappingValid?: boolean;
 }
 
 /** What the wizard has already asked for, so an automatically failed request is not retried. */
@@ -76,6 +78,8 @@ export const canAdvanceImportWizard = (step: number, state: ImportWizardGateStat
       return state.fileSelected;
     case 1:
       return !state.previewRequired || state.previewStatus === 'loaded';
+    case 2:
+      return !state.previewRequired || state.mappingValid === true;
     default:
       return true;
   }

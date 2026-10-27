@@ -46,7 +46,6 @@ public abstract class BaseImporter implements IImportStrategy {
             context.logInfo(TaskEventCode.TARGET_METADATA_LOADED.name(), "Target table metadata loaded");
             context.logInfo(TaskEventCode.FILE_READ_STARTED.name(), "Reading import file");
             doImportData(spec, context, tableColumns);
-            context.logInfo(TaskEventCode.FILE_READ_COMPLETED.name(), "Import file read completed");
         } catch (TaskCancelledException | TaskExecutionException e) {
             throw e;
         } catch (Exception e) {
@@ -56,6 +55,11 @@ public abstract class BaseImporter implements IImportStrategy {
     }
 
 
+    /**
+     * Reads the source and finishes its writes. Implementations report FILE_READ_COMPLETED at the
+     * reader boundary, before flushing any tail batch or waiting for outstanding parallel writes.
+     * Full batches may already have been written while the reader was producing rows.
+     */
     protected abstract void doImportData(ImportTaskSpec spec, TaskExecutionContext context,
             List<TableColumn> tableColumns);
 

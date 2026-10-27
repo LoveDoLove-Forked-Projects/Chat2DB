@@ -65,4 +65,10 @@ public class ImportTaskSpec implements TaskSpec {
      */
     private Long resumeFromRow;
 
+    /** Stable lineage for presenting continuation attempts as one task without losing audit logs. */
+    private Long resumeRootTaskId;
+    private Long resumeParentTaskId;
+    private Integer resumeAttempt;
+    private String resumeRootTaskName;
+
 }

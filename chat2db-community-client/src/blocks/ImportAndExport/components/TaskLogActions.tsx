@@ -8,6 +8,7 @@ import jcefApi from '@/jcef';
 import { isDesktop } from '@/utils/env';
 import { buildTaskErrorArtifactUrl, canDownloadErrorArtifact, canResumeTask } from '@/blocks/ImportAndExport/utils/taskArtifacts';
 import { useTaskResume } from '@/blocks/ImportAndExport/components/useTaskResume';
+import { isLatestTaskAttempt } from '@/blocks/ImportAndExport/utils/taskAttempts';
 
 interface IProps {
   taskDetails?: ImportExportTaskDetails;
@@ -22,9 +23,10 @@ interface IProps {
  */
 export default function TaskLogActions({ taskDetails, onResumeStart }: IProps) {
   const { resumeTask, resumeContextHolder } = useTaskResume({ closeOwner: onResumeStart });
-  const { cancelTask, cancellingTaskIds } = useImportExportStore((state) => ({
+  const { cancelTask, cancellingTaskIds, taskList } = useImportExportStore((state) => ({
     cancelTask: state.cancelTask,
     cancellingTaskIds: state.cancellingTaskIds,
+    taskList: state.taskList,
   }));
   if (!taskDetails) {
     return null;
@@ -69,10 +71,10 @@ export default function TaskLogActions({ taskDetails, onResumeStart }: IProps) {
           icon={isDesktop ? <FolderOpen aria-hidden size={15} /> : <Download aria-hidden size={15} />}
           onClick={openArtifact}
         >
-          {i18n('workspace.text.openFile')}
+          {i18n(isDesktop ? 'workspace.text.openFile' : 'workspace.task.export.download')}
         </Button>
       )}
-      {canResumeTask(taskDetails) && (
+      {canResumeTask(taskDetails) && isLatestTaskAttempt(taskDetails, taskList) && (
         <Button type="primary" icon={<Play aria-hidden size={15} />} onClick={() => resumeTask(taskDetails)}>
           {i18n('workspace.task.resume.action')}
         </Button>
